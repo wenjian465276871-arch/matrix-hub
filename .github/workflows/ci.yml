@@ -126,7 +126,7 @@ jobs:
           fi
           # 纯文档/CI 配置改动不重启生产
           if git diff --quiet "$base" "${{ github.sha }}" -- . \
-               ':(exclude)docs/**' ':(exclude)*.md' ':(exclude).github/**' ':(exclude)*.txt'; then
+               ':(exclude)docs/**' ':(exclude)*.md' ':(exclude).github/**'; then
             echo "deploy=false" >> "$GITHUB_OUTPUT"
             echo "仅文档变更，跳过部署"
           else

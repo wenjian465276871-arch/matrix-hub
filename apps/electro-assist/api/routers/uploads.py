@@ -96,6 +96,18 @@ def slice_asset(asset_id: str) -> dict:
     }
 
 
+@router.get("/{asset_id}")
+def get_meta(asset_id: str) -> dict:
+    """返回上传时的元信息，前端确认页据此展示尺寸、来源格式与告警。"""
+    if not ASSET_RE.match(asset_id):
+        raise HTTPException(status_code=400, detail={"code": "bad_asset_id"})
+    path = os.path.join(_asset_dir(asset_id), "meta.json")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail={"code": "not_found"})
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
 @router.get("/{asset_id}/{filename}")
 def get_file(asset_id: str, filename: str) -> FileResponse:
     if not ASSET_RE.match(asset_id) or not FILE_RE.match(filename):
