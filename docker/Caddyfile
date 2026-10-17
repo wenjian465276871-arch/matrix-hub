@@ -1,15 +1,15 @@
 # 统一入口：TLS、安全头、静态资源、API 反代
 # 域名通过环境变量注入（compose 里传 SITE_DOMAIN），仓库内不写死
 {
-	email {$ACME_EMAIL}
+	email {$ACME_EMAIL:admin@example.com}
 	admin off
 }
 
-http://{$SITE_DOMAIN}, http://www.{$SITE_DOMAIN} {
+http://{$SITE_DOMAIN:localhost}, http://www.{$SITE_DOMAIN:localhost} {
 	redir https://{host}{uri} permanent
 }
 
-{$SITE_DOMAIN}, www.{$SITE_DOMAIN} {
+{$SITE_DOMAIN:localhost}, www.{$SITE_DOMAIN:localhost} {
 	encode zstd gzip
 
 	header {

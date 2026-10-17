@@ -42,7 +42,9 @@ jobs:
 
       - name: 校验 Caddyfile
         run: |
-          docker run --rm matrix-hub:ci \
+          docker run --rm \
+            -e SITE_DOMAIN=example.com -e ACME_EMAIL=admin@example.com \
+            matrix-hub:ci \
             caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
       - name: 登录 ACR
