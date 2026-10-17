@@ -1,0 +1,17 @@
+# 构建上下文裁剪：只把运行时需要的东西送进 daemon
+.git
+.gitignore
+.github
+.venv
+**/.venv
+**/__pycache__
+**/*.pyc
+**/tests
+**/samples
+node_modules
+**/node_modules
+docs
+*.md
+backups
+.env
+.env.*

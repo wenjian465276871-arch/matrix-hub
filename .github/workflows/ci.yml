@@ -19,8 +19,28 @@ env:
   TAG: ${{ github.sha }}
 
 jobs:
+  test:
+    name: 契约测试
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/electro-assist/api/requirements.txt pytest
+
+      - name: 运行测试
+        working-directory: apps/electro-assist/api
+        run: python -m pytest tests -q
+
   build:
     name: 构建与校验
+    needs: test
     runs-on: ubuntu-latest
     env:
       # secrets 未配置时跳过推送，避免 main 一直红；配好后自动生效

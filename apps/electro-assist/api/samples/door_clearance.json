@@ -1,0 +1,107 @@
+{
+  "schema_version": "1.0",
+  "id": "g_door_clearance_001",
+  "title": "客室侧门关闭间隙检查",
+  "summary": "以门扇关闭状态下的密封间隙为对象，演示数值判据与图示原语的组织方式。全部为演示数据。",
+  "meta": {
+    "system": "door",
+    "source_note": "依据公开的车门维护通识整理并虚构化改写，不含任何企业资料",
+    "model": "deepseek-flash",
+    "generated_at": "2026-10-18T01:30:00Z",
+    "is_demo": true
+  },
+  "steps": [
+    {
+      "id": "s01",
+      "seq": 1,
+      "title": "确认安全条件",
+      "action": "确认车辆处于无电、防溜车状态，作业区域设置警示。用手试拉门扇，确认无异常阻力。",
+      "safety": [
+        "作业前必须确认无电",
+        "禁止在车辆移动时作业"
+      ],
+      "tools": ["警示牌", "手电"],
+      "criteria": [
+        {
+          "id": "confirm_safe",
+          "label": "安全条件已确认",
+          "type": "manual"
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "step_card",
+          "params": {"index": 1, "action": "确认无电并设置警示", "hint": "先挂牌再动手"},
+          "caption": "步骤示意",
+          "fallback_text": "第 1 步：确认无电、设置警示后，方可开始检查。"
+        }
+      ],
+      "duration_s": 120
+    },
+    {
+      "id": "s02",
+      "seq": 2,
+      "title": "测量关闭间隙",
+      "action": "在门扇中部与两端各测一次密封间隙，取三次读数的算术平均值作为判定值。",
+      "safety": ["塞尺使用后擦拭干净"],
+      "tools": ["塞尺（0.02–1.00 mm）"],
+      "criteria": [
+        {
+          "id": "gap_mid",
+          "label": "中部间隙",
+          "type": "range",
+          "unit": "mm",
+          "min": 1.0,
+          "max": 3.0
+        },
+        {
+          "id": "gap_end",
+          "label": "端部间隙",
+          "type": "range",
+          "unit": "mm",
+          "min": 1.5,
+          "max": 4.0
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {"value": 2.0, "unit": "mm", "min": 1.0, "max": 3.0, "label": "中部间隙"},
+          "caption": "读数示例",
+          "fallback_text": "中部间隙示例读数 2.0 mm，允许范围 1.0–3.0 mm。"
+        },
+        {
+          "primitive": "wiring",
+          "params": {"terminals": "1-2-3", "wire_color": "棕/蓝/黄绿", "note": "仅示意端子顺序"},
+          "caption": "端子顺序示意",
+          "fallback_text": "端子顺序为 1、2、3，对应线色棕、蓝、黄绿。"
+        }
+      ],
+      "duration_s": 300
+    },
+    {
+      "id": "s03",
+      "seq": 3,
+      "title": "判定与记录",
+      "action": "两次测量均在范围内判为合格；任一超差则记录实测值并转入异常处置流程。",
+      "criteria": [
+        {
+          "id": "result",
+          "label": "判定结果",
+          "type": "enum",
+          "options": ["合格", "超差", "复测"]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "status_light",
+          "params": {"state": "pass", "label": "间隙合格"},
+          "caption": "状态指示",
+          "fallback_text": "判定为合格时，状态灯显示通过。"
+        }
+      ],
+      "duration_s": 60
+    }
+  ],
+  "disclaimers": ["演示数据 · 非实际作业依据", "AI 生成内容，需专业人员复核"]
+}
