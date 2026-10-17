@@ -25,6 +25,10 @@ DENSITY_MIN, DENSITY_MAX = 0.04, 0.55
 MAX_REGIONS = 6
 CROP_LONG_SIDE = 1600
 MAX_SCALE = 3.0
+BAND_TARGET_H = 260          # 整页表格按此高度分行
+BAND_OVERLAP = 24            # 行带之间的重叠，避免切在字上
+BAND_MAX = 4                 # 单页最多拆几行带
+BAND_LONG_SIDE = 2400        # 行带输出的长边目标（比整图更清晰）
 PADDING = 24
 
 
@@ -128,6 +132,13 @@ def _find_dense_blocks(dark: np.ndarray) -> list[tuple[int, int, int, int]]:
     return blocks
 
 
+
+def _h_rule_positions(dark: np.ndarray) -> list[int]:
+    """返回长横线的 y 坐标（工作图坐标），用于把行带边界对齐到表格线。"""
+    h, w = dark.shape
+    return [y for y in range(h) if _longest_run(dark[y]) >= w * 0.35]
+
+
 def _iou(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> float:
     ax0, ay0, aw, ah = a; bx0, by0, bw, bh = b
     ix0, iy0 = max(ax0, bx0), max(ay0, by0)
@@ -169,8 +180,38 @@ def slice_image(raw: bytes, asset_id: str, out_dir: str,
     # 1) 整图视图：建立全局结构（标题、章节顺序）
     regions.append(_emit(full, asset_id, "full", (0, 0, full.width, full.height), out_dir, ratio=1.0))
 
+    # 1.5) 整页表格：拆成行带。
+    # 一页就是一张大表时，整块输出等于没切——小字仍是原尺寸，识别不出来。
+    bands: list[tuple[int, int, int, int]] = []
+    for (bx, by, bw, bh) in kept:
+        page_ratio = (bw * bh) / (dark.shape[0] * dark.shape[1])
+        # 注意：kept 是工作图坐标，判断高度必须换回原图，否则缩放后永远不达标
+        ox, oy = round(bx / ratio), round(by / ratio)
+        ow, oh = round(bw / ratio), round(bh / ratio)
+        if page_ratio > 0.45 and oh > BAND_TARGET_H * 1.5:
+            n = min(BAND_MAX, max(2, round(oh / BAND_TARGET_H)))
+            # 理想切点 → 对齐到最近的横线，避免把一行字切成两半
+            rules = sorted({round(r / ratio) for r in _h_rule_positions(dark)
+                            if oy - 40 <= round(r / ratio) <= oy + oh + 40})
+            cuts = [oy + round(k * oh / n) for k in range(1, n)]
+            snapped: list[int] = []
+            for c in cuts:
+                near = [r for r in rules if abs(r - c) <= 40]
+                snapped.append(min(near, key=lambda r: abs(r - c)) if near else c)
+            edges = [oy] + snapped + [oy + oh]
+            for a, b in zip(edges, edges[1:]):
+                y0, y1 = a, min(oy + oh, b + BAND_OVERLAP)
+                if y1 - y0 < 60:
+                    continue
+                bands.append((ox, y0, ow, y1 - y0))
+    if bands:
+        kept = [b for b in kept if (b[2] * b[3]) / (dark.shape[0] * dark.shape[1]) <= 0.45]
+
     # 2) 局部块：映射回原图坐标、加 padding、放大
-    for i, (x, y, w, h) in enumerate(kept, start=1):
+    for i, band in enumerate(bands, start=1):
+        regions.append(_emit(full, asset_id, "table_band", band, out_dir, ratio=1.0, index=i))
+
+    for i, (x, y, w, h) in enumerate(kept, start=len(bands) + 1):
         ox, oy = round(x / ratio), round(y / ratio)
         ow, oh = round(w / ratio), round(h / ratio)
         ox, oy = max(0, ox - PADDING), max(0, oy - PADDING)
@@ -199,6 +240,9 @@ def _emit(img: Image.Image, asset_id: str, reason: str, box: tuple[int, int, int
     crop = img.crop((x, y, x + w, y + h))
     if reason == "full":
         scale = min(1.0, CROP_LONG_SIDE / max(crop.size)) if max(crop.size) > CROP_LONG_SIDE else 1.0
+    elif reason == "table_band":
+        scale = min(MAX_SCALE, BAND_LONG_SIDE / max(crop.size))
+        scale = max(scale, 1.0)
     else:
         scale = min(MAX_SCALE, CROP_LONG_SIDE / max(crop.size))
         scale = max(scale, 1.0)
