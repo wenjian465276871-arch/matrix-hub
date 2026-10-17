@@ -8,10 +8,10 @@
 
 | 模块 | 路径 | 说明 | 状态 |
 |---|---|---|---|
-| 门户 | `apps/portal` | 站点首页与作品索引 | 迁移中 |
-| 新闻洞察 | `apps/news-insight` | 新闻聚合与要点提取（FastAPI） | 迁移中 |
-| 粒子系统 | `apps/particle-system` | Canvas 视觉实验 | 迁移中 |
-| 电气调试助手 | `apps/electro-assist` | 工艺文本 → 可视化作业指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | 开发中 |
+| 门户 | `apps/portal/public` | 站点首页（自包含重写，零外链） | **已上线** |
+| 新闻洞察 | —— | 新闻聚合（原 FastAPI 后端） | **已下架**（ADR-0002） |
+| 粒子系统 | `apps/particle-system/legacy` | Canvas 视觉实验 | 暂停（待重构，ADR-0003） |
+| 电气调试助手 | `apps/electro-assist` | 工艺文本/图片 → 指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | 开发中（契约 + 上传切图已上线） |
 
 ## 架构一句话
 

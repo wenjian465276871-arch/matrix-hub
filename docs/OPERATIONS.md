@@ -129,7 +129,16 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 
 判断当前命令用的是谁：`gh auth status` 看 Active account；或直接 `GH_TOKEN=... gh api user -q .login` 回显。
 
-## 10. 待补
+## 10. 近期变更（2026-10-18）
+
+| 变更 | 影响 |
+|---|---|
+| 上传目录 `UPLOAD_DIR=/srv/app_data/uploads` | 上传资产落在 `app_data` 卷，重建容器不丢；**30 天清理未实现** |
+| 依赖升级 | Pillow 13.0.0 / python-multipart 0.0.32 / numpy 2.2.1；升级前先跑 `pytest`，再验证线上上传与切图 |
+| 部署变更门控 | 仅 `docs/**`、`*.md`、`.github/**` 的改动不重启生产；改代码仍会中断约 15–20 秒 |
+| 镜像标签 | 一律用 commit SHA，禁止 `latest`；ACR 个人版约 81MB/镜像，保留不超过 3 个 |
+
+## 11. 待补
 
 - 每日备份定时任务（当前依赖云快照）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
