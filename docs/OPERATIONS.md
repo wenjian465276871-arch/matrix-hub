@@ -136,7 +136,17 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 | 上传目录 `UPLOAD_DIR=/srv/app_data/uploads` | 上传资产落在 `app_data` 卷，重建容器不丢；**30 天清理未实现** |
 | 依赖升级 | Pillow 13.0.0 / python-multipart 0.0.32 / numpy 2.2.1；升级前先跑 `pytest`，再验证线上上传与切图 |
 | 部署变更门控 | 仅 `docs/**`、`*.md`、`.github/**` 的改动不重启生产；改代码仍会中断约 15–20 秒 |
-| 镜像标签 | 一律用 commit SHA，禁止 `latest`；ACR 个人版约 81MB/镜像，保留不超过 3 个 |
+| 镜像标签 | 一律用 commit SHA，禁止 `latest`；单镜像约 316MB（压缩后 80MB 量级），ACR 个人版保留不超过 3 个 |
+
+### 10.1 上传体积的三级限制（容易误解）
+
+| 层 | 限制 | 位置 | 说明 |
+|---|---|---|---|
+| Caddy 全局 | 2 MB | `Caddyfile` `request_body` | 所有普通请求 |
+| Caddy 上传路由 | 6 MB | `/api/electro/uploads*` 单独放宽 | 给应用层留余量 |
+| 应用层 | **5 MB** | `imaging.MAX_BYTES` | 最终生效值；超限返回 413 |
+
+**以应用层 5 MB 为准**，前两层只是让请求能到达应用。改限制时必须三处同步，否则会出现"网关放行、应用拒绝"或反之。
 
 ## 11. 待补
 
