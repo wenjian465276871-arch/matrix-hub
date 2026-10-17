@@ -1,0 +1,34 @@
+# 单服务部署：Caddy + electro API 由容器内 supervisord 托管
+# 变量来自同目录 .env（服务器上创建，权限 600，不入库）
+name: matrix-hub
+
+services:
+  web:
+    image: ${IMAGE}:${TAG}
+    container_name: matrix-hub
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - SITE_DOMAIN=${SITE_DOMAIN}
+      - ACME_EMAIL=${ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - app_data:/srv/app_data
+    # 只挂业务卷，不挂 docker socket，不加 privileged
+    read_only: false
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+volumes:
+  caddy_data:
+  app_data:

@@ -1,0 +1,86 @@
+# 统一入口：TLS、安全头、静态资源、API 反代
+# 域名通过环境变量注入（compose 里传 SITE_DOMAIN），仓库内不写死
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+http://{$SITE_DOMAIN}, http://www.{$SITE_DOMAIN} {
+	redir https://{host}{uri} permanent
+}
+
+{$SITE_DOMAIN}, www.{$SITE_DOMAIN} {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; img-src 'self' data:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
+		-Server
+	}
+
+	# 全局请求体上限 2MB；上传路由单独放宽（见下）
+	request_body {
+		max_size 2MB
+	}
+
+	# ---- 健康检查：聚合在 electro API 内 ----
+	handle /healthz {
+		reverse_proxy 127.0.0.1:8001
+	}
+
+	# ---- API：仅 electro（news 已下架，见 ADR-0002）----
+	# SSE 路由必须单独处理：关闭缓冲 + 在 transport 内设读超时
+	handle /api/electro/diagnose* {
+		reverse_proxy 127.0.0.1:8001 {
+			flush_interval -1
+			transport http {
+				read_timeout 300s
+			}
+		}
+	}
+
+	handle /api/electro/uploads* {
+		request_body {
+			max_size 6MB
+		}
+		reverse_proxy 127.0.0.1:8001
+	}
+
+	handle /api/electro/* {
+		reverse_proxy 127.0.0.1:8001
+	}
+
+	# 明确的 404，避免落到 SPA 回退后返回 200
+	handle /api/* {
+		respond 404
+	}
+
+	# ---- 静态：粒子系统 ----
+	handle_path /apps/particle-system/* {
+		root * /srv/static/particle
+		try_files {path} {path}/ /index.html
+		file_server
+	}
+
+	# ---- 静态：电气调试助手（Vue SPA）----
+	handle_path /apps/electro-assist/* {
+		root * /srv/static/electro
+		try_files {path} /index.html
+		file_server
+	}
+
+	# ---- 门户 ----
+	handle {
+		root * /srv/static/portal
+		try_files {path} {path}/ /index.html
+		file_server
+	}
+
+	log {
+		output stdout
+		format console
+	}
+}
