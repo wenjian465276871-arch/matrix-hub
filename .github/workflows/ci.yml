@@ -59,7 +59,9 @@ jobs:
   deploy:
     name: 部署到服务器
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # 割接（P0b）完成前保持关闭：nginx 仍占用 80/443，容器起不来。
+    # 割接时在仓库 Settings → Variables 里把 DEPLOY_ENABLED 设为 true 即可启用。
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
     steps:
