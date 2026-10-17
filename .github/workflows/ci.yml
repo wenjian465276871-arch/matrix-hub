@@ -61,6 +61,28 @@ jobs:
           docker push "$IMAGE:$TAG"
           echo "已推送 $IMAGE:$TAG"
 
+  preflight:
+    name: 服务器连通性自检
+    # 只在 main 推送时跑：验证 SSH 密钥有效、docker/compose 可用。
+    # 这是割接前的必要证据，失败即说明 secrets 内容有问题。
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 准备 SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: 连接并检查环境
+        run: |
+          ssh -i ~/.ssh/id_ed25519 \
+              -o BatchMode=yes -o ConnectTimeout=10 \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+              'echo "host=$(hostname)"; docker --version; docker compose version; df -h / | tail -1'
+
   deploy:
     name: 部署到服务器
     needs: build
