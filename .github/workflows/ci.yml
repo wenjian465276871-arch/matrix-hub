@@ -112,7 +112,28 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: 判断变更是否影响运行时
+        id: scope
+        run: |
+          base="${{ github.event.before }}"
+          if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+            echo "deploy=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          # 纯文档/CI 配置改动不重启生产
+          if git diff --quiet "$base" "${{ github.sha }}" -- . \
+               ':(exclude)docs/**' ':(exclude)*.md' ':(exclude).github/**' ':(exclude)*.txt'; then
+            echo "deploy=false" >> "$GITHUB_OUTPUT"
+            echo "仅文档变更，跳过部署"
+          else
+            echo "deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: 准备 SSH
+        if: steps.scope.outputs.deploy == 'true'
         run: |
           install -m 700 -d ~/.ssh
           printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
@@ -121,11 +142,13 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: 执行部署（健康检查失败自动回滚）
+        if: steps.scope.outputs.deploy == 'true'
         run: |
           ssh -i ~/.ssh/id_ed25519 \
               "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
               "cd /opt/matrix-hub && ./deploy.sh ${{ github.sha }}"
 
       - name: 部署后校验
+        if: steps.scope.outputs.deploy == 'true'
         run: |
           curl -fsS --max-time 10 "https://${{ secrets.SITE_DOMAIN }}/healthz"

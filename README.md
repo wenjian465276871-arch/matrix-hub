@@ -46,6 +46,7 @@ cd apps/news-insight && uv sync && uv run uvicorn app.main:app --reload
 ## 文档导航
 
 - [架构与取舍](docs/ARCHITECTURE.md)
+- [A2 图片输入方案](docs/A2-IMAGE-INPUT.md)（草案）
 - [部署与回滚](docs/OPERATIONS.md)（待补）
 - [接口说明](docs/API.md)（以 OpenAPI 为准）
 - [界面规范](docs/UI.md) · [交互规范](docs/UX.md) · [前端方案](docs/FRONTEND.md)
