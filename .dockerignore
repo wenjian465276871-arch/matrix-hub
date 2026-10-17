@@ -15,3 +15,5 @@ docs
 backups
 .env
 .env.*
+app_data
+**/app_data

@@ -14,7 +14,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     APP_ENV=prod \
     XDG_DATA_HOME=/srv/app_data/caddy \
-    XDG_CONFIG_HOME=/srv/app_data/caddy
+    XDG_CONFIG_HOME=/srv/app_data/caddy \
+    UPLOAD_DIR=/srv/app_data/uploads
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \

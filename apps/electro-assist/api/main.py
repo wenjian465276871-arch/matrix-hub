@@ -10,6 +10,7 @@ import os
 from fastapi import FastAPI
 
 from routers import schema as schema_router
+from routers import uploads as uploads_router
 
 APP_ENV = os.getenv("APP_ENV", "dev")
 IS_PROD = APP_ENV == "prod"
@@ -24,6 +25,7 @@ app = FastAPI(
 )
 
 app.include_router(schema_router.router)
+app.include_router(uploads_router.router)
 
 
 @app.get("/healthz", tags=["ops"])
