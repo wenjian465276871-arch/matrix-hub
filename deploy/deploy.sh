@@ -53,7 +53,7 @@ health_check() {
 }
 
 echo "==> 拉取镜像"
-docker compose pull web
+TAG="$NEW_TAG" docker compose pull web
 
 echo "==> 启动"
 TAG="$NEW_TAG" docker compose up -d web
