@@ -38,18 +38,23 @@ record_state() {
   } >> deploy.log
 }
 
+# 注意：8001 只在容器内监听，宿主机不可访问。
+# 必须经 Caddy 的 443 访问，并用 --resolve 固定到回环地址，避免走到公网 DNS。
 health_check() {
-  local ok=0
-  for i in 1 2 3; do
+  local streak=0 i
+  for i in $(seq 1 8); do
     sleep 5
-    if curl -fsS --max-time 5 http://127.0.0.1:8001/healthz >/dev/null 2>&1 \
-       && curl -fsSk --max-time 5 "https://${SITE_DOMAIN:-localhost}/" >/dev/null 2>&1; then
-      ok=$((ok + 1))
+    if curl -fsSk --max-time 5 --resolve "${SITE_DOMAIN}:443:127.0.0.1" \
+         "https://${SITE_DOMAIN}/healthz" 2>/dev/null | grep -q '"status":"ok"'; then
+      streak=$((streak + 1))
+      echo "    探测通过 ${streak}/3（第 ${i} 次）"
+      [ "$streak" -ge 3 ] && return 0
     else
+      streak=0
       echo "    第 ${i} 次探测失败"
     fi
   done
-  [ "$ok" -ge 3 ]
+  return 1
 }
 
 echo "==> 拉取镜像"
