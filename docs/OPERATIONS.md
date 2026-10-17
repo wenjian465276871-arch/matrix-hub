@@ -109,7 +109,27 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 | 内存告警 | `docker stats` | 单实例约 70–300MB；超 800MB 说明有泄漏 |
 | 误部署 | `deploy.log` 的 prev_tag | 按第 4 节回滚 |
 
-## 9. 待补
+## 9. 身份约定（GitHub CLI）
+
+工作机上同时存在两个 GitHub 账号：**项目所有者账号**（本仓库归属）与**另一个长期项目的账号**。
+后者是 `gh` 的默认 active 账号，本仓库**不去争抢**这个全局状态。
+
+规则：
+
+1. **不执行 `gh auth switch`**。切换全局 active 会让另一个长期项目掉线，代价比收益大。
+2. 对本仓库的 API 操作，一律**命令内联指定身份**：
+
+   ```bash
+   GH_TOKEN=$(gh auth token --user <owner>) gh api repos/<owner>/matrix-hub/...
+   ```
+
+3. `git push` 走 SSH 密钥，密钥绑定的就是所有者账号，**与 active 账号无关**，因此推送不受影响。
+4. 若某条命令需要 `security_events` 等额外 scope，对所有者账号执行一次
+   `gh auth refresh -h github.com -u <owner> -s security_events`，不要给另一个账号加。
+
+判断当前命令用的是谁：`gh auth status` 看 Active account；或直接 `GH_TOKEN=... gh api user -q .login` 回显。
+
+## 10. 待补
 
 - 每日备份定时任务（当前依赖云快照）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
