@@ -22,6 +22,9 @@ jobs:
   build:
     name: 构建与校验
     runs-on: ubuntu-latest
+    env:
+      # secrets 未配置时跳过推送，避免 main 一直红；配好后自动生效
+      ACR_READY: ${{ secrets.ACR_PASSWORD != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -43,14 +46,14 @@ jobs:
             caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 
       - name: 登录 ACR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.ACR_READY == 'true'
         run: |
           echo "${{ secrets.ACR_PASSWORD }}" | \
           docker login "${{ secrets.ACR_REGISTRY }}" \
             --username "${{ secrets.ACR_USERNAME }}" --password-stdin
 
       - name: 推送镜像
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && env.ACR_READY == 'true'
         run: |
           docker tag matrix-hub:ci "$IMAGE:$TAG"
           docker push "$IMAGE:$TAG"
