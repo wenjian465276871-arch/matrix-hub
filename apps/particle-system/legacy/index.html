@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手势控制粒子特效系统</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- MediaPipe Dependencies (Fast Mirror) -->
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://fastly.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+</head>
+<body>
+    <div id="loading">系统初始化中... 请授予摄像头权限</div>
+    
+    <!-- 粒子渲染层 -->
+    <canvas id="particle-canvas"></canvas>
+    
+    <!-- 调试与输入层 (默认隐藏视频，保留调试Canvas) -->
+    <div id="debug-container">
+        <video id="input-video" playsinline></video>
+        <canvas id="debug-canvas"></canvas>
+    </div>
+
+    <!-- UI 反馈层 -->
+    <div id="ui-overlay">
+        <div id="status-text">等待手势...</div>
+        <div id="gesture-icon">✋</div>
+    </div>
+
+    <script type="module" src="src/app.js"></script>
+</body>
+</html>
