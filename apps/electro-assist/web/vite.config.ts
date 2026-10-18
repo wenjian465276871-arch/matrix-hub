@@ -14,4 +14,8 @@ export default defineConfig({
     modulePreload: { polyfill: false },
     assetsInlineLimit: 0,
   },
+  // 仅本地验收用：`npm run preview` 时把 /api 转到本机后端，模拟生产的同源反代。
+  preview: {
+    proxy: { '/api': 'http://127.0.0.1:8001' },
+  },
 })

@@ -390,20 +390,106 @@ h3 {
 }
 
 .criterion__unit {
-  margin-left: 2px;
+  margin-left: 4px;
   color: var(--c-ink-3);
   font-size: 12px;
 }
 
+.step__duration {
+  margin: 0;
+  color: var(--c-ink-2);
+  font-size: 13px;
+}
+
 .figure {
+  margin: 0;
   padding: 12px;
   border: 1px dashed var(--c-line);
   border-radius: var(--radius-sm);
   background: var(--c-surface);
 }
 
+.figure svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  /* 图元按 340 宽设计，桌面端不封顶会被拉到 2.6 倍，字比正文还大。 */
+  max-width: var(--w-figure);
+  margin: 0 auto;
+}
+
 .figure + .figure {
   margin-top: 8px;
+}
+
+/* SVG 表现属性只能用类承载：CSP 的 style-src 'self' 会拦掉 style="" 内联样式，
+   所以颜色一律走 CSS 类，尺寸走 SVG 属性。改色只改这里，不要写进组件。 */
+.fig-ink {
+  fill: var(--c-ink);
+}
+
+.fig-ink2 {
+  fill: var(--c-ink-2);
+}
+
+.fig-ink3 {
+  fill: var(--c-ink-3);
+}
+
+.fig-primary {
+  fill: var(--c-primary);
+}
+
+.fig-primary-soft {
+  fill: var(--c-primary-soft);
+}
+
+.fig-surface {
+  fill: var(--c-surface);
+}
+
+.fig-track {
+  fill: var(--c-line-soft);
+}
+
+.fig-pass {
+  fill: var(--c-success);
+}
+
+.fig-warn {
+  fill: var(--c-warning);
+}
+
+.fig-danger {
+  fill: var(--c-danger);
+}
+
+.fig-idle {
+  fill: var(--c-ink-3);
+}
+
+.fig-stroke-line {
+  stroke: var(--c-line);
+}
+
+.fig-stroke-ink {
+  stroke: var(--c-ink);
+}
+
+.fig-stroke-ink2 {
+  stroke: var(--c-ink-2);
+}
+
+.fig-stroke-primary {
+  stroke: var(--c-primary-line);
+}
+
+.fig-stroke-track {
+  stroke: var(--c-line-soft);
+}
+
+.fig-stroke-warn-soft {
+  stroke: var(--c-warning-line);
 }
 
 .figure__caption {

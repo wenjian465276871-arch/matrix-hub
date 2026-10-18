@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import GuideFigure from '../figures/GuideFigure.vue'
 import { ApiError, getJson } from '../lib/http'
 import type { Criterion, Guide } from '../types'
 
@@ -125,16 +126,12 @@ onBeforeUnmount(() => ctrl?.abort())
 
       <div v-if="step.figures.length" class="step__block">
         <p class="block-label">图示</p>
-        <div v-for="(fig, i) in step.figures" :key="`${step.id}-fig-${i}`" class="figure">
-          <p v-if="fig.caption" class="figure__caption">{{ fig.caption }}</p>
-          <p class="figure__fallback">{{ fig.fallback_text }}</p>
-          <p class="figure__pending">图元 {{ fig.primitive }} · 渲染器待接入（T07）</p>
-        </div>
+        <GuideFigure v-for="(fig, i) in step.figures" :key="`${step.id}-fig-${i}`" :spec="fig" />
       </div>
 
       <div v-if="step.duration_s" class="step__block">
         <p class="block-label">预计耗时</p>
-        <p class="figure__fallback">{{ Math.max(1, Math.round(step.duration_s / 60)) }} 分钟</p>
+        <p class="step__duration">{{ Math.max(1, Math.round(step.duration_s / 60)) }} 分钟</p>
       </div>
     </section>
   </article>
