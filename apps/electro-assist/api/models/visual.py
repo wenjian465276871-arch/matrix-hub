@@ -41,6 +41,11 @@ _ALLOWED_PARAMS: dict[Primitive, set[str]] = {
 _STATE_VALUES = {"pass", "warn", "danger", "idle"}
 
 
+def allowed_params() -> dict[str, list[str]]:
+    """给 prompt 与 `/schema/visual` 共用，避免"文档说允许、代码拒绝"的漂移。"""
+    return {p.value: sorted(keys) for p, keys in _ALLOWED_PARAMS.items()}
+
+
 class VisualSpec(BaseModel):
     """一条图示声明。渲染器按 primitive 分发，参数做二次校验。"""
 
