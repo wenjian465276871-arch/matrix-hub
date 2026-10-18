@@ -132,9 +132,10 @@ jobs:
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          # 纯文档/CI 配置改动不重启生产
+          # 纯文档/CI/模板改动不重启生产
           if git diff --quiet "$base" "${{ github.sha }}" -- . \
-               ':(exclude)docs/**' ':(exclude)*.md' ':(exclude).github/**'; then
+               ':(exclude)docs/**' ':(exclude)*.md' ':(exclude).github/**' \
+               ':(exclude)deploy/.env.example'; then
             echo "deploy=false" >> "$GITHUB_OUTPUT"
             echo "仅文档变更，跳过部署"
           else
