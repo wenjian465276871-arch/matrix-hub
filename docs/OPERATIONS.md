@@ -34,9 +34,12 @@ deploy.log      deploy.sh 追加写入的部署记录
 
 ## 3. 部署
 
-**正常路径**：push 到 `main` → GitHub Actions 构建 → 推 ACR → SSH 执行 `deploy.sh <sha>`。
+**正常路径**：push 到 `main` → GitHub Actions 构建 → 推 ACR → **scp 同步 `deploy.sh` 与 `compose.yml`** → SSH 执行 `deploy.sh <sha>`。
 
-**手动路径**（CI 不可用时）：
+> 2026-10-18 补：同步步骤此前缺失，CI 实际一直在跑服务器上的旧脚本——仓库改了不生效，
+> 等于部署逻辑不在版本控制里。现在这两个文件每次部署前从仓库覆盖到 `/opt/matrix-hub/`。
+
+**手动路径**（CI 不可用时）：先 `scp deploy/deploy.sh docker/compose.yml` 到 `/opt/matrix-hub/`，再：
 
 ```bash
 cd /opt/matrix-hub
@@ -48,8 +51,8 @@ cd /opt/matrix-hub
 1. 记录当前 TAG
 2. `docker compose pull web`
 3. 用新 TAG 启动
-4. 健康检查：连续 3 次通过（每次间隔 5s，检查 `/healthz` 与站点首页）
-5. 失败 → 自动切回上一 TAG 并复查；仍不健康则退出码 1
+4. 健康检查：连续 3 次通过（每次间隔 5s，经 Caddy 443 检查 `/healthz`）
+5. 失败 → 自动切回上一 TAG 并按同一口径复查；仍不健康则退出码 1
 
 ## 4. 回滚
 
@@ -148,8 +151,30 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 
 **以应用层 5 MB 为准**，前两层只是让请求能到达应用。改限制时必须三处同步，否则会出现"网关放行、应用拒绝"或反之。
 
+### 10.2 上传的频率限制（2026-10-18 新增）
+
+| 维度 | 默认值 | 环境变量 | 超限返回 |
+|---|---|---|---|
+| 单 IP / 小时 | 6 | `UPLOAD_RATE_PER_HOUR` | 429 + `Retry-After` |
+| 单 IP / 日 | 20 | `UPLOAD_RATE_PER_DAY` | 429 + `Retry-After` |
+| 全站 / 日 | 200 | `UPLOAD_SITE_PER_DAY` | 429 + `Retry-After` |
+
+实现是**进程内滑窗**（`apps/electro-assist/api/ratelimit.py`），前提是**单容器单 worker**。
+重启即清零，这是刻意取舍：限流用于抬高滥用成本，精确计量走后续 SQLite `usage` 表。
+**改成多 worker 或多实例后此机制失效**（各进程各记一份），必须换成 Caddy 层限流或 Redis。
+
+IP 取自 `X-Forwarded-For` 的**最右一段**（由容器内 Caddy 追加）。若将来前置 CDN，需重新确认信任链。
+
+### 10.3 回滚复查（2026-10-18 修复）
+
+`deploy.sh` 的回滚复查原先探测 `http://127.0.0.1:8001/healthz`，但 8001 只在容器内监听、
+宿主机不可达——**成功回滚也会打印"仍不健康"**。现统一走 `probe_health()`：
+`curl --resolve ${SITE_DOMAIN}:443:127.0.0.1 https://.../healthz`，与部署后检查同口径。
+
 ## 11. 待补
 
 - 每日备份定时任务（当前依赖云快照）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
 - 监控告警（`/healthz` 外部探测）
+- **上传目录 30 天清理**（`app_data/uploads` 持续增长，当前 1.4MB 可忽略，P2 前必须做）
+- 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯）

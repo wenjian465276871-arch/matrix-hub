@@ -9,17 +9,18 @@
 flowchart LR
   U[浏览器] -->|HTTPS 443 / HTTP 80 跳转| C[Caddy]
   C -->|静态资源| S[镜像内前端产物]
-  C -->|/api/news/*| N[news API :8000]
   C -->|/api/electro/*| E[electro API :8001]
-  N --> D[(SQLite + app_data)]
-  E --> D
-  N -->|出站| X[新闻源]
-  E -->|出站| L[LLM / Embedding]
+  E --> D[(app_data 卷<br/>uploads / 未来 SQLite)]
+  E -.->|P1a-W2 起| L[DeepSeek / DashScope]
 ```
 
-单容器：`supervisord` 托管 Caddy + 两个 API。API 绑定 `127.0.0.1`，公网仅 Caddy 一个入口。
+单容器：`supervisord` 托管 Caddy + 一个 API。API 绑定 `127.0.0.1`，公网仅 Caddy 一个入口。
+news-insight 已下架（ADR-0002），镜像内无 :8000 进程；LLM/Embedding 出站**尚未接入**，虚线为规划态。
 
-## 2. 请求链路（一次指导书生成）
+## 2. 请求链路（P1a-W2 目标态，当前未实现）
+
+> 现状：`/generate`、`/jobs/{id}` 尚未存在，代码里只有契约与上传切图 8 个端点。
+> 本图是 W2 的验收对象，不是当前行为。
 
 ```mermaid
 sequenceDiagram
