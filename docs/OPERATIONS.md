@@ -165,6 +165,9 @@ curl -s https://<域名>/healthz     # 期望 {"status":"ok","checks":{"electro"
 恢复后核对：`docker exec matrix-hub python -c "import sqlite3;c=sqlite3.connect('/srv/app_data/electro.db');print(c.execute('select count(*) from guides').fetchone())"`
 ——数量应与备份时一致。**恢复演练每季度至少一次**，否则"有备份"只是心理安慰。
 
+> 2026-10-19 首次演练：停容器 → 移走原库 → 用备份替换 → 启动，**4 秒恢复健康**，
+> 3 guides（2 published + 1 draft）/ 1 job 与备份一致；原库保留 24h 后清理。
+
 ## 8. 事故处置
 
 | 现象 | 首查 | 处置 |
