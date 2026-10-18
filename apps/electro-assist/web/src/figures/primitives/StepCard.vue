@@ -5,10 +5,10 @@
  *  给一个足够大的序号——现场扫视时序号比标题更快定位。
  *  icon 参数只接受 ≤2 个字符的短标记，超长直接忽略（不为了装饰冒排版风险）。 */
 import { computed } from 'vue'
-import type { Scalar } from '../../types'
+import type { ParamValue } from '../../types'
 import { MONO, num, str, wrapText } from '../svg'
 
-const props = defineProps<{ params: Record<string, Scalar>; label?: string }>()
+const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
 
 const TEXT_W = 232
 const LINE_H = 22

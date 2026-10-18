@@ -44,6 +44,7 @@ def main() -> int:
     parser.add_argument("--env-file", default="../.env", help=".env 路径")
     parser.add_argument("--budget", type=float, default=90.0)
     parser.add_argument("--timeout", type=float, default=40.0)
+    parser.add_argument("--debug", action="store_true", help="失败时打印模型原始输出")
     args = parser.parse_args()
 
     load_env_file(Path(args.env_file).expanduser().resolve())
@@ -62,6 +63,15 @@ def main() -> int:
     except LLMError as exc:
         print(f"[生成失败] kind={exc.kind} retryable={exc.retryable}", file=sys.stderr)
         print(str(exc), file=sys.stderr)
+        print(
+            f"[用量] 尝试 {exc.attempts} 次，输入 {exc.usage.prompt_tokens} / "
+            f"输出 {exc.usage.completion_tokens}，成本 ¥{exc.cost_micros / 1e6:.4f}",
+            file=sys.stderr,
+        )
+        if args.debug and exc.raw:
+            print("---- 模型原始输出 ----", file=sys.stderr)
+            print(exc.raw[:4000], file=sys.stderr)
+            print("---- 结束 ----", file=sys.stderr)
         return 1
     except ValueError as exc:
         print(f"[输入问题] {exc}", file=sys.stderr)

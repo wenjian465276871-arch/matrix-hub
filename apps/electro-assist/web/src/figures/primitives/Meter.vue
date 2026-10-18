@@ -8,10 +8,10 @@
  *    就是伪造数据；空着又会让整张图降级成文字。范围条是第三种正确答案。
  */
 import { computed } from 'vue'
-import type { Scalar } from '../../types'
+import type { ParamValue } from '../../types'
 import { MONO, num, str } from '../svg'
 
-const props = defineProps<{ params: Record<string, Scalar>; label?: string }>()
+const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
 
 const V = 340
 const PAD = 16

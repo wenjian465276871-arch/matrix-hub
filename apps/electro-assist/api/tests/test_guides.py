@@ -15,6 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from main import app
+from models.guide import SCHEMA_VERSION
 from routers import guides as guides_router
 
 client = TestClient(app)
@@ -85,7 +86,7 @@ def test_empty_dir_returns_empty_list(tmp_path, monkeypatch):
     monkeypatch.setenv("GUIDE_DIR", str(tmp_path))
     guides_router.reset_cache()
     body = client.get("/api/electro/guides").json()
-    assert body == {"schema_version": "1.0", "count": 0, "items": []}
+    assert body == {"schema_version": SCHEMA_VERSION, "count": 0, "items": []}
 
 
 def test_every_primitive_has_sample_coverage():

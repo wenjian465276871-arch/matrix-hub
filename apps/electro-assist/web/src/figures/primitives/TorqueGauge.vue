@@ -4,10 +4,10 @@
  *  量程取「目标 ± 3×公差」——固定 0–30 N·m 那种画法会让 0.8 N·m 的目标挤成一条线。
  *  公差带用琥珀色块，目标值用刻度线 + 大字读数双重标识。 */
 import { computed } from 'vue'
-import type { Scalar } from '../../types'
+import type { ParamValue } from '../../types'
 import { MONO, num, str } from '../svg'
 
-const props = defineProps<{ params: Record<string, Scalar>; label?: string }>()
+const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
 
 const CX = 170
 const CY = 150

@@ -5,20 +5,16 @@
  *  分隔符约定 `|`（也兼容换行与分号），与服务端 `/schema/visual` 的说明一致。
  *  多行条目自动折行，宁可长高也不截断：截断的检查项等于没有。 */
 import { computed } from 'vue'
-import type { Scalar } from '../../types'
-import { str, wrapText } from '../svg'
+import type { ParamValue } from '../../types'
+import { splitList, wrapText } from '../svg'
 
-const props = defineProps<{ params: Record<string, Scalar>; label?: string }>()
+const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
 
 const TEXT_W = 286
 const LINE_H = 18
 
 const model = computed(() => {
-  const raw = str(props.params.items)
-  const items = raw
-    .split(/[|\n;；]/)
-    .map((s) => s.trim())
-    .filter(Boolean)
+  const items = splitList(props.params.items, /[|\n;；]/)
   if (!items.length) throw new Error('checklist：items 为空')
   if (items.length > 10) throw new Error('checklist：条目超过 10 条')
 

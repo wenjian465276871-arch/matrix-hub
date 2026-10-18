@@ -35,6 +35,12 @@ RETRYABLE: dict[str, bool] = {
 
 
 class LLMError(Exception):
+    """失败也带着"已经花了多少"，否则失败的成本会凭空消失。
+
+    实测教训：第一次批量评测 3 份失败，报告里成本是 ¥0——但 token 已经消耗了。
+    预算熔断如果只看成功调用，被刷的时候正好是失败率最高的时候。
+    """
+
     def __init__(
         self,
         kind: ErrorKind,
@@ -43,12 +49,20 @@ class LLMError(Exception):
         status: int | None = None,
         retry_after: float | None = None,
         retryable: bool | None = None,
+        attempts: int = 0,
+        usage: "Usage | None" = None,
+        cost_micros: int = 0,
+        raw: str | None = None,
     ) -> None:
         super().__init__(message)
         self.kind: ErrorKind = kind
         self.status = status
         self.retry_after = retry_after
         self.retryable = RETRYABLE[kind] if retryable is None else retryable
+        self.attempts = attempts
+        self.usage = usage or Usage()
+        self.cost_micros = cost_micros
+        self.raw = raw
 
     def __str__(self) -> str:  # pragma: no cover - 仅用于日志可读性
         suffix = f"（HTTP {self.status}）" if self.status else ""

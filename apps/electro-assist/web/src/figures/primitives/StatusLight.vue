@@ -2,10 +2,10 @@
 /** status_light：状态灯。三重编码——图形（✓ ! × –）+ 文字 + 颜色，
  *  不允许只靠颜色表意：现场有色觉差异，且黑白打印会全部糊成一个灰点。 */
 import { computed } from 'vue'
-import type { Scalar } from '../../types'
+import type { ParamValue } from '../../types'
 import { str } from '../svg'
 
-const props = defineProps<{ params: Record<string, Scalar>; label?: string }>()
+const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
 
 const STATES = {
   pass: { cls: 'fig-pass', glyph: '✓', text: '通过' },

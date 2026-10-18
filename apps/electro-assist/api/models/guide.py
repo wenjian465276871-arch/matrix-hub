@@ -15,7 +15,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from .visual import VisualSpec
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 REQUIRED_DISCLAIMER = "演示数据 · 非实际作业依据"
 
 

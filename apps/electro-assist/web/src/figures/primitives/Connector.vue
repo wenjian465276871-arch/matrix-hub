@@ -2,10 +2,10 @@
 /** connector：接插件针脚定义。超过 6 针自动换行，最多 12 针——
  *  再多就不是"示意"而是图纸了，应该用真实照片。 */
 import { computed } from 'vue'
-import type { Scalar } from '../../types'
+import type { ParamValue } from '../../types'
 import { MONO, splitList, str } from '../svg'
 
-const props = defineProps<{ params: Record<string, Scalar>; label?: string }>()
+const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
 
 const PER_ROW = 6
 const PIN = 30

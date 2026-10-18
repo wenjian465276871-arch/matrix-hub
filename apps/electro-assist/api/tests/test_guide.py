@@ -89,3 +89,139 @@ def test_fallback_text_is_mandatory():
 def test_default_disclaimer_present():
     guide = Guide.model_validate(SAMPLE)
     assert REQUIRED_DISCLAIMER in guide.disclaimers
+
+
+# ---------------------------------------------------------------- 参数类型（决策 #15）
+
+def test_list_params_are_accepted():
+    """清单类参数允许字符串列表——这是模型最自然的写法。"""
+    from models.visual import VisualSpec
+
+    spec = VisualSpec.model_validate(
+        {
+            "primitive": "checklist",
+            "params": {"items": ["确认断电挂牌", "确认防溜车措施", "确认区域警示"]},
+            "fallback_text": "作业前逐项确认。",
+        }
+    )
+    assert spec.params["items"] == ["确认断电挂牌", "确认防溜车措施", "确认区域警示"]
+
+
+def test_list_param_too_many_items_rejected():
+    from models.visual import MAX_LIST_ITEMS, VisualSpec
+
+    with pytest.raises(ValidationError):
+        VisualSpec.model_validate(
+            {
+                "primitive": "checklist",
+                "params": {"items": ["x"] * (MAX_LIST_ITEMS + 1)},
+                "fallback_text": "超长列表。",
+            }
+        )
+
+
+def test_list_param_item_too_long_rejected():
+    from models.visual import MAX_LIST_ITEM_CHARS, VisualSpec
+
+    with pytest.raises(ValidationError):
+        VisualSpec.model_validate(
+            {
+                "primitive": "checklist",
+                "params": {"items": ["x" * (MAX_LIST_ITEM_CHARS + 1)]},
+                "fallback_text": "超长项。",
+            }
+        )
+
+
+def test_list_param_rejects_markup():
+    from models.visual import VisualSpec
+
+    with pytest.raises(ValidationError):
+        VisualSpec.model_validate(
+            {
+                "primitive": "checklist",
+                "params": {"items": ["<script>alert(1)</script>"]},
+                "fallback_text": "含标记。",
+            }
+        )
+
+
+def test_list_param_rejects_objects():
+    from models.visual import VisualSpec
+
+    with pytest.raises(ValidationError):
+        VisualSpec.model_validate(
+            {
+                "primitive": "checklist",
+                "params": {"items": [{"text": "a"}]},
+                "fallback_text": "嵌套对象。",
+            }
+        )
+
+
+# ---------------------------------------------------------------- 参数类型（决策 #15）
+
+def test_list_params_are_accepted():
+    """清单类参数允许字符串列表——这是模型最自然的写法。"""
+    from models.visual import VisualSpec
+
+    spec = VisualSpec.model_validate(
+        {
+            "primitive": "checklist",
+            "params": {"items": ["确认断电挂牌", "确认防溜车措施", "确认区域警示"]},
+            "fallback_text": "作业前逐项确认。",
+        }
+    )
+    assert spec.params["items"] == ["确认断电挂牌", "确认防溜车措施", "确认区域警示"]
+
+
+def test_list_param_too_many_items_rejected():
+    from models.visual import MAX_LIST_ITEMS, VisualSpec
+
+    with pytest.raises(ValidationError):
+        VisualSpec.model_validate(
+            {
+                "primitive": "checklist",
+                "params": {"items": ["x"] * (MAX_LIST_ITEMS + 1)},
+                "fallback_text": "超长列表。",
+            }
+        )
+
+
+def test_list_param_item_too_long_rejected():
+    from models.visual import MAX_LIST_ITEM_CHARS, VisualSpec
+
+    with pytest.raises(ValidationError):
+        VisualSpec.model_validate(
+            {
+                "primitive": "checklist",
+                "params": {"items": ["x" * (MAX_LIST_ITEM_CHARS + 1)]},
+                "fallback_text": "超长项。",
+            }
+        )
+
+
+def test_list_param_rejects_markup():
+    from models.visual import VisualSpec
+
+    with pytest.raises(ValidationError):
+        VisualSpec.model_validate(
+            {
+                "primitive": "checklist",
+                "params": {"items": ["<script>alert(1)</script>"]},
+                "fallback_text": "含标记。",
+            }
+        )
+
+
+def test_list_param_rejects_objects():
+    from models.visual import VisualSpec
+
+    with pytest.raises(ValidationError):
+        VisualSpec.model_validate(
+            {
+                "primitive": "checklist",
+                "params": {"items": [{"text": "a"}]},
+                "fallback_text": "嵌套对象。",
+            }
+        )

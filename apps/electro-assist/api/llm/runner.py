@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Callable
 
@@ -37,6 +37,7 @@ class GuideDraft:
     cost_micros: int
     latency_ms: int
     repaired: bool
+    repairs: list[str] = field(default_factory=list)
 
 
 def extract_json(text: str) -> str:
@@ -56,6 +57,38 @@ def extract_json(text: str) -> str:
     if start < 0 or end <= start:
         raise ValueError("输出中没有 JSON 对象")
     return body[start : end + 1]
+
+
+def _with_usage(
+    err: LLMError, attempts: int, usage: Usage, at: datetime | None, raw: str | None = None
+) -> LLMError:
+    """把"已经花掉的钱"和"模型到底写了什么"挂到异常上。
+
+    没有这两样，失败就是黑盒：预算统计会把失败的消耗漏掉，
+    而看不到原始输出就只能靠猜模型哪里写错了。
+    """
+    err.attempts = attempts
+    err.usage = usage
+    err.cost_micros = cost_micros(usage, at)
+    if raw is not None:
+        err.raw = raw
+    return err
+
+
+def _with_usage(
+    err: LLMError, attempts: int, usage: Usage, at: datetime | None, raw: str | None = None
+) -> LLMError:
+    """把"已经花掉的钱"和"模型到底写了什么"挂到异常上。
+
+    没有这两样，失败就是黑盒：预算统计会把失败的消耗漏掉，
+    而看不到原始输出就只能靠猜模型哪里写错了。
+    """
+    err.attempts = attempts
+    err.usage = usage
+    err.cost_micros = cost_micros(usage, at)
+    if raw is not None:
+        err.raw = raw
+    return err
 
 
 def _format_validation_error(exc: ValidationError) -> str:
@@ -98,14 +131,20 @@ def generate_guide(
     latency_ms = 0
     attempts = 0
     last_error: LLMError | None = None
+    repairs: list[str] = []
 
     for attempt in range(1, max_attempts + 1):
         remaining = deadline - clock()
         if remaining < call_timeout_s:
-            raise LLMError(
-                "budget",
-                f"剩余预算 {remaining:.0f}s 不足单次调用 {call_timeout_s:.0f}s"
-                + (f"，上次错误：{last_error.kind}" if last_error else ""),
+            raise _with_usage(
+                LLMError(
+                    "budget",
+                    f"剩余预算 {remaining:.0f}s 不足单次调用 {call_timeout_s:.0f}s"
+                    + (f"，上次错误：{last_error.kind}" if last_error else ""),
+                ),
+                attempts,
+                usage,
+                at,
             )
         attempts = attempt
 
@@ -120,7 +159,7 @@ def generate_guide(
         except LLMError as exc:
             last_error = exc
             if not exc.retryable or attempt == max_attempts:
-                raise
+                raise _with_usage(exc, attempt, usage, at) from exc
             continue
 
         usage = usage + completion.usage
@@ -135,9 +174,16 @@ def generate_guide(
                 if isinstance(exc, ValidationError)
                 else f"- 无法解析 JSON：{exc}"
             )
-            last_error = LLMError("validation", f"模型输出未通过校验：\n{detail}")
+            last_error = _with_usage(
+                LLMError("validation", f"模型输出未通过校验：\n{detail}"),
+                attempt,
+                usage,
+                at,
+                raw=completion.text,
+            )
             if attempt == max_attempts:
                 raise last_error from exc
+            repairs.append(detail)
             prompt = repair_prompt(cleaned, completion.text, detail)
             continue
 
@@ -155,6 +201,7 @@ def generate_guide(
             cost_micros=cost_micros(usage, at),
             latency_ms=latency_ms,
             repaired=attempt > 1,
+            repairs=repairs,
         )
 
     # 理论不可达：循环内要么 return，要么 raise

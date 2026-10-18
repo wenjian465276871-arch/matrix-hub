@@ -6,10 +6,10 @@
  *  避免"看起来像画对了"。
  */
 import { computed } from 'vue'
-import type { Scalar } from '../../types'
+import type { ParamValue } from '../../types'
 import { MONO, splitList, str } from '../svg'
 
-const props = defineProps<{ params: Record<string, Scalar>; label?: string }>()
+const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
 
 const WIRE_COLORS: Record<string, string> = {
   棕: '#7b4b2a',

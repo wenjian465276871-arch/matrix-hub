@@ -8,14 +8,15 @@
  * 文本换行只能手算：SVG 没有自动折行。按「CJK 记 1 个字宽、ASCII 记 0.55」估算，
  * 宁可估宽一点（多折一行）也不要溢出画布。
  */
-import type { Scalar } from '../types'
+import type { ParamValue } from '../types'
 
 const CJK = /[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]/
 
 /** 等宽字体栈：数值必须对齐，比例字体读表会错行。 */
 export const MONO = 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace'
 
-export function num(value: Scalar | undefined, name: string, fallback?: number): number {
+export function num(value: ParamValue | undefined, name: string, fallback?: number): number {
+  if (Array.isArray(value)) throw new Error(`参数 ${name} 应为标量，收到列表`)
   if (value === undefined || value === null || value === '') {
     if (fallback !== undefined) return fallback
     throw new Error(`缺少参数 ${name}`)
@@ -28,8 +29,9 @@ export function num(value: Scalar | undefined, name: string, fallback?: number):
   return n
 }
 
-export function str(value: Scalar | undefined, fallback = ''): string {
+export function str(value: ParamValue | undefined, fallback = ''): string {
   if (value === undefined || value === null) return fallback
+  if (Array.isArray(value)) return value.join('、')
   return String(value)
 }
 
@@ -77,7 +79,10 @@ export function wrapText(
 }
 
 /** 把 "1-2-3" / "1,2,3" / "1 2 3" 这类串解析成数组。 */
-export function splitList(value: Scalar | undefined, pattern = /[-–—,、\s]+/): string[] {
+export function splitList(value: ParamValue | undefined, pattern = /[-–—,、\s]+/): string[] {
+  // 列表直接用；字符串才需要按分隔符拆。两种写法都要支持：
+  // 老数据是 "1-2-3"，模型现在更爱输出 ["1","2","3"]。
+  if (Array.isArray(value)) return value.map((s) => s.trim()).filter(Boolean)
   return str(value)
     .split(pattern)
     .map((s) => s.trim())

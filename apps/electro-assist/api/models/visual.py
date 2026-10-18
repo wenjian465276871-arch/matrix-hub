@@ -2,8 +2,15 @@
 
 设计约束（见开发计划 §12.4 与 ADR 中"不做运行时代码生成"）：
 - 原语是构建期固定的枚举，不在运行时新增；
-- 参数只允许标量，禁止嵌套结构、URL、HTML；
+- 参数只允许标量或「字符串列表」，禁止嵌套对象、URL、HTML；
 - 每个图示必须带 fallback_text，渲染失败时降级为文字，保证现场可读。
+
+为什么参数允许字符串列表（2026-10-18 放宽，决策 #15）：
+批量评测 5 份语料，3 份被拒，错误全是 `params.items` 传了数组。
+清单类参数（items / terminals / pins）的本质就是列表，只允许标量等于
+逼模型把列表编码成 `a|b|c` 这种带分隔符的字符串——它靠 JSON Schema 看不出这个约定，
+只能靠散文提示，稳定性差。这不是模型的错，是契约不自然。
+列表仍是强校验的：条数 ≤10、每项 ≤40 字、禁止标记内容。安全性没有放松。
 """
 from __future__ import annotations
 
@@ -13,6 +20,16 @@ from typing import Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 Scalar = Union[str, int, float, bool]
+# 列表只允许「字符串列表」，不允许对象/嵌套，避免参数变成任意结构。
+ParamValue = Union[Scalar, list[str]]
+
+MAX_LIST_ITEMS = 10
+MAX_LIST_ITEM_CHARS = 40
+# 列表只允许「字符串列表」，不允许对象/嵌套，避免参数变成任意结构。
+ParamValue = Union[Scalar, list[str]]
+
+MAX_LIST_ITEMS = 10
+MAX_LIST_ITEM_CHARS = 40
 
 
 class Primitive(str, Enum):
@@ -38,7 +55,8 @@ _ALLOWED_PARAMS: dict[Primitive, set[str]] = {
     Primitive.checklist: {"items"},
 }
 
-_STATE_VALUES = {"pass", "warn", "danger", "idle"}
+# 公开给 prompt 使用：枚举值只在这里定义一次，避免"文档写一套、校验另一套"。
+STATE_VALUES = ("pass", "warn", "danger", "idle")
 
 
 def allowed_params() -> dict[str, list[str]]:
@@ -52,14 +70,25 @@ class VisualSpec(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     primitive: Primitive
-    params: dict[str, Scalar] = Field(default_factory=dict)
+    params: dict[str, ParamValue] = Field(default_factory=dict)
     caption: str | None = Field(default=None, max_length=60)
     fallback_text: str = Field(min_length=2, max_length=200)
 
     @field_validator("params")
     @classmethod
-    def _check_params(cls, v: dict[str, Scalar]) -> dict[str, Scalar]:
+    def _check_params(cls, v: dict[str, ParamValue]) -> dict[str, ParamValue]:
         for key, val in v.items():
+            if isinstance(val, list):
+                if len(val) > MAX_LIST_ITEMS:
+                    raise ValueError(f"参数 {key} 列表过长（>{MAX_LIST_ITEMS} 项）")
+                for item in val:
+                    if not isinstance(item, str):
+                        raise ValueError(f"参数 {key} 的列表只能包含字符串")
+                    if len(item) > MAX_LIST_ITEM_CHARS:
+                        raise ValueError(f"参数 {key} 的列表项过长（>{MAX_LIST_ITEM_CHARS} 字）")
+                    if "<" in item or "javascript:" in item.lower():
+                        raise ValueError(f"参数 {key} 的列表项含疑似标记内容")
+                continue
             if isinstance(val, str) and len(val) > 120:
                 raise ValueError(f"参数 {key} 过长（>120 字符）")
             if isinstance(val, str) and ("<" in val or "javascript:" in val.lower()):
@@ -74,5 +103,5 @@ class VisualSpec(BaseModel):
             raise ValueError(f"{self.primitive.value} 不支持参数: {sorted(unknown)}")
         if self.primitive is Primitive.status_light:
             state = self.params.get("state")
-            if state not in _STATE_VALUES:
-                raise ValueError(f"status_light.state 必须是 {sorted(_STATE_VALUES)}")
+            if state not in STATE_VALUES:
+                raise ValueError(f"status_light.state 必须是 {sorted(STATE_VALUES)}")

@@ -30,9 +30,14 @@ export type Primitive =
 
 export type Scalar = string | number | boolean
 
+/** 参数值：标量或字符串列表。
+ *  清单类参数（items / terminals / pins）本质是列表，模型也倾向输出数组；
+ *  后端已放宽为 `Scalar | string[]`（决策 #15），前端同步。 */
+export type ParamValue = Scalar | string[]
+
 export interface VisualSpec {
   primitive: Primitive
-  params: Record<string, Scalar>
+  params: Record<string, ParamValue>
   caption?: string | null
   fallback_text: string
 }
