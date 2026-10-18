@@ -1,6 +1,12 @@
 <script setup lang="ts">
-/** meter：仪表读数。数值落在量程内用"通过"色，超差用"危险"色——
- *  颜色是第二重编码，旁边还有数值与量程文字，不靠颜色单独表意。 */
+/** meter：仪表读数。
+ *
+ *  两种形态：
+ *  - 有实测值：轨道 + 填充 + 指针 + 「范围内/超差」，颜色是第二重编码；
+ *  - 只有允许范围（文档没给实测值时）：整条轨道即允许区间，不画指针。
+ *    实测发现的真实情况：工艺文本常只写"允许 99-121V"，硬让模型编一个读数
+ *    就是伪造数据；空着又会让整张图降级成文字。范围条是第三种正确答案。
+ */
 import { computed } from 'vue'
 import type { Scalar } from '../../types'
 import { MONO, num, str } from '../svg'
@@ -16,15 +22,20 @@ const TRACK_H = 14
 const model = computed(() => {
   const min = num(props.params.min, 'min')
   const max = num(props.params.max, 'max')
-  const value = num(props.params.value, 'value')
   if (max <= min) throw new Error('meter：max 必须大于 min')
 
-  const ratio = Math.min(1, Math.max(0, (value - min) / (max - min)))
-  const inRange = value >= min && value <= max
+  const raw = props.params.value
+  const hasValue = raw !== undefined && raw !== null && String(raw).trim() !== ''
+  const value = hasValue ? num(raw, 'value') : null
+
+  const ratio = value === null ? 0 : Math.min(1, Math.max(0, (value - min) / (max - min)))
+  const inRange = value === null ? true : value >= min && value <= max
+
   return {
     min,
     max,
     value,
+    hasValue,
     ratio,
     inRange,
     unit: str(props.params.unit),
@@ -38,13 +49,20 @@ const model = computed(() => {
   <svg
     :viewBox="`0 0 ${V} 108`"
     role="img"
-    :aria-label="label || `仪表读数 ${model.value}${model.unit}`"
+    :aria-label="
+      label ||
+      (model.hasValue
+        ? `仪表读数 ${model.value}${model.unit}`
+        : `允许范围 ${model.min} 至 ${model.max}${model.unit}`)
+    "
     preserveAspectRatio="xMidYMid meet"
   >
     <text v-if="model.label" x="16" y="18" font-size="13" class="fig-ink2">
       {{ model.label }}
     </text>
+
     <text
+      v-if="model.hasValue"
       x="324"
       y="18"
       text-anchor="end"
@@ -54,16 +72,13 @@ const model = computed(() => {
     >
       {{ model.value }}<tspan dx="4" font-size="12" class="fig-ink3">{{ model.unit }}</tspan>
     </text>
+    <text v-else x="324" y="18" text-anchor="end" font-size="12" class="fig-ink3">
+      允许范围
+    </text>
 
+    <rect :x="PAD" :y="TRACK_Y" :width="TRACK_W" :height="TRACK_H" rx="7" class="fig-track" />
     <rect
-      :x="PAD"
-      :y="TRACK_Y"
-      :width="TRACK_W"
-      :height="TRACK_H"
-      rx="7"
-      class="fig-track"
-    />
-    <rect
+      v-if="model.hasValue"
       :x="PAD"
       :y="TRACK_Y"
       :width="Math.max(4, TRACK_W * model.ratio)"
@@ -72,6 +87,7 @@ const model = computed(() => {
       :class="model.inRange ? 'fig-pass' : 'fig-danger'"
     />
     <line
+      v-if="model.hasValue"
       :x1="model.x"
       :y1="TRACK_Y - 8"
       :x2="model.x"
@@ -105,9 +121,9 @@ const model = computed(() => {
       text-anchor="middle"
       font-size="11"
       :font-family="MONO"
-      :class="model.inRange ? 'fig-pass' : 'fig-danger'"
+      :class="model.hasValue ? (model.inRange ? 'fig-pass' : 'fig-danger') : 'fig-ink3'"
     >
-      {{ model.inRange ? '范围内' : '超差' }}
+      {{ model.hasValue ? (model.inRange ? '范围内' : '超差') : model.unit }}
     </text>
   </svg>
 </template>
