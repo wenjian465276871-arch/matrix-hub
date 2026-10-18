@@ -34,13 +34,6 @@
 docker exec matrix-hub sh -c "chmod -R go-rwx /srv/app_data/uploads /srv/app_data/electro.db*"
 ```
 
-**权限**：API 进程 umask 为 077，新建的库与上传资产是 600/700。
-从旧版本升上来的实例需要一次性收紧历史文件：
-
-```bash
-docker exec matrix-hub sh -c "chmod -R go-rwx /srv/app_data/uploads /srv/app_data/electro.db*"
-```
-
 **证书与数据库都在 app_data 卷里。** 重建容器不会丢；删卷才会。
 `/healthz` 同时检查进程与数据库，`checks.db` 为 `error` 时返回 `status: degraded`。
 

@@ -99,6 +99,18 @@ class GuideMeta(BaseModel):
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_demo: bool = True
 
+    @field_validator("is_demo")
+    @classmethod
+    def _enforce_demo(cls, v: bool) -> bool:
+        """默认值 True 只覆盖"没写"的情况；显式写 false 必须被拒绝。
+
+        合规铁律：本项目不产出可直接执行的作业依据。如果允许 false，
+        「演示数据 · 非实际作业依据」这句声明就可以被一个字段绕过。
+        """
+        if v is not True:
+            raise ValueError("meta.is_demo 必须为 true：本项目不产出可直接执行的作业依据")
+        return True
+
 
 class Guide(BaseModel):
     """一份完整的可视化作业指导书。"""

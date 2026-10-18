@@ -167,6 +167,10 @@ def generate_guide(
 
         try:
             payload = json.loads(extract_json(completion.text))
+            # is_demo 与 model/source_note 一样属于服务端所有：模型写 false 时
+            # 不浪费一次重试去纠正，直接覆盖后再校验（模型层还有一道拒绝，防其他入口）。
+            if isinstance(payload.get("meta"), dict):
+                payload["meta"]["is_demo"] = True
             guide = Guide.model_validate(payload)
         except (ValueError, ValidationError) as exc:
             detail = (
@@ -192,6 +196,7 @@ def generate_guide(
         guide.meta.model = completion.model
         guide.meta.generated_at = datetime.now(timezone.utc)
         guide.meta.source_note = source_note
+        guide.meta.is_demo = True
 
         return GuideDraft(
             guide=guide,

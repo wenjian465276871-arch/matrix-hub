@@ -212,3 +212,33 @@ def test_cost_uses_peak_or_idle_by_time():
         clock=Clock(), at=datetime(2026, 10, 19, 22, 0, tzinfo=CST),
     )
     assert peak.cost_micros > idle.cost_micros
+
+
+def test_is_demo_forced_true_by_server():
+    """模型写 is_demo=false 时服务端直接覆盖，且不浪费一次重试。
+
+    与 model/source_note 同属服务端字段：模型写什么都不算数。
+    """
+    payload = json.loads(VALID)
+    payload.setdefault("meta", {})["is_demo"] = False
+    provider = FakeProvider([json.dumps(payload, ensure_ascii=False)])
+
+    draft = generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=Clock())
+
+    assert draft.attempts == 1  # 覆盖发生在校验前，不触发自纠
+    assert draft.guide.meta.is_demo is True
+
+
+def test_is_demo_forced_true_by_server():
+    """模型写 is_demo=false 时服务端直接覆盖，且不浪费一次重试。
+
+    与 model/source_note 同属服务端字段：模型写什么都不算数。
+    """
+    payload = json.loads(VALID)
+    payload.setdefault("meta", {})["is_demo"] = False
+    provider = FakeProvider([json.dumps(payload, ensure_ascii=False)])
+
+    draft = generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=Clock())
+
+    assert draft.attempts == 1  # 覆盖发生在校验前，不触发自纠
+    assert draft.guide.meta.is_demo is True

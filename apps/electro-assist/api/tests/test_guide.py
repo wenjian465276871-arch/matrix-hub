@@ -225,3 +225,37 @@ def test_list_param_rejects_objects():
                 "fallback_text": "嵌套对象。",
             }
         )
+
+
+# ---------------------------------------------------------------- 合规：is_demo
+
+def test_is_demo_false_rejected():
+    """不允许产出"非演示"的作业依据——否则合规声明可被一个字段绕过。"""
+    bad = deepcopy(SAMPLE)
+    bad.setdefault("meta", {})["is_demo"] = False
+    with pytest.raises(ValidationError) as exc:
+        Guide.model_validate(bad)
+    assert "is_demo" in str(exc.value)
+
+
+def test_is_demo_defaults_true_when_omitted():
+    data = deepcopy(SAMPLE)
+    data.setdefault("meta", {}).pop("is_demo", None)
+    assert Guide.model_validate(data).meta.is_demo is True
+
+
+# ---------------------------------------------------------------- 合规：is_demo
+
+def test_is_demo_false_rejected():
+    """不允许产出"非演示"的作业依据——否则合规声明可被一个字段绕过。"""
+    bad = deepcopy(SAMPLE)
+    bad.setdefault("meta", {})["is_demo"] = False
+    with pytest.raises(ValidationError) as exc:
+        Guide.model_validate(bad)
+    assert "is_demo" in str(exc.value)
+
+
+def test_is_demo_defaults_true_when_omitted():
+    data = deepcopy(SAMPLE)
+    data.setdefault("meta", {}).pop("is_demo", None)
+    assert Guide.model_validate(data).meta.is_demo is True

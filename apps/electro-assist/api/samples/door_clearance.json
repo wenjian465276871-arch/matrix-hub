@@ -5,7 +5,7 @@
   "summary": "以门扇关闭状态下的密封间隙为对象，演示数值判据与图示原语的组织方式。全部为演示数据。",
   "meta": {
     "system": "door",
-    "source_note": "依据公开的车门维护通识整理并虚构化改写，不含任何企业资料",
+    "source_note": "虚构示例，未引用具体资料；参数为示例值，不含任何企业资料",
     "model": "deepseek-flash",
     "generated_at": "2026-10-18T01:30:00Z",
     "is_demo": true
