@@ -10,10 +10,11 @@ import os
 import re
 import uuid
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
 import imaging
+import ratelimit
 import slicing
 
 router = APIRouter(prefix="/api/electro/uploads", tags=["uploads"])
@@ -30,7 +31,20 @@ def _asset_dir(asset_id: str) -> str:
 
 
 @router.post("")
-async def upload(file: UploadFile = File(...)) -> dict:
+async def upload(request: Request, file: UploadFile = File(...)) -> dict:
+    # 先限流再读内容：上传是唯一无需参数即可写入磁盘、并触发最重解码的端点。
+    allowed, retry_after = ratelimit.get_limiter().hit(ratelimit.client_ip(request))
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "rate_limited",
+                "message": f"上传过于频繁，请在 {retry_after} 秒后重试",
+                "retry_after": retry_after,
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+
     raw = await file.read(imaging.MAX_BYTES + 1)
     if len(raw) > imaging.MAX_BYTES:
         raise HTTPException(status_code=413, detail={
@@ -45,7 +59,13 @@ async def upload(file: UploadFile = File(...)) -> dict:
             "issues": [{"code": i.code.value, "message": i.message} for i in check.issues],
         })
 
-    normalized, info = imaging.normalize(raw)
+    try:
+        normalized, info = imaging.normalize(raw)
+    except (OSError, ValueError):
+        # 截断/损坏的图能通过魔数与尺寸检查，却会在真正解码时炸开。
+        # 这类输入是用户问题，不是服务端故障，必须回 422 而不是 500。
+        raise HTTPException(status_code=422, detail={
+            "code": "unreadable", "message": "图片无法完整解析，可能已损坏或被截断"})
     asset_id = "a_" + uuid.uuid4().hex[:16]
     directory = _asset_dir(asset_id)
     os.makedirs(directory, exist_ok=True)
