@@ -40,12 +40,18 @@ record_state() {
 
 # 注意：8001 只在容器内监听，宿主机不可访问。
 # 必须经 Caddy 的 443 访问，并用 --resolve 固定到回环地址，避免走到公网 DNS。
+# 所有健康探测（部署后、回滚后）统一走这里——2026-10-18 修复：回滚复查原先探
+# http://127.0.0.1:8001，该端口未发布到宿主机，导致成功回滚也报"仍不健康"。
+probe_health() {
+  curl -fsSk --max-time 5 --resolve "${SITE_DOMAIN}:443:127.0.0.1" \
+       "https://${SITE_DOMAIN}/healthz" 2>/dev/null | grep -q '"status":"ok"'
+}
+
 health_check() {
   local streak=0 i
   for i in $(seq 1 8); do
     sleep 5
-    if curl -fsSk --max-time 5 --resolve "${SITE_DOMAIN}:443:127.0.0.1" \
-         "https://${SITE_DOMAIN}/healthz" 2>/dev/null | grep -q '"status":"ok"'; then
+    if probe_health; then
       streak=$((streak + 1))
       echo "    探测通过 ${streak}/3（第 ${i} 次）"
       [ "$streak" -ge 3 ] && return 0
@@ -75,8 +81,13 @@ fi
 echo "[FAIL] 健康检查未通过，开始回滚" >&2
 if [ -n "${PREV_TAG:-}" ]; then
   TAG="$PREV_TAG" docker compose up -d web
-  sleep 5
-  if curl -fsS --max-time 5 http://127.0.0.1:8001/healthz >/dev/null 2>&1; then
+  rolled_back=0
+  for i in $(seq 1 6); do
+    sleep 5
+    if probe_health; then rolled_back=1; break; fi
+    echo "    回滚复查第 ${i} 次未通过"
+  done
+  if [ "$rolled_back" -eq 1 ]; then
     echo "==> 已回滚到 ${PREV_TAG}" >&2
   else
     echo "[FAIL] 回滚后仍不健康，需要人工介入" >&2

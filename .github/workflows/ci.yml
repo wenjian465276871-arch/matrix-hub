@@ -142,6 +142,18 @@ jobs:
           printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      # 2026-10-18 补：此前只跑服务器上的旧 deploy.sh，仓库改了也不生效，
+      # 等于"部署脚本不在版本控制里"。部署前先同步这两个文件。
+      - name: 同步部署产物（deploy.sh / compose.yml）
+        if: steps.scope.outputs.deploy == 'true'
+        run: |
+          scp -i ~/.ssh/id_ed25519 -o BatchMode=yes \
+            deploy/deploy.sh docker/compose.yml \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/matrix-hub/"
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "chmod 755 /opt/matrix-hub/deploy.sh"
+
       - name: 执行部署（健康检查失败自动回滚）
         if: steps.scope.outputs.deploy == 'true'
         run: |
