@@ -8,6 +8,12 @@ __pycache__/
 .ruff_cache/
 .mypy_cache/
 
+# 运行数据（本地跑起来会生成 SQLite 与上传资产，绝不入库）
+app_data/
+*.db
+*.db-wal
+*.db-shm
+
 # 构建产物
 dist/
 dist-ssr/

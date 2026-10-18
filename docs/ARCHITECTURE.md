@@ -10,12 +10,13 @@ flowchart LR
   U[浏览器] -->|HTTPS 443 / HTTP 80 跳转| C[Caddy]
   C -->|静态资源| S[镜像内前端产物]
   C -->|/api/electro/*| E[electro API :8001]
-  E --> D[(app_data 卷<br/>uploads / 未来 SQLite)]
+  E --> D[(app_data 卷<br/>SQLite + uploads)]
   E -.->|P1a-W2 起| L[DeepSeek / DashScope]
 ```
 
 单容器：`supervisord` 托管 Caddy + 一个 API。API 绑定 `127.0.0.1`，公网仅 Caddy 一个入口。
 news-insight 已下架（ADR-0002），镜像内无 :8000 进程；LLM/Embedding 出站**尚未接入**，虚线为规划态。
+SQLite 自 2026-10-18 起已落地（`store/`，WAL 模式，5 张业务表 + 迁移表）。
 
 ## 2. 请求链路（P1a-W2 目标态，当前未实现）
 

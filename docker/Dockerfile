@@ -28,7 +28,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     APP_ENV=prod \
     XDG_DATA_HOME=/srv/app_data/caddy \
     XDG_CONFIG_HOME=/srv/app_data/caddy \
-    UPLOAD_DIR=/srv/app_data/uploads
+    UPLOAD_DIR=/srv/app_data/uploads \
+    DB_PATH=/srv/app_data/electro.db
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \

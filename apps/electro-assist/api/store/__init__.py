@@ -1,0 +1,55 @@
+"""存储层公开入口。
+
+调用方只 `from store import init_db, save_guide, ...`，不直接摸 `db`/`dao` 内部。
+以后换 Postgres 时，改的是这里的实现，不是几十处调用点。
+"""
+from .db import day_bounds_utc, db_path, init_db, now_iso, ping, schema_version, today_cst
+from .dao import (
+    count_guides,
+    count_jobs_between,
+    count_jobs_today,
+    create_job,
+    create_session,
+    finish_job,
+    finish_session,
+    get_guide,
+    get_job,
+    get_session,
+    list_guides,
+    list_records,
+    mark_job_running,
+    publish_guide,
+    record_usage,
+    save_guide,
+    submit_record,
+    usage_summary,
+)
+
+__all__ = [
+    "init_db",
+    "db_path",
+    "schema_version",
+    "ping",
+    "ping",
+    "now_iso",
+    "today_cst",
+    "day_bounds_utc",
+    "save_guide",
+    "get_guide",
+    "list_guides",
+    "publish_guide",
+    "count_guides",
+    "create_job",
+    "mark_job_running",
+    "finish_job",
+    "get_job",
+    "count_jobs_between",
+    "count_jobs_today",
+    "record_usage",
+    "usage_summary",
+    "create_session",
+    "get_session",
+    "finish_session",
+    "submit_record",
+    "list_records",
+]

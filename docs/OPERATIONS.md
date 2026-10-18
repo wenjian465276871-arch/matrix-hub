@@ -16,10 +16,19 @@
 
 两个卷：
 
-- `matrix-hub_app_data` → `/srv/app_data`（SQLite、Caddy 证书与状态）
+- `matrix-hub_app_data` → `/srv/app_data`（SQLite、上传资产、Caddy 证书与状态）
 - `matrix-hub_caddy_data` → `/data`（预留）
 
-**证书存在 app_data 卷里。** 重建容器不会重新签发；删卷才会。
+卷内布局：
+
+| 路径 | 内容 |
+|---|---|
+| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records），WAL 模式 |
+| `/srv/app_data/uploads/` | 上传资产，每份一个目录（原图 + 切片 + meta.json） |
+| `/srv/app_data/caddy/` | 证书与 ACME 账户状态 |
+
+**证书与数据库都在 app_data 卷里。** 重建容器不会丢；删卷才会。
+`/healthz` 同时检查进程与数据库，`checks.db` 为 `error` 时返回 `status: degraded`。
 
 ## 2. 部署目录
 
@@ -99,6 +108,21 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 | 站点静态与代码 | Git（本仓库） | 每次提交 |
 | 运行数据（SQLite / 上传） | `app_data` 卷打包 | 每日 |
 | 整机 | 云厂商快照 | 变更前手动 |
+
+**SQLite 不能直接 `cp`。** WAL 模式下最新数据还在 `-wal` 文件里，热拷贝会得到
+一个"少了最后几笔"的库，而且恢复时不会报错——这是最坏的一种备份。
+
+正确做法（二选一）：
+
+```bash
+# 1) 容器内用 sqlite3 的在线备份（不需要停服，推荐）
+docker exec matrix-hub python -c "import sqlite3;s=sqlite3.connect('/srv/app_data/electro.db');d=sqlite3.connect('/srv/app_data/electro.backup.db');s.backup(d);d.close()"
+
+# 2) 停容器后连 -wal / -shm 一起打包
+docker stop matrix-hub && tar czf app_data-$(date +%F).tgz -C /var/lib/docker/volumes/matrix-hub_app_data/_data .
+```
+
+备份产物必须加密（见私有仓备份规范），且**不要**把 `.env`、票据一起打进去。
 
 恢复流程：停容器 → 解包覆盖 `app_data` 卷 → 起容器 → 校验 `/healthz` 与关键页面。
 
