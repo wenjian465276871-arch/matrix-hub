@@ -9,6 +9,7 @@ import os
 
 from fastapi import FastAPI
 
+from routers import guides as guides_router
 from routers import schema as schema_router
 from routers import uploads as uploads_router
 
@@ -26,6 +27,7 @@ app = FastAPI(
 
 app.include_router(schema_router.router)
 app.include_router(uploads_router.router)
+app.include_router(guides_router.router)
 
 
 @app.get("/healthz", tags=["ops"])
