@@ -11,7 +11,7 @@
 | 门户 | `apps/portal/public` | 站点首页（自包含重写，零外链） | **已上线** |
 | 新闻洞察 | —— | 新闻聚合（原 FastAPI 后端） | **已下架**（ADR-0002） |
 | 粒子系统 | `apps/particle-system/legacy` | Canvas 视觉实验 | 暂停（待重构，ADR-0003） |
-| 电气调试助手 | `apps/electro-assist` | 工艺文本/图片 → 指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | 开发中（契约 + 上传切图 + 指导书读取；前端脚手架已就绪） |
+| 电气调试助手 | `apps/electro-assist` | 工艺文本/图片 → 指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | 开发中：契约 v1.1 + 上传切图 + 指导书读取与渲染（7 原语）+ 生成管线（本地 CLI 已验证，`/generate` 待接） |
 
 ## 架构一句话
 
@@ -49,6 +49,12 @@ npm run dev        # 开发用；生产验收必须用 npm run build 的产物�
 
 > 前端构建在 Docker 多阶段里完成（`docker/Dockerfile` 的 `web` 阶段），
 > 产物内联检查（禁 inline script/style）是构建的一部分，违反即构建失败。
+
+# 生成管线（需要 DEEPSEEK_API_KEY）
+cd apps/electro-assist/api
+python scripts/eval_generate.py --dry-run          # 列举评测语料，不调用模型
+python scripts/eval_generate.py --env-file <.env>  # 5 份语料批量评测（约 ¥0.05）
+python scripts/smoke_llm.py --text-file scripts/corpus/01_door_switch.txt --debug
 
 环境变量统一走 `.env`（见 `deploy/.env.example`），**任何密钥都不入库**。
 

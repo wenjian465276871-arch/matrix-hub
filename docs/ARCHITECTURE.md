@@ -18,6 +18,28 @@ flowchart LR
 news-insight 已下架（ADR-0002），镜像内无 :8000 进程；LLM/Embedding 出站**尚未接入**，虚线为规划态。
 SQLite 自 2026-10-18 起已落地（`store/`，WAL 模式，5 张业务表 + 迁移表）。
 
+## 1.1 LLM 层（2026-10-18 落地）
+
+```
+llm/
+├── base.py     Provider 协议 + 八类错误（timeout/network/rate_limit/auth/server/bad_request/validation/budget）
+├── deepseek.py httpx 直连 OpenAI 兼容接口，JSON Output
+├── runner.py   单次 40s / 最多 2 次 / 总预算 90s；校验失败把错误回喂自纠
+├── prompts.py  schema 由代码生成；文档用 <document> 包裹并转义闭合标签
+├── pricing.py  元/百万 token → 微元整数；高峰/空闲、缓存命中分开计价
+└── factory.py  按 LLM_PROVIDER 选择实现，缺 Key 在调用点报错（不影响只读页面）
+```
+
+**错误分类先于实现**：重试与否、是否扣配额、要不要熔断，都取决于失败类型。
+`auth`/`bad_request` 不重试，`validation` 重试并带上一次的错误信息。
+
+**溯源字段由服务端覆盖**：`meta.model`/`source_note`/`generated_at` 不信模型——
+实测它会把 `source_note` 编成"依据公开资料整理"，而它没有检索能力。
+
+**DSL 参数放宽（决策 #15）**：`params` 允许 `string[]`（≤10 项、每项 ≤40 字、禁标记），
+`schema_version` 1.1。原因见 `apps/electro-assist/api/models/visual.py` 顶部注释：
+清单参数只允许标量，等于逼模型做 `a|b|c` 字符串编码，稳定性撑不住。
+
 ## 2. 请求链路（P1a-W2 目标态，当前未实现）
 
 > 现状：`/generate`、`/jobs/{id}` 尚未存在，代码里只有契约与上传切图 8 个端点。
