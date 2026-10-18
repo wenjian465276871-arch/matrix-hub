@@ -19,6 +19,11 @@ from routers import uploads as uploads_router
 APP_ENV = os.getenv("APP_ENV", "dev")
 IS_PROD = APP_ENV == "prod"
 
+# 进程内新建的文件（SQLite 库、上传重编码产物）默认 600：
+# 计划 §11.3.3 要求数据库仅容器内 app 用户可读。umask 只影响新文件，
+# 历史文件需要一次性 chmod（见 OPERATIONS §7）。
+os.umask(0o077)
+
 log = logging.getLogger("electro")
 
 
