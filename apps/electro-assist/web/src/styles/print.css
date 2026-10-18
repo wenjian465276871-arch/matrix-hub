@@ -1,0 +1,72 @@
+/* 打印规范（开发计划 §12.6）：A4 + 12mm 边距、去装饰、步骤不跨页。
+   打印时强制亮色——否则深色皮肤会打出白底白字。 */
+
+@page {
+  size: A4;
+  margin: 12mm;
+}
+
+@media print {
+  :root {
+    --c-bg: #fff;
+    --c-surface: #fff;
+    --c-ink: #000;
+    --c-ink-2: #333;
+    --c-ink-3: #555;
+    --c-line: #bbb;
+    --c-line-soft: #ddd;
+  }
+
+  body {
+    background: #fff;
+    font-size: 11pt;
+    line-height: 1.5;
+  }
+
+  .site-nav,
+  .site-foot,
+  .no-print {
+    display: none !important;
+  }
+
+  .container {
+    max-width: none;
+    padding: 0;
+  }
+
+  .card {
+    border: none;
+    box-shadow: none;
+  }
+
+  .guide-head {
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--c-line);
+  }
+
+  .step {
+    padding: 12px 0;
+    border-left: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .step + .step {
+    border-top: 1px solid var(--c-line-soft);
+  }
+
+  .step__seq,
+  .criterion__value {
+    color: #000;
+  }
+
+  .disclaimer {
+    border: 1px solid #999;
+    background: #fff;
+    color: #000;
+  }
+
+  .figure {
+    border: 1px solid #ccc;
+  }
+}

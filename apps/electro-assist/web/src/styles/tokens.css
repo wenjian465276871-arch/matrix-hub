@@ -1,0 +1,40 @@
+/* 设计令牌——唯一来源。组件内禁止写裸色值与裸间距。
+   取值依据《视觉规范 v1.5》与开发计划 §12.3：主色 #0B6E78（对白 6.0:1）。 */
+
+:root {
+  --c-primary: #0b6e78;
+  --c-primary-ink: #075159;
+  --c-primary-soft: #eaf5f6;
+  --c-primary-line: #b9dade;
+
+  --c-ink: #12181c;
+  --c-ink-2: #3d4a52;
+  --c-ink-3: #6b7a83;
+
+  --c-bg: #f6f8f9;
+  --c-surface: #ffffff;
+  --c-line: #dfe5e8;
+  --c-line-soft: #eef2f4;
+
+  --c-success: #157f3d;
+  --c-success-soft: #e8f4ec;
+  --c-warning: #a85b00;
+  --c-warning-soft: #fff4e0;
+  --c-warning-line: #f0d3a6;
+  --c-danger: #c0262a;
+  --c-danger-soft: #fbeceb;
+
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+
+  --nav-h: 48px;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow-1: 0 1px 2px rgba(18, 24, 28, 0.06);
+  --shadow-2: 0 4px 16px rgba(18, 24, 28, 0.08);
+
+  --tap: 44px;
+  --w-content: 1080px;
+}

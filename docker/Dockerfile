@@ -5,6 +5,19 @@
 # ---- Caddy 二进制来源（正式构建时改为按 digest 固定）----
 FROM caddy:2.8-alpine AS caddy-bin
 
+# ---- 前端构建（Node 只在构建阶段存在，不进运行镜像）----
+FROM node:22-alpine AS web
+WORKDIR /app
+# 先只拷 manifest：依赖不变时这一层可命中缓存
+COPY apps/electro-assist/web/package.json apps/electro-assist/web/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY apps/electro-assist/web/ ./
+RUN npm run build
+
+# CSP 硬门槛：产物内不允许出现内联 script/style（开发计划 §12.8）。
+# 放在镜像构建里而不是 CI 脚本里，是为了让"违反 CSP 的产物"根本构建不出来。
+RUN node -e "const fs=require('fs');const s=fs.readFileSync('dist/index.html','utf8');if(/<script(?![^>]*\bsrc=)|<style[\s>]/.test(s)){console.error('CSP 违规：产物含内联 script/style');process.exit(1)}"
+
 # ---- 运行镜像 ----
 FROM python:3.12-slim
 
@@ -34,7 +47,7 @@ COPY docker/Caddyfile /etc/caddy/Caddyfile
 COPY docker/supervisord.conf /etc/supervisor/supervisord.conf
 
 COPY apps/portal/public /srv/static/portal
-COPY apps/electro-assist/web /srv/static/electro
+COPY --from=web /app/dist /srv/static/electro
 
 RUN groupadd -g ${APP_UID} app \
  && useradd -u ${APP_UID} -g app -m -s /usr/sbin/nologin app \

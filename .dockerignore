@@ -7,9 +7,10 @@
 **/__pycache__
 **/*.pyc
 **/tests
-**/samples
+# 注意：**/samples 不能排除——它是指导书 fixture，运行时由 /api/electro/guides 读取
 node_modules
 **/node_modules
+**/dist
 docs
 *.md
 backups
