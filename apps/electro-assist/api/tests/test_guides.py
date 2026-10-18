@@ -86,3 +86,21 @@ def test_empty_dir_returns_empty_list(tmp_path, monkeypatch):
     guides_router.reset_cache()
     body = client.get("/api/electro/guides").json()
     assert body == {"schema_version": "1.0", "count": 0, "items": []}
+
+
+def test_every_primitive_has_sample_coverage():
+    """样例必须覆盖全部视觉原语。
+
+    没有样例覆盖的原语，前端渲染器就等于没有验收对象——T07 的 M1 判据正是
+    "七个原语都能在真实页面上渲染出来"。少一个，这条判据就没法成立。
+    """
+    from models.visual import Primitive
+
+    used = {
+        fig.primitive.value
+        for guide in guides_router.load_all().values()
+        for step in guide.steps
+        for fig in step.figures
+    }
+    missing = {p.value for p in Primitive} - used
+    assert not missing, f"以下原语没有任何样例覆盖：{sorted(missing)}"

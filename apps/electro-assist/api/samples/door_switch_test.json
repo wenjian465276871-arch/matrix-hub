@@ -1,0 +1,124 @@
+{
+  "schema_version": "1.0",
+  "id": "g_door_switch_test_001",
+  "title": "客室侧门开关门功能试验",
+  "summary": "以单门开关门时间与门机紧固为对象，覆盖判据四类型与全部七个视觉原语。全部为演示数据，参数为示例值。",
+  "meta": {
+    "system": "door",
+    "source_note": "演示用虚构案例，参数为示例值，待公开资料复核后替换；不含任何企业资料",
+    "model": "deepseek-flash",
+    "generated_at": "2026-10-18T06:10:00Z",
+    "is_demo": true
+  },
+  "steps": [
+    {
+      "id": "s01",
+      "seq": 1,
+      "title": "作业前安全确认",
+      "action": "确认车辆已断电并挂牌、防溜车措施到位、作业区域已设警示，工具齐备。逐项核对下方清单，任一项不满足不得开始作业。",
+      "safety": ["未挂牌不得作业", "禁止在车辆移动时作业"],
+      "tools": ["警示牌", "手电"],
+      "criteria": [
+        { "id": "confirm_safe", "label": "安全条件已确认", "type": "manual" }
+      ],
+      "figures": [
+        {
+          "primitive": "checklist",
+          "params": { "items": "确认车辆已断电并挂牌|确认防溜车措施到位|确认作业区域已设警示|确认塞尺与手电齐备" },
+          "caption": "作业前确认清单",
+          "fallback_text": "作业前逐项确认：断电挂牌、防溜车、区域警示、工具齐备，任一项不满足不得开工。"
+        }
+      ],
+      "duration_s": 120
+    },
+    {
+      "id": "s02",
+      "seq": 2,
+      "title": "门控器供电与端子核对",
+      "action": "测量门控器供电电压，核对 X1 接插件针脚定义与端子线色是否与图纸一致；确认接插件锁止后上电自检。",
+      "safety": ["上电前确认接插件已完全锁止"],
+      "tools": ["万用表", "端子起子"],
+      "criteria": [
+        { "id": "supply_v", "label": "门控器供电", "type": "range", "unit": "V", "min": 99, "max": 121 },
+        { "id": "pin_ok", "label": "针脚与图纸一致性", "type": "enum", "options": ["一致", "不一致"] }
+      ],
+      "figures": [
+        {
+          "primitive": "connector",
+          "params": { "pins": "1-2-3-4-5-6", "note": "X1 针脚定义（示意）" },
+          "caption": "X1 接插件针脚",
+          "fallback_text": "X1 为 6 针接插件，针脚定义按图纸核对，示意图仅表示顺序。"
+        },
+        {
+          "primitive": "wiring",
+          "params": { "terminals": "1-2-3", "wire_color": "棕/蓝/黄绿", "note": "仅示意端子顺序与线色" },
+          "caption": "端子顺序与线色",
+          "fallback_text": "端子顺序为 1、2、3，对应线色棕、蓝、黄绿。"
+        },
+        {
+          "primitive": "meter",
+          "params": { "value": 110, "unit": "V", "min": 99, "max": 121, "label": "门控器供电" },
+          "caption": "供电电压读数",
+          "fallback_text": "门控器供电示例读数 110 V，允许范围 99–121 V。"
+        }
+      ],
+      "duration_s": 300
+    },
+    {
+      "id": "s03",
+      "seq": 3,
+      "title": "开关门时间测量",
+      "action": "分别触发开门与关门，记录门扇从启动到完全到位的时间，连续测量三次取算术平均值作为判定值。",
+      "safety": ["测量时手不得伸入门扇运动范围"],
+      "tools": ["秒表"],
+      "criteria": [
+        { "id": "open_time", "label": "开门时间", "type": "range", "unit": "s", "min": 2.0, "max": 3.5 },
+        { "id": "close_time", "label": "关门时间", "type": "range", "unit": "s", "min": 2.0, "max": 3.5 }
+      ],
+      "figures": [
+        {
+          "primitive": "step_card",
+          "params": { "index": 3, "action": "触发开门并计时至完全到位", "hint": "三次取平均，超差先查导轨异物" },
+          "caption": "测量动作",
+          "fallback_text": "第 3 步：触发开门并计时至完全到位，三次取平均。"
+        },
+        {
+          "primitive": "meter",
+          "params": { "value": 2.6, "unit": "s", "min": 2.0, "max": 3.5, "label": "开门时间" },
+          "caption": "时间读数",
+          "fallback_text": "开门时间示例读数 2.6 s，允许范围 2.0–3.5 s。"
+        }
+      ],
+      "duration_s": 420
+    },
+    {
+      "id": "s04",
+      "seq": 4,
+      "title": "门机紧固与功能判定",
+      "action": "按规定力矩复紧门机安装螺栓并确认无松动，结合前序电压与时间测量结果给出最终判定。",
+      "safety": ["复紧时不得超过规定力矩"],
+      "tools": ["力矩扳手"],
+      "criteria": [
+        { "id": "torque", "label": "门机安装力矩", "type": "range", "unit": "N·m", "min": 0.7, "max": 0.9 },
+        { "id": "result", "label": "判定结果", "type": "enum", "options": ["合格", "超差", "复测"] },
+        { "id": "note", "label": "异常记录", "type": "text" }
+      ],
+      "figures": [
+        {
+          "primitive": "torque_gauge",
+          "params": { "target": 0.8, "tolerance": 0.1, "unit": "N·m" },
+          "caption": "力矩目标与公差带",
+          "fallback_text": "门机安装力矩目标 0.8 N·m，公差 ±0.1 N·m。"
+        },
+        {
+          "primitive": "status_light",
+          "params": { "state": "pass", "label": "开关门功能合格" },
+          "caption": "判定指示",
+          "fallback_text": "电压、时间、力矩三项均在范围内时，判定为合格。"
+        }
+      ],
+      "duration_s": 240
+    }
+  ],
+  "disclaimers": ["演示数据 · 非实际作业依据", "AI 生成内容，需专业人员复核"]
+}
