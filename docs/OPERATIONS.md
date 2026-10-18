@@ -202,7 +202,7 @@ curl -s https://<域名>/healthz     # 期望 {"status":"ok","checks":{"electro"
 | 上传目录 `UPLOAD_DIR=/srv/app_data/uploads` | 上传资产落在 `app_data` 卷，重建容器不丢；**30 天清理未实现** |
 | 依赖升级 | Pillow 13.0.0 / python-multipart 0.0.32 / numpy 2.2.1；升级前先跑 `pytest`，再验证线上上传与切图 |
 | 部署变更门控 | 仅 `docs/**`、`*.md`、`.github/**` 的改动不重启生产；改代码仍会中断约 15–20 秒 |
-| 镜像标签 | 一律用 commit SHA，禁止 `latest`；单镜像约 316MB（压缩后 80MB 量级），ACR 个人版保留不超过 3 个 |
+| 镜像标签 | 一律用 commit SHA，禁止 `latest`；单镜像约 318MB（压缩后 80MB 量级），prune 保留 168h |
 
 ### 10.1 上传体积的三级限制（容易误解）
 
