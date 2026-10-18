@@ -49,8 +49,11 @@ onBeforeUnmount(() => ctrl?.abort())
   <div class="page-head">
     <h1 class="page-title">作业指导书</h1>
     <p class="page-sub">
-      当前为演示样例库：内容由公开资料整理并虚构化改写，用于验证「结构化作业数据 → 可视化指导书」这条链路。
+      已发布的演示指导书。生成结果默认是草稿，凭生成完成后的链接查看，不会进入这个列表。
     </p>
+    <div class="meta-row">
+      <RouterLink class="btn btn--primary" to="/new">生成一份新的指导书</RouterLink>
+    </div>
   </div>
 
   <div v-if="phase === 'loading'" class="skeleton-list" aria-busy="true" aria-label="加载中">
@@ -65,8 +68,8 @@ onBeforeUnmount(() => ctrl?.abort())
   </div>
 
   <div v-else-if="items.length === 0" class="card state">
-    <p>还没有可用的指导书。</p>
-    <p class="state__hint">生成管线在 P1a-W2 接入后，这里会出现生成结果。</p>
+    <p>还没有已发布的指导书。</p>
+    <p class="state__hint">可以先<RouterLink to="/new">生成一份草稿</RouterLink>，确认后再发布。</p>
   </div>
 
   <div v-else class="card-list">

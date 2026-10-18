@@ -7,6 +7,7 @@ import { RouterLink, RouterView } from 'vue-router'
     <div class="nav-inner">
       <RouterLink class="brand" to="/">电气调试 AI 作业助手</RouterLink>
       <span class="nav-spacer" />
+      <RouterLink class="nav-link" to="/new">生成指导书</RouterLink>
       <a class="nav-link" href="/">返回门户</a>
     </div>
   </header>

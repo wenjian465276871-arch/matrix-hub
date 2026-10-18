@@ -6,6 +6,12 @@ const router = createRouter({
   routes: [
     { path: '/', name: 'library', component: LibraryView },
     {
+      path: '/new',
+      name: 'new',
+      // 生成页懒加载：首屏（列表）不需要表单与轮询逻辑。
+      component: () => import('../views/NewGuideView.vue'),
+    },
+    {
       path: '/guide/:id',
       name: 'guide',
       // 详情页懒加载：首屏（列表）不需要指导书渲染代码。

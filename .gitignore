@@ -14,6 +14,9 @@ app_data/
 *.db-wal
 *.db-shm
 
+# 备份目录（服务器本地生成，绝不入库）
+backups/
+
 # 构建产物
 dist/
 dist-ssr/

@@ -1,6 +1,6 @@
 # 架构与关键取舍
 
-> 版本 v0.1 · 状态：草案 · 最后更新：2026-10-17
+> 版本 v0.2 · 状态：草案 · 最后更新：2026-10-19
 > 本文只写"为什么这样做"，操作步骤见 `OPERATIONS.md`。
 
 ## 1. 部署拓扑
@@ -11,27 +11,36 @@ flowchart LR
   C -->|静态资源| S[镜像内前端产物]
   C -->|/api/electro/*| E[electro API :8001]
   E --> D[(app_data 卷<br/>SQLite + uploads)]
-  E -.->|P1a-W2 起| L[DeepSeek / DashScope]
+  E -->|生成 job| Q[进程内队列<br/>单 worker]
+  Q -->|HTTPS| L[DeepSeek]
+  E -->|每日备份| BK[(卷外 backups)]
 ```
 
 单容器：`supervisord` 托管 Caddy + 一个 API。API 绑定 `127.0.0.1`，公网仅 Caddy 一个入口。
-news-insight 已下架（ADR-0002），镜像内无 :8000 进程；LLM/Embedding 出站**尚未接入**，虚线为规划态。
-SQLite 自 2026-10-18 起已落地（`store/`，WAL 模式，5 张业务表 + 迁移表）。
+news-insight 已下架（ADR-0002），镜像内无 :8000 进程。
+SQLite 自 2026-10-18 起已落地（`store/`，WAL 模式，5 张业务表 + 迁移表）；
+生成链路自 2026-10-19 起线上可用（异步 job + 配额 + 草稿/发布）。
 
-## 1.1 LLM 层（2026-10-18 落地）
+## 1.1 LLM 层（2026-10-18 落地，2026-10-19 补截断分类）
 
 ```
 llm/
-├── base.py     Provider 协议 + 八类错误（timeout/network/rate_limit/auth/server/bad_request/validation/budget）
+├── base.py     Provider 协议 + 九类错误（timeout/network/rate_limit/auth/server/
+│               bad_request/validation/truncated/budget）
 ├── deepseek.py httpx 直连 OpenAI 兼容接口，JSON Output
-├── runner.py   单次 40s / 最多 2 次 / 总预算 90s；校验失败把错误回喂自纠
+├── runner.py   单次 40s / 最多 2 次 / 总预算 90s；校验失败回喂；截断则加倍预算并要求精简
 ├── prompts.py  schema 由代码生成；文档用 <document> 包裹并转义闭合标签
 ├── pricing.py  元/百万 token → 微元整数；高峰/空闲、缓存命中分开计价
 └── factory.py  按 LLM_PROVIDER 选择实现，缺 Key 在调用点报错（不影响只读页面）
 ```
 
 **错误分类先于实现**：重试与否、是否扣配额、要不要熔断，都取决于失败类型。
-`auth`/`bad_request` 不重试，`validation` 重试并带上一次的错误信息。
+`auth`/`bad_request` 不重试，`validation` 重试并带上一次的错误信息，
+`truncated` 单独一类——它不是"写错了"，是"写太多"，重试必须改预算与提示词，
+否则同样的输入会再次撞上同一个上限。
+
+**失败调用也计费**：`LLMError` 携带 `usage`/`cost_micros`；截断与空正文在抛错前
+先把 usage 解析出来。只统计成功调用，预算熔断会在失败率最高时失灵。
 
 **溯源字段由服务端覆盖**：`meta.model`/`source_note`/`generated_at` 不信模型——
 实测它会把 `source_note` 编成"依据公开资料整理"，而它没有检索能力。
@@ -40,30 +49,43 @@ llm/
 `schema_version` 1.1。原因见 `apps/electro-assist/api/models/visual.py` 顶部注释：
 清单参数只允许标量，等于逼模型做 `a|b|c` 字符串编码，稳定性撑不住。
 
-## 2. 请求链路（P1a-W2 目标态，当前未实现）
-
-> 现状：`/generate`、`/jobs/{id}` 尚未存在，代码里只有契约与上传切图 8 个端点。
-> 本图是 W2 的验收对象，不是当前行为。
+## 2. 请求链路（2026-10-19 已实现）
 
 ```mermaid
 sequenceDiagram
   participant B as 浏览器
   participant C as Caddy
   participant A as electro API
+  participant Q as 队列 worker
   participant M as LLM
-  B->>C: POST /api/electro/generate
+  participant D as SQLite
+
+  B->>C: POST /api/electro/generate {text, retry_of?}
   C->>A: 反代（同源，无 CORS）
-  A->>A: 校验 + 配额 + 建 job
-  A-->>B: 202 {job_id}
-  A->>M: 结构化生成（JSON Schema 约束）
-  M-->>A: JSON
-  A->>A: Schema 校验 / 失败重试（40s×2，总预算 90s）
-  B->>C: GET /api/electro/jobs/{id}（1.5s→3s 退避）
+  A->>D: 配额/预算检查 → 建 job(queued)
+  A->>Q: 入队（上限 5，满则 503）
+  A-->>B: 202 {job_id, poll_after_ms}
+  Q->>D: running
+  Q->>M: 结构化生成（JSON Schema 约束）
+  M-->>Q: JSON
+  Q->>Q: 校验 / 重试（40s×2，总预算 90s）
+  Q->>D: 分配随机 guide.id → 存草稿 → 记 usage → succeeded
+  B->>C: GET /api/electro/jobs/{id}
   C->>A: 查询
-  A-->>B: 状态 + 结果
+  A-->>B: 状态 / guide_id / error_code
+  B->>C: GET /api/electro/guides/{id}
+  A-->>B: {status, guide}
 ```
 
-异步 job 而非同步等待：一次生成 5–30 秒，同步会占满连接、也扛不住刷新。
+四个刻意的选择：
+
+1. **异步 job 而非同步等待**：一次生成 5–30 秒，同步会占满连接、也扛不住刷新。
+2. **单 worker 有界队列而非 BackgroundTasks**：2C2G 上并发两次生成就会互相拖慢；
+   队列满时明确回 503，而不是无限堆线程。
+3. **ID 由服务端分配**：模型输出的是语义化 id（`g_door_side_door_test`），两人生成
+   同一工序必撞；`save_guide` 的 upsert 会把"覆盖"当成"更新"。随机 id 从根上消除这个可能。
+4. **草稿不上公开列表**：`GET /guides` 只列 `published`；`GET /guides/{id}` 返回
+   `{status, guide}` 信封，前端据此标"草稿"。发布走服务器 CLI，不做后台管理。
 
 ## 3. 模块与阶段
 
@@ -94,6 +116,8 @@ flowchart TB
 | 构建位置 | CI（海外 runner） | 服务器本地构建 | 大陆拉 Docker Hub / PyPI 不稳定，服务器应零编译 |
 | 镜像来源 | 私有镜像仓 | 公共镜像仓 | 部署凭证可收敛为只读 |
 | A2 生成物 | 结构化 JSON + 前端渲染 | 后端生成 HTML | 可校验、可复用、可打印；HTML 拼接是 XSS 温床 |
+| 指导书 ID | **服务端随机分配** | 信任模型输出的 id | 模型 id 是语义化、可预测的，两人生成同一工序必撞；upsert 会把覆盖当更新 |
+| 生成执行 | 进程内单 worker 有界队列 | BackgroundTasks / Celery | 单容器单 worker，broker 的运维成本大于收益；队列满明确 503 |
 | 视觉图示 | 构建期原语 + 声明式 DSL | 运行时生成代码 / AI 生图 | 确定性、可评审、无执行风险 |
 | B 模块 | 向量检索 + 生成 | 全量塞进上下文 | 知识库会随子系统膨胀，全量注入不可持续 |
 | 模型 | 国内 API（DeepSeek 为主，通义备选） | 境外模型 | 延迟、可用性、合规 |
@@ -106,6 +130,7 @@ flowchart TB
 | 旧静态页归档不服务，门户重写 | 依赖 Tailwind CDN / Google Fonts / mediapipe，与 CSP 与"零外链"冲突 | ADR-0003 |
 | A2 输入扩展为文本 + 图片 | 模型原生支持图片输入；现场文件多为截图 | `A2-IMAGE-INPUT.md` |
 | 图像处理引入 numpy | 像素统计用纯 Python 不可行；**仅图像模块使用**，检索层仍为纯 Python | 本文 |
+| 生成链路改为「单 worker 队列 + 服务端 ID + 草稿可见性」 | 模型 id 会撞、进程重启会留死 job、未审核内容不能公开 | 本文 §2；决策 #16/#17 |
 
 ## 6. 边界与约束
 

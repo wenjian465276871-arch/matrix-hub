@@ -131,16 +131,8 @@ class DeepSeekProvider:
         text = (message.get("content") or "").strip()
         finish_reason = choice.get("finish_reason")
 
-        if not text:
-            # 真实踩过的坑：思考 token 也算 completion，max_tokens 给小了会只剩思考没有正文
-            raise LLMError(
-                "validation",
-                "模型返回空内容（思考 token 可能吃满了 max_tokens，或触发内容过滤）",
-                status=resp.status_code,
-            )
-        if finish_reason == "length":
-            raise LLMError("validation", "输出被 max_tokens 截断，JSON 不完整")
-
+        # 先解析用量再判错：截断/空正文同样烧了 token，
+        # 如果错误里不带 usage，预算统计会漏掉最贵的那几次调用。
         raw_usage = data.get("usage") or {}
         details = raw_usage.get("completion_tokens_details") or {}
         usage = Usage(
@@ -149,6 +141,19 @@ class DeepSeekProvider:
             reasoning_tokens=int(details.get("reasoning_tokens") or 0),
             cached_tokens=int(raw_usage.get("prompt_cache_hit_tokens") or 0),
         )
+
+        if not text:
+            # 真实踩过的坑：思考 token 也算 completion，max_tokens 给小了会只剩思考没有正文
+            raise LLMError(
+                "validation",
+                "模型返回空内容（思考 token 可能吃满了 max_tokens，或触发内容过滤）",
+                status=resp.status_code,
+                usage=usage,
+            )
+        if finish_reason == "length":
+            raise LLMError(
+                "truncated", "输出被 max_tokens 截断，JSON 不完整", usage=usage
+            )
 
         return Completion(
             text=text,

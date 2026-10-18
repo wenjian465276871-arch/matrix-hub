@@ -119,6 +119,19 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "CREATE INDEX idx_records_session ON records(session_id, seq)",
         ],
     ),
+    (
+        2,
+        [
+            # 列表页需要 summary/source_note/generated_at，但不该为了三个字段
+            # 把整份 JSON 读出来解析——列表接口会被轮询与翻页反复调用。
+            "ALTER TABLE guides ADD COLUMN summary TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE guides ADD COLUMN source_note TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE guides ADD COLUMN generated_at TEXT",
+            # 计价审计：缓存命中价与未命中价差 20 倍以上，只存总 token 无法复核成本。
+            "ALTER TABLE usage ADD COLUMN cached_tokens INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE usage ADD COLUMN price_version TEXT NOT NULL DEFAULT ''",
+        ],
+    ),
 ]
 
 

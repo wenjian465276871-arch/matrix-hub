@@ -36,9 +36,9 @@ def guide() -> Guide:
 
 
 def test_migrations_are_idempotent(db):
-    assert store.schema_version() == 1
+    assert store.schema_version() == 2
     assert store.init_db() == []  # 第二次不应重复应用
-    assert store.schema_version() == 1
+    assert store.schema_version() == 2
 
 
 def test_save_and_read_guide(db, guide):
@@ -61,16 +61,23 @@ def test_list_does_not_include_body(db, guide):
     assert items[0]["step_count"] == len(guide.steps)
 
 
-def test_published_not_overwritten_by_draft(db, guide):
+def test_published_content_is_immutable(db, guide):
+    """已发布内容不可被覆盖——这是决策 #16 的底线。
+
+    生成服务会给每份新稿分配随机 id，正常路径撞不上；这条测试防的是
+    "有人手工把 id 设回去"或"未来某次重构把 upsert 又放开"。
+    """
     store.save_guide(guide, status="published")
     first = store.get_guide(guide.id)
     assert first["status"] == "published" and first["published_at"]
 
-    # 重生成产生的新草稿：内容更新，但发布状态与发布时间保持不变
+    original_title = first["title"]
     guide.title = "客室侧门开关门功能试验（第二版）"
-    store.save_guide(guide, status="draft")
+    result = store.save_guide(guide, status="draft")
+    assert result["skipped"] is True
+
     second = store.get_guide(guide.id)
-    assert second["title"] == guide.title
+    assert second["title"] == original_title
     assert second["status"] == "published"
     assert second["published_at"] == first["published_at"]
 
@@ -121,6 +128,43 @@ def test_count_jobs_today_by_ip(db):
     assert store.count_jobs_today("203.0.113.7") == 2
     assert store.count_jobs_today("198.51.100.9") == 1
     assert store.count_jobs_today("192.0.2.1") == 0
+
+
+def test_count_jobs_excludes_failed_for_visitor_quota(db):
+    """决策 #17：系统失败不占访客配额，但默认口径（全站预算）仍要算。"""
+    ip = "203.0.113.9"
+    failed = store.create_job(kind="generate", client_ip=ip, input_text="a")
+    store.finish_job(failed, "failed", error_code="timeout")
+    ok = store.create_job(kind="generate", client_ip=ip, input_text="b")
+    store.finish_job(ok, "succeeded")
+    store.create_job(kind="generate", client_ip=ip, input_text="c")
+
+    assert store.count_jobs_today(ip) == 3
+    assert store.count_jobs_today(ip, exclude_failed=True) == 2
+
+
+def test_retry_of_is_counted(db):
+    original = store.create_job(kind="generate", client_ip="203.0.113.7", input_text="a")
+    store.create_job(
+        kind="generate", client_ip="203.0.113.7", input_text="a", retry_of=original
+    )
+    assert store.count_jobs_by_retry_of(original) == 1
+    assert store.count_jobs_by_retry_of(original) == 1  # 只读，不消耗
+
+
+def test_sweep_stale_jobs_only_touches_unfinished(db):
+    queued = store.create_job(kind="generate", client_ip="203.0.113.7", input_text="a")
+    running = store.create_job(kind="generate", client_ip="203.0.113.7", input_text="b")
+    store.mark_job_running(running)
+    done = store.create_job(kind="generate", client_ip="203.0.113.7", input_text="c")
+    store.finish_job(done, "succeeded")
+
+    # 用未来时刻作为切点：now_iso() 只有秒级精度，同一秒内可能不满足 <
+    assert store.sweep_stale_jobs("9999-12-31T00:00:00+00:00") == 2
+    assert store.get_job(queued)["status"] == "timeout"
+    assert store.get_job(running)["status"] == "timeout"
+    assert store.get_job(running)["error_code"] == "stale"
+    assert store.get_job(done)["status"] == "succeeded"
 
 
 def test_usage_sums_are_exact_integers(db):

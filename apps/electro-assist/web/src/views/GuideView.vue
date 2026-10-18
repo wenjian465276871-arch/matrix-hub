@@ -2,7 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import GuideFigure from '../figures/GuideFigure.vue'
 import { ApiError, getJson } from '../lib/http'
-import type { Criterion, Guide } from '../types'
+import type { Criterion, Guide, GuideDetail, GuideStatus } from '../types'
 
 const props = defineProps<{ id: string }>()
 
@@ -13,6 +13,7 @@ const SYSTEM_LABEL: Record<string, string> = {
 }
 
 const guide = ref<Guide | null>(null)
+const guideStatus = ref<GuideStatus>('published')
 const phase = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading')
 const errorText = ref('')
 let ctrl: AbortController | null = null
@@ -35,7 +36,9 @@ async function load(): Promise<void> {
   phase.value = 'loading'
   errorText.value = ''
   try {
-    guide.value = await getJson<Guide>(`/api/electro/guides/${props.id}`, ctrl.signal)
+    const detail = await getJson<GuideDetail>(`/api/electro/guides/${props.id}`, ctrl.signal)
+    guide.value = detail.guide
+    guideStatus.value = detail.status
     phase.value = 'ready'
   } catch (err) {
     if (ctrl.signal.aborted) return
@@ -74,6 +77,9 @@ onBeforeUnmount(() => ctrl?.abort())
   </div>
 
   <article v-else-if="guide" class="card">
+    <div v-if="guideStatus === 'draft'" class="draft-banner no-print">
+      <strong>草稿</strong> · 未发布，仅通过此链接可见
+    </div>
     <header class="guide-head">
       <h1 class="guide-title">{{ guide.title }}</h1>
       <p class="guide-summary">{{ guide.summary }}</p>
@@ -136,3 +142,15 @@ onBeforeUnmount(() => ctrl?.abort())
     </section>
   </article>
 </template>
+
+<style scoped>
+.draft-banner {
+  margin-bottom: 16px;
+  padding: 10px 14px;
+  border: 1px solid #e8c98a;
+  border-radius: 6px;
+  background: #fff4e0;
+  color: #8a5a00;
+  font-size: 13px;
+}
+</style>

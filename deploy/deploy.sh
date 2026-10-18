@@ -74,7 +74,9 @@ if health_check; then
   echo "==> 部署成功: ${NEW_TAG}"
   sed -i "s/^TAG=.*/TAG=${NEW_TAG}/" "$ENV_FILE" || true
   record_state
-  docker image prune -f --filter "until=168h" >/dev/null 2>&1 || true
+  # -a 是必须的：不带 -a 只清 dangling（无 tag）镜像，而 CI 每个部署都打 tag，
+  # 结果就是每个 commit 留一个 318MB 的镜像，永不回收（10-19 实测已堆积 15 个）。
+  docker image prune -af --filter "until=168h" >/dev/null 2>&1 || true
   exit 0
 fi
 

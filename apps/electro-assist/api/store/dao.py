@@ -46,8 +46,12 @@ def save_guide(
 ) -> dict[str, Any]:
     """写入或更新一份指导书。
 
-    已发布的指导书不会被后续草稿覆盖状态——否则一次重生成就把线上内容打下线了。
-    内容本身仍会被更新，发布状态保持，直到显式 `publish_guide` / `unpublish`。
+    **ID 必须由调用方分配**（生成服务用随机 id），DAO 不接受模型给的 id。
+    模型的 id 是语义化的（`g_door_side_door_test`），两人生成同一工序必撞；
+    搭配 upsert 就是"后者静默覆盖前者"，已发布内容也会被顶替。
+
+    **已发布内容不可覆盖**：即使 id 撞上（64 位随机理论上不会），也只返回现有记录。
+    发布状态只能由 `publish_guide` 改变。
     """
     now = now_iso()
     payload = json.dumps(guide.model_dump(mode="json"), ensure_ascii=False)
@@ -55,11 +59,12 @@ def save_guide(
 
     with connect() as conn:
         with tx(conn):
-            conn.execute(
+            cur = conn.execute(
                 """
                 INSERT INTO guides (id, schema_version, title, system, status, json, job_id,
-                                    step_count, duration_s, created_at, updated_at, published_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    step_count, duration_s, summary, source_note, generated_at,
+                                    created_at, updated_at, published_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                   schema_version = excluded.schema_version,
                   title          = excluded.title,
@@ -68,12 +73,16 @@ def save_guide(
                   job_id         = excluded.job_id,
                   step_count     = excluded.step_count,
                   duration_s     = excluded.duration_s,
+                  summary        = excluded.summary,
+                  source_note    = excluded.source_note,
+                  generated_at   = excluded.generated_at,
                   updated_at     = excluded.updated_at,
                   status         = CASE
                                      WHEN guides.status = 'published' THEN 'published'
                                      ELSE excluded.status
                                    END,
                   published_at   = COALESCE(guides.published_at, excluded.published_at)
+                WHERE guides.status != 'published'
                 """,
                 (
                     guide.id,
@@ -85,12 +94,26 @@ def save_guide(
                     job_id,
                     len(guide.steps),
                     duration,
+                    guide.summary,
+                    guide.meta.source_note,
+                    guide.meta.generated_at.isoformat(),
                     now,
                     now,
                     now if status == "published" else None,
                 ),
             )
-    return {"id": guide.id, "status": status, "updated_at": now}
+            if cur.rowcount == 0:
+                existing = conn.execute(
+                    "SELECT status, updated_at FROM guides WHERE id = ?", (guide.id,)
+                ).fetchone()
+                if existing is not None:
+                    return {
+                        "id": guide.id,
+                        "status": existing["status"],
+                        "updated_at": existing["updated_at"],
+                        "skipped": True,
+                    }
+    return {"id": guide.id, "status": status, "updated_at": now, "skipped": False}
 
 
 def get_guide(guide_id: str) -> dict[str, Any] | None:
@@ -106,8 +129,8 @@ def get_guide(guide_id: str) -> dict[str, Any] | None:
 def list_guides(*, status: GuideStatus | None = None, limit: int = 50) -> list[dict[str, Any]]:
     """列表不返回全文——与 `/api/electro/guides` 的口径保持一致。"""
     sql = """
-        SELECT id, schema_version, title, system, status, job_id, step_count, duration_s,
-               created_at, updated_at, published_at
+        SELECT id, schema_version, title, summary, system, status, job_id, step_count,
+               duration_s, source_note, generated_at, created_at, updated_at, published_at
         FROM guides
     """
     params: list[Any] = []
@@ -244,23 +267,86 @@ def get_job(job_id: str) -> dict[str, Any] | None:
         return _row(conn.execute("SELECT * FROM jobs WHERE id = ?", (job_id,)).fetchone())
 
 
-def count_jobs_between(client_ip: str, start_iso: str, end_iso: str) -> int:
+def count_jobs_between(
+    client_ip: str,
+    start_iso: str,
+    end_iso: str,
+    *,
+    exclude_failed: bool = False,
+) -> int:
     """配额统计口径：按 IP 与时间窗计数。
 
-    被拒绝的请求不建 job，所以这里不需要再排除什么——
-    "没建成 job"本身就是没消耗额度。
+    `exclude_failed=True` 用于访客配额（决策 #17：系统失败不该让用户买单）。
+    全站预算统计不吃这个参数——失败调用的 token 已经花掉了。
     """
+    sql = (
+        "SELECT COUNT(*) AS n FROM jobs"
+        " WHERE client_ip = ? AND created_at >= ? AND created_at < ?"
+    )
+    if exclude_failed:
+        sql += " AND status NOT IN ('failed', 'timeout')"
+    with connect() as conn:
+        row = conn.execute(sql, (client_ip, start_iso, end_iso)).fetchone()
+    return int(row["n"])
+
+
+def oldest_job_between(
+    client_ip: str,
+    start_iso: str,
+    end_iso: str,
+    *,
+    exclude_failed: bool = True,
+) -> str | None:
+    """时间窗内最早一条 job 的时间，用于算配额重置时刻。"""
+    sql = (
+        "SELECT MIN(created_at) AS t FROM jobs"
+        " WHERE client_ip = ? AND created_at >= ? AND created_at < ?"
+    )
+    if exclude_failed:
+        sql += " AND status NOT IN ('failed', 'timeout')"
+    with connect() as conn:
+        row = conn.execute(sql, (client_ip, start_iso, end_iso)).fetchone()
+    return row["t"] if row and row["t"] else None
+
+
+def count_jobs_today(
+    client_ip: str,
+    day: str | None = None,
+    *,
+    exclude_failed: bool = False,
+) -> int:
+    start, end = day_bounds_utc(day or today_cst())
+    return count_jobs_between(client_ip, start, end, exclude_failed=exclude_failed)
+
+
+def count_jobs_by_retry_of(retry_of: str) -> int:
+    """一个失败 job 只允许被重试一次——否则 retry_of 就是无限额度。"""
     with connect() as conn:
         row = conn.execute(
-            "SELECT COUNT(*) AS n FROM jobs WHERE client_ip = ? AND created_at >= ? AND created_at < ?",
-            (client_ip, start_iso, end_iso),
+            "SELECT COUNT(*) AS n FROM jobs WHERE retry_of = ?", (retry_of,)
         ).fetchone()
     return int(row["n"])
 
 
-def count_jobs_today(client_ip: str, day: str | None = None) -> int:
-    start, end = day_bounds_utc(day or today_cst())
-    return count_jobs_between(client_ip, start, end)
+def sweep_stale_jobs(before_iso: str, note: str = "服务重启导致中断，请重试") -> int:
+    """把重启后残留的 queued/running 收敛为 timeout。
+
+    单容器部署每次 `up -d` 都会换进程；没有这一步，那些 job 会永远转圈，
+    用户重试还会被配额拦住（决策 #17 后不会，但"永远 running"本身仍是坏体验）。
+    """
+    now = now_iso()
+    with connect() as conn:
+        with tx(conn):
+            cur = conn.execute(
+                """
+                UPDATE jobs
+                   SET status = 'timeout', error_code = 'stale', error_detail = ?,
+                       finished_at = ?
+                 WHERE status IN ('queued', 'running') AND created_at < ?
+                """,
+                (note, now, before_iso),
+            )
+    return cur.rowcount
 
 
 # ---------------------------------------------------------------- usage
@@ -272,7 +358,9 @@ def record_usage(
     prompt_tokens: int,
     completion_tokens: int,
     reasoning_tokens: int = 0,
+    cached_tokens: int = 0,
     cost_micros: int = 0,
+    price_version: str = "",
     job_id: str | None = None,
     day: str | None = None,
 ) -> int:
@@ -281,8 +369,9 @@ def record_usage(
             cur = conn.execute(
                 """
                 INSERT INTO usage (day, job_id, model, prompt_tokens, completion_tokens,
-                                   reasoning_tokens, cost_micros, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                   reasoning_tokens, cached_tokens, cost_micros, price_version,
+                                   created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     day or today_cst(),
@@ -291,7 +380,9 @@ def record_usage(
                     prompt_tokens,
                     completion_tokens,
                     reasoning_tokens,
+                    cached_tokens,
                     cost_micros,
+                    price_version,
                     now_iso(),
                 ),
             )
@@ -307,6 +398,7 @@ def usage_summary(day: str | None = None) -> dict[str, int]:
                    COALESCE(SUM(prompt_tokens), 0)     AS prompt_tokens,
                    COALESCE(SUM(completion_tokens), 0) AS completion_tokens,
                    COALESCE(SUM(reasoning_tokens), 0)  AS reasoning_tokens,
+                   COALESCE(SUM(cached_tokens), 0)     AS cached_tokens,
                    COALESCE(SUM(cost_micros), 0)       AS cost_micros
             FROM usage WHERE day = ?
             """,
@@ -318,6 +410,7 @@ def usage_summary(day: str | None = None) -> dict[str, int]:
         "prompt_tokens": int(row["prompt_tokens"]),
         "completion_tokens": int(row["completion_tokens"]),
         "reasoning_tokens": int(row["reasoning_tokens"]),
+        "cached_tokens": int(row["cached_tokens"]),
         "cost_micros": int(row["cost_micros"]),
     }
 

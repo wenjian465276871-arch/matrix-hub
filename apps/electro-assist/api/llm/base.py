@@ -18,6 +18,7 @@ ErrorKind = Literal[
     "server",      # 5xx
     "bad_request", # 400，请求本身有问题
     "validation",  # 模型输出不是合法 JSON 或不合 schema
+    "truncated",   # 输出被 max_tokens 截断（与校验失败不同：要放宽预算/要求精简）
     "budget",      # 总预算耗尽，未发出调用
 ]
 
@@ -28,6 +29,7 @@ RETRYABLE: dict[str, bool] = {
     "rate_limit": True,
     "server": True,
     "validation": True,
+    "truncated": True,
     "auth": False,
     "bad_request": False,
     "budget": False,

@@ -1,6 +1,6 @@
 # 运维手册
 
-> 版本 v0.1 · 状态：草案 · 最后更新：2026-10-18
+> 版本 v0.2 · 状态：草案 · 最后更新：2026-10-19
 > 本文不含服务器地址、凭证与私有路径。补全信息的操作记录留在私有仓。
 
 ## 1. 运行形态
@@ -18,6 +18,7 @@
 
 - `matrix-hub_app_data` → `/srv/app_data`（SQLite、上传资产、Caddy 证书与状态）
 - `matrix-hub_caddy_data` → `/data`（预留）
+- `./backups` → `/srv/backups`（SQLite 备份，**卷外**；宿主目录需 `chown 10001:10001`）
 
 卷内布局：
 
@@ -44,16 +45,19 @@ docker exec matrix-hub sh -c "chmod -R go-rwx /srv/app_data/uploads /srv/app_dat
 ```
 compose.yml     由仓库同步，不手改
 deploy.sh       由仓库同步
-.env            600，含 IMAGE / TAG / SITE_DOMAIN / ACME_EMAIL，不入库
+backup.sh       由仓库同步（每日备份脚本）
+.env            600，含 IMAGE / TAG / SITE_DOMAIN / ACME_EMAIL / DEEPSEEK_API_KEY，不入库
 deploy.log      deploy.sh 追加写入的部署记录
+backups/        SQLite 备份（卷外，保留最近 7 份）
 ```
 
 ## 3. 部署
 
-**正常路径**：push 到 `main` → GitHub Actions 构建 → 推 ACR → **scp 同步 `deploy.sh` 与 `compose.yml`** → SSH 执行 `deploy.sh <sha>`。
+**正常路径**：push 到 `main` → GitHub Actions 构建 → 推 ACR → **scp 同步 `deploy.sh` / `backup.sh` / `compose.yml`** → SSH 执行 `deploy.sh <sha>`。
 
 > 2026-10-18 补：同步步骤此前缺失，CI 实际一直在跑服务器上的旧脚本——仓库改了不生效，
-> 等于部署逻辑不在版本控制里。现在这两个文件每次部署前从仓库覆盖到 `/opt/matrix-hub/`。
+> 等于部署逻辑不在版本控制里。现在这些文件每次部署前从仓库覆盖到 `/opt/matrix-hub/`。
+> 2026-10-19：`backup.sh` 一并同步；CI 并发改为**不取消进行中的部署**（避免 SSH 部署被中断在中间态）。
 
 **手动路径**（CI 不可用时）：先 `scp deploy/deploy.sh docker/compose.yml` 到 `/opt/matrix-hub/`，再：
 
@@ -89,12 +93,13 @@ systemctl start nginx      # nginx 仍保留配置与证书，30 秒内可恢复
 ## 5. 健康检查与日志
 
 ```bash
-curl -s https://<域名>/healthz          # {"status":"ok","checks":{"electro":"ok"}}
+curl -s https://<域名>/healthz          # {"status":"ok","checks":{"electro":"ok","db":"ok"}}
 docker compose -f /opt/matrix-hub/compose.yml logs -f --tail 100 web
 docker stats --no-stream
 ```
 
-日志走 stdout，由 Docker 轮转。**日志中不得出现密钥、token、请求体。**
+日志走 stdout。容器日志已限制为 `json-file`、单文件 10MB、保留 3 个（计划 §9.4 #5），
+不会无限增长。**日志中不得出现密钥、token、请求体。**
 
 ## 6. 证书
 
@@ -113,25 +118,52 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 | 对象 | 方式 | 频率 |
 |---|---|---|
 | 站点静态与代码 | Git（本仓库） | 每次提交 |
-| 运行数据（SQLite / 上传） | `app_data` 卷打包 | 每日 |
+| 业务库 | `deploy/backup.sh`（SQLite 在线备份到卷外） | 每日 03:17（cron） |
+| 上传资产 | `app_data` 卷打包 | 每周（手工/快照） |
 | 整机 | 云厂商快照 | 变更前手动 |
 
 **SQLite 不能直接 `cp`。** WAL 模式下最新数据还在 `-wal` 文件里，热拷贝会得到
 一个"少了最后几笔"的库，而且恢复时不会报错——这是最坏的一种备份。
 
-正确做法（二选一）：
+`backup.sh` 的做法：容器内 `sqlite3.Connection.backup()` 在线热备 →
+写到 `/srv/backups`（绑定到宿主机 `/opt/matrix-hub/backups`）→ `PRAGMA integrity_check`
+→ 只保留最近 7 份。备份在卷外，卷损坏时仍然可用。
+
+首次安装（只需一次）：
 
 ```bash
-# 1) 容器内用 sqlite3 的在线备份（不需要停服，推荐）
-docker exec matrix-hub python -c "import sqlite3;s=sqlite3.connect('/srv/app_data/electro.db');d=sqlite3.connect('/srv/app_data/electro.backup.db');s.backup(d);d.close()"
-
-# 2) 停容器后连 -wal / -shm 一起打包
-docker stop matrix-hub && tar czf app_data-$(date +%F).tgz -C /var/lib/docker/volumes/matrix-hub_app_data/_data .
+install -d -o 10001 -g 10001 -m 700 /opt/matrix-hub/backups
+chmod 755 /opt/matrix-hub/backup.sh
+# 每天 03:17 备份；日志留在 /var/log
+( crontab -l 2>/dev/null; echo '17 3 * * * /opt/matrix-hub/backup.sh >> /var/log/matrix-hub-backup.log 2>&1' ) | crontab -
 ```
 
-备份产物必须加密（见私有仓备份规范），且**不要**把 `.env`、票据一起打进去。
+手动执行与检查：
 
-恢复流程：停容器 → 解包覆盖 `app_data` 卷 → 起容器 → 校验 `/healthz` 与关键页面。
+```bash
+/opt/matrix-hub/backup.sh
+ls -lh /opt/matrix-hub/backups | tail -8
+tail -20 /var/log/matrix-hub-backup.log
+```
+
+### 7.4 恢复（演练过再算数）
+
+```bash
+cd /opt/matrix-hub
+docker stop matrix-hub
+docker run --rm \
+  -v matrix-hub_app_data:/data \
+  -v /opt/matrix-hub/backups:/b:ro \
+  python:3.12-slim \
+  sh -c 'cp /b/electro-YYYYMMDD-HHMM.db /data/electro.db && \
+         rm -f /data/electro.db-wal /data/electro.db-shm && \
+         chown 10001:10001 /data/electro.db'
+docker start matrix-hub
+curl -s https://<域名>/healthz     # 期望 {"status":"ok","checks":{"electro":"ok","db":"ok"}}
+```
+
+恢复后核对：`docker exec matrix-hub python -c "import sqlite3;c=sqlite3.connect('/srv/app_data/electro.db');print(c.execute('select count(*) from guides').fetchone())"`
+——数量应与备份时一致。**恢复演练每季度至少一次**，否则"有备份"只是心理安慰。
 
 ## 8. 事故处置
 
@@ -202,10 +234,52 @@ IP 取自 `X-Forwarded-For` 的**最右一段**（由容器内 Caddy 追加）�
 宿主机不可达——**成功回滚也会打印"仍不健康"**。现统一走 `probe_health()`：
 `curl --resolve ${SITE_DOMAIN}:443:127.0.0.1 https://.../healthz`，与部署后检查同口径。
 
+### 10.4 生成配额与预算（2026-10-19 新增）
+
+| 维度 | 默认值 | 环境变量 | 说明 |
+|---|---|---|---|
+| 单 IP / 小时 | 2 | `GENERATE_PER_HOUR` | 排队中的 job 也计数 |
+| 单 IP / 日 | 10 | `GENERATE_PER_DAY` | 按北京时间日界 |
+| 全站 / 日预算 | ¥3 | `GENERATE_DAILY_BUDGET_MICROS` | 微元整数；超限返回 429 `budget_exhausted` |
+| 单次成本估算 | ¥0.03 | `GENERATE_ESTIMATE_MICROS` | 预检用，实测峰值约 ¥0.025 |
+
+两条容易搞混的口径（决策 #17）：
+
+- **失败/超时不占访客配额**：系统问题不该让用户当天没法再用；
+- **失败仍计入全站预算**：token 已经烧掉了，不记就会在失败率高时漏掉最贵的调用。
+
+`retry_of` 只在四个条件同时满足时豁免配额：同 IP、24 小时内、原 job 为
+`failed`/`timeout`、且该 job 未被重试过。缺一条就返回 429。
+
+接口：`POST /api/electro/generate` → 202 `{job_id}`；`GET /api/electro/jobs/{id}` 轮询；
+`GET /api/electro/quota` 查余量。生成结果是**草稿**，只出现在详情链接里，不进公开列表。
+
+### 10.5 资源护栏与镜像回收（2026-10-19 新增）
+
+- 容器 `mem_limit: 1200m`：2C2G 主机上，一次异常生成 + Pillow 解码就可能打满内存；
+  超限让容器重启，而不是拖死整机。
+- 日志 `json-file` / 10MB / 3 个：默认无上限，Caddy 访问日志会一直长。
+- `deploy.sh` 改为 `docker image prune -af --filter until=168h`：
+  不带 `-a` 只清 dangling，带 tag 的镜像永不回收（10-19 实测已堆 15 个）。
+
+磁盘检查：
+
+```bash
+docker system df
+docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | wc -l
+```
+
+### 10.6 CI 部署并发（2026-10-19 新增）
+
+`cancel-in-progress: false`。部署经 SSH 在服务器上执行，取消 runner 会留下
+"镜像已换、健康检查没跑完"的中间态。代价是连续 push 会排队，单次约 2 分钟，可接受。
+deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
+
 ## 11. 待补
 
-- 每日备份定时任务（当前依赖云快照）
+- 备份恢复演练常态化（每季度一次，脚本见 §7.4）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
 - 监控告警（`/healthz` 外部探测）
-- **上传目录 30 天清理**（`app_data/uploads` 持续增长，当前 1.4MB 可忽略，P2 前必须做）
+- **上传目录 30 天清理**（`app_data/uploads` 持续增长，当前 1.5MB 可忽略，P2 前必须做）
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯）
+- 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`ratelimit.py` 均假设单 worker）

@@ -11,7 +11,7 @@
 | 门户 | `apps/portal/public` | 站点首页（自包含重写，零外链） | **已上线** |
 | 新闻洞察 | —— | 新闻聚合（原 FastAPI 后端） | **已下架**（ADR-0002） |
 | 粒子系统 | `apps/particle-system/legacy` | Canvas 视觉实验 | 暂停（待重构，ADR-0003） |
-| 电气调试助手 | `apps/electro-assist` | 工艺文本/图片 → 指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | 开发中：契约 v1.1 + 上传切图 + 指导书读取与渲染（7 原语）+ 生成管线（本地 CLI 已验证，`/generate` 待接） |
+| 电气调试助手 | `apps/electro-assist` | 工艺文本/图片 → 指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | **A2 闭环已通**：异步生成 job + 配额/预算 + 草稿/发布 + 7 原语渲染；A1（引导）与 B（排查）开发中 |
 
 ## 架构一句话
 
@@ -55,6 +55,14 @@ cd apps/electro-assist/api
 python scripts/eval_generate.py --dry-run          # 列举评测语料，不调用模型
 python scripts/eval_generate.py --env-file <.env>  # 5 份语料批量评测（约 ¥0.05）
 python scripts/smoke_llm.py --text-file scripts/corpus/01_door_switch.txt --debug
+
+# 生成接口（异步 job；生成结果是草稿，凭 guide_id 查看，不进公开列表）
+curl -s localhost:8001/api/electro/quota
+curl -s -X POST localhost:8001/api/electro/generate \
+     -H 'Content-Type: application/json' \
+     -d '{"text":"工序：开关门功能试验。检查开关门时间 2.0–3.5s。"}'
+curl -s localhost:8001/api/electro/jobs/<job_id>
+```
 
 环境变量统一走 `.env`（见 `deploy/.env.example`），**任何密钥都不入库**。
 

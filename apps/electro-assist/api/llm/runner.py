@@ -22,7 +22,7 @@ from models.guide import Guide
 
 from .base import Completion, LLMError, LLMProvider, Usage
 from .pricing import cost_micros
-from .prompts import repair_prompt, system_prompt, user_prompt
+from .prompts import repair_prompt, system_prompt, truncation_prompt, user_prompt
 
 MAX_INPUT_CHARS = 20_000
 MIN_INPUT_CHARS = 10
@@ -75,22 +75,6 @@ def _with_usage(
     return err
 
 
-def _with_usage(
-    err: LLMError, attempts: int, usage: Usage, at: datetime | None, raw: str | None = None
-) -> LLMError:
-    """把"已经花掉的钱"和"模型到底写了什么"挂到异常上。
-
-    没有这两样，失败就是黑盒：预算统计会把失败的消耗漏掉，
-    而看不到原始输出就只能靠猜模型哪里写错了。
-    """
-    err.attempts = attempts
-    err.usage = usage
-    err.cost_micros = cost_micros(usage, at)
-    if raw is not None:
-        err.raw = raw
-    return err
-
-
 def _format_validation_error(exc: ValidationError) -> str:
     lines = []
     for err in exc.errors()[:5]:
@@ -106,7 +90,7 @@ def generate_guide(
     budget_s: float = 90.0,
     call_timeout_s: float = 40.0,
     max_attempts: int = 2,
-    max_tokens: int = 4096,
+    max_tokens: int = 6144,
     max_chars: int = MAX_INPUT_CHARS,
     clock: Callable[[], float] = time.monotonic,
     at: datetime | None = None,
@@ -158,8 +142,17 @@ def generate_guide(
             )
         except LLMError as exc:
             last_error = exc
+            # 失败调用也可能已经烧了 token（截断、5xx 前已生成部分内容）。
+            # 不累加的话，预算熔断会在失败率最高的时候失灵。
+            if exc.usage.prompt_tokens or exc.usage.completion_tokens:
+                usage = usage + exc.usage
             if not exc.retryable or attempt == max_attempts:
                 raise _with_usage(exc, attempt, usage, at) from exc
+            if exc.kind == "truncated":
+                # 与校验失败不同：模型不是写错，是写太多。加倍预算并要求精简，
+                # 否则同样的输入会再次撞上同一个上限。
+                max_tokens = min(max_tokens * 2, 8192)
+                prompt = truncation_prompt(cleaned)
             continue
 
         usage = usage + completion.usage

@@ -70,13 +70,15 @@ def test_empty_content_is_validation_error():
     assert info.value.retryable is True
 
 
-def test_truncated_output_is_validation_error():
+def test_truncated_output_is_distinct_error():
+    """截断与校验失败要分开：前者要放宽预算/要求精简，后者要回喂错误。"""
+
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=_ok_body(content='{"id":', finish="length"))
 
     with _provider(handler) as p, pytest.raises(LLMError) as info:
         p.structured(**CALL)
-    assert info.value.kind == "validation"
+    assert info.value.kind == "truncated"
     assert "截断" in str(info.value)
 
 

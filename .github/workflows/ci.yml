@@ -12,7 +12,9 @@ permissions:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # 不能取消进行中的部署：deploy 经 SSH 在服务器上执行，runner 被 cancel 后
+  # 服务器可能停在"镜像已换、健康检查没跑完"的中间态。排队等前一次结束更安全。
+  cancel-in-progress: false
 
 env:
   IMAGE: ${{ secrets.ACR_REGISTRY }}/matrix-hub/matrix-hub
@@ -34,6 +36,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r apps/electro-assist/api/requirements.txt \
                       -r apps/electro-assist/api/requirements-dev.txt
+
+      - name: 静态检查（关键规则）
+        working-directory: apps/electro-assist/api
+        run: python -m ruff check .
 
       - name: 运行测试
         working-directory: apps/electro-assist/api
@@ -112,6 +118,8 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'
     runs-on: ubuntu-latest
     environment: production
+    # 健康检查最长约 40s；超过 20 分钟说明 SSH/拉镜像卡住，必须失败而不是挂着。
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -144,15 +152,15 @@ jobs:
 
       # 2026-10-18 补：此前只跑服务器上的旧 deploy.sh，仓库改了也不生效，
       # 等于"部署脚本不在版本控制里"。部署前先同步这两个文件。
-      - name: 同步部署产物（deploy.sh / compose.yml）
+      - name: 同步部署产物（deploy.sh / backup.sh / compose.yml）
         if: steps.scope.outputs.deploy == 'true'
         run: |
           scp -i ~/.ssh/id_ed25519 -o BatchMode=yes \
-            deploy/deploy.sh docker/compose.yml \
+            deploy/deploy.sh deploy/backup.sh docker/compose.yml \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/matrix-hub/"
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "chmod 755 /opt/matrix-hub/deploy.sh"
+            "chmod 755 /opt/matrix-hub/deploy.sh /opt/matrix-hub/backup.sh"
 
       - name: 执行部署（健康检查失败自动回滚）
         if: steps.scope.outputs.deploy == 'true'

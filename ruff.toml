@@ -1,0 +1,7 @@
+target-version = "py312"
+line-length = 100
+
+[lint]
+# 只选"会真出错"的规则：语法错误、未定义名、f-string 错误。
+# 格式化类规则（E501/I/UP…）不进 CI——它们会让每个提交都变成格式 diff。
+select = ["E9", "F63", "F7", "F82"]

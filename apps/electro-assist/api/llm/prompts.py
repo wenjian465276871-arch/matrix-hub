@@ -107,3 +107,19 @@ def repair_prompt(text: str, previous: str, errors: str) -> str:
         f"{snippet}\n\n"
         "请只修复上述错误，重新输出**完整**的 Guide JSON。不要解释，不要 Markdown 代码块。"
     )
+
+
+def truncation_prompt(text: str) -> str:
+    """输出被 max_tokens 截断时的第二次尝试。
+
+    与校验失败不同：模型不是写错了，是写太多。回喂"JSON 不完整"没有用，
+    必须明确要求精简，否则同样的输入会再次撞上同一个上限。
+    """
+    return (
+        f"{DOC_OPEN}\n{escape_document(text.strip())}\n{DOC_CLOSE}\n\n"
+        "上一次输出因为过长被截断，JSON 不完整。请重新输出完整 JSON，并做以下精简：\n"
+        "- 步骤不超过 8 步，每步图示不超过 1 张；\n"
+        "- action 控制在 120 字以内，删去重复说明；\n"
+        "- **不得省略**任何判据、安全项与 fallback_text。\n"
+        "只输出 JSON，不要解释。"
+    )

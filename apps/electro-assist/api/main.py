@@ -13,8 +13,11 @@ from fastapi import FastAPI
 
 import store
 from routers import guides as guides_router
+from routers import jobs as jobs_router
+from routers import quota as quota_router
 from routers import schema as schema_router
 from routers import uploads as uploads_router
+from services import generation, library
 
 APP_ENV = os.getenv("APP_ENV", "dev")
 IS_PROD = APP_ENV == "prod"
@@ -29,19 +32,30 @@ log = logging.getLogger("electro")
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """启动时建表并跑迁移。
+    """启动时建表、清扫残留 job、导入样例、拉起生成 worker。
 
     失败必须让容器起不来：一个连数据库都打不开的实例，healthz 返回 ok 只会
     让部署脚本误判"部署成功"。
     """
     applied = store.init_db()
     log.info("DB ready at %s（本次应用迁移：%s）", store.db_path(), applied or "无")
-    yield
+
+    # 每次部署都会换进程，上一次的 queued/running 已经不可能被执行。
+    stale = generation.recover_stale()
+    if stale:
+        log.warning("启动清扫：%d 个残留 job 标记为 timeout", stale)
+
+    library.ensure_seeded()
+    generation.start_worker()
+    try:
+        yield
+    finally:
+        generation.stop_worker()
 
 
 app = FastAPI(
     title="electro-assist API",
-    version="0.2.0",
+    version="0.3.0",
     description="电气调试 AI 作业助手：A2 指导书生成 / A1 引导作业 / B 故障排查",
     docs_url=None if IS_PROD else "/docs",
     redoc_url=None,
@@ -52,6 +66,8 @@ app = FastAPI(
 app.include_router(schema_router.router)
 app.include_router(uploads_router.router)
 app.include_router(guides_router.router)
+app.include_router(jobs_router.router)
+app.include_router(quota_router.router)
 
 
 @app.get("/healthz", tags=["ops"])

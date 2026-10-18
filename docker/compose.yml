@@ -18,10 +18,21 @@ services:
     volumes:
       - caddy_data:/data
       - app_data:/srv/app_data
+      # 备份落在卷外：卷损坏时备份还在。宿主目录需 chown 10001:10001。
+      - ./backups:/srv/backups
     # 只挂业务卷，不挂 docker socket，不加 privileged
     read_only: false
     security_opt:
       - no-new-privileges:true
+    # 2C2G 主机：一次异常生成 + Pillow 解码就可能把内存打满。
+    # 计划 §9.4 #2 要求 1.2g 上限；超限让容器重启，而不是拖死整机。
+    mem_limit: 1200m
+    # 计划 §9.4 #5 要求日志轮转；默认 json-file 无上限，Caddy 访问日志会一直长。
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
       test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/healthz"]
       interval: 30s
