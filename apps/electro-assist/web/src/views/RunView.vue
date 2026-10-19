@@ -189,8 +189,9 @@ async function submitStep(): Promise<void> {
 }
 
 function retest(): void {
+  // 复测保留上一次填写值：现场通常只重测超差的那一项，
+  // 全部清空等于逼人把已经测过的值再抄一遍。
   lastStep.value = null
-  resetValues()
   errorText.value = ''
   errorCode.value = ''
   phase.value = 'ready'
