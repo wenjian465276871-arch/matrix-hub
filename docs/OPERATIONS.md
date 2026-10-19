@@ -278,11 +278,31 @@ docker images --format '{{.Repository}}:{{.Tag}} {{.Size}}' | wc -l
 "镜像已换、健康检查没跑完"的中间态。代价是连续 push 会排队，单次约 2 分钟，可接受。
 deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 
+### 10.7 A1 引导与会话（2026-10-19 新增）
+
+| 端点 | 作用 | 备注 |
+|---|---|---|
+| `POST /api/electro/sessions` | 开始一次作业 | 201；每 IP 10 次/时（`SESSION_PER_HOUR`，进程内滑窗） |
+| `GET /api/electro/sessions/{id}` | 会话 + 指导书 + 已提交记录 | 刷新续接靠它 |
+| `POST /api/electro/sessions/{id}/steps/{seq}` | 提交一步 | **必须带 `Idempotency-Key`**；判定服务端算 |
+| `POST /api/electro/sessions/{id}/finish` | `done` / `aborted` | `done` 要求全部步骤通过 |
+| `GET /api/electro/records/{session_id}` | 整份作业记录 | 打印页数据源，含异常链 |
+
+**复测不是覆盖**：每次提交 `records.attempt + 1`，旧记录保留；`fail`/`warn`
+不推进 `current_seq`。迁移 3 重建了 `records` 表以去掉旧的
+`UNIQUE(session_id, step_id)`——那条约束会把复测当重复丢弃。
+
+**写入增长**：每次作业约 4–8 条记录，单条 < 2KB。当前无清理任务；
+`records/sessions` 的 30 天清理与 `uploads` 同期做（见 §11）。
+
+**权限**：会话与记录凭随机 id 访问，无登录。不要往记录里写个人信息。
+
 ## 11. 待补
 
 - 备份恢复演练常态化（每季度一次，脚本见 §7.4）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
 - 监控告警（`/healthz` 外部探测）
 - **上传目录 30 天清理**（`app_data/uploads` 持续增长，当前 1.5MB 可忽略，P2 前必须做）
+- **会话/记录 30 天清理**（`sessions`/`records` 每次作业 4–8 行，当前量小；与上传清理同批）
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯）
-- 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`ratelimit.py` 均假设单 worker）
+- 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`ratelimit.py`、`services/sessions.py` 均假设单 worker）

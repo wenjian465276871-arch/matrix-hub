@@ -87,6 +87,34 @@ sequenceDiagram
 4. **草稿不上公开列表**：`GET /guides` 只列 `published`；`GET /guides/{id}` 返回
    `{status, guide}` 信封，前端据此标"草稿"。发布走服务器 CLI，不做后台管理。
 
+### 2.1 A1 会话状态机（2026-10-19 落地）
+
+```mermaid
+stateDiagram-v2
+  [*] --> active: POST /sessions
+  active --> active: pass / manual（current_seq + 1）
+  active --> active: fail / warn（attempt + 1，current_seq 不动）
+  active --> done: 全部步骤通过
+  active --> aborted: 停止作业
+  done --> [*]
+  aborted --> [*]
+```
+
+三个关键取舍：
+
+1. **判定在服务端**。客户端只提交实测值，`verdict` 由 `services/criteria.py` 算；
+   请求体里塞 `verdict: "pass"` 不会生效。否则改一下请求就能把超差变合格。
+2. **复测是新增尝试，不是覆盖**。`records` 每次提交 `attempt + 1`，
+   旧的异常记录保留；打印页的异常链因此能回溯"第一次超差、第二次合格"。
+3. **失败不推进**。`fail`/`warn` 只落记录，`current_seq` 留在原地；
+   只有 `pass`/`manual` 才前进。没有"跳过"——系统不能假装某一步做过。
+
+幂等：提交必须带 `Idempotency-Key`。同 key 重投返回原记录；
+通过后换 key 重投同一步返回 `step_already_passed`；失败后换 key 才是复测。
+
+记录：`GET /records/{session_id}` 返回整份作业（按步骤分组、含每次尝试与异常链），
+打印页直接消费这个结构，不再二次拼装。
+
 ## 3. 模块与阶段
 
 ```mermaid
@@ -118,6 +146,8 @@ flowchart TB
 | A2 生成物 | 结构化 JSON + 前端渲染 | 后端生成 HTML | 可校验、可复用、可打印；HTML 拼接是 XSS 温床 |
 | 指导书 ID | **服务端随机分配** | 信任模型输出的 id | 模型 id 是语义化、可预测的，两人生成同一工序必撞；upsert 会把覆盖当更新 |
 | 生成执行 | 进程内单 worker 有界队列 | BackgroundTasks / Celery | 单容器单 worker，broker 的运维成本大于收益；队列满明确 503 |
+| A1 判定权 | **服务端计算** | 客户端提交 verdict | 客户端可伪造；超差必须由服务端判 fail |
+| A1 复测 | **新增 attempt 记录** | 覆盖原记录 | 覆盖会丢掉异常链；"第一次超差、第二次合格"必须可回溯 |
 | 视觉图示 | 构建期原语 + 声明式 DSL | 运行时生成代码 / AI 生图 | 确定性、可评审、无执行风险 |
 | B 模块 | 向量检索 + 生成 | 全量塞进上下文 | 知识库会随子系统膨胀，全量注入不可持续 |
 | 模型 | 国内 API（DeepSeek 为主，通义备选） | 境外模型 | 延迟、可用性、合规 |
@@ -131,6 +161,7 @@ flowchart TB
 | A2 输入扩展为文本 + 图片 | 模型原生支持图片输入；现场文件多为截图 | `A2-IMAGE-INPUT.md` |
 | 图像处理引入 numpy | 像素统计用纯 Python 不可行；**仅图像模块使用**，检索层仍为纯 Python | 本文 |
 | 生成链路改为「单 worker 队列 + 服务端 ID + 草稿可见性」 | 模型 id 会撞、进程重启会留死 job、未审核内容不能公开 | 本文 §2；决策 #16/#17 |
+| A1 记录表重建（迁移 3） | 旧的 `UNIQUE(session_id, step_id)` 会把复测当重复丢弃 | 本文 §2.1 |
 
 ## 6. 边界与约束
 

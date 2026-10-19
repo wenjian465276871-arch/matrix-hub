@@ -11,7 +11,7 @@
 | 门户 | `apps/portal/public` | 站点首页（自包含重写，零外链） | **已上线** |
 | 新闻洞察 | —— | 新闻聚合（原 FastAPI 后端） | **已下架**（ADR-0002） |
 | 粒子系统 | `apps/particle-system/legacy` | Canvas 视觉实验 | 暂停（待重构，ADR-0003） |
-| 电气调试助手 | `apps/electro-assist` | 工艺文本/图片 → 指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | **A2 闭环已通**：异步生成 job + 配额/预算 + 草稿/发布 + 7 原语渲染；A1（引导）与 B（排查）开发中 |
+| 电气调试助手 | `apps/electro-assist` | 工艺文本/图片 → 指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | **A2 + A1 已上线**：异步生成 job + 配额/预算 + 草稿/发布 + 7 原语；逐步引导 + 判据校验 + 复测留痕 + 记录打印；B（排查）开发中 |
 
 ## 架构一句话
 
@@ -62,6 +62,16 @@ curl -s -X POST localhost:8001/api/electro/generate \
      -H 'Content-Type: application/json' \
      -d '{"text":"工序：开关门功能试验。检查开关门时间 2.0–3.5s。"}'
 curl -s localhost:8001/api/electro/jobs/<job_id>
+
+# A1 引导（开始 → 报一步 → 记录）
+SID=$(curl -s -X POST localhost:8001/api/electro/sessions \
+      -H 'Content-Type: application/json' \
+      -d '{"guide_id":"g_door_switch_test_001","device":"D-01"}' | jq -r .session.id)
+curl -s -X POST "localhost:8001/api/electro/sessions/$SID/steps/1" \
+     -H 'Content-Type: application/json' \
+     -H "Idempotency-Key: $SID:s01:a1" \
+     -d '{"values":{"confirm_safe":true}}'
+curl -s "localhost:8001/api/electro/records/$SID"
 ```
 
 环境变量统一走 `.env`（见 `deploy/.env.example`），**任何密钥都不入库**。

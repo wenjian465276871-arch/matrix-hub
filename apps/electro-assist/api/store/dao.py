@@ -418,15 +418,15 @@ def usage_summary(day: str | None = None) -> dict[str, int]:
 # ---------------------------------------------------------------- sessions / records
 
 
-def create_session(guide_id: str) -> str:
+def create_session(guide_id: str, *, device: str = "", location: str = "") -> str:
     session_id = _new_id("s")
     now = now_iso()
     with connect() as conn:
         with tx(conn):
             conn.execute(
-                "INSERT INTO sessions (id, guide_id, status, current_seq, created_at, updated_at)"
-                " VALUES (?, ?, 'active', 1, ?, ?)",
-                (session_id, guide_id, now, now),
+                "INSERT INTO sessions (id, guide_id, status, current_seq, device, location,"
+                " created_at, updated_at) VALUES (?, ?, 'active', 1, ?, ?, ?, ?)",
+                (session_id, guide_id, device.strip(), location.strip(), now, now),
             )
     return session_id
 
@@ -436,19 +436,21 @@ def get_session(session_id: str) -> dict[str, Any] | None:
         return _row(conn.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone())
 
 
-def finish_session(session_id: str, status: Literal["done", "aborted"]) -> bool:
+def finish_session(
+    session_id: str, status: Literal["done", "aborted"], note: str = ""
+) -> bool:
     now = now_iso()
     with connect() as conn:
         with tx(conn):
             cur = conn.execute(
-                "UPDATE sessions SET status = ?, finished_at = ?, updated_at = ?"
+                "UPDATE sessions SET status = ?, note = ?, finished_at = ?, updated_at = ?"
                 " WHERE id = ? AND status = 'active'",
-                (status, now, now, session_id),
+                (status, note.strip()[:300], now, now, session_id),
             )
     return cur.rowcount > 0
 
 
-def submit_record(
+def submit_step(
     *,
     session_id: str,
     step_id: str,
@@ -456,15 +458,15 @@ def submit_record(
     verdict: Verdict,
     payload: dict[str, Any],
     idempotency_key: str,
-) -> tuple[str, bool]:
-    """提交一步结果，返回 (record_id, 是否重复提交)。
+) -> tuple[str | None, bool, str | None, int]:
+    """提交一步结果，返回 (record_id, 是否重复, 错误码, attempt)。
 
-    幂等靠两道约束：
-    - `idempotency_key` 唯一：同一个 key 重投直接返回原记录；
-    - `(session_id, step_id)` 唯一：客户端换了 key 重投同一步，也不会产生第二条。
+    错误码：`not_found` / `closed` / `out_of_order`。
+    幂等与顺序检查放在**同一个写事务**里：先 `BEGIN IMMEDIATE` 拿到写锁，
+    再读 `current_seq` 判断，避免两个并发请求都读到 1、都认为自己是下一步。
 
-    记录与"推进 session.current_seq"在同一个事务里，避免出现
-    "记录写进去了但进度没动"这种要靠人肉修的中间态。
+    `attempt` 在事务内按 `MAX+1` 分配：同一步复测会得到 2、3…，
+    异常链因此可回溯；同一 attempt 的重试仍由 `idempotency_key` 唯一约束兜住。
     """
     record_id = _new_id("r")
     now = now_iso()
@@ -473,41 +475,113 @@ def submit_record(
     with connect() as conn:
         try:
             with tx(conn):
+                # 幂等优先于顺序：成功提交后 current_seq 已前进，旧 seq 的重投
+                # 必须先被认出来，否则会被误判成乱序。
+                existing = conn.execute(
+                    "SELECT id, attempt FROM records WHERE idempotency_key = ?",
+                    (idempotency_key,),
+                ).fetchone()
+                if existing is not None:
+                    return str(existing["id"]), True, None, int(existing["attempt"])
+
+                session = conn.execute(
+                    "SELECT status, current_seq FROM sessions WHERE id = ?", (session_id,)
+                ).fetchone()
+                if session is None:
+                    return None, False, "not_found", 0
+                if session["status"] != "active":
+                    return None, False, "closed", 0
+                if seq != session["current_seq"]:
+                    return None, False, "out_of_order", 0
+
+                row = conn.execute(
+                    "SELECT COALESCE(MAX(attempt), 0) + 1 AS n FROM records"
+                    " WHERE session_id = ? AND step_id = ?",
+                    (session_id, step_id),
+                ).fetchone()
+                attempt = int(row["n"])
+
                 conn.execute(
                     """
-                    INSERT INTO records (id, session_id, step_id, seq, verdict, payload_json,
-                                         idempotency_key, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO records (id, session_id, step_id, seq, attempt, verdict,
+                                         payload_json, idempotency_key, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
-                    (record_id, session_id, step_id, seq, verdict, body, idempotency_key, now),
+                    (
+                        record_id,
+                        session_id,
+                        step_id,
+                        seq,
+                        attempt,
+                        verdict,
+                        body,
+                        idempotency_key,
+                        now,
+                    ),
                 )
-                conn.execute(
-                    "UPDATE sessions SET current_seq = MAX(current_seq, ?), updated_at = ?"
-                    " WHERE id = ?",
-                    (seq + 1, now, session_id),
-                )
-            return record_id, False
+                if verdict in ("pass", "manual"):
+                    # 只有通过/记录型才推进；fail/warn 留在本步等复测或中止
+                    conn.execute(
+                        "UPDATE sessions SET current_seq = ?, updated_at = ? WHERE id = ?",
+                        (seq + 1, now, session_id),
+                    )
+                else:
+                    conn.execute(
+                        "UPDATE sessions SET updated_at = ? WHERE id = ?", (now, session_id)
+                    )
+            return record_id, False, None, attempt
         except sqlite3.IntegrityError:
             row = conn.execute(
-                "SELECT id FROM records WHERE idempotency_key = ?"
-                " OR (session_id = ? AND step_id = ?)",
-                (idempotency_key, session_id, step_id),
+                "SELECT id, attempt FROM records WHERE idempotency_key = ?",
+                (idempotency_key,),
             ).fetchone()
             if row is None:
+                row = conn.execute(
+                    "SELECT id, attempt FROM records WHERE session_id = ? AND step_id = ?"
+                    " ORDER BY attempt DESC LIMIT 1",
+                    (session_id, step_id),
+                ).fetchone()
+            if row is None:
                 raise
-            return str(row["id"]), True
+            return str(row["id"]), True, None, int(row["attempt"])
+
+
+def _record(row: sqlite3.Row) -> dict[str, Any]:
+    item = dict(row)
+    item["payload"] = json.loads(item.pop("payload_json"))
+    return item
+
+
+def get_record_by_key(idempotency_key: str) -> dict[str, Any] | None:
+    """幂等重投的第一道检查。
+
+    必须在"顺序检查"之前调用：第一次提交成功后 `current_seq` 已经前进，
+    此时用同一个 key 重投旧 seq，会被顺序检查误判成乱序。
+    """
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id, session_id, step_id, seq, attempt, verdict, payload_json, created_at"
+            " FROM records WHERE idempotency_key = ?",
+            (idempotency_key,),
+        ).fetchone()
+    return _record(row) if row is not None else None
+
+
+def get_record(record_id: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT id, session_id, step_id, seq, attempt, verdict, payload_json, created_at"
+            " FROM records WHERE id = ?",
+            (record_id,),
+        ).fetchone()
+    return _record(row) if row is not None else None
 
 
 def list_records(session_id: str) -> list[dict[str, Any]]:
     with connect() as conn:
         rows = conn.execute(
-            "SELECT id, session_id, step_id, seq, verdict, payload_json, created_at"
-            " FROM records WHERE session_id = ? ORDER BY seq, created_at",
+            "SELECT id, session_id, step_id, seq, attempt, verdict, payload_json, created_at"
+            " FROM records WHERE session_id = ? ORDER BY seq, attempt",
             (session_id,),
         ).fetchall()
-    out = []
-    for r in rows:
-        item = dict(r)
-        item["payload"] = json.loads(item.pop("payload_json"))
-        out.append(item)
-    return out
+    return [_record(row) for row in rows]

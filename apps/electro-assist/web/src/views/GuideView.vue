@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import GuideFigure from '../figures/GuideFigure.vue'
-import { ApiError, getJson } from '../lib/http'
-import type { Criterion, Guide, GuideDetail, GuideStatus } from '../types'
+import { ApiError, getJson, postJson } from '../lib/http'
+import type { Criterion, Guide, GuideDetail, GuideStatus, SessionSnapshot } from '../types'
 
 const props = defineProps<{ id: string }>()
+const router = useRouter()
 
 const SYSTEM_LABEL: Record<string, string> = {
   door: '车门',
@@ -28,6 +30,28 @@ function criterionValue(c: Criterion): string {
 // 模板里拿不到 window（Vue 只白名单了 Math/Date/JSON 等），必须在这里包一层。
 function printGuide(): void {
   window.print()
+}
+
+const starting = ref(false)
+const startError = ref('')
+
+async function startRun(): Promise<void> {
+  if (starting.value) return
+  starting.value = true
+  startError.value = ''
+  try {
+    const data = await postJson<SessionSnapshot>('/api/electro/sessions', {
+      guide_id: props.id,
+    })
+    await router.push({ name: 'run', params: { sid: data.session.id } })
+  } catch (err) {
+    startError.value =
+      err instanceof ApiError
+        ? err.message || '无法创建引导会话'
+        : '无法创建引导会话，请稍后重试'
+  } finally {
+    starting.value = false
+  }
 }
 
 async function load(): Promise<void> {
@@ -93,8 +117,12 @@ onBeforeUnmount(() => ctrl?.abort())
         {{ guide.disclaimers.join(' · ') }}
       </p>
       <div class="meta-row no-print">
+        <button class="btn btn--primary" type="button" :disabled="starting" @click="startRun">
+          {{ starting ? '正在创建会话…' : '开始引导作业' }}
+        </button>
         <button class="btn" type="button" @click="printGuide">打印 / 导出 PDF</button>
       </div>
+      <p v-if="startError" class="start-error no-print">{{ startError }}</p>
     </header>
 
     <section v-for="step in guide.steps" :key="step.id" class="step">
@@ -151,6 +179,12 @@ onBeforeUnmount(() => ctrl?.abort())
   border-radius: 6px;
   background: #fff4e0;
   color: #8a5a00;
+  font-size: 13px;
+}
+
+.start-error {
+  margin: 10px 0 0;
+  color: var(--c-danger);
   font-size: 13px;
 }
 </style>

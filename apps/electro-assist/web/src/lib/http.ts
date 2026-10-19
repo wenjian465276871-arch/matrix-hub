@@ -75,18 +75,27 @@ export function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
   return request<T>(path, { headers: { Accept: 'application/json' } }, signal)
 }
 
+export interface PostOptions {
+  signal?: AbortSignal
+  headers?: Record<string, string>
+}
+
 export function postJson<T>(
   path: string,
   body: unknown,
-  signal?: AbortSignal,
+  options: PostOptions = {},
 ): Promise<T> {
   return request<T>(
     path,
     {
       method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
       body: JSON.stringify(body),
     },
-    signal,
+    options.signal,
   )
 }

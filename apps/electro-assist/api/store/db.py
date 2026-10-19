@@ -132,6 +132,44 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "ALTER TABLE usage ADD COLUMN price_version TEXT NOT NULL DEFAULT ''",
         ],
     ),
+    (
+        3,
+        [
+            # A1 的"复测"必须留痕：同一步会有多次尝试，旧的 UNIQUE(session_id, step_id)
+            # 会把第二次提交当成重复而丢弃。SQLite 不能直接删表约束，只能重建表。
+            "ALTER TABLE sessions ADD COLUMN device TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE sessions ADD COLUMN location TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE sessions ADD COLUMN note TEXT NOT NULL DEFAULT ''",
+            """
+            CREATE TABLE records_v3 (
+              id              TEXT PRIMARY KEY,
+              session_id      TEXT NOT NULL,
+              step_id         TEXT NOT NULL,
+              seq             INTEGER NOT NULL,
+              attempt         INTEGER NOT NULL DEFAULT 1,
+              verdict         TEXT NOT NULL
+                              CHECK (verdict IN ('pass', 'warn', 'fail', 'manual', 'skipped')),
+              payload_json    TEXT NOT NULL,
+              idempotency_key TEXT NOT NULL UNIQUE,
+              created_at      TEXT NOT NULL,
+              -- 同一会话同一步的同一次尝试只能有一条；重试靠 idempotency_key 兜住
+              UNIQUE (session_id, step_id, attempt)
+            )
+            """,
+            """
+            INSERT INTO records_v3
+              (id, session_id, step_id, seq, attempt, verdict, payload_json,
+               idempotency_key, created_at)
+            SELECT id, session_id, step_id, seq, 1, verdict, payload_json,
+                   idempotency_key, created_at
+              FROM records
+            """,
+            "DROP TABLE records",
+            "ALTER TABLE records_v3 RENAME TO records",
+            "CREATE INDEX idx_records_session ON records(session_id, seq, attempt)",
+            "CREATE INDEX idx_records_step ON records(session_id, step_id, attempt)",
+        ],
+    ),
 ]
 
 

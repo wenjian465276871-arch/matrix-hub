@@ -18,6 +18,19 @@ const router = createRouter({
       component: () => import('../views/GuideView.vue'),
       props: true,
     },
+    {
+      path: '/run/:sid',
+      name: 'run',
+      // 现场引导页：只在这里引入判据表单与操作条。
+      component: () => import('../views/RunView.vue'),
+      props: true,
+    },
+    {
+      path: '/record/:sid',
+      name: 'record',
+      component: () => import('../views/RecordView.vue'),
+      props: true,
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior(_to, _from, saved) {

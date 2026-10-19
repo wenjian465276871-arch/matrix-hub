@@ -36,9 +36,9 @@ def guide() -> Guide:
 
 
 def test_migrations_are_idempotent(db):
-    assert store.schema_version() == 2
+    assert store.schema_version() == 3
     assert store.init_db() == []  # 第二次不应重复应用
-    assert store.schema_version() == 2
+    assert store.schema_version() == 3
 
 
 def test_save_and_read_guide(db, guide):
@@ -183,34 +183,91 @@ def test_record_idempotent_same_key(db, guide):
     store.save_guide(guide)
     sid = store.create_session(guide.id)
 
-    rid1, dup1 = store.submit_record(
-        session_id=sid, step_id="s01", seq=1, verdict="pass",
-        payload={"value": 1}, idempotency_key=f"{sid}:s01",
+    args = dict(
+        session_id=sid,
+        step_id="s01",
+        seq=1,
+        verdict="pass",
+        payload={"value": 1},
+        idempotency_key=f"{sid}:s01:a1",
     )
-    rid2, dup2 = store.submit_record(
-        session_id=sid, step_id="s01", seq=1, verdict="pass",
-        payload={"value": 1}, idempotency_key=f"{sid}:s01",
-    )
-    assert rid1 == rid2
-    assert dup1 is False and dup2 is True
+    rid1, dup1, err1, att1 = store.submit_step(**args)
+    rid2, dup2, err2, att2 = store.submit_step(**args)
+
+    assert (dup1, err1, att1) == (False, None, 1)
+    assert (rid2, dup2, err2, att2) == (rid1, True, None, 1)
     assert len(store.list_records(sid)) == 1
 
 
-def test_record_idempotent_across_different_keys(db, guide):
-    """客户端换了 Idempotency-Key 重投同一步，也不能产生第二条。"""
+def test_passed_step_cannot_be_resubmitted_with_new_key(db, guide):
+    """通过后 current_seq 已前进，新 key 重投同一步必须是乱序，而不是再记一条。"""
     store.save_guide(guide)
     sid = store.create_session(guide.id)
 
-    rid1, _ = store.submit_record(
-        session_id=sid, step_id="s02", seq=2, verdict="pass",
-        payload={}, idempotency_key=f"{sid}:s02",
+    store.submit_step(
+        session_id=sid, step_id="s01", seq=1, verdict="pass",
+        payload={}, idempotency_key=f"{sid}:s01:a1",
     )
-    rid2, dup = store.submit_record(
-        session_id=sid, step_id="s02", seq=2, verdict="pass",
-        payload={}, idempotency_key=f"{sid}:s02-retry-1",
+    rid, dup, err, attempt = store.submit_step(
+        session_id=sid, step_id="s01", seq=1, verdict="pass",
+        payload={}, idempotency_key=f"{sid}:s01:a2",
     )
-    assert rid1 == rid2 and dup is True
+    assert rid is None and dup is False
+    assert err == "out_of_order"
+    assert attempt == 0
     assert len(store.list_records(sid)) == 1
+
+
+def test_failed_step_retest_gets_new_attempt(db, guide):
+    """复测必须留痕：同一步的第二次提交是 attempt 2，不是覆盖第一条。"""
+    store.save_guide(guide)
+    sid = store.create_session(guide.id)
+
+    first, _, err1, att1 = store.submit_step(
+        session_id=sid, step_id="s01", seq=1, verdict="fail",
+        payload={"results": [{"verdict": "fail"}]}, idempotency_key=f"{sid}:s01:a1",
+    )
+    second, _, err2, att2 = store.submit_step(
+        session_id=sid, step_id="s01", seq=1, verdict="pass",
+        payload={"results": [{"verdict": "pass"}]}, idempotency_key=f"{sid}:s01:a2",
+    )
+
+    assert err1 is None and err2 is None
+    assert (att1, att2) == (1, 2)
+    assert first != second
+    records = store.list_records(sid)
+    assert [r["attempt"] for r in records] == [1, 2]
+    assert store.get_session(sid)["current_seq"] == 2
+
+
+def test_out_of_order_step_is_rejected(db, guide):
+    store.save_guide(guide)
+    sid = store.create_session(guide.id)
+    rid, dup, err, _ = store.submit_step(
+        session_id=sid, step_id="s02", seq=2, verdict="pass",
+        payload={}, idempotency_key=f"{sid}:s02:a1",
+    )
+    assert rid is None and dup is False and err == "out_of_order"
+
+
+def test_closed_session_rejects_submit(db, guide):
+    store.save_guide(guide)
+    sid = store.create_session(guide.id)
+    assert store.finish_session(sid, "aborted") is True
+
+    rid, dup, err, _ = store.submit_step(
+        session_id=sid, step_id="s01", seq=1, verdict="pass",
+        payload={}, idempotency_key=f"{sid}:s01:a1",
+    )
+    assert rid is None and dup is False and err == "closed"
+
+
+def test_session_metadata_is_persisted(db, guide):
+    store.save_guide(guide)
+    sid = store.create_session(guide.id, device="D-01", location="3 车 2 位")
+    session = store.get_session(sid)
+    assert session["device"] == "D-01"
+    assert session["location"] == "3 车 2 位"
 
 
 def test_session_progress_advances_and_finishes(db, guide):
@@ -218,14 +275,16 @@ def test_session_progress_advances_and_finishes(db, guide):
     sid = store.create_session(guide.id)
     assert store.get_session(sid)["current_seq"] == 1
 
-    store.submit_record(
+    store.submit_step(
         session_id=sid, step_id="s01", seq=1, verdict="pass",
-        payload={}, idempotency_key=f"{sid}:s01",
+        payload={}, idempotency_key=f"{sid}:s01:a1",
     )
     assert store.get_session(sid)["current_seq"] == 2
 
-    assert store.finish_session(sid, "done") is True
-    assert store.get_session(sid)["status"] == "done"
+    assert store.finish_session(sid, "done", note="演练") is True
+    session = store.get_session(sid)
+    assert session["status"] == "done"
+    assert session["note"] == "演练"
     # 已完成会话不能再次结束
     assert store.finish_session(sid, "aborted") is False
 

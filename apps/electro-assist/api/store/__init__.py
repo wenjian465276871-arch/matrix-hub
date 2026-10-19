@@ -15,6 +15,8 @@ from .dao import (
     finish_session,
     get_guide,
     get_job,
+    get_record,
+    get_record_by_key,
     get_session,
     list_guides,
     list_records,
@@ -23,7 +25,7 @@ from .dao import (
     publish_guide,
     record_usage,
     save_guide,
-    submit_record,
+    submit_step,
     sweep_stale_jobs,
     usage_summary,
 )
@@ -55,6 +57,8 @@ __all__ = [
     "create_session",
     "get_session",
     "finish_session",
-    "submit_record",
+    "submit_step",
+    "get_record",
+    "get_record_by_key",
     "list_records",
 ]

@@ -142,3 +142,108 @@ export interface QuotaSnapshot {
   }
   queue: { pending: number; limit: number }
 }
+
+/* ---------- A1 引导 ---------- */
+
+export type Verdict = 'pass' | 'warn' | 'fail' | 'manual' | 'skipped'
+export type SessionStatus = 'active' | 'done' | 'aborted'
+
+export interface Session {
+  id: string
+  guide_id: string
+  status: SessionStatus
+  current_seq: number
+  device: string
+  location: string
+  note: string
+  created_at: string
+  updated_at: string
+  finished_at: string | null
+}
+
+export interface CriterionResult {
+  criterion_id: string
+  label: string
+  type: CriterionType
+  value: unknown
+  unit: string | null
+  verdict: Verdict
+  message: string
+}
+
+export interface RecordPayload {
+  step_title?: string
+  results?: CriterionResult[]
+  note?: string
+}
+
+export interface RecordItem {
+  id: string
+  session_id: string
+  step_id: string
+  seq: number
+  attempt: number
+  verdict: Verdict
+  payload: RecordPayload
+  created_at: string
+}
+
+export interface SessionProgress {
+  total_steps: number
+  recorded_steps: number
+  attempts: number
+  current_seq: number
+}
+
+export interface SessionSnapshot {
+  session: Session
+  guide: Guide
+  records: RecordItem[]
+  progress: SessionProgress
+}
+
+export interface StepSubmitResponse {
+  record: RecordItem
+  session: Session
+  verdict: Verdict
+  results: CriterionResult[]
+  messages: string[]
+  duplicate: boolean
+}
+
+export interface RecordStep {
+  seq: number
+  step_id: string
+  title: string
+  attempts: RecordItem[]
+  final_verdict: Verdict
+}
+
+export interface ExceptionItem {
+  seq: number
+  step_id: string
+  attempt: number
+  verdict: Verdict
+  messages: string[]
+  note: string
+  created_at: string
+}
+
+export interface SessionReport {
+  session: Session
+  guide: Guide
+  steps: RecordStep[]
+  exceptions: ExceptionItem[]
+  summary: {
+    status: SessionStatus
+    total_steps: number
+    recorded_steps: number
+    attempts: number
+    pass: number
+    manual: number
+    fail: number
+    warn: number
+    aborted: boolean
+    duration_s: number
+  }
+}
