@@ -2,7 +2,11 @@
 
 > 版本 v1.0 · 2026-10-20
 > 目标：让一个没做过调试的人，在 5 分钟内看懂「工艺文本 → 指导书 → 引导作业 → 异常 → 排查 → 记录」是一条闭环。
-> 录屏：`docs/assets/demo.webm`（无旁白，按下文旁白讲）。
+> 录屏：`docs/assets/demo.webm`（85 秒，无旁白，按下文旁白讲）。
+
+| 作业异常 | 一键转排查（带上下文） | 未覆盖 |
+|---|---|---|
+| ![异常](assets/a1-exception-mobile.png) | ![转排查](assets/handoff-mobile.png) | ![未覆盖](assets/diagnose-uncovered-mobile.png) |
 
 ## 0. 演示前 30 秒检查
 
