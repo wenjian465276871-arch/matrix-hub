@@ -1,5 +1,8 @@
 # Gesture Particle System
 
+> **归档代码，不构建、不服务**（ADR-0003）。依赖 MediaPipe CDN 与在线字体，与本站 CSP `default-src 'self'` 冲突，
+> 因此保留源码作历史参考，不进入镜像。可直接运行的版本见线上门户。
+
 A real-time interactive particle system controlled by hand gestures using MediaPipe and HTML5 Canvas.
 
 ## Features
@@ -20,8 +23,9 @@ A real-time interactive particle system controlled by hand gestures using MediaP
 4.  Allow camera access when prompted.
 
 ## Documentation
-- [Architecture Design](docs/ARCHITECTURE.md)
-- [Performance Report](docs/PERFORMANCE_REPORT.md)
+
+架构与取舍见仓库级 [`docs/ARCHITECTURE.md`](../../../docs/ARCHITECTURE.md) 与 [`docs/adr/0003-legacy-static-not-shipped.md`](../../../docs/adr/0003-legacy-static-not-shipped.md)。
+原 README 链接的 `docs/PERFORMANCE_REPORT.md` 从未随代码迁移，已移除该链接（死链不如不写）。
 
 ## Controls
 - **Gestures**: Use hand gestures in front of the camera.

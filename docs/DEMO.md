@@ -11,7 +11,7 @@
 ## 0. 演示前 30 秒检查
 
 ```bash
-curl -s <演示站>/healthz                 # {"status":"ok","checks":{"db":"ok"}}
+curl -s <演示站>/healthz                 # {"status":"ok","checks":{"electro":"ok","db":"ok"}}
 curl -s <演示站>/api/electro/guides      # count >= 3
 curl -s <演示站>/api/electro/quota       # 至少留 1 次生成额度
 ```
