@@ -11,7 +11,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # 2026-10-19：GitHub 出现一个无法取消的 in_progress run，永久占住旧 group。
+  # 加 -2 切到新 group；平台回收旧 run 后可去掉后缀。
+  group: ${{ github.workflow }}-${{ github.ref }}-2
   # 不能取消进行中的部署：deploy 经 SSH 在服务器上执行，runner 被 cancel 后
   # 服务器可能停在"镜像已换、健康检查没跑完"的中间态。排队等前一次结束更安全。
   cancel-in-progress: false
