@@ -31,6 +31,12 @@ const router = createRouter({
       component: () => import('../views/RecordView.vue'),
       props: true,
     },
+    {
+      path: '/diagnose',
+      name: 'diagnose',
+      // B 模块：现场排查。只做检索，页面本身不引入任何模型相关代码。
+      component: () => import('../views/DiagnoseView.vue'),
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior(_to, _from, saved) {

@@ -132,3 +132,39 @@ def test_every_primitive_has_sample_coverage():
     }
     missing = {p.value for p in Primitive} - used
     assert not missing, f"以下原语没有任何样例覆盖：{sorted(missing)}"
+
+
+def test_formal_sample_has_connector_and_wiring():
+    """正式案例的硬要求：5–8 步、至少一张接线/针脚图、来源可溯。"""
+    guides = {g.id: g for g in library.load_fixtures(SAMPLES)}
+    guide = guides["g_door_switch_formal_001"]
+    assert 5 <= len(guide.steps) <= 8
+    primitives = {fig.primitive.value for step in guide.steps for fig in step.figures}
+    assert {"connector", "wiring"} <= primitives
+    assert "公开资料" in guide.meta.source_note
+    # 每个接线类图元都要给出可降级的文字说明，否则渲染失败时现场看不懂
+    for step in guide.steps:
+        for fig in step.figures:
+            assert fig.fallback_text.strip()
+
+
+def test_seed_adds_missing_fixtures_without_touching_existing(tmp_path, monkeypatch):
+    """部署新增样例后，已有记录不被覆盖，缺的补进来。"""
+    shutil.copy(SAMPLES / "door_clearance.json", tmp_path / "a.json")
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "electro.db"))
+    monkeypatch.setenv("GUIDE_DIR", str(tmp_path))
+    monkeypatch.setenv("SEED_GUIDES", "1")
+    store.init_db()
+
+    assert library.ensure_seeded() == 1
+
+    # 已发布内容受保护：拿到同一个 id 再存一次只会 skipped，不改内容。
+    guide = library.load_fixtures(tmp_path)[0]
+    guide.title = "人工改过的标题"
+    assert store.save_guide(guide, status="published")["skipped"] is True
+
+    shutil.copy(SAMPLES / "door_switch_formal.json", tmp_path / "b.json")
+    library._seeded_paths.clear()  # 模拟进程重启
+    assert library.ensure_seeded() == 1
+    assert store.get_guide("g_door_clearance_001")["title"] == "客室侧门关闭间隙检查"
+    assert store.get_guide("g_door_switch_formal_001") is not None

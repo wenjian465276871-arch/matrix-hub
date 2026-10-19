@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 import store
+from routers import diagnose as diagnose_router
 from routers import guides as guides_router
 from routers import jobs as jobs_router
 from routers import quota as quota_router
@@ -57,7 +58,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="electro-assist API",
-    version="0.4.1",
+    version="0.5.0",
     description="电气调试 AI 作业助手：A2 指导书生成 / A1 引导作业 / B 故障排查",
     docs_url=None if IS_PROD else "/docs",
     redoc_url=None,
@@ -72,6 +73,7 @@ app.include_router(jobs_router.router)
 app.include_router(quota_router.router)
 app.include_router(sessions_router.router)
 app.include_router(records_router.router)
+app.include_router(diagnose_router.router)
 
 
 @app.get("/healthz", tags=["ops"])

@@ -64,11 +64,20 @@ h3 {
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.01em;
+  /* 导航项一律不换行：换行会让 48px 的导航条变成两行，页面首屏整体下移。 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brand:hover {
   color: #fff;
   text-decoration: none;
+}
+
+/* 窄屏用短标题：四个导航项在 390px 下塞不下完整品牌名。 */
+.brand-short {
+  display: none;
 }
 
 .nav-spacer {
@@ -79,6 +88,7 @@ h3 {
   color: rgba(255, 255, 255, 0.78);
   font-size: 13px;
   padding: 8px 4px;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -512,6 +522,30 @@ h3 {
 }
 
 /* ---------- 响应式 ---------- */
+
+@media (max-width: 480px) {
+  /* 390px 下四个导航项会挤成两行；缩字号与间距，优先保住 48px 单行。 */
+  .nav-inner {
+    gap: 10px;
+  }
+
+  .brand {
+    font-size: 14px;
+  }
+
+  .brand-full {
+    display: none;
+  }
+
+  .brand-short {
+    display: inline;
+  }
+
+  .nav-link {
+    font-size: 12px;
+    padding: 8px 2px;
+  }
+}
 
 @media (min-width: 640px) {
   .container {

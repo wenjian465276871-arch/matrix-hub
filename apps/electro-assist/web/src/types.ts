@@ -247,3 +247,57 @@ export interface SessionReport {
     duration_s: number
   }
 }
+
+/* ---------- B 模块：故障排查 ---------- */
+
+export interface DiagnoseCheck {
+  order: number
+  action: string
+  expect: string
+}
+
+export interface DiagnoseResult {
+  id: string
+  title: string
+  system: System
+  score: number
+  likely_causes: string[]
+  checks: DiagnoseCheck[]
+  escalation: string
+  safety: string
+  sources: string[]
+}
+
+export type UncoveredReason = 'system_not_covered' | 'no_match' | null
+
+export interface DiagnoseResponse {
+  query: string
+  matched: boolean
+  uncovered_reason: UncoveredReason
+  message: string
+  suggestion: string
+  results: DiagnoseResult[]
+  count: number
+  took_ms: number
+  kb_version: string
+  disclaimer: string
+  context?: {
+    guide_id?: string | null
+    step_seq?: number | null
+    criterion_id?: string | null
+  }
+}
+
+export interface KnowledgeEntrySummary {
+  id: string
+  title: string
+  system: System
+}
+
+export interface KbOverview {
+  version: string
+  provider: string
+  systems: System[]
+  count: number
+  entries: KnowledgeEntrySummary[]
+}

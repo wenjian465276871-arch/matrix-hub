@@ -11,7 +11,7 @@
 | 门户 | `apps/portal/public` | 站点首页（自包含重写，零外链） | **已上线** |
 | 新闻洞察 | —— | 新闻聚合（原 FastAPI 后端） | **已下架**（ADR-0002） |
 | 粒子系统 | `apps/particle-system/legacy` | Canvas 视觉实验 | 暂停（待重构，ADR-0003） |
-| 电气调试助手 | `apps/electro-assist` | 工艺文本/图片 → 指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | **A2 + A1 已上线**：异步生成 job + 配额/预算 + 草稿/发布 + 7 原语；逐步引导 + 判据校验 + 复测留痕 + 记录打印；B（排查）开发中 |
+| 电气调试助手 | `apps/electro-assist` | 工艺文本/图片 → 指导书 → 引导作业 → 故障排查（Vue 3 + FastAPI） | **A2 + A1 + B 已上线**：异步生成 job + 配额/预算 + 草稿/发布 + 7 原语；逐步引导 + 判据校验 + 复测留痕 + 记录打印；异常转排查 + 8 条故障知识库（关键词检索，未覆盖明确提示） |
 
 ## 架构一句话
 
@@ -53,7 +53,7 @@ npm run dev        # 开发用；生产验收必须用 npm run build 的产物�
 # 生成管线（需要 DEEPSEEK_API_KEY）
 cd apps/electro-assist/api
 python scripts/eval_generate.py --dry-run          # 列举评测语料，不调用模型
-python scripts/eval_generate.py --env-file <.env>  # 5 份语料批量评测（约 ¥0.05）
+python scripts/eval_generate.py --env-file <.env>  # 8 份语料批量评测（约 ¥0.08）
 python scripts/smoke_llm.py --text-file scripts/corpus/01_door_switch.txt --debug
 
 # 生成接口（异步 job；生成结果是草稿，凭 guide_id 查看，不进公开列表）
@@ -72,6 +72,14 @@ curl -s -X POST "localhost:8001/api/electro/sessions/$SID/steps/1" \
      -H "Idempotency-Key: $SID:s01:a1" \
      -d '{"values":{"confirm_safe":true}}'
 curl -s "localhost:8001/api/electro/records/$SID"
+
+# B 排查（检索式，不调用模型；查不到会返回 uncovered_reason）
+curl -s -X POST localhost:8001/api/electro/diagnose \
+     -H 'Content-Type: application/json' \
+     -d '{"symptom":"门关到一半又自己弹开了"}'
+curl -s localhost:8001/api/electro/diagnose/kb      # 覆盖范围
+python scripts/eval_diagnose.py                     # 命中率与 P95
+python scripts/demo_flow.py --base http://127.0.0.1:8001   # 5 分钟演示自检
 ```
 
 环境变量统一走 `.env`（见 `deploy/.env.example`），**任何密钥都不入库**。
@@ -84,9 +92,10 @@ curl -s "localhost:8001/api/electro/records/$SID"
 | [部署与回滚](docs/OPERATIONS.md) | 部署/回滚/证书/备份/事故处置 |
 | [A2 图片输入方案](docs/A2-IMAGE-INPUT.md) | 草案；**已降级为 P4 备选**（决策 #13） |
 | [案例资料来源](docs/SOURCES.md) | 合规清单与登记规则 |
+| [演示脚本](docs/DEMO.md) · [录屏](docs/assets/demo.webm) | 5 分钟闭环演示：生成 → 引导 → 异常 → 排查 → 记录 |
 | [ADR 0001](docs/adr/0001-monorepo-single-image-caddy.md) · [0002](docs/adr/0002-p0-drop-news-insight.md) · [0003](docs/adr/0003-legacy-static-not-shipped.md) | 架构决策记录 |
 
-`API.md` 由 CI 从 OpenAPI 导出（尚未接入）；`UI.md` / `UX.md` / `FRONTEND.md` 随前端工程在 P1a-W1 迁入；`DEMO.md` 在 P4 产出。**未产出的文档不在此列链接。**
+`API.md` 由 CI 从 OpenAPI 导出（尚未接入）；`UI.md` / `UX.md` / `FRONTEND.md` 随前端工程在 P1a-W1 迁入。**未产出的文档不在此列链接。**
 
 ## 说明
 

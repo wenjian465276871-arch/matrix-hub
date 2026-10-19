@@ -49,6 +49,29 @@ llm/
 `schema_version` 1.1。原因见 `apps/electro-assist/api/models/visual.py` 顶部注释：
 清单参数只允许标量，等于逼模型做 `a|b|c` 字符串编码，稳定性撑不住。
 
+## 1.2 B 模块：为什么是检索，不是生成式诊断
+
+```
+knowledge/
+├── door_faults.json   8 条人工整理的故障条目（现象/关键词/原因/检查顺序/升级条件）
+└── eval_queries.json  11 条覆盖查询 + 2 条未覆盖查询（与知识库同仓，改库必须改题）
+services/knowledge.py  KnowledgeProvider 协议 + KeywordProvider（二元组 + 同义词 + 关键词）
+routers/diagnose.py    POST /diagnose（一次性 JSON）+ GET /diagnose/kb（覆盖范围）
+```
+
+**不让模型自由诊断的三个理由**：
+
+1. 现场要的是"下一步查什么"，不是一篇分析。检索直接给出可执行顺序。
+2. 生成式诊断会编出不存在的部件号、故障码和处置步骤——在作业现场这是危险品。
+3. 检索是确定性的，可以量：11 条查询 Top-3 命中 10/10，P95 约 2ms（`scripts/eval_diagnose.py`）。
+
+**未覆盖就明说**：`uncovered_reason` 分 `system_not_covered`（问的是没收录的子系统）
+与 `no_match`（有收录但现象不够接近）。阈值 `DIAGNOSE_MIN_SCORE` 默认 3.0，
+宁可回"没查到"，也不给一条看起来像但其实不对的排查链。
+
+**可替换点**：`KnowledgeProvider` 是协议，`KeywordProvider` 只是当前实现。
+条目上千后可接 embedding，路由与返回结构不变——这是"embedding 可用则加、不可用不阻塞"的落法。
+
 ## 2. 请求链路（2026-10-19 已实现）
 
 ```mermaid
@@ -144,6 +167,7 @@ flowchart TB
 | 构建位置 | CI（海外 runner） | 服务器本地构建 | 大陆拉 Docker Hub / PyPI 不稳定，服务器应零编译 |
 | 镜像来源 | 私有镜像仓 | 公共镜像仓 | 部署凭证可收敛为只读 |
 | A2 生成物 | 结构化 JSON + 前端渲染 | 后端生成 HTML | 可校验、可复用、可打印；HTML 拼接是 XSS 温床 |
+| B 排查 | **检索 + 人工整理的知识库** | 生成式诊断 / 向量库 | 现场要可执行顺序，不要编造；8 条用关键词足够，P95 约 2ms（§1.2） |
 | 指导书 ID | **服务端随机分配** | 信任模型输出的 id | 模型 id 是语义化、可预测的，两人生成同一工序必撞；upsert 会把覆盖当更新 |
 | 生成执行 | 进程内单 worker 有界队列 | BackgroundTasks / Celery | 单容器单 worker，broker 的运维成本大于收益；队列满明确 503 |
 | A1 判定权 | **服务端计算** | 客户端提交 verdict | 客户端可伪造；超差必须由服务端判 fail |

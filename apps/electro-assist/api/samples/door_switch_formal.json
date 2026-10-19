@@ -1,0 +1,248 @@
+{
+  "schema_version": "1.1",
+  "id": "g_door_switch_formal_001",
+  "title": "客室侧门开关门功能与联锁确认（正式案例）",
+  "summary": "面向单车单门的完整开关门功能确认：供电与自检、隔离与紧急解锁状态、门机紧固、开关门时间、防夹重开、锁闭与间隙。结构参考公开资料，参数为虚构示例值。",
+  "meta": {
+    "system": "door",
+    "source_note": "公开资料改写：接插件与联锁结构参考公开专利及公开课件，型号、参数全部虚构，不含任何企业资料",
+    "model": "deepseek-flash",
+    "generated_at": "2026-10-20T00:00:00Z",
+    "is_demo": true
+  },
+  "steps": [
+    {
+      "id": "s01",
+      "seq": 1,
+      "title": "作业前安全确认",
+      "action": "确认车辆已断电并挂牌、防溜车措施到位、作业区域已设警示；确认门扇运动范围内无人员和障碍物，对讲机通话正常。逐项核对清单，任一项不满足不得开始作业。",
+      "safety": ["未挂牌不得作业", "门扇运动范围内不得有人"],
+      "tools": ["警示牌", "手电", "对讲机"],
+      "criteria": [
+        { "id": "confirm_safe", "label": "安全条件已确认", "type": "manual" }
+      ],
+      "figures": [
+        {
+          "primitive": "checklist",
+          "params": {
+            "items": [
+              "车辆已断电并挂牌",
+              "防溜车措施已到位",
+              "作业区域已设警示",
+              "门扇运动范围内无人员与障碍物",
+              "对讲机通话正常"
+            ]
+          },
+          "caption": "作业前确认清单",
+          "fallback_text": "逐项确认：断电挂牌、防溜车、区域警示、门扇范围内无人无障碍、通讯正常。任一项不满足不得开工。"
+        }
+      ],
+      "duration_s": 180
+    },
+    {
+      "id": "s02",
+      "seq": 2,
+      "title": "门控器供电与自检",
+      "action": "断开对应断路器并验电，确认无电后检查 X1 接插件锁止与端子线色；合闸后测量 X1-1 与 X1-2 之间电压，观察 X1-3 自检回馈与门控器指示灯，记录实测值。",
+      "safety": ["验电确认无电后方可插拔接插件", "禁止带电插拔接插件"],
+      "tools": ["万用表", "端子起子", "防护手套"],
+      "criteria": [
+        { "id": "supply_v", "label": "门控器供电", "type": "range", "unit": "V", "min": 99, "max": 121 },
+        { "id": "self_check", "label": "上电自检", "type": "enum", "options": ["通过", "不通过"] }
+      ],
+      "figures": [
+        {
+          "primitive": "connector",
+          "params": {
+            "pins": [
+              "X1-1 电源正",
+              "X1-2 电源负",
+              "X1-3 自检回馈",
+              "X2-2 零速安全",
+              "X2-3 信号公共",
+              "X3-1 内钥匙",
+              "X3-2 外钥匙"
+            ],
+            "note": "针脚定义按公开资料改写，仅示意顺序"
+          },
+          "caption": "门控器 X1/X2/X3 针脚定义",
+          "fallback_text": "门控器接插件：X1-1 电源正、X1-2 电源负、X1-3 自检回馈、X2-2 零速安全、X2-3 信号公共、X3-1 内钥匙、X3-2 外钥匙。以本车型图纸为准。"
+        },
+        {
+          "primitive": "wiring",
+          "params": {
+            "terminals": ["X1-1", "X1-2", "X1-3"],
+            "wire_color": "红/黑/白",
+            "note": "只示意电源三线的端子顺序与线色"
+          },
+          "caption": "电源三线端子顺序",
+          "fallback_text": "电源三线：X1-1 红（正）、X1-2 黑（负）、X1-3 白（自检）。线色以现车为准。"
+        },
+        {
+          "primitive": "meter",
+          "params": { "value": 110, "unit": "V", "min": 99, "max": 121, "label": "门控器供电" },
+          "caption": "供电电压读数",
+          "fallback_text": "门控器供电示例读数 110 V，允许范围 99–121 V。"
+        }
+      ],
+      "duration_s": 420
+    },
+    {
+      "id": "s03",
+      "seq": 3,
+      "title": "隔离与紧急解锁状态确认",
+      "action": "检查隔离锁三角钥匙孔处于正常位、铅封完好；检查紧急解锁手柄已回位、防护盖关闭。确认本门未被隔离、解锁回路未短接，否则电动试验结果无效。",
+      "safety": ["隔离位不得进行电动开关门试验", "禁止短接解锁回路"],
+      "tools": ["三角钥匙"],
+      "criteria": [
+        { "id": "isolation_state", "label": "隔离锁位置", "type": "enum", "options": ["正常位", "隔离位"] },
+        { "id": "release_state", "label": "紧急解锁手柄", "type": "enum", "options": ["已复位", "未复位"] }
+      ],
+      "figures": [
+        {
+          "primitive": "checklist",
+          "params": {
+            "items": ["隔离锁在正常位", "铅封完好", "紧急解锁手柄已复位", "防护盖已关闭"]
+          },
+          "caption": "隔离与解锁状态",
+          "fallback_text": "确认隔离锁在正常位、铅封完好、紧急解锁手柄已复位且防护盖关闭。"
+        },
+        {
+          "primitive": "status_light",
+          "params": { "state": "pass", "label": "联锁条件满足" },
+          "caption": "联锁状态",
+          "fallback_text": "隔离锁正常位且解锁手柄复位时，联锁条件满足，可进行电动试验。"
+        }
+      ],
+      "duration_s": 240
+    },
+    {
+      "id": "s04",
+      "seq": 4,
+      "title": "门机安装螺栓复紧",
+      "action": "按规定力矩对角复紧门机安装螺栓，复紧后逐个确认无松动、无滑牙；记录实际力矩值，超差时不得强行加力。",
+      "safety": ["不得超过规定力矩", "对角分次复紧"],
+      "tools": ["力矩扳手"],
+      "criteria": [
+        { "id": "torque", "label": "门机安装力矩", "type": "range", "unit": "N·m", "min": 0.7, "max": 0.9 }
+      ],
+      "figures": [
+        {
+          "primitive": "torque_gauge",
+          "params": { "target": 0.8, "tolerance": 0.1, "unit": "N·m" },
+          "caption": "力矩目标与公差带",
+          "fallback_text": "门机安装力矩目标 0.8 N·m，公差 ±0.1 N·m。"
+        }
+      ],
+      "duration_s": 300
+    },
+    {
+      "id": "s05",
+      "seq": 5,
+      "title": "开关门时间测量",
+      "action": "触发开门，用秒表记录从启动到完全到位的时间；再触发关门，同样记录。各测三次取算术平均值，保留到 0.1 s。测量时确认门扇行程内无异物。",
+      "safety": ["测量时手不得伸入门扇运动范围"],
+      "tools": ["秒表", "记录表"],
+      "criteria": [
+        { "id": "open_time", "label": "开门时间", "type": "range", "unit": "s", "min": 2.0, "max": 3.5 },
+        { "id": "close_time", "label": "关门时间", "type": "range", "unit": "s", "min": 3.0, "max": 5.0 }
+      ],
+      "figures": [
+        {
+          "primitive": "step_card",
+          "params": {
+            "index": 5,
+            "action": "触发开关门并计时至完全到位",
+            "hint": "各测三次取平均；超差先查导轨异物与门机紧固"
+          },
+          "caption": "测量动作",
+          "fallback_text": "第 5 步：触发开关门并计时至完全到位，各测三次取平均，超差先查导轨异物。"
+        },
+        {
+          "primitive": "meter",
+          "params": { "value": 2.6, "unit": "s", "min": 2.0, "max": 3.5, "label": "开门时间" },
+          "caption": "开门时间读数",
+          "fallback_text": "开门时间示例读数 2.6 s，允许范围 2.0–3.5 s。"
+        }
+      ],
+      "duration_s": 480
+    },
+    {
+      "id": "s06",
+      "seq": 6,
+      "title": "防夹功能验证",
+      "action": "在关门行程中放入软质障碍块，确认门自动重开；移开障碍块后确认门自动重试关门，记录重试间隔。重复两次，结果一致方为通过。",
+      "safety": ["禁止用手或身体代替障碍物", "试验时保持站立稳定"],
+      "tools": ["软质障碍块", "秒表"],
+      "criteria": [
+        { "id": "anti_pinch", "label": "防夹动作", "type": "enum", "options": ["自动重开", "未重开"] },
+        { "id": "retry_s", "label": "重试关门间隔", "type": "range", "unit": "s", "min": 6, "max": 12 }
+      ],
+      "figures": [
+        {
+          "primitive": "checklist",
+          "params": {
+            "items": ["障碍物为软质", "门自动重开", "移开后自动重试", "两次结果一致"]
+          },
+          "caption": "防夹验证要点",
+          "fallback_text": "用软质障碍块验证：门应自动重开，移开后自动重试关门，两次结果一致。"
+        },
+        {
+          "primitive": "status_light",
+          "params": { "state": "warn", "label": "防夹触发中" },
+          "caption": "防夹状态",
+          "fallback_text": "关门遇阻时防夹触发，门自动重开并延时重试。"
+        }
+      ],
+      "duration_s": 360
+    },
+    {
+      "id": "s07",
+      "seq": 7,
+      "title": "锁闭到位与门扇间隙",
+      "action": "关闭车门至压紧位，确认锁定凸轮开关输出 100% 关闭信号；用塞尺在门扇上、中、下三点测量门扇与门框间隙，取最大值记录。",
+      "safety": ["确认门已压紧后再测间隙", "塞尺取出时不得撬动门扇"],
+      "tools": ["塞尺"],
+      "criteria": [
+        { "id": "lock_signal", "label": "锁闭到位信号", "type": "enum", "options": ["100% 关闭", "未关好"] },
+        { "id": "door_gap", "label": "门扇间隙（最大）", "type": "range", "unit": "mm", "min": 2.0, "max": 5.0 }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": { "value": 3.2, "unit": "mm", "min": 2.0, "max": 5.0, "label": "门扇间隙" },
+          "caption": "间隙读数",
+          "fallback_text": "门扇间隙示例读数 3.2 mm，允许范围 2.0–5.0 mm。"
+        },
+        {
+          "primitive": "status_light",
+          "params": { "state": "pass", "label": "锁闭到位" },
+          "caption": "锁闭指示",
+          "fallback_text": "锁定凸轮开关输出 100% 关闭信号时，锁闭到位指示为通过。"
+        }
+      ],
+      "duration_s": 300
+    },
+    {
+      "id": "s08",
+      "seq": 8,
+      "title": "作业结束与现场恢复",
+      "action": "撤除警示、清点工具与障碍块，恢复隔离锁铅封与断路器，确认门扇运动范围内无遗留物；在记录表签字，异常项单独注明处置结果。",
+      "safety": ["工具与异物不得遗留在门扇行程内"],
+      "tools": ["记录表"],
+      "criteria": [
+        { "id": "restore_ok", "label": "现场恢复确认", "type": "manual" }
+      ],
+      "figures": [
+        {
+          "primitive": "checklist",
+          "params": { "items": ["警示已撤除", "工具已清点", "隔离锁与断路器已恢复", "门扇行程内无遗留物"] },
+          "caption": "收工确认",
+          "fallback_text": "收工前确认：警示撤除、工具清点、隔离锁与断路器恢复、门扇行程内无遗留物。"
+        }
+      ],
+      "duration_s": 180
+    }
+  ],
+  "disclaimers": ["演示数据 · 非实际作业依据", "AI 辅助整理，需专业人员复核"]
+}

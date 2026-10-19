@@ -10,12 +10,18 @@ from __future__ import annotations
 import json
 import logging
 import os
+import threading
 from pathlib import Path
 
 import store
 from models.guide import Guide
 
 log = logging.getLogger("electro.library")
+
+# 每个数据库路径只做一次增量 seed。key 用路径而不是布尔开关，
+# 否则同一进程里换库的测试会互相影响。
+_seeded_paths: set[str] = set()
+_seed_lock = threading.Lock()
 
 
 def guide_dir() -> Path:
@@ -41,23 +47,36 @@ def load_fixtures(directory: Path | None = None) -> list[Guide]:
 
 
 def ensure_seeded() -> int:
-    """空库时把样例导入为已发布；已有任何记录就什么都不做。
+    """把**库里还没有的**样例导入为已发布。
 
-    幂等且轻量（一次 COUNT）。测试不启动 lifespan 时也会走这里，
-    所以 `GET /guides` 在没有 seed 步骤的环境里仍然有数据。
+    早期实现是"空库才 seed"，加一份新样例部署上去也不会出现——样例库
+    因此停在三份文件里两种状态，用户看到的列表永远不更新。改成按 id 增量导入：
+    已存在的记录一律不动（避免覆盖发布状态或人工修改），只补缺失的。
+
+    每个进程对同一个库只扫一次，之后零成本；换了库路径（测试）会重新扫。
+    副作用要说清楚：从库里删掉某份样例后，**进程重启会把它补回来**。
+    样例是演示资产，这个行为比"删了就不再出现"更符合预期。
     """
     if os.getenv("SEED_GUIDES", "1") != "1":
         return 0
-    if store.count_guides() > 0:
-        return 0
+
+    key = str(store.db_path())
+    with _seed_lock:
+        if key in _seeded_paths:
+            return 0
 
     directory = guide_dir()
     seeded = 0
     for guide in load_fixtures(directory):
+        if store.get_guide(guide.id) is not None:
+            continue
         store.save_guide(guide, status="published")
         seeded += 1
     if seeded:
-        log.info("已从 %s 导入 %d 份样例（published）", directory, seeded)
+        log.info("已从 %s 增量导入 %d 份样例（published）", directory, seeded)
+
+    with _seed_lock:
+        _seeded_paths.add(key)
     return seeded
 
 

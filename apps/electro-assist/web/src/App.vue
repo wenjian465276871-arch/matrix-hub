@@ -5,9 +5,13 @@ import { RouterLink, RouterView } from 'vue-router'
 <template>
   <header class="site-nav">
     <div class="nav-inner">
-      <RouterLink class="brand" to="/">电气调试 AI 作业助手</RouterLink>
+      <RouterLink class="brand" to="/">
+        <span class="brand-full">电气调试 AI 作业助手</span>
+        <span class="brand-short">AI 作业助手</span>
+      </RouterLink>
       <span class="nav-spacer" />
       <RouterLink class="nav-link" to="/new">生成指导书</RouterLink>
+      <RouterLink class="nav-link" to="/diagnose">故障排查</RouterLink>
       <a class="nav-link" href="/">返回门户</a>
     </div>
   </header>

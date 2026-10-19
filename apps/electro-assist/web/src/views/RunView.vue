@@ -188,6 +188,22 @@ async function submitStep(): Promise<void> {
   }
 }
 
+function goDiagnose(): void {
+  // 只把异常项带过去：排查页要的是"哪里不对"，不是"这一步做了什么"。
+  const failed = results.value.filter((r) => r.verdict !== 'pass')
+  const detail = failed.map((r) => `${r.label}：${r.message || '超差'}`).join('；')
+  const title = shownStep.value?.title ?? '作业'
+  const symptom = `${title} — ${detail || '本步异常'}`.slice(0, 200)
+  void router.push({
+    name: 'diagnose',
+    query: {
+      symptom,
+      guide: guide.value?.id ?? '',
+      step: String(shownStep.value?.seq ?? ''),
+    },
+  })
+}
+
 function retest(): void {
   // 复测保留上一次填写值：现场通常只重测超差的那一项，
   // 全部清空等于逼人把已经测过的值再抄一遍。
@@ -321,19 +337,26 @@ onMounted(load)
               </span>
             </label>
 
-            <div v-if="criterion.type === 'range'" class="input-row">
-              <input
-                :id="`c-${criterion.id}`"
-                v-model="values[criterion.id]"
-                class="num-input"
-                type="number"
-                inputmode="decimal"
-                step="any"
-                placeholder="实测值"
-              />
-              <span class="unit-chip">{{ criterion.unit }}</span>
-            </div>
-            <p v-if="rangeWarning(criterion)" class="field__error">{{ rangeWarning(criterion) }}</p>
+            <!-- range 分支必须整块包在 template 里：否则后面的 v-else-if
+                 会挂在「超差提示 <p v-if>」上，导致 range 判据同时渲染出
+                 一个数值输入框和一个文本域（重复 id，现场会看到空文本框）。 -->
+            <template v-if="criterion.type === 'range'">
+              <div class="input-row">
+                <input
+                  :id="`c-${criterion.id}`"
+                  v-model="values[criterion.id]"
+                  class="num-input"
+                  type="number"
+                  inputmode="decimal"
+                  step="any"
+                  placeholder="实测值"
+                />
+                <span class="unit-chip">{{ criterion.unit }}</span>
+              </div>
+              <p v-if="rangeWarning(criterion)" class="field__error">
+                {{ rangeWarning(criterion) }}
+              </p>
+            </template>
 
             <select
               v-else-if="criterion.type === 'enum'"
@@ -398,9 +421,7 @@ onMounted(load)
         <p class="result-note">异常已记录。复测会生成新的尝试记录，原记录保留。</p>
         <div class="actions">
           <button class="btn btn--primary" type="button" @click="retest">复测本步</button>
-          <button class="btn" type="button" disabled title="N2 上线后可用">
-            转故障排查
-          </button>
+          <button class="btn" type="button" @click="goDiagnose">转故障排查</button>
           <button class="btn btn--danger" type="button" @click="abortConfirm = true">
             停止作业
           </button>

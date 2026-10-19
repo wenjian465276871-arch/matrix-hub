@@ -1,0 +1,20 @@
+{
+  "version": "1.0",
+  "queries": [
+    { "query": "按下开门按钮，门一点反应都没有", "expect": "kb_door_no_action", "note": "日常口语：无反应" },
+    { "query": "门控器上电没显示，指示灯不亮", "expect": "kb_door_power", "note": "供电类" },
+    { "query": "关门特别慢，超过五秒还没压紧", "expect": "kb_door_slow_close", "note": "时间超差" },
+    { "query": "门关到一半又自己弹开了", "expect": "kb_door_anti_pinch", "note": "防夹动作" },
+    { "query": "监控一直显示门未关好，车侧灯亮", "expect": "kb_door_position_signal", "note": "锁闭信号" },
+    { "query": "开关门的时候有金属摩擦声，门扇还抖", "expect": "kb_door_obstruction", "note": "机械异响" },
+    { "query": "隔离锁拧不动，隔离之后门还能电动打开", "expect": "kb_door_isolation", "note": "隔离失效" },
+    { "query": "紧急解锁拉过之后手柄回不去", "expect": "kb_door_emergency_release", "note": "解锁未复位" },
+    { "query": "门控器插头摸起来发烫，还有焦味", "expect": "kb_door_power", "note": "同条目第二问：换一种说法" },
+    { "query": "关门夹到包弹开以后就一直反复开关", "expect": "kb_door_anti_pinch", "note": "同条目第二问：带场景" },
+    { "query": "开门时间实测 4.2 秒，超出上限", "expect": "kb_door_slow_close", "note": "A1 异常分支转来的原话" }
+  ],
+  "uncovered": [
+    { "query": "空调不制冷，出风口温度降不下来", "why": "空调子系统未收录" },
+    { "query": "受电弓升不起来，升弓按钮没反应", "why": "受电弓子系统未收录，且带干扰词'没反应'" }
+  ]
+}
