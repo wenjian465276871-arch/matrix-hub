@@ -111,7 +111,8 @@ sequenceDiagram
 3. **ID 由服务端分配**：模型输出的是语义化 id（`g_door_side_door_test`），两人生成
    同一工序必撞；`save_guide` 的 upsert 会把"覆盖"当成"更新"。随机 id 从根上消除这个可能。
 4. **草稿不上公开列表**：`GET /guides` 只列 `published`；`GET /guides/{id}` 返回
-   `{status, guide}` 信封，前端据此标"草稿"。发布走服务器 CLI，不做后台管理。
+   `{status, guide}` 信封，前端据此标"草稿"。发布走服务器 CLI
+   （`python -m scripts.publish --list` / `--publish <id>`），不做后台管理。
 
 ### 2.1 A1 会话状态机（2026-10-19 落地）
 

@@ -1,8 +1,9 @@
 # 运维手册
 
-> 版本 v1.0 · 状态：已确认 · 最后更新：2026-10-20
+> 版本 v1.1 · 状态：已确认 · 最后更新：2026-10-20
 > 本文不含服务器地址、凭证与私有路径。补全信息的操作记录留在私有仓。
 > v0.2 → v1.0（2026-10-20）：修正 §1「两个卷」与实际三条挂载不符；补 §11 待补项的现状；接口清单改指 `docs/API.md`。
+> v1.0 → v1.1（2026-10-20）：新增 §12 发布草稿 CLI（`scripts/publish.py`），补上决策 #16 承诺的发布路径。
 
 ## 1. 运行形态
 
@@ -307,3 +308,26 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - **会话/记录 30 天清理**（`sessions`/`records` 每次作业 4–8 行，当前量小；与上传清理同批）
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯）
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`ratelimit.py`、`services/sessions.py` 均假设单 worker）
+
+## 12. 发布草稿（CLI）
+
+生成结果默认是草稿，不进公开列表（决策 #16）。发布没有后台页面，只在服务器上执行：
+
+```bash
+# 列出草稿（id / 子系统 / 步数 / 更新时间 / 标题）
+docker exec matrix-hub python -m scripts.publish --list
+
+# 发布指定草稿
+docker exec matrix-hub python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
+```
+
+发布后：
+
+- `GET /api/electro/guides` 会包含该条；前端列表刷新即可看到；
+- `published_at` 写入当前时间；已发布内容**不可被再次生成覆盖**（`save_guide` 会跳过）；
+- 重复执行 `--publish` 是幂等的，输出 `[SKIP]`，不会改发布时间；
+- 不存在的 id 退出码为 1；数据未通过 Guide 校验时拒绝发布并打印原因。
+
+> 为什么不做 `--unpublish`：撤下已发布内容涉及"访客可能已经看过/引用过"的语义，
+> 且当前没有鉴权与审计。需要撤下时，走数据库变更并记录原因，不提供一个随手可点的反向开关。
+

@@ -58,7 +58,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **145 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **149 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
@@ -77,6 +77,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 - **5 分钟演示脚本**：[`docs/DEMO.md`](docs/DEMO.md)（含旁白、兜底方案、不要说的话）
 - **85 秒录屏**：[`docs/assets/demo.webm`](docs/assets/demo.webm)
 - **正式案例**：`g_door_switch_formal_001`，8 步 / 14 图，含接插件针脚与端子线色；来源登记在 [`docs/SOURCES.md`](docs/SOURCES.md)
+- **迁移案例**：`g_hvac_cooling_check`，5 步，客室空调制冷功能检查——用来证明同一套契约/渲染/引导能换子系统，不是只为车门写的
 - 现场网络不可靠时，直接用预生成案例与预跑记录，**演示不依赖实时生成**
 
 ---
@@ -116,6 +117,8 @@ python scripts/eval_generate.py --dry-run            # 列举评测语料，不�
 python scripts/eval_generate.py --env-file <.env>    # 批量评测（8 份语料，约 ¥0.1）
 python scripts/eval_diagnose.py                      # 检索命中率与 P95
 python scripts/demo_flow.py --base http://127.0.0.1:8001   # 全流程自检
+python -m scripts.publish --list                     # 列出草稿（发布只走 CLI）
+python -m scripts.publish --publish <guide_id>       # 发布指定草稿
 python scripts/export_openapi.py                     # 重新生成 docs/API.md
 ```
 
@@ -159,5 +162,5 @@ docs/                     架构、运维、接口、演示、来源、ADR、ass
 ## 10. 边界
 
 - 演示数据，**不作为实际作业依据**；所有数值为虚构示例，不含任何企业内部资料。
-- 生成结果是**草稿**，不进公开列表；发布需在服务器执行 CLI。
+- 生成结果是**草稿**，不进公开列表；发布在服务器执行 `python -m scripts.publish --publish <guide_id>`（先 `--list` 查 id）。
 - 单人项目，未做多租户与横向扩展；容量按 2 核 2G 设计。

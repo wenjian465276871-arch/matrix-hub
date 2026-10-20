@@ -1,0 +1,272 @@
+{
+  "schema_version": "1.1",
+  "id": "g_hvac_cooling_check",
+  "title": "客室空调机组制冷功能检查",
+  "summary": "单车一台机组供电工况下检查客室空调制冷功能：确认外观与滤网、测控制电源电压、通风模式测风速与送风温度、制冷模式测送回风温差、测压缩机电流与高压侧压力，五项判据全部在范围内为合格。",
+  "meta": {
+    "system": "hvac",
+    "source_note": "公开资料改写：客室空调制冷功能检查；参数为虚构示例值，评测产物，不含任何企业资料",
+    "model": "deepseek-flash",
+    "generated_at": "2026-10-18T07:34:47.332376Z",
+    "is_demo": true
+  },
+  "steps": [
+    {
+      "id": "s01",
+      "seq": 1,
+      "title": "作业准备与外观确认",
+      "action": "确认机组外观无损伤，回风口滤网清洁；确认作业区域通风良好并设置警示，确认由具备资质的人员执行制冷剂相关操作后再开始作业。",
+      "safety": [
+        "作业区域通风良好",
+        "设置警示标志",
+        "制冷剂操作须由具备资质人员执行"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "appearance_ok",
+          "label": "机组外观无损伤",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        },
+        {
+          "id": "filter_clean",
+          "label": "回风口滤网清洁",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        },
+        {
+          "id": "area_warned",
+          "label": "作业区域已通风并设置警示",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "checklist",
+          "params": {
+            "items": [
+              "机组外观无损伤",
+              "回风口滤网清洁",
+              "作业区域通风良好",
+              "已设置警示标志"
+            ]
+          },
+          "caption": "作业准备确认项",
+          "fallback_text": "作业准备确认：机组外观无损伤、回风口滤网清洁、作业区域通风良好、已设置警示标志。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s02",
+      "seq": 2,
+      "title": "测量控制电源电压",
+      "action": "用万用表测量机组控制电源电压，额定 DC110V，允许范围 99-121V，记录实测值。",
+      "safety": [
+        "测量时防止表笔短路"
+      ],
+      "tools": [
+        "万用表"
+      ],
+      "criteria": [
+        {
+          "id": "ctrl_voltage",
+          "label": "控制电源电压",
+          "type": "range",
+          "unit": "V",
+          "min": 99.0,
+          "max": 121.0,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {
+            "label": "控制电源电压",
+            "min": 99,
+            "max": 121,
+            "unit": "V"
+          },
+          "caption": "额定 DC110V，允许 99-121V",
+          "fallback_text": "控制电源电压额定 DC110V，允许范围 99-121V。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s03",
+      "seq": 3,
+      "title": "通风模式风速与送风温度",
+      "action": "启动通风模式运行 5 分钟，用风速仪测量送风口风速，要求 1.5-3.0 m/s；用温度计测量并记录送风温度。",
+      "safety": [],
+      "tools": [
+        "风速仪",
+        "温度计"
+      ],
+      "criteria": [
+        {
+          "id": "supply_air_speed",
+          "label": "送风口风速",
+          "type": "range",
+          "unit": "m/s",
+          "min": 1.5,
+          "max": 3.0,
+          "options": null
+        },
+        {
+          "id": "supply_temp_record",
+          "label": "送风温度实测记录",
+          "type": "text",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {
+            "label": "送风口风速",
+            "min": 1.5,
+            "max": 3.0,
+            "unit": "m/s"
+          },
+          "caption": "通风模式运行 5 分钟后测量",
+          "fallback_text": "通风模式运行 5 分钟后测送风口风速，要求 1.5-3.0 m/s。"
+        },
+        {
+          "primitive": "step_card",
+          "params": {
+            "action": "通风模式运行 5 分钟",
+            "hint": "先稳定运行再测风速与送风温度",
+            "icon": "✓",
+            "index": "3"
+          },
+          "caption": "通风模式",
+          "fallback_text": "启动通风模式运行 5 分钟，稳定后测量送风口风速并记录送风温度。"
+        }
+      ],
+      "duration_s": 300
+    },
+    {
+      "id": "s04",
+      "seq": 4,
+      "title": "制冷模式送回风温差",
+      "action": "切换至制冷模式，稳定运行 10 分钟后测量送风温度，要求送风温度比回风温度低 6-12℃。",
+      "safety": [],
+      "tools": [
+        "温度计"
+      ],
+      "criteria": [
+        {
+          "id": "supply_return_diff",
+          "label": "送回风温差",
+          "type": "range",
+          "unit": "℃",
+          "min": 6.0,
+          "max": 12.0,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {
+            "label": "送回风温差",
+            "min": 6,
+            "max": 12,
+            "unit": "℃"
+          },
+          "caption": "制冷稳定运行 10 分钟后测量",
+          "fallback_text": "制冷模式稳定运行 10 分钟后测送风温度，应比回风温度低 6-12℃。"
+        }
+      ],
+      "duration_s": 600
+    },
+    {
+      "id": "s05",
+      "seq": 5,
+      "title": "压缩机电流与高压侧压力",
+      "action": "用钳形电流表测量压缩机运行电流，额定 12A，允许范围 10-14A；用压力表测量制冷剂高压侧压力，要求 1.4-1.8 MPa。",
+      "safety": [
+        "制冷剂操作须由具备资质人员执行"
+      ],
+      "tools": [
+        "钳形电流表",
+        "压力表"
+      ],
+      "criteria": [
+        {
+          "id": "comp_current",
+          "label": "压缩机运行电流",
+          "type": "range",
+          "unit": "A",
+          "min": 10.0,
+          "max": 14.0,
+          "options": null
+        },
+        {
+          "id": "high_pressure",
+          "label": "制冷剂高压侧压力",
+          "type": "range",
+          "unit": "MPa",
+          "min": 1.4,
+          "max": 1.8,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {
+            "label": "压缩机运行电流",
+            "min": 10,
+            "max": 14,
+            "unit": "A"
+          },
+          "caption": "额定 12A，允许 10-14A",
+          "fallback_text": "压缩机运行电流额定 12A，允许范围 10-14A。"
+        },
+        {
+          "primitive": "meter",
+          "params": {
+            "label": "制冷剂高压侧压力",
+            "min": 1.4,
+            "max": 1.8,
+            "unit": "MPa"
+          },
+          "caption": "要求 1.4-1.8 MPa",
+          "fallback_text": "制冷剂高压侧压力要求 1.4-1.8 MPa。"
+        },
+        {
+          "primitive": "status_light",
+          "params": {
+            "label": "五项判据全部在范围内",
+            "state": "idle"
+          },
+          "caption": "合格判定",
+          "fallback_text": "电源电压、风速、送回风温差、压缩机电流、高压压力五项均在范围内判合格；任一超差先复测一次，复测仍超差记录实测值并转入异常处置。"
+        }
+      ],
+      "duration_s": null
+    }
+  ],
+  "disclaimers": [
+    "演示数据 · 非实际作业依据",
+    "本指导书仅用于格式演示，所有数值与判据须以正式检修工艺文件及现场实测为准。",
+    "制冷剂相关操作须由具备资质人员执行。"
+  ]
+}

@@ -148,6 +148,21 @@ def test_formal_sample_has_connector_and_wiring():
             assert fig.fallback_text.strip()
 
 
+def test_hvac_migration_sample_exists():
+    """判据 4：换子系统仍可跑通。
+
+    空调案例是迁移验证的线上证据；没有它，"同一框架可复用"只是一句话。
+    这里只校验它能被 Guide 解析、声明齐全，渲染覆盖由原语测试负责。
+    """
+    guides = {g.id: g for g in library.load_fixtures(SAMPLES)}
+    assert "g_hvac_cooling_check" in guides
+    hvac = guides["g_hvac_cooling_check"]
+    assert hvac.meta.system.value == "hvac"
+    assert 3 <= len(hvac.steps) <= 8
+    assert "演示数据 · 非实际作业依据" in hvac.disclaimers
+    assert hvac.meta.is_demo is True
+
+
 def test_seed_adds_missing_fixtures_without_touching_existing(tmp_path, monkeypatch):
     """部署新增样例后，已有记录不被覆盖，缺的补进来。"""
     shutil.copy(SAMPLES / "door_clearance.json", tmp_path / "a.json")
