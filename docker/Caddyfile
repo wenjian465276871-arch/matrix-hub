@@ -58,11 +58,9 @@ http://{$SITE_DOMAIN:localhost}, http://www.{$SITE_DOMAIN:localhost} {
 		respond 404
 	}
 
-	# ---- 静态：粒子系统 ----
-	handle_path /apps/particle-system/* {
-		root * /srv/static/particle
-		try_files {path} {path}/ /index.html
-		file_server
+	# ---- 历史粒子实验已归档（ADR-0003），不再提供路由 ----
+	handle /apps/particle-system/* {
+		respond 404
 	}
 
 	# ---- 静态：电气调试助手（Vue SPA）----

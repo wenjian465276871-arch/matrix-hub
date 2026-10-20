@@ -18,10 +18,11 @@ P0a 迁移方案原计划把 `portal` 与 `particle-system` 原样迁入镜像�
 
 ## 决策
 
-1. 旧页面原样归档到 `apps/*/legacy/`，**不参与构建、不对外服务**，仅作改造参考。
+1. 旧页面原样归档到 `archive/particle-system-legacy/` 与 `archive/portal-legacy/`，**不参与构建、不对外服务**，仅作改造参考。
 2. P0 阶段上线一版**自包含门户页**（`apps/portal/public/`）：零外链、系统字体、原子化 CSS，内容与旧页一致（三个模块 + 说明 + 备案号）。
 3. `particle-system` 在 P0 只保留占位入口（门户上标"暂停服务"），重构排到 P4；重构方向是**去掉 mediapipe 与 CDN**，保留纯 Canvas 效果。
 4. 不为此放宽 CSP，也不为旧页面开 `unsafe-inline`。
+5. `/apps/particle-system/*` 在 Caddy 显式返回 404，不再保留"指向不存在目录"的死路由。
 
 ## 理由
 
@@ -44,3 +45,9 @@ P0a 迁移方案原计划把 `portal` 与 `particle-system` 原样迁入镜像�
 **约束**
 - 任何新页面不得引用外部 CDN；字体用系统字体栈；图标内联 SVG。
 - 静态资源的引用一律用相对路径，确保挂在 `/apps/<name>/` 子路径下也能工作。
+
+## 变更记录
+
+| 日期 | 变更 |
+|---|---|
+| 2026-10-21 | 源码从 `apps/particle-system/legacy`、`apps/portal/legacy` 移到 `archive/`；`services/gateway` 空占位删除；Caddy 的粒子路由改为显式 404。运行时行为不变（归档代码本来就不进镜像）。 |

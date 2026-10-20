@@ -14,7 +14,11 @@ export default defineConfig({
     modulePreload: { polyfill: false },
     assetsInlineLimit: 0,
   },
-  // 仅本地验收用：`npm run preview` 时把 /api 转到本机后端，模拟生产的同源反代。
+  // 本地开发与预览都走同源反代：前端代码里不出现绝对后端地址，
+  // 与生产 Caddy 的同源反代保持一致。
+  server: {
+    proxy: { '/api': 'http://127.0.0.1:8001' },
+  },
   preview: {
     proxy: { '/api': 'http://127.0.0.1:8001' },
   },

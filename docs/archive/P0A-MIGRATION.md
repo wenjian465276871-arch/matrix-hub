@@ -1,5 +1,6 @@
 # P0a 迁移方案
 
+> **历史记录，不再维护（2026-10-21 注）**：本文的路径已变——`apps/particle-system/legacy` 与 `apps/portal/legacy` 移到 `archive/`，`services/gateway` 空占位删除；当前结构见 [`../README.md`](../README.md) 与 ADR-0003。
 > 版本 v1.0 · 状态：**已完成（2026-10-18）**
 > 注意：第 3 节"静态文件原样迁入"已被 **ADR-0003** 取代——旧页依赖 CDN，改为归档不服务、门户重写。
 > 原定"迁移 news 后端"已由 **ADR-0002** 取消。

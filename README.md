@@ -63,7 +63,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
 | B 检索 | Top-3 **11/11**，未覆盖 2/2，P50 1.1ms / **P95 2.0ms** | `python scripts/eval_diagnose.py` |
-| 前端首屏 | **39.74 KB** gzip（预算 75KB），CSS 4.59 KB（预算 14KB） | `npm run build` |
+| 前端首屏 | **39.87 KB** gzip（预算 75KB），CSS 4.59 KB（预算 14KB） | `npm run build` |
 | 契约面 | **20 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
 
 ---
@@ -132,13 +132,13 @@ python scripts/export_openapi.py                     # 重新生成 docs/API.md
 apps/electro-assist/api   FastAPI：models / routers / services / store / llm / knowledge / scripts / tests
 apps/electro-assist/web   Vue 3 + TS：views / figures（7 原语）/ lib/http.ts / styles
 apps/portal/public        门户首页（自包含，零外链）
-apps/particle-system/legacy  历史视觉实验（归档，不构建，ADR-0003）
+archive/                  不构建、不服务的历史代码（particle-system-legacy / portal-legacy，ADR-0003）
 docker/                   Dockerfile（多阶段）/ Caddyfile / compose.yml / supervisord.conf
 deploy/                   deploy.sh / backup.sh / .env.example
-docs/                     架构、运维、接口、演示、来源、ADR、assets
+docs/                     文档索引、架构、运维、接口、演示、开发指南、来源、提案、ADR、assets
 ```
 
-`services/gateway/` 为跨模块聚合层预留，当前为空。`apps/news-insight/` 已于 P0 下架（ADR-0002），不再保留目录。
+`apps/news-insight/` 已于 P0 下架（ADR-0002），不再保留目录；`services/gateway/` 空占位已删除，出现第二个业务模块时再建。
 
 ---
 
@@ -146,12 +146,14 @@ docs/                     架构、运维、接口、演示、来源、ADR、ass
 
 | 文档 | 内容 |
 |---|---|
+| [文档索引](docs/README.md) | 按"想了解什么"组织的入口 |
 | [架构与取舍](docs/ARCHITECTURE.md) | 拓扑、请求链路、LLM 层、为什么 B 是检索 |
-| [部署与回滚](docs/OPERATIONS.md) | 部署/回滚/证书/备份/事故处置 |
+| [部署与回滚](docs/OPERATIONS.md) | 部署/回滚/证书/备份/事故处置/发布 CLI |
 | [API 参考](docs/API.md) | 21 个端点（业务 20 + 健康检查），由 OpenAPI 导出 |
+| [开发指南](docs/DEVELOPMENT.md) | 本地起站、测试、构建、约定与常见坑 |
 | [演示脚本](docs/DEMO.md) | 5 分钟闭环演示 |
 | [案例来源](docs/SOURCES.md) | 合规清单与登记规则 |
-| [A2 图片输入](docs/A2-IMAGE-INPUT.md) | 草案；**已降级为 P4 备选** |
+| [A2 图片输入](docs/proposals/A2-IMAGE-INPUT.md) | **P4 备选提案**，未实现；上传/切图契约仍维护 |
 | [ADR 0001](docs/adr/0001-monorepo-single-image-caddy.md) · [0002](docs/adr/0002-p0-drop-news-insight.md) · [0003](docs/adr/0003-legacy-static-not-shipped.md) | 架构决策记录 |
 | [P0a 迁移方案](docs/archive/P0A-MIGRATION.md) | 已完成的一次性迁移记录（归档） |
 
