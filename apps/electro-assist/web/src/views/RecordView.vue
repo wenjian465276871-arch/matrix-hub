@@ -54,7 +54,17 @@ function formatDuration(seconds: number): string {
 
 function formatTime(value: string | null): string {
   if (!value) return '—'
-  return new Date(value).toLocaleString('zh-CN', { hour12: false })
+  // 不用 hour12:false：部分内核（荣耀/旧 WebView 的 ICU）会按 h24 输出
+  // "24:42:45"。显式 hourCycle:'h23' 才能稳定得到 00:42:45。
+  return new Date(value).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
 }
 
 function resultValue(result: CriterionResult): string {
