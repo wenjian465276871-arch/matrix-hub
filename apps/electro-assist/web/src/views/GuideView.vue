@@ -75,7 +75,8 @@ async function load(): Promise<void> {
         ? err.kind === 'timeout'
           ? '请求超时，请检查网络后重试'
           : `服务暂不可用（${err.status ?? err.kind}）`
-        : '未知错误'
+        : '页面初始化失败：请升级浏览器，或改用 Chrome / Safari 打开'
+    if (!(err instanceof ApiError)) console.error('load guide failed', err)
     phase.value = 'error'
   }
 }

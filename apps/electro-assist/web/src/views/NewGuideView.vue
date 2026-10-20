@@ -88,7 +88,8 @@ function handleError(err: unknown): void {
       errorText.value = humanError(err.code ?? null, err.message)
     }
   } else {
-    errorText.value = '未知错误，请稍后再试。'
+    console.error('generate request failed', err)
+    errorText.value = '页面初始化失败：请升级浏览器，或改用 Chrome / Safari 打开。'
   }
   phase.value = 'error'
   lastJobFailed.value = false

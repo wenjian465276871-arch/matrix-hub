@@ -21,11 +21,16 @@ export class ApiError extends Error {
 
 const TIMEOUT_MS = 15_000
 
-/** 现场 WebView 版本不可控，`AbortSignal.any` 不是所有内核都有。 */
+/** 现场 WebView 版本不可控：`AbortSignal.timeout` / `AbortSignal.any`
+ * 不是所有内核都有（Chrome < 103、Safari < 16.4 会直接抛 TypeError，
+ * 页面表现就是"未知错误"）。这里统一用 AbortController 兜底。
+ */
 function combine(a: AbortSignal, b: AbortSignal): AbortSignal {
   if (typeof AbortSignal.any === 'function') return AbortSignal.any([a, b])
   const ctrl = new AbortController()
   const onAbort = () => ctrl.abort()
+  // 已经 abort 的信号不会再触发事件，必须先判一次。
+  if (a.aborted || b.aborted) ctrl.abort()
   a.addEventListener('abort', onAbort, { once: true })
   b.addEventListener('abort', onAbort, { once: true })
   return ctrl.signal
@@ -40,17 +45,24 @@ async function request<T>(
   init: RequestInit,
   signal?: AbortSignal,
 ): Promise<T> {
-  const timeout = AbortSignal.timeout(TIMEOUT_MS)
-  const merged = signal ? combine(signal, timeout) : timeout
+  // 不用 AbortSignal.timeout：老内核没有这个静态方法，会在 fetch 之前就抛
+  // TypeError，被上层当成"未知错误"。timedOut 标记同时解决了"超时"与
+  // "页面卸载主动 abort"无法区分的问题。
+  let timedOut = false
+  const timeoutCtrl = new AbortController()
+  const timer = setTimeout(() => {
+    timedOut = true
+    timeoutCtrl.abort()
+  }, TIMEOUT_MS)
+  const merged = signal ? combine(signal, timeoutCtrl.signal) : timeoutCtrl.signal
 
   let res: Response
   try {
     res = await fetch(path, { ...init, signal: merged })
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'TimeoutError') {
-      throw new ApiError('timeout')
-    }
-    throw new ApiError('network')
+  } catch {
+    throw new ApiError(timedOut ? 'timeout' : 'network')
+  } finally {
+    clearTimeout(timer)
   }
 
   if (res.status === 404) throw new ApiError('notfound', 404)
