@@ -44,7 +44,7 @@
 
 | 项 | 值 | 采集 |
 |---|---|---|
-| 线上 tag | `0f196dd` | `docker inspect matrix-hub` |
+| 线上 tag | `79f504f` | `docker inspect matrix-hub` |
 | 契约测试 | 149 passed | `pytest tests -q` |
 | 业务端点 | 20 + `/healthz` | `app.routes` |
 | 首屏 | 39.87 KB gzip / CSS 4.59 KB | `npm run build` |
