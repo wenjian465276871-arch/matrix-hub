@@ -1,11 +1,12 @@
 # 运维手册
 
-> 版本 v1.3 · 状态：已确认 · 最后更新：2026-10-21
+> 版本 v1.4 · 状态：已确认 · 最后更新：2026-10-21
 > 本文不含服务器地址、凭证与私有路径。补全信息的操作记录留在私有仓。
 > v0.2 → v1.0（2026-10-20）：修正 §1「两个卷」与实际三条挂载不符；补 §11 待补项的现状；接口清单改指 `docs/API.md`。
 > v1.0 → v1.1（2026-10-20）：新增 §12 发布草稿 CLI（`scripts/publish.py`），补上决策 #16 承诺的发布路径。
 > v1.1 → v1.2（2026-10-21）：发布 CLI 已实测；Caddy 移除粒子死路由（显式 404）；记录页时间兼容修复已部署（详见私有仓验收记录）。
 > v1.2 → v1.3（2026-10-21）：新增 §13 口令通道、§14 清理任务；`/healthz` 增加磁盘检查；切图独立限流；Caddy 移除无效 SSE 配置。
+> v1.3 → v1.4（2026-10-21）：口令通道已在生产启用（值只在服务器 `.env`）；清理任务以**空跑 cron** 安装，日志落 `/opt/matrix-hub/cleanup.log`；两周无异常后再改 `--apply`。
 
 ## 1. 运行形态
 
@@ -308,7 +309,7 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - 备份恢复演练常态化（每季度一次，脚本见 §7.4）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
 - 监控告警：**GitHub Actions 定时探活已加**（`.github/workflows/uptime.yml`，每 10 分钟查 `/healthz`、页面与 guides；失败会以 workflow 失败通知）；UptimeRobot 仍可选，用于更及时告警
-- 清理任务**已实现**（§14），但尚未装 cron；10-25 窗口一起做
+- 清理任务**已实现并安装空跑 cron**（§14，2026-10-21）；两周报告正常后评估改 `--apply`
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯；已加次数上限与限流）
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`ratelimit.py`、`services/sessions.py` 均假设单 worker）
 
@@ -339,6 +340,11 @@ docker exec matrix-hub python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 
 用途：现场连续演示或批量生成时，临时不受「每 IP 2 次/时、10 次/日」限制。
 **它不豁免全站日预算**，也不是身份体系——没有用户、没有后台。
+
+> **当前状态（2026-10-21 23:03）**：本站已启用（48 位随机 hex，仅存服务器 `.env`，600）。
+> 查看口令（在服务器上执行，不要把输出贴到聊天/文档）：
+> `grep '^ELECTRO_PASSCODE=' /opt/matrix-hub/.env`
+> 线上验证：正确口令 200 + 令牌；错误口令 401；坏令牌调 `/generate` 401（不建 job）。
 
 配置（服务器 `.env`，600）：
 
@@ -403,10 +409,12 @@ docker exec matrix-hub python -m scripts.cleanup --apply
 | 用量明细 | 365 天 | 当天预算只依赖当天，删旧行不影响熔断 |
 | 指导书 | **永不删** | published 与 draft 都是产品内容 |
 
-首次执行前建议先备份（§7.1），并保留 dry-run 输出。装 cron（周任务，凌晨低峰）：
+首次执行前建议先备份（§7.1），并保留 dry-run 输出。**2026-10-21 已安装空跑 cron**（每周日 04:17，只报告不删除）：
 
 ```bash
-17 4 * * 0 docker exec matrix-hub python -m scripts.cleanup --apply >> /opt/matrix-hub/cleanup.log 2>&1
+17 4 * * 0 /usr/bin/docker exec matrix-hub python -m scripts.cleanup >> /opt/matrix-hub/cleanup.log 2>&1
 ```
+
+日志 `/opt/matrix-hub/cleanup.log`（600）。连续两周报告正常后，把命令末尾加上 `--apply` 再执行一次 `crontab -e`；改之前先看最后一次日志的条数与样例。
 
 > 清理是**不可逆**的。`--apply` 前先看一眼 dry-run 的条数与样例；输出里没有删除明细就说明没匹配到数据。
