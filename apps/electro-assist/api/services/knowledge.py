@@ -45,8 +45,9 @@ DISCLAIMER = "演示数据 · 非实际作业依据"
 
 # 关键词分低于该值视为"不够接近"。调高 → 更多"未覆盖"。
 MIN_SCORE = float(os.getenv("DIAGNOSE_MIN_SCORE", "3.0"))
-# 向量余弦低于该值不进入结果；只影响"关键词完全没命中"时的召回。
-MIN_VECTOR = float(os.getenv("DIAGNOSE_MIN_VECTOR", "0.20"))
+# 向量余弦低于该值不进入结果。0.10 是实测值：再高只剩单候选（重排无从发挥），
+# 再低会把"面板温度显示不对"拉到车门条目上；当前阈值下评测仍 21/21、无关提问仍 no_match。
+MIN_VECTOR = float(os.getenv("DIAGNOSE_MIN_VECTOR", "0.10"))
 
 SYSTEM_LABELS = {"door": "客室侧门", "hvac": "空调", "pantograph": "受电弓"}
 

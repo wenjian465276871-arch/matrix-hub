@@ -100,3 +100,26 @@ def test_kb_overview_lists_coverage():
     assert body["systems"] == ["door", "hvac", "pantograph"]
     assert body["provider"] == "hybrid"
     assert {entry["system"] for entry in body["entries"]} == {"door", "hvac", "pantograph"}
+
+
+def test_multi_candidate_query_surfaces_signals_and_rerank_slot():
+    """混合召回要能给出多候选，且每个候选都带分项信号——否则重排无从发挥。"""
+    result = _post("门关到一半又自己弹开了", top_k=3)
+    assert result["count"] >= 2
+    ids = [item["id"] for item in result["results"]]
+    assert ids[0] == "kb_door_anti_pinch"
+    for item in result["results"]:
+        assert set(item["signals"]) == {"keyword", "vector", "combined"}
+        assert item["signals"]["combined"] > 0
+    # 未配置 Key 时重排自动关闭：必须回退检索顺序，而不是报错或空结果
+    assert result["rerank"] is None
+
+
+def test_measure_check_is_declared_in_quick_result():
+    """快速检索也要标出哪些检查需要回填实测值，前端才能提前提示。"""
+    result = _post("门到关闭位不锁闭")
+    checks = result["results"][0]["checks"]
+    measure = [c for c in checks if c["kind"] == "measure"]
+    assert measure, "气压类条目的首项应为实测值检查"
+    assert measure[0]["unit"] == "MPa"
+    assert measure[0]["min"] < measure[0]["max"]

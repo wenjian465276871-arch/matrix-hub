@@ -58,11 +58,11 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **177 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **179 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
-| B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.5ms** / P95 **4.2ms** | `python scripts/eval_diagnose.py` |
+| B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.8ms** / P95 **4.6ms** | `python scripts/eval_diagnose.py` |
 | 前端首屏 | **40.01 KB** gzip（预算 75KB），CSS 5.45 KB（预算 14KB） | `npm run build` |
 | 契约面 | **25 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
 | 前端 E2E | **4 条冒烟**：列表→引导→刷新保持、B 命中、B 未覆盖、**B 逐步诊断收敛** | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
