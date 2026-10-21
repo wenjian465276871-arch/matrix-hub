@@ -43,10 +43,12 @@ echo "==> 备份上传目录"
 
 # 图片不在库里，只备份 db 等于"恢复后指导书还在、图全丢"。
 # tar 在容器内执行：卷路径只有容器里才看得见，宿主机直接打包会拿到空目录。
-docker exec -e NAME="uploads-${STAMP}.tar.gz" "$CONTAINER" \
-    tar czf "/srv/backups/$NAME" -C /srv/app_data uploads
+# 注意：这里必须用独立变量。用同一个 $NAME 会被宿主机先展开成 db 文件名，
+# 结果把刚备份好的 .db 覆盖成 tar.gz（2026-10-22 实测踩到过）。
+UPLOADS="uploads-${STAMP}.tar.gz"
+docker exec "$CONTAINER" tar czf "/srv/backups/$UPLOADS" -C /srv/app_data uploads
 
-docker exec -i -e NAME="$NAME" -e UPLOADS="uploads-${STAMP}.tar.gz" -e KEEP="${KEEP:-7}" "$CONTAINER" python - <<'PY'
+docker exec -i -e NAME="$NAME" -e UPLOADS="$UPLOADS" -e KEEP="${KEEP:-7}" "$CONTAINER" python - <<'PY'
 import os
 import sqlite3
 
