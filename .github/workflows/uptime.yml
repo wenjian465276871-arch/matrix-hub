@@ -1,0 +1,39 @@
+name: uptime
+
+# 外部探活：从 GitHub 的网络上探，不经过服务器自己。
+# 目的不是 SLA 监控，而是"演示当天站点挂了，能在 10 分钟内收到失败邮件"。
+# GitHub 的 schedule 有延迟（高峰可到数分钟），这里只当低成本兜底。
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: 探活 /healthz 与首页
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 检查健康与页面
+        run: |
+          set -euo pipefail
+          health=$(curl -fsS --max-time 10 https://www.superplayer007.cn/healthz)
+          echo "healthz: $health"
+          echo "$health" | grep -q '"status":"ok"'
+          echo "$health" | grep -q '"db":"ok"'
+          echo "$health" | grep -q '"disk":"ok"'
+
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 10 \
+            https://www.superplayer007.cn/apps/electro-assist/)
+          echo "app: $code"
+          test "$code" = "200"
+
+          # 业务接口至少能返回已发布列表（不依赖模型）
+          count=$(curl -fsS --max-time 10 https://www.superplayer007.cn/api/electro/guides \
+            | grep -o '"count":[0-9]*' | head -1 | cut -d: -f2)
+          echo "guides: $count"
+          test "${count:-0}" -ge 1

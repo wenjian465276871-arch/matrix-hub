@@ -307,7 +307,7 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 
 - 备份恢复演练常态化（每季度一次，脚本见 §7.4）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
-- 监控告警（`/healthz` 外部探测）
+- 监控告警：**GitHub Actions 定时探活已加**（`.github/workflows/uptime.yml`，每 10 分钟查 `/healthz`、页面与 guides；失败会以 workflow 失败通知）；UptimeRobot 仍可选，用于更及时告警
 - 清理任务**已实现**（§14），但尚未装 cron；10-25 窗口一起做
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯；已加次数上限与限流）
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`ratelimit.py`、`services/sessions.py` 均假设单 worker）
