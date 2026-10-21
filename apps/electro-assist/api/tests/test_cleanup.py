@@ -50,6 +50,32 @@ def _seed(row_days: dict[str, int]) -> None:
                         " VALUES (?, 'generate', ?, '1.2.3.4', ?)",
                         (label, status, ts),
                     )
+                elif label.startswith("d_"):
+                    con.execute(
+                        "INSERT INTO diagnose_runs (id, entry_id, symptom, system, status,"
+                        " current_order, created_at, updated_at)"
+                        " VALUES (?, 'kb_door_anti_pinch', '门反复开关', 'door', 'concluded',"
+                        " NULL, ?, ?)",
+                        (label, ts, ts),
+                    )
+                    con.execute(
+                        "INSERT INTO diagnose_steps (id, run_id, check_order, verdict, value,"
+                        " note, created_at) VALUES (?, ?, 1, 'fail', '', '', ?)",
+                        ("ds_" + label[2:], label, ts),
+                    )
+                elif label.startswith("d_"):
+                    con.execute(
+                        "INSERT INTO diagnose_runs (id, entry_id, symptom, system, status,"
+                        " current_order, created_at, updated_at)"
+                        " VALUES (?, 'kb_door_anti_pinch', '门反复开关', 'door', 'concluded',"
+                        " NULL, ?, ?)",
+                        (label, ts, ts),
+                    )
+                    con.execute(
+                        "INSERT INTO diagnose_steps (id, run_id, check_order, verdict, value,"
+                        " note, created_at) VALUES (?, ?, 1, 'fail', '', '', ?)",
+                        ("ds_" + label[2:], label, ts),
+                    )
                 elif label.startswith("u_"):
                     con.execute(
                         "INSERT INTO usage (day, model, prompt_tokens, completion_tokens,"
@@ -81,6 +107,10 @@ def test_plan_and_apply_delete_only_expired(env):
             "s_new": 1,
             "j_old": 100,
             "j_new": 1,
+            "d_old": 400,
+            "d_new": 1,
+            "d_old": 400,
+            "d_new": 1,
             "u_old": 400,
             "u_new": 0,
         }
@@ -92,11 +122,23 @@ def test_plan_and_apply_delete_only_expired(env):
     assert report.sessions == ["s_old"]
     assert report.records == 1
     assert report.jobs == ["j_old"]
+    assert report.diagnose_runs == ["d_old"]
+    assert report.diagnose_steps == 1
+    assert report.diagnose_runs == ["d_old"]
+    assert report.diagnose_steps == 1
     assert report.usage == 1
     assert [name for name, _ in report.uploads] == ["a_" + "0" * 16]
 
     deleted = cleanup.apply(report)
-    assert deleted == {"sessions": 1, "records": 1, "jobs": 1, "usage": 1, "uploads": 1}
+    assert deleted == {
+        "sessions": 1,
+        "records": 1,
+        "diagnose_runs": 1,
+        "diagnose_steps": 1,
+        "jobs": 1,
+        "usage": 1,
+        "uploads": 1,
+    }
 
     con = sqlite3.connect(store.db_path())
     try:
@@ -104,6 +146,10 @@ def test_plan_and_apply_delete_only_expired(env):
         assert con.execute("SELECT COUNT(*) FROM records").fetchone()[0] == 1
         assert con.execute("SELECT COUNT(*) FROM jobs").fetchone()[0] == 1
         assert con.execute("SELECT COUNT(*) FROM usage").fetchone()[0] == 1
+        assert con.execute("SELECT COUNT(*) FROM diagnose_runs").fetchone()[0] == 1
+        assert con.execute("SELECT COUNT(*) FROM diagnose_steps").fetchone()[0] == 1
+        assert con.execute("SELECT COUNT(*) FROM diagnose_runs").fetchone()[0] == 1
+        assert con.execute("SELECT COUNT(*) FROM diagnose_steps").fetchone()[0] == 1
         # 指导书是产品内容，任何情况下都不能被清理
         assert con.execute("SELECT COUNT(*) FROM guides").fetchone()[0] == 1
     finally:

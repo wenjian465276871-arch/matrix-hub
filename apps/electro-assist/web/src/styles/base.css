@@ -220,6 +220,37 @@ h3 {
   background: var(--c-primary-ink);
 }
 
+/* 判据提交用：正常=绿、异常=橙。现场拇指操作，颜色必须能一眼区分。 */
+.btn--ok {
+  border-color: var(--c-success);
+  background: var(--c-success);
+  color: #fff;
+}
+
+.btn--ok:hover {
+  background: #0f6030;
+}
+
+.btn--warn {
+  border-color: var(--c-warning);
+  background: var(--c-warning);
+  color: #fff;
+}
+
+.btn--warn:hover {
+  background: #8a4b00;
+}
+
+.btn--ghost {
+  background: transparent;
+  color: var(--c-ink-2);
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* ---------- 状态 ---------- */
 
 .state {

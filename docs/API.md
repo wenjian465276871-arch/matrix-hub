@@ -2,7 +2,7 @@
 
 > 由 `apps/electro-assist/api/scripts/export_openapi.py` 从 `app.openapi()` 生成，**不要手改**。
 > 接口变更后重跑脚本并提交本文件：`cd apps/electro-assist/api && ./.venv/Scripts/python.exe scripts/export_openapi.py`
-> 服务版本：`0.5.0` ｜ 端点 **22** 个（业务 **21** + `/healthz`）
+> 服务版本：`0.6.0` ｜ 端点 **26** 个（业务 **25** + `/healthz`）
 
 ## 1. 约定
 
@@ -22,6 +22,10 @@
 |---|---|---|---|---|
 | `POST` | `/api/electro/diagnose` | 按现象检索故障知识库；查不到返回 uncovered_reason | `DiagnoseIn` | `200 · object` |
 | `GET` | `/api/electro/diagnose/kb` | 知识库覆盖范围（子系统、条目数、版本） | `—` | `200 · object` |
+| `POST` | `/api/electro/diagnose/runs` | 开始逐步诊断（故障树）：返回条目、首个检查项与候选 | `RunIn` | `201 · object` |
+| `GET` | `/api/electro/diagnose/runs/{run_id}` | 取逐步诊断状态：已填步骤、当前检查、结论 | `—` | `200 · object` |
+| `POST` | `/api/electro/diagnose/runs/{run_id}/abort` | 中止逐步诊断，保留已完成步骤 | `—` | `200 · object` |
+| `POST` | `/api/electro/diagnose/runs/{run_id}/checks/{order}` | 回填一项检查（确认 pass/fail 或实测值），由服务端判定并推进 | `CheckIn` | `200 · object` |
 | `POST` | `/api/electro/generate` | 提交生成任务，返回 202 + job_id（单 worker 有界队列） | `GenerateIn` | `202 · object` |
 | `GET` | `/api/electro/guides` | 指导书列表，**只含已发布**（草稿不进列表） | `—` | `200 · object` |
 | `GET` | `/api/electro/guides/{guide_id}` | 指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读 | `—` | `200 · object` |
@@ -49,6 +53,10 @@
 
 - `POST /api/electro/diagnose` — 按现象检索故障知识库；查不到返回 uncovered_reason
 - `GET /api/electro/diagnose/kb` — 知识库覆盖范围（子系统、条目数、版本）
+- `POST /api/electro/diagnose/runs` — 开始逐步诊断（故障树）：返回条目、首个检查项与候选
+- `GET /api/electro/diagnose/runs/{run_id}` — 取逐步诊断状态：已填步骤、当前检查、结论
+- `POST /api/electro/diagnose/runs/{run_id}/abort` — 中止逐步诊断，保留已完成步骤
+- `POST /api/electro/diagnose/runs/{run_id}/checks/{order}` — 回填一项检查（确认 pass/fail 或实测值），由服务端判定并推进
 
 ### generate
 
@@ -107,6 +115,14 @@
 |---|---|---|
 | `file` | `string` | 是 |
 
+### CheckIn
+
+| 字段 | 类型 | 必填 |
+|---|---|---|
+| `result` | `—` | 否 |
+| `value` | `—` | 否 |
+| `note` | `string` | 否 |
+
 ### Context
 
 | 字段 | 类型 | 必填 |
@@ -149,6 +165,15 @@
 | 字段 | 类型 | 必填 |
 |---|---|---|
 | `code` | `string` | 是 |
+
+### RunIn
+
+| 字段 | 类型 | 必填 |
+|---|---|---|
+| `symptom` | `string` | 是 |
+| `system` | `—` | 否 |
+| `entry_id` | `—` | 否 |
+| `session_id` | `—` | 否 |
 
 ### StartIn
 

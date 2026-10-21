@@ -27,7 +27,7 @@
 |---|---|---|
 | **A2** 可视化作业指导书 | 工艺文本 → 结构化 JSON + 视觉 DSL → 前端渲染（步骤卡 / 判据 / 7 种 SVG 图元 / 安全提示） | 模型只输出**受 schema 约束的规格**，不输出 HTML/JS；图元是构建期枚举，渲染失败降级为文字 |
 | **A1** 交互式作业引导 | 逐步执行、提交实测值、服务端判据校验、失败不推进、复测留痕、记录可打印 | 判定在**服务端**算；改请求体塞 `verdict:"pass"` 无效；复测是**新增 attempt**，不覆盖旧记录 |
-| **B** 故障排查 | 现象 → 检索人工整理的故障知识库 → 检查顺序 + 升级条件；查不到明确说"未覆盖" | **纯检索，不调模型**：现场要"下一步查什么"，不是分析文章；编造部件号在现场是危险品 |
+| **B** 故障排查 | 现象 → 混合召回（关键词 + 稀疏向量）→ 受限重排 → **逐步诊断故障树**（回填实测值、服务端判定、异常即收敛） | 模型**只排序不写事实**：候选 id 之外的输出一律丢弃；条目、阈值、处置全部来自人工整理的公开资料改写 |
 
 闭环：**A2 看懂 → A1 照做 → 异常转 B 兜底 → 记录回看**。
 
@@ -43,9 +43,9 @@ Caddy ── 静态资源：镜像内 Vue 产物（CSP: default-src 'self'）
   │      /api/electro/* 反代
   ▼
 FastAPI（127.0.0.1:8001，非 root uid 10001）
-  ├─ SQLite（WAL，guides / jobs / usage / sessions / records + 迁移表）
+  ├─ SQLite（WAL，guides / jobs / usage / sessions / records / diagnose_runs / diagnose_steps）
   ├─ 生成：进程内单 worker 有界队列 → DeepSeek（结构化 JSON 输出）
-  └─ 排查：KeywordProvider（二元组 + 同义词 + 阈值），可替换为 embedding
+  └─ 排查：HybridProvider（关键词 + n-gram/IDF 稀疏向量）→ 受限重排（模型只能排序）→ 故障树推进
 ```
 
 单容器、单镜像、一条流水线：`push → 契约测试 → E2E 冒烟 → 构建（含 CSP 产物检查）→ 推私有镜像仓 → 服务器拉取 → 3 次健康检查 → 失败自动回滚`。服务器只拉镜像，不编译。另有 `uptime.yml` 每 10 分钟从 GitHub 外部探活。
@@ -58,14 +58,14 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **164 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **177 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
-| B 检索 | Top-3 **11/11**，未覆盖 2/2，P50 1.1ms / **P95 2.0ms** | `python scripts/eval_diagnose.py` |
-| 前端首屏 | **40.01 KB** gzip（预算 75KB），CSS 4.70 KB（预算 14KB） | `npm run build` |
-| 契约面 | **21 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
-| 前端 E2E | **3 条冒烟**：列表→引导→刷新保持、B 命中、B 未覆盖 | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
+| B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.5ms** / P95 **4.2ms** | `python scripts/eval_diagnose.py` |
+| 前端首屏 | **40.01 KB** gzip（预算 75KB），CSS 5.45 KB（预算 14KB） | `npm run build` |
+| 契约面 | **25 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
+| 前端 E2E | **4 条冒烟**：列表→引导→刷新保持、B 命中、B 未覆盖、**B 逐步诊断收敛** | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
 
 ---
 
@@ -79,6 +79,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 - **85 秒录屏**：[`docs/assets/demo.webm`](docs/assets/demo.webm)
 - **正式案例**：`g_door_switch_formal_001`，8 步 / 14 图，含接插件针脚与端子线色；来源登记在 [`docs/SOURCES.md`](docs/SOURCES.md)
 - **迁移案例**：`g_hvac_cooling_check`，5 步，客室空调制冷功能检查——用来证明同一套契约/渲染/引导能换子系统，不是只为车门写的
+- **故障诊断**：知识库覆盖车门 11 / 空调 4 / 受电弓 3，共 18 条；现场可走"逐步诊断"，填实测值由服务端判超差并收敛到结论
 - 现场网络不可靠时，直接用预生成案例与预跑记录，**演示不依赖实时生成**
 
 ---
@@ -87,7 +88,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 不做 | 原因 |
 |---|---|
-| **不建向量库** | 8 条故障知识库用关键词 + 二元组就够，P95 2ms；条目上千再换 embedding，`KnowledgeProvider` 已留实现位。为一个 8 条的库上向量检索，是给自己造运维面 |
+| **不引入 embedding 服务与向量库** | 18 条知识库用**进程内** n-gram/IDF 稀疏向量 + 人工关键词就够：Top-3 21/21、P95 4.2ms、零外部依赖。条目上万再上 embedding 与向量库——`KnowledgeProvider` 已是替换点，路由与返回结构不用动 |
 | **不做运行时 Agent 代码生成** | 图元是构建期固定的 7 个原语，模型只输出参数。现场要的是**可预期**：同一份输入渲染结果稳定，出问题能定位到哪一行规格 |
 | **不上多容器 / 消息队列** | 2C2G 上 broker 的运维成本大于收益。单 worker 有界队列，队满直接 503——比无限堆线程诚实。代价写在 `OPERATIONS.md` 的"待补"里 |
 
@@ -152,9 +153,9 @@ docs/                     文档索引、架构、运维、接口、演示、开
 | 文档 | 内容 |
 |---|---|
 | [文档索引](docs/README.md) | 按"想了解什么"组织的入口 |
-| [架构与取舍](docs/ARCHITECTURE.md) | 拓扑、请求链路、LLM 层、为什么 B 是检索 |
+| [架构与取舍](docs/ARCHITECTURE.md) | 拓扑、请求链路、LLM 层、B 为什么只让模型排序 |
 | [部署与回滚](docs/OPERATIONS.md) | 部署/回滚/证书/备份/事故处置/发布 CLI |
-| [API 参考](docs/API.md) | 22 个端点（业务 21 + 健康检查），由 OpenAPI 导出 |
+| [API 参考](docs/API.md) | 26 个端点（业务 25 + 健康检查），由 OpenAPI 导出 |
 | [开发指南](docs/DEVELOPMENT.md) | 本地起站、测试、构建、约定与常见坑 |
 | [演示脚本](docs/DEMO.md) | 5 分钟闭环演示 |
 | [案例来源](docs/SOURCES.md) | 合规清单与登记规则 |

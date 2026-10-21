@@ -254,6 +254,18 @@ export interface DiagnoseCheck {
   order: number
   action: string
   expect: string
+  kind?: 'confirm' | 'measure'
+  unit?: string | null
+  min?: number | null
+  max?: number | null
+  next?: number | null
+  on_fail?: string | null
+}
+
+export interface DiagnoseSignals {
+  keyword: number
+  vector: number
+  combined: number
 }
 
 export interface DiagnoseResult {
@@ -261,11 +273,20 @@ export interface DiagnoseResult {
   title: string
   system: System
   score: number
+  signals?: DiagnoseSignals
   likely_causes: string[]
   checks: DiagnoseCheck[]
   escalation: string
   safety: string
   sources: string[]
+}
+
+export interface DiagnoseRerank {
+  order: string[]
+  reason: string
+  model?: string
+  latency_ms?: number
+  cost_micros?: number
 }
 
 export type UncoveredReason = 'system_not_covered' | 'no_match' | null
@@ -280,12 +301,67 @@ export interface DiagnoseResponse {
   count: number
   took_ms: number
   kb_version: string
+  provider?: string
+  rerank?: DiagnoseRerank | null
   disclaimer: string
   context?: {
     guide_id?: string | null
     step_seq?: number | null
     criterion_id?: string | null
   }
+}
+
+/* ---------- B 模块：逐步诊断（故障树） ---------- */
+
+export interface DiagnoseRunCandidate {
+  id: string
+  title: string
+  system: System
+  score: number
+  signals: DiagnoseSignals
+}
+
+export interface DiagnoseRunInfo {
+  id: string
+  entry_id: string
+  symptom: string
+  system: System
+  session_id: string | null
+  status: 'active' | 'concluded' | 'aborted'
+  current_order: number | null
+  conclusion: DiagnoseConclusion | null
+  created_at: string
+  updated_at: string
+  finished_at: string | null
+}
+
+export interface DiagnoseConclusion {
+  kind: 'fail' | 'exhausted' | 'aborted'
+  check_order: number | null
+  cause: string
+  action: string
+  safety: string
+  sources: string[]
+}
+
+export interface DiagnoseStepRecord {
+  check_order: number
+  verdict: 'pass' | 'fail'
+  value: string
+  note: string
+  created_at: string
+}
+
+export interface DiagnoseRunResponse {
+  run: DiagnoseRunInfo
+  entry: DiagnoseResult
+  current_check: DiagnoseCheck | null
+  steps: DiagnoseStepRecord[]
+  progress: { done: number; total: number }
+  conclusion: DiagnoseConclusion | null
+  disclaimer: string
+  candidates?: DiagnoseRunCandidate[]
+  rerank?: DiagnoseRerank | null
 }
 
 export interface KnowledgeEntrySummary {

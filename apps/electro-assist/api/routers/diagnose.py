@@ -1,21 +1,24 @@
-"""B 模块入口：一次提问，一次回答。
+"""B 模块入口：快速检索 + 逐步诊断。
 
-刻意不做多轮对话：现场的排查是"我给你现象，你给我下一步查什么"，
-多轮会把责任推回给系统，而系统并不知道现场看到了什么。
+快速检索：一次提问，一次回答，给候选条目与完整检查清单。
+逐步诊断：把条目变成故障树，逐项回填实测值/确认结果，服务端给出下一步或结论。
 返回里带 `uncovered_reason` 与 `message`：查不到就说查不到，不给似是而非的答案。
 """
 from __future__ import annotations
 
 import os
+import re
+from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
 import ratelimit
 from models.guide import System
-from services import knowledge
+from services import diagnosis, knowledge
 
 router = APIRouter(prefix="/api/electro/diagnose", tags=["diagnose"])
+RUN_ID_RE = re.compile(r"^d_[0-9a-f]{16}$")
 
 # 纯内存检索，成本几乎为零；限流只为避免被脚本刷日志与占 CPU。
 _limiter = ratelimit.Limiter(
@@ -40,6 +43,36 @@ class DiagnoseIn(BaseModel):
     system: System | None = None
     top_k: int = Field(default=3, ge=1, le=5)
     context: Context | None = None
+
+
+class RunIn(BaseModel):
+    symptom: str = Field(min_length=4, max_length=200)
+    system: System | None = None
+    entry_id: str | None = Field(default=None, max_length=40)
+    session_id: str | None = Field(default=None, max_length=40)
+
+
+class CheckIn(BaseModel):
+    result: Literal["pass", "fail"] | None = None
+    value: float | None = None
+    note: str = Field(default="", max_length=200)
+
+
+def _limit(request: Request) -> None:
+    allowed, retry = _limiter.hit(ratelimit.client_ip(request))
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={"code": "rate_limited", "message": "排查请求过于频繁，请稍后再试"},
+            headers={"Retry-After": str(retry)},
+        )
+
+
+def _raise(exc: diagnosis.DiagnosisError) -> None:
+    raise HTTPException(
+        status_code=exc.status,
+        detail={"code": exc.code, "message": exc.message},
+    ) from exc
 
 
 @router.post("")
@@ -72,3 +105,62 @@ def kb_overview() -> dict:
             {"id": e.id, "title": e.title, "system": e.system.value} for e in entries
         ],
     }
+
+
+# ---------------------------------------------------------------- 逐步诊断（2026-10-21）
+
+
+@router.post("/runs", status_code=201)
+def start_run(body: RunIn, request: Request) -> dict:
+    _limit(request)
+    try:
+        return diagnosis.start(
+            body.symptom,
+            system=body.system.value if body.system else None,
+            entry_id=body.entry_id,
+            session_id=body.session_id,
+        )
+    except diagnosis.DiagnosisError as exc:
+        _raise(exc)
+        raise  # pragma: no cover - _raise 必定抛出
+
+
+@router.get("/runs/{run_id}")
+def get_run(run_id: str) -> dict:
+    if not RUN_ID_RE.match(run_id):
+        raise HTTPException(status_code=404, detail={"code": "run_not_found"})
+    try:
+        return diagnosis.state(run_id)
+    except diagnosis.DiagnosisError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+
+
+@router.post("/runs/{run_id}/checks/{order}")
+def submit_check(run_id: str, order: int, body: CheckIn, request: Request) -> dict:
+    _limit(request)
+    if not RUN_ID_RE.match(run_id):
+        raise HTTPException(status_code=404, detail={"code": "run_not_found"})
+    try:
+        return diagnosis.submit(
+            run_id,
+            order,
+            result=body.result,
+            value=body.value,
+            note=body.note,
+        )
+    except diagnosis.DiagnosisError as exc:
+        _raise(exc)
+        raise  # pragma: no cover
+
+
+@router.post("/runs/{run_id}/abort")
+def abort_run(run_id: str, request: Request) -> dict:
+    _limit(request)
+    if not RUN_ID_RE.match(run_id):
+        raise HTTPException(status_code=404, detail={"code": "run_not_found"})
+    try:
+        return diagnosis.abort(run_id)
+    except diagnosis.DiagnosisError as exc:
+        _raise(exc)
+        raise  # pragma: no cover

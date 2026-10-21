@@ -1,10 +1,11 @@
 # 架构与关键取舍
 
-> 版本 v1.2 · 状态：已确认 · 最后更新：2026-10-21
+> 版本 v1.3 · 状态：已确认 · 最后更新：2026-10-21
 > 本文只写"为什么这样做"，操作步骤见 `OPERATIONS.md`。
 > v0.2 → v1.0（2026-10-20）：修正 §3 模块图把 B 画成"向量检索"（实际是关键词检索）；删除 §4 取舍表中与 §1.2 冲突的重复行；补 A1/B 的上线状态。
 > v1.0 → v1.1（2026-10-21）：补发布 CLI 已实测、真机验收通过；`apps/particle-system` 与 `apps/portal/legacy` 归档到 `archive/`（ADR-0003）。
 > v1.1 → v1.2（2026-10-21）：新增 §2.2 写入治理与口令豁免；健康检查增加磁盘余量；切图独立限流与单资产上限。
+> v1.2 → v1.3（2026-10-21）：B 模块升级为混合召回 + 受限重排 + 故障树回填（§1.2 重写）；知识库 18 条 / 3 子系统；迁移 v4 新增 `diagnose_runs` / `diagnose_steps`。
 
 ## 1. 部署拓扑
 
@@ -54,28 +55,44 @@ llm/
 `schema_version` 1.1。原因见 `apps/electro-assist/api/models/visual.py` 顶部注释：
 清单参数只允许标量，等于逼模型做 `a|b|c` 字符串编码，稳定性撑不住。
 
-## 1.2 B 模块：为什么是检索，不是生成式诊断
+## 1.2 B 模块：为什么只让模型排序，不让它诊断
 
 ```
 knowledge/
-├── door_faults.json   8 条人工整理的故障条目（现象/关键词/原因/检查顺序/升级条件）
-└── eval_queries.json  11 条覆盖查询 + 2 条未覆盖查询（与知识库同仓，改库必须改题）
-services/knowledge.py  KnowledgeProvider 协议 + KeywordProvider（二元组 + 同义词 + 关键词）
-routers/diagnose.py    POST /diagnose（一次性 JSON）+ GET /diagnose/kb（覆盖范围）
+├── door_faults.json        11 条车门故障条目（现象/关键词/原因/检查顺序/升级条件）
+├── hvac_faults.json        4 条空调
+├── pantograph_faults.json  3 条受电弓
+└── eval_queries.json       21 条覆盖查询 + 2 条未覆盖查询（与知识库同仓，改库必须改题）
+services/knowledge.py   KnowledgeProvider 协议 + KeywordProvider（降级用）+ HybridProvider（现行）
+services/rerank.py      受限 LLM 重排：模型只对候选 id 排序，不能新增事实
+services/diagnosis.py   故障树推进：回填实测值 → 服务端判超差 → 异常即收敛到结论
+routers/diagnose.py     POST /diagnose + GET /diagnose/kb + /diagnose/runs 四端点
 ```
 
 **不让模型自由诊断的三个理由**：
 
 1. 现场要的是"下一步查什么"，不是一篇分析。检索直接给出可执行顺序。
 2. 生成式诊断会编出不存在的部件号、故障码和处置步骤——在作业现场这是危险品。
-3. 检索是确定性的，可以量：11 条覆盖查询 Top-3 命中 **11/11**，2 条未覆盖查询全部正确回"未覆盖"，P95 **2.0ms**（`scripts/eval_diagnose.py`，451 次采样）。
+3. 检索是确定性的，可以量：21 条覆盖查询 Top-3 命中 **21/21**，2 条未覆盖查询全部正确回"未覆盖"，P50 **2.5ms** / P95 **4.2ms**（`scripts/eval_diagnose.py`）。
+
+**模型参与的唯一位置是重排**：输入只有候选 `id + 标题 + 已有人工原因`，输出只允许
+`{"order": [...], "reason": "..."}`；不在候选集合里的 id 一律丢弃，漏掉的候选按原序补回。
+调用失败、超时、JSON 不合法都回退检索顺序——重排是加分项，不能成为单点。
+
+**混合召回**：人工关键词分（现场原话必中）+ 进程内 n-gram/IDF 稀疏向量分（换个说法也能找到），
+加权 0.65/0.35；两者都低于阈值才判"不够接近"。不引入 embedding 服务与向量库：
+18 条规模下，进程内计算 P95 4ms，而外部依赖会多一个故障域。
+
+**故障树与回填**：检查项分 `confirm`（现场判正常/异常）与 `measure`（回填实测值 + 单位 + 范围）。
+顺序由服务端持有，客户端只能提交"当前这一项"；超差判定、下一项跳转、结论生成都在服务端。
+一项异常即收敛到结论（原因 / 处置 / 升级 / 安全提示），不必走完整张清单。
 
 **未覆盖就明说**：`uncovered_reason` 分 `system_not_covered`（问的是没收录的子系统）
 与 `no_match`（有收录但现象不够接近）。阈值 `DIAGNOSE_MIN_SCORE` 默认 3.0，
 宁可回"没查到"，也不给一条看起来像但其实不对的排查链。
 
-**可替换点**：`KnowledgeProvider` 是协议，`KeywordProvider` 只是当前实现。
-条目上千后可接 embedding，路由与返回结构不变——这是"embedding 可用则加、不可用不阻塞"的落法。
+**可替换点**：`KnowledgeProvider` 是协议，当前实现是 `HybridProvider`，`KeywordProvider` 保留用于
+对照与降级。条目上万后可换成 embedding + 向量库，路由与返回结构不变。
 
 ## 2. 请求链路（2026-10-19 已实现）
 
@@ -176,8 +193,9 @@ flowchart TB
     G --> REC[作业记录]
   end
   subgraph B[故障排查]
-    P[现象描述] --> K[关键词检索<br/>知识库 8 条]
-    K --> D2[排查结论卡]
+    P[现象描述] --> K[混合召回 + 受限重排<br/>知识库 18 条 / 3 子系统]
+    K --> D2[检查清单 / 逐步诊断]
+    D2 --> C2[回填实测值 → 服务端判定 → 结论卡]
   end
   G -->|异常| P
 ```
@@ -192,7 +210,7 @@ flowchart TB
 | 构建位置 | CI（海外 runner） | 服务器本地构建 | 大陆拉 Docker Hub / PyPI 不稳定，服务器应零编译 |
 | 镜像来源 | 私有镜像仓 | 公共镜像仓 | 部署凭证可收敛为只读 |
 | A2 生成物 | 结构化 JSON + 前端渲染 | 后端生成 HTML | 可校验、可复用、可打印；HTML 拼接是 XSS 温床 |
-| B 排查 | **检索 + 人工整理的知识库** | 生成式诊断 / 向量库 | 现场要可执行顺序，不要编造；8 条用关键词足够，P95 约 2ms（§1.2） |
+| B 排查 | **人工知识库 + 混合召回 + 只许排序的模型** | 生成式诊断 / 外部 embedding | 现场要可执行顺序，不要编造；18 条用进程内稀疏向量足够，P95 约 4ms（§1.2） |
 | 指导书 ID | **服务端随机分配** | 信任模型输出的 id | 模型 id 是语义化、可预测的，两人生成同一工序必撞；upsert 会把覆盖当更新 |
 | 生成执行 | 进程内单 worker 有界队列 | BackgroundTasks / Celery | 单容器单 worker，broker 的运维成本大于收益；队列满明确 503 |
 | A1 判定权 | **服务端计算** | 客户端提交 verdict | 客户端可伪造；超差必须由服务端判 fail |

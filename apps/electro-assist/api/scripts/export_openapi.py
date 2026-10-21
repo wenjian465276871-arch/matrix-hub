@@ -48,6 +48,11 @@ CURATED = {
     "GET /api/electro/records/{session_id}": "整份作业记录（按步骤分组、含每次尝试与异常链）",
     "POST /api/electro/diagnose": "按现象检索故障知识库；查不到返回 uncovered_reason",
     "GET /api/electro/diagnose/kb": "知识库覆盖范围（子系统、条目数、版本）",
+    "POST /api/electro/diagnose/runs": "开始逐步诊断（故障树）：返回条目、首个检查项与候选",
+    "GET /api/electro/diagnose/runs/{run_id}": "取逐步诊断状态：已填步骤、当前检查、结论",
+    "POST /api/electro/diagnose/runs/{run_id}/checks/{order}":
+        "回填一项检查（确认 pass/fail 或实测值），由服务端判定并推进",
+    "POST /api/electro/diagnose/runs/{run_id}/abort": "中止逐步诊断，保留已完成步骤",
 }
 
 

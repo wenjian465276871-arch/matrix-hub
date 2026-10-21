@@ -64,15 +64,16 @@ npm run preview    # http://localhost:4173/apps/electro-assist/
 api/
 ├── main.py            FastAPI 装配、CORS/静态挂载、启动 seed、健康检查
 ├── models/            Pydantic 契约：guide（schema 1.1）、visual（7 原语）、knowledge
-├── routers/           21 个业务端点；只做参数校验与 HTTP 语义
-├── services/          业务规则：generation / quota / jobqueue / criteria / sessions / library / knowledge
+├── routers/           25 个业务端点；只做参数校验与 HTTP 语义
+├── services/          业务规则：generation / quota / jobqueue / criteria / sessions / library
+│                      knowledge（混合召回）/ rerank（只排序）/ diagnosis（故障树推进）
 ├── store/             SQLite：db（连接/迁移）、dao（读写，不含业务规则）
 ├── llm/               Provider 协议、DeepSeek 实现、runner（重试/超时/校验）、pricing、prompts
 ├── passcode.py        口令 → 12h 令牌（HMAC）；只豁免每 IP 配额
-├── knowledge/         door_faults.json（8 条）+ eval_queries.json（11+2 条）
+├── knowledge/         door 11 / hvac 4 / pantograph 3 条 + eval_queries.json（21+2 条）
 ├── samples/           4 份 published 样例（车门 3 + 空调 1）
 ├── scripts/           eval / demo / export_openapi / publish / cleanup / smoke
-└── tests/             164 条契约测试
+└── tests/             177 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       7 个 SVG 原语 + registry + svg 工具

@@ -7,7 +7,7 @@
 | 你想知道 | 看这份 |
 |---|---|
 | 这个项目是什么、能做什么、指标多少 | 仓库根 [`README.md`](../README.md) |
-| 为什么这样设计、B 为什么不用大模型 | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
+| 为什么这样设计、B 为什么只让模型排序 | [`ARCHITECTURE.md`](ARCHITECTURE.md) |
 | 接口怎么调、字段是什么 | [`API.md`](API.md)（由 `scripts/export_openapi.py` 导出） |
 | 本地怎么起、怎么测、有哪些坑 | [`DEVELOPMENT.md`](DEVELOPMENT.md) |
 | 怎么部署、回滚、备份、发布草稿 | [`OPERATIONS.md`](OPERATIONS.md) |
@@ -26,11 +26,11 @@
 | `README.md`（根） | 总览 | 当前 | 问题 → 方案 → 架构 → 指标 → 演示 → 取舍 |
 | `docs/README.md` | 索引 | 当前 | 本文件 |
 | `docs/ARCHITECTURE.md` | 设计 | 当前 | 拓扑、请求链路、LLM 层、B 的取舍 |
-| `docs/API.md` | 契约 | 当前 | OpenAPI 导出，21 端点（业务 20 + `/healthz`） |
+| `docs/API.md` | 契约 | 当前 | OpenAPI 导出，26 端点（业务 25 + `/healthz`） |
 | `docs/DEVELOPMENT.md` | 指南 | 当前 | 本地运行、测试、约定、常见坑 |
 | `docs/OPERATIONS.md` | 运维 | 当前 | 部署/回滚/证书/备份/事故/发布 CLI |
 | `docs/DEMO.md` | 演示 | 当前 | 5 分钟闭环 + 兜底 |
-| `docs/SOURCES.md` | 合规 | 当前 | 案例来源登记（D-01～D-04、K-01） |
+| `docs/SOURCES.md` | 合规 | 当前 | 案例与知识库来源登记（D-01～D-07、K-01～K-03） |
 | `docs/proposals/A2-IMAGE-INPUT.md` | 提案 | **未实现** | P4 备选；上传/切图契约仍维护 |
 | `docs/adr/0001` | ADR | 已接受 | 单仓单镜像 + Caddy |
 | `docs/adr/0002` | ADR | 已接受 | P0 下架 news-insight |

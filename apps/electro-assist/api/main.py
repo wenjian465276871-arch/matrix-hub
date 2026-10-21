@@ -60,7 +60,7 @@ async def lifespan(_app: FastAPI):
 
 app = FastAPI(
     title="electro-assist API",
-    version="0.5.0",
+    version="0.6.0",
     description="电气调试 AI 作业助手：A2 指导书生成 / A1 引导作业 / B 故障排查",
     docs_url=None if IS_PROD else "/docs",
     redoc_url=None,

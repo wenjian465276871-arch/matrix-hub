@@ -51,9 +51,10 @@ def test_unknown_symptom_reports_no_match():
 
 
 def test_system_filter_blocks_wrong_subsystem():
+    """显式指定子系统时，不能用别的子系统的条目凑答案。"""
     result = _post("门关到一半又自己弹开了", system="hvac")
     assert result["matched"] is False
-    assert result["uncovered_reason"] == "system_not_covered"
+    assert result["results"] == []
 
 
 def test_result_shape_is_actionable():
@@ -91,9 +92,11 @@ def test_validation_rejects_short_or_oversized_input():
 
 
 def test_kb_overview_lists_coverage():
+    """覆盖范围要能被前端如实展示：三个子系统、条数与实际一致。"""
     r = client.get("/api/electro/diagnose/kb")
     assert r.status_code == 200
     body = r.json()
-    assert body["count"] == len(body["entries"]) == 8
-    assert body["systems"] == ["door"]
-    assert body["provider"] == "keyword"
+    assert body["count"] == len(body["entries"]) >= 15
+    assert body["systems"] == ["door", "hvac", "pantograph"]
+    assert body["provider"] == "hybrid"
+    assert {entry["system"] for entry in body["entries"]} == {"door", "hvac", "pantograph"}

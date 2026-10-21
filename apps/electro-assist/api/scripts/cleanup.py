@@ -9,6 +9,7 @@
 - **指导书永不删除**（published 与 draft 都是产品内容）；
 - 上传资产：按目录 mtime 计龄，默认 **30 天**；切图会刷新 mtime；
 - 会话 + 其记录：按 `sessions.created_at` 计龄，默认 **180 天**；
+- 逐步诊断（run + steps）：与作业记录同口径，默认 **180 天**（进行中的也按创建时间清，避免僵尸会话）；
 - 已结束任务：默认 **90 天**（queued/running 不动）；
 - 用量明细：默认 **365 天**（当天预算只依赖当天，删旧行不影响熔断）。
 
@@ -48,6 +49,8 @@ ASSET_RE = re.compile(r"^a_[0-9a-f]{16}$")
 class Report:
     sessions: list[str] = field(default_factory=list)
     records: int = 0
+    diagnose_runs: list[str] = field(default_factory=list)
+    diagnose_steps: int = 0
     jobs: list[str] = field(default_factory=list)
     usage: int = 0
     usage_cutoff: str = ""
@@ -58,7 +61,14 @@ class Report:
         return sum(size for _, size in self.uploads)
 
     def empty(self) -> bool:
-        return not (self.sessions or self.records or self.jobs or self.usage or self.uploads)
+        return not (
+            self.sessions
+            or self.records
+            or self.diagnose_runs
+            or self.jobs
+            or self.usage
+            or self.uploads
+        )
 
 
 def _iso(moment: datetime) -> str:
@@ -104,6 +114,20 @@ def plan(
             report.records = con.execute(
                 f"SELECT COUNT(*) FROM records WHERE session_id IN ({placeholders})",
                 report.sessions,
+            ).fetchone()[0]
+
+        report.diagnose_runs = [
+            row["id"]
+            for row in con.execute(
+                "SELECT id FROM diagnose_runs WHERE created_at < ? ORDER BY created_at",
+                (sessions_cut,),
+            )
+        ]
+        if report.diagnose_runs:
+            placeholders = ",".join("?" for _ in report.diagnose_runs)
+            report.diagnose_steps = con.execute(
+                f"SELECT COUNT(*) FROM diagnose_steps WHERE run_id IN ({placeholders})",
+                report.diagnose_runs,
             ).fetchone()[0]
 
         jobs_cut = _iso(moment - timedelta(days=jobs_days))
@@ -157,7 +181,15 @@ def _remove_uploads(report: Report, upload_dir: str) -> int:
 
 def apply(report: Report, upload_dir: str | None = None) -> dict:
     root = upload_dir or os.getenv("UPLOAD_DIR", "app_data/uploads")
-    deleted = {"sessions": 0, "records": 0, "jobs": 0, "usage": 0, "uploads": 0}
+    deleted = {
+        "sessions": 0,
+        "records": 0,
+        "diagnose_runs": 0,
+        "diagnose_steps": 0,
+        "jobs": 0,
+        "usage": 0,
+        "uploads": 0,
+    }
 
     con = sqlite3.connect(store.db_path())
     try:
@@ -171,6 +203,16 @@ def apply(report: Report, upload_dir: str | None = None) -> dict:
                 deleted["sessions"] = con.execute(
                     f"DELETE FROM sessions WHERE id IN ({placeholders})",
                     report.sessions,
+                ).rowcount
+            if report.diagnose_runs:
+                placeholders = ",".join("?" for _ in report.diagnose_runs)
+                deleted["diagnose_steps"] = con.execute(
+                    f"DELETE FROM diagnose_steps WHERE run_id IN ({placeholders})",
+                    report.diagnose_runs,
+                ).rowcount
+                deleted["diagnose_runs"] = con.execute(
+                    f"DELETE FROM diagnose_runs WHERE id IN ({placeholders})",
+                    report.diagnose_runs,
                 ).rowcount
             if report.jobs:
                 placeholders = ",".join("?" for _ in report.jobs)
@@ -223,6 +265,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"上传目录：{os.getenv('UPLOAD_DIR', 'app_data/uploads')}")
     print(
         f"可清理：会话 {len(report.sessions)} / 记录 {report.records} / "
+        f"诊断 {len(report.diagnose_runs)}（步骤 {report.diagnose_steps}） / "
         f"任务 {len(report.jobs)} / 用量 {report.usage} / "
         f"上传 {len(report.uploads)} 个目录（{_fmt_bytes(report.upload_bytes)}）"
     )
@@ -242,6 +285,7 @@ def main(argv: list[str] | None = None) -> int:
     deleted = apply(report)
     print(
         f"\n已删除：会话 {deleted['sessions']} / 记录 {deleted['records']} / "
+        f"诊断 {deleted['diagnose_runs']}（步骤 {deleted['diagnose_steps']}） / "
         f"任务 {deleted['jobs']} / 用量 {deleted['usage']} / "
         f"上传目录 {deleted['uploads']}"
     )

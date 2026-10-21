@@ -170,6 +170,43 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "CREATE INDEX idx_records_step ON records(session_id, step_id, attempt)",
         ],
     ),
+    (
+        4,
+        [
+            # 逐步诊断：一次运行绑定一个知识条目，按检查项回填结果，服务端给出下一步或结论。
+            # 与 A1 的 sessions 分开：A1 是"照着指导书做"，这里是"顺着故障树查"。
+            """
+            CREATE TABLE diagnose_runs (
+              id              TEXT PRIMARY KEY,
+              entry_id        TEXT NOT NULL,
+              symptom         TEXT NOT NULL,
+              system          TEXT NOT NULL,
+              session_id      TEXT,
+              status          TEXT NOT NULL DEFAULT 'active'
+                              CHECK (status IN ('active', 'concluded', 'aborted')),
+              current_order   INTEGER,
+              conclusion_json TEXT NOT NULL DEFAULT '',
+              created_at      TEXT NOT NULL,
+              updated_at      TEXT NOT NULL,
+              finished_at     TEXT
+            )
+            """,
+            "CREATE INDEX idx_diagnose_runs_session ON diagnose_runs(session_id, created_at DESC)",
+            """
+            CREATE TABLE diagnose_steps (
+              id          TEXT PRIMARY KEY,
+              run_id      TEXT NOT NULL,
+              check_order INTEGER NOT NULL,
+              verdict     TEXT NOT NULL CHECK (verdict IN ('pass', 'fail')),
+              value       TEXT NOT NULL DEFAULT '',
+              note        TEXT NOT NULL DEFAULT '',
+              created_at  TEXT NOT NULL,
+              UNIQUE (run_id, check_order)
+            )
+            """,
+            "CREATE INDEX idx_diagnose_steps_run ON diagnose_steps(run_id, check_order)",
+        ],
+    ),
 ]
 
 

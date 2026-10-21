@@ -5,19 +5,24 @@
 """
 from .db import day_bounds_utc, db_path, init_db, now_iso, ping, schema_version, today_cst
 from .dao import (
+    add_diagnose_step,
     count_guides,
     count_jobs_between,
     count_jobs_by_retry_of,
     count_jobs_today,
+    create_diagnose_run,
     create_job,
     create_session,
     finish_job,
     finish_session,
+    get_diagnose_run,
     get_guide,
     get_job,
     get_record,
     get_record_by_key,
     get_session,
+    list_diagnose_runs_by_session,
+    list_diagnose_steps,
     list_guides,
     list_records,
     mark_job_running,
@@ -27,6 +32,7 @@ from .dao import (
     save_guide,
     submit_step,
     sweep_stale_jobs,
+    update_diagnose_run,
     usage_summary,
 )
 
@@ -61,4 +67,10 @@ __all__ = [
     "get_record",
     "get_record_by_key",
     "list_records",
+    "create_diagnose_run",
+    "get_diagnose_run",
+    "list_diagnose_steps",
+    "add_diagnose_step",
+    "update_diagnose_run",
+    "list_diagnose_runs_by_session",
 ]

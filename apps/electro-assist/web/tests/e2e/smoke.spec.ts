@@ -42,8 +42,31 @@ test('B 命中：给出按顺序检查', async ({ page }) => {
 
 test('B 未覆盖：明确说未覆盖', async ({ page }) => {
   await page.goto('./diagnose')
-  await page.getByPlaceholder('例如：门关到一半又自己弹开了').fill('受电弓升不起来')
+  await page.getByPlaceholder('例如：门关到一半又自己弹开了').fill('制动缸压力不足，闸瓦间隙大')
   await page.getByRole('button', { name: '开始排查' }).click()
 
   await expect(page.getByText('未覆盖').first()).toBeVisible()
+})
+
+test('B 逐步诊断：判据推进并收敛到结论', async ({ page }) => {
+  await page.goto('./diagnose')
+  await page.getByRole('tab', { name: /逐步诊断/ }).click()
+  await page.getByPlaceholder('例如：门关到一半又自己弹开了').fill('门到关闭位不锁闭')
+  await page.getByRole('button', { name: '开始逐步诊断' }).click()
+
+  await expect(page.getByText('排查条目')).toBeVisible()
+  await expect(page.locator('.current__action')).toBeVisible()
+
+  // 首项可能是实测值，也可能是确认项：两种都走通，证明服务端掌权
+  const numberInput = page.locator('.measure input')
+  if (await numberInput.count()) {
+    await numberInput.fill('0.2') // 低于下限 → 服务端判超差
+    await page.getByRole('button', { name: '提交实测值' }).click()
+  } else {
+    await page.getByRole('button', { name: '异常' }).click()
+  }
+
+  await expect(page.locator('.conclusion')).toBeVisible()
+  await expect(page.getByText('已定位到异常点')).toBeVisible()
+  await expect(page.locator('.step').first()).toBeVisible()
 })

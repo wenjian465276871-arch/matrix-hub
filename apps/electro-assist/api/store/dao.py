@@ -585,3 +585,119 @@ def list_records(session_id: str) -> list[dict[str, Any]]:
             (session_id,),
         ).fetchall()
     return [_record(row) for row in rows]
+
+
+# ---------------------------------------------------------------- 逐步诊断（B / 2026-10-21）
+
+
+def create_diagnose_run(
+    *,
+    entry_id: str,
+    symptom: str,
+    system: str,
+    session_id: str | None = None,
+    current_order: int | None = None,
+) -> str:
+    run_id = _new_id("d")
+    now = now_iso()
+    with connect() as conn:
+        with tx(conn):
+            conn.execute(
+                """
+                INSERT INTO diagnose_runs
+                  (id, entry_id, symptom, system, session_id, status, current_order,
+                   created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?)
+                """,
+                (run_id, entry_id, symptom, system, session_id, current_order, now, now),
+            )
+    return run_id
+
+
+def get_diagnose_run(run_id: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM diagnose_runs WHERE id = ?", (run_id,)).fetchone()
+    if row is None:
+        return None
+    data = dict(row)
+    raw = data.pop("conclusion_json", "") or ""
+    try:
+        data["conclusion"] = json.loads(raw) if raw else None
+    except json.JSONDecodeError:
+        data["conclusion"] = None
+    return data
+
+
+def list_diagnose_steps(run_id: str) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM diagnose_steps WHERE run_id = ? ORDER BY check_order, created_at",
+            (run_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def add_diagnose_step(
+    run_id: str,
+    check_order: int,
+    verdict: str,
+    *,
+    value: str = "",
+    note: str = "",
+) -> str:
+    step_id = _new_id("ds")
+    with connect() as conn:
+        with tx(conn):
+            conn.execute(
+                """
+                INSERT INTO diagnose_steps
+                  (id, run_id, check_order, verdict, value, note, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (step_id, run_id, check_order, verdict, value[:120], note[:200], now_iso()),
+            )
+    return step_id
+
+
+def update_diagnose_run(
+    run_id: str,
+    *,
+    status: str,
+    current_order: int | None,
+    conclusion: dict[str, Any] | None = None,
+) -> None:
+    now = now_iso()
+    finished = now if status != "active" else None
+    payload = json.dumps(conclusion, ensure_ascii=False) if conclusion is not None else None
+    with connect() as conn:
+        with tx(conn):
+            if payload is None:
+                conn.execute(
+                    "UPDATE diagnose_runs SET status = ?, current_order = ?, updated_at = ?, "
+                    "finished_at = ? WHERE id = ?",
+                    (status, current_order, now, finished, run_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE diagnose_runs SET status = ?, current_order = ?, conclusion_json = ?, "
+                    "updated_at = ?, finished_at = ? WHERE id = ?",
+                    (status, current_order, payload, now, finished, run_id),
+                )
+
+
+def list_diagnose_runs_by_session(session_id: str) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM diagnose_runs WHERE session_id = ? ORDER BY created_at DESC",
+            (session_id,),
+        ).fetchall()
+    result = []
+    for row in rows:
+        data = dict(row)
+        raw = data.pop("conclusion_json", "") or ""
+        try:
+            data["conclusion"] = json.loads(raw) if raw else None
+        except json.JSONDecodeError:
+            data["conclusion"] = None
+        result.append(data)
+    return result

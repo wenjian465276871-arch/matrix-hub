@@ -1,5 +1,5 @@
 {
-  "version": "1.0",
+  "version": "2.0",
   "queries": [
     { "query": "按下开门按钮，门一点反应都没有", "expect": "kb_door_no_action", "note": "日常口语：无反应" },
     { "query": "门控器上电没显示，指示灯不亮", "expect": "kb_door_power", "note": "供电类" },
@@ -11,10 +11,20 @@
     { "query": "紧急解锁拉过之后手柄回不去", "expect": "kb_door_emergency_release", "note": "解锁未复位" },
     { "query": "门控器插头摸起来发烫，还有焦味", "expect": "kb_door_power", "note": "同条目第二问：换一种说法" },
     { "query": "关门夹到包弹开以后就一直反复开关", "expect": "kb_door_anti_pinch", "note": "同条目第二问：带场景" },
-    { "query": "开门时间实测 4.2 秒，超出上限", "expect": "kb_door_slow_close", "note": "A1 异常分支转来的原话" }
+    { "query": "开门时间实测 4.2 秒，超出上限", "expect": "kb_door_slow_close", "note": "A1 异常分支转来的原话" },
+    { "query": "门关到接近关闭又弹开，反复四次，DCU 闪 2 次", "expect": "kb_door_98_limit", "note": "98% 限位开关" },
+    { "query": "门到关闭位锁不住，DCU 闪 13 次", "expect": "kb_door_air_pressure", "note": "气压不足" },
+    { "query": "按开门按钮没有解锁动作，DCU 闪 3 次", "expect": "kb_door_unlock_motor", "note": "解锁电机" },
+    { "query": "空调不制冷，出风口温度降不下来", "expect": "kb_hvac_no_cool", "note": "空调制冷不足" },
+    { "query": "压缩机启动几秒就停，报高压保护", "expect": "kb_hvac_compressor", "note": "压缩机/高压保护" },
+    { "query": "空调风量很小，前后温差大", "expect": "kb_hvac_airflow", "note": "风路/送风" },
+    { "query": "控制面板温度显示明显不对，按键没反应", "expect": "kb_hvac_sensor", "note": "传感器/面板" },
+    { "query": "受电弓升不起来，升弓按钮没反应", "expect": "kb_pantograph_no_raise", "note": "升弓无动作" },
+    { "query": "运行中受电弓突然自动降下来", "expect": "kb_pantograph_auto_lower", "note": "ADD/自动降弓" },
+    { "query": "碳滑板磨到限了，弓网拉弧", "expect": "kb_pantograph_contact", "note": "碳滑板/接触压力" }
   ],
   "uncovered": [
-    { "query": "空调不制冷，出风口温度降不下来", "why": "空调子系统未收录" },
-    { "query": "受电弓升不起来，升弓按钮没反应", "why": "受电弓子系统未收录，且带干扰词'没反应'" }
+    { "query": "制动缸压力不足，闸瓦间隙大", "why": "制动子系统未收录" },
+    { "query": "雨刷不动，风挡玻璃刮不干净", "why": "雨刷子系统未收录" }
   ]
 }
