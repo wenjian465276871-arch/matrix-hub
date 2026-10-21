@@ -48,7 +48,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
   └─ 排查：KeywordProvider（二元组 + 同义词 + 阈值），可替换为 embedding
 ```
 
-单容器、单镜像、一条流水线：`push → 契约测试 → 构建（含 CSP 产物检查）→ 推私有镜像仓 → 服务器拉取 → 3 次健康检查 → 失败自动回滚`。服务器只拉镜像，不编译。
+单容器、单镜像、一条流水线：`push → 契约测试 → E2E 冒烟 → 构建（含 CSP 产物检查）→ 推私有镜像仓 → 服务器拉取 → 3 次健康检查 → 失败自动回滚`。服务器只拉镜像，不编译。另有 `uptime.yml` 每 10 分钟从 GitHub 外部探活。
 
 细节与取舍见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，运维见 [`docs/OPERATIONS.md`](docs/OPERATIONS.md)，接口见 [`docs/API.md`](docs/API.md)。
 
@@ -65,6 +65,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | B 检索 | Top-3 **11/11**，未覆盖 2/2，P50 1.1ms / **P95 2.0ms** | `python scripts/eval_diagnose.py` |
 | 前端首屏 | **40.01 KB** gzip（预算 75KB），CSS 4.70 KB（预算 14KB） | `npm run build` |
 | 契约面 | **21 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
+| 前端 E2E | **3 条冒烟**：列表→引导→刷新保持、B 命中、B 未覆盖 | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
 
 ---
 
