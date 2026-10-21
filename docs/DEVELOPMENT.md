@@ -64,14 +64,15 @@ npm run preview    # http://localhost:4173/apps/electro-assist/
 api/
 ├── main.py            FastAPI 装配、CORS/静态挂载、启动 seed、健康检查
 ├── models/            Pydantic 契约：guide（schema 1.1）、visual（7 原语）、knowledge
-├── routers/           20 个业务端点；只做参数校验与 HTTP 语义
+├── routers/           21 个业务端点；只做参数校验与 HTTP 语义
 ├── services/          业务规则：generation / quota / jobqueue / criteria / sessions / library / knowledge
 ├── store/             SQLite：db（连接/迁移）、dao（读写，不含业务规则）
 ├── llm/               Provider 协议、DeepSeek 实现、runner（重试/超时/校验）、pricing、prompts
+├── passcode.py        口令 → 12h 令牌（HMAC）；只豁免每 IP 配额
 ├── knowledge/         door_faults.json（8 条）+ eval_queries.json（11+2 条）
 ├── samples/           4 份 published 样例（车门 3 + 空调 1）
-├── scripts/           eval / demo / export_openapi / publish / smoke
-└── tests/             149 条契约测试
+├── scripts/           eval / demo / export_openapi / publish / cleanup / smoke
+└── tests/             164 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       7 个 SVG 原语 + registry + svg 工具
@@ -91,7 +92,7 @@ web/
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 149 passed
+pytest tests -q          # 164 passed
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web
@@ -101,6 +102,7 @@ npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（D
 CI（`.github/workflows/ci.yml`）顺序：契约测试 → ruff → 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。
 
 **已知缺口**：前端没有单测；Playwright 验收脚本在本地，不在 CI。改 UI 后至少手动跑一遍 390×844。
+新增的运维/安全边界（口令通道、切图限流、磁盘检查、清理）都有对应契约测试，改这些模块时先看测试再改实现。
 
 ## 5. 发布草稿
 

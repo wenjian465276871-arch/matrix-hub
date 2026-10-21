@@ -44,7 +44,12 @@ def new_guide_id() -> str:
     return "g_" + secrets.token_hex(8)
 
 
-def submit(text: str, client_ip: str, retry_of: str | None = None) -> str:
+def submit(
+    text: str,
+    client_ip: str,
+    retry_of: str | None = None,
+    privileged: bool = False,
+) -> str:
     cleaned = text.strip()
     if len(cleaned) < MIN_INPUT_CHARS:
         raise GenerateRejected(
@@ -55,7 +60,7 @@ def submit(text: str, client_ip: str, retry_of: str | None = None) -> str:
             "input_too_long", f"工艺文本过长（{len(cleaned)} 字符），上限 {MAX_INPUT_CHARS}", status=422
         )
 
-    decision = quota.check(client_ip, retry_of)
+    decision = quota.check(client_ip, retry_of, unlimited=privileged)
     if not decision.ok:
         raise GenerateRejected(
             decision.code, decision.message, status=429, retry_after=decision.retry_after

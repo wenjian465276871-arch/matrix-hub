@@ -29,6 +29,14 @@ const quota = ref<QuotaSnapshot | null>(null)
 const elapsed = ref(0)
 const lastJobFailed = ref(false)
 
+// 口令令牌只放 sessionStorage：关掉标签页即失效，不写 localStorage。
+const PASSCODE_KEY = 'electro_passcode'
+const passcodeOpen = ref(false)
+const passcodeInput = ref('')
+const passcodeBusy = ref(false)
+const passcodeMsg = ref('')
+const passcodeToken = ref('')
+
 let pollTimer: number | undefined
 let tickTimer: number | undefined
 let pollFailures = 0
@@ -76,6 +84,14 @@ function humanError(code: string | null, fallback: string | null): string {
 }
 
 function handleError(err: unknown): void {
+  if (err instanceof ApiError && err.code === 'passcode_invalid') {
+    clearPasscode('口令已失效，请重新验证后再生成。')
+    errorText.value = '口令已失效，请重新验证后再生成。'
+    phase.value = 'error'
+    lastJobFailed.value = false
+    void loadQuota()
+    return
+  }
   if (err instanceof ApiError) {
     errorCode.value = err.code ?? ''
     if (err.kind === 'ratelimit') {
@@ -101,6 +117,68 @@ async function loadQuota(): Promise<void> {
     quota.value = await getJson<QuotaSnapshot>('/api/electro/quota')
   } catch {
     /* 配额展示失败不阻塞生成：真正的约束在服务端 */
+  }
+}
+
+function clearPasscode(message = ''): void {
+  passcodeToken.value = ''
+  dropStoredToken()
+  if (message) passcodeMsg.value = message
+}
+
+// 隐私模式/旧内核里 sessionStorage 可能直接抛异常：令牌退化为"仅本页有效"，
+// 不影响生成，只是刷新后要重新输入。
+function readStoredToken(): string {
+  try {
+    return sessionStorage.getItem(PASSCODE_KEY) || ''
+  } catch {
+    return ''
+  }
+}
+
+function storeToken(token: string): void {
+  try {
+    sessionStorage.setItem(PASSCODE_KEY, token)
+  } catch {
+    /* 忽略：内存里仍有 token */
+  }
+}
+
+function dropStoredToken(): void {
+  try {
+    sessionStorage.removeItem(PASSCODE_KEY)
+  } catch {
+    /* 忽略 */
+  }
+}
+
+async function verifyPasscode(): Promise<void> {
+  const code = passcodeInput.value.trim()
+  if (!code || passcodeBusy.value) return
+  passcodeBusy.value = true
+  passcodeMsg.value = ''
+  try {
+    const res = await postJson<{ token: string; expires_in: number }>(
+      '/api/electro/passcode/verify',
+      { code },
+    )
+    passcodeToken.value = res.token
+    storeToken(res.token)
+    passcodeInput.value = ''
+    passcodeOpen.value = false
+    passcodeMsg.value = `口令已生效：${Math.round(res.expires_in / 3600)} 小时内不受每 IP 次数限制（全站预算仍生效）`
+  } catch (err) {
+    if (err instanceof ApiError && err.kind === 'ratelimit') {
+      passcodeMsg.value = err.message || '验证过于频繁，请稍后再试。'
+    } else if (err instanceof ApiError && err.code === 'passcode_disabled') {
+      passcodeMsg.value = '本站未启用口令通道。'
+    } else if (err instanceof ApiError && err.message) {
+      passcodeMsg.value = err.message
+    } else {
+      passcodeMsg.value = '验证失败，请稍后再试。'
+    }
+  } finally {
+    passcodeBusy.value = false
   }
 }
 
@@ -163,10 +241,18 @@ async function submit(retryOf?: string): Promise<void> {
   job.value = null
 
   try {
-    const res = await postJson<GenerateAccepted>('/api/electro/generate', {
-      text: trimmed,
-      retry_of: retryOf ?? null,
-    })
+    const res = await postJson<GenerateAccepted>(
+      '/api/electro/generate',
+      {
+        text: trimmed,
+        retry_of: retryOf ?? null,
+      },
+      {
+        headers: passcodeToken.value
+          ? { 'X-Passcode-Token': passcodeToken.value }
+          : undefined,
+      },
+    )
     jobId.value = res.job_id
     phase.value = 'polling'
     elapsed.value = 0
@@ -191,7 +277,10 @@ function retry(): void {
   }
 }
 
-onMounted(loadQuota)
+onMounted(() => {
+  passcodeToken.value = readStoredToken()
+  void loadQuota()
+})
 onBeforeUnmount(stopTimers)
 </script>
 
@@ -226,11 +315,48 @@ onBeforeUnmount(stopTimers)
       <span>全站预算 ¥{{ quota.site_budget.used_cny }} / ¥{{ quota.site_budget.limit_cny }}</span>
     </div>
 
+    <div class="passcode">
+      <template v-if="!passcodeToken">
+        <button
+          class="linkbtn"
+          type="button"
+          :aria-expanded="passcodeOpen"
+          @click="passcodeOpen = !passcodeOpen"
+        >
+          {{ passcodeOpen ? '收起口令输入' : '有访问口令？' }}
+        </button>
+        <div v-if="passcodeOpen" class="passcode__row">
+          <input
+            v-model="passcodeInput"
+            class="passcode__input"
+            type="password"
+            autocomplete="off"
+            placeholder="输入访问口令"
+            :disabled="passcodeBusy"
+            @keyup.enter="verifyPasscode"
+          />
+          <button
+            class="btn"
+            type="button"
+            :disabled="passcodeBusy || !passcodeInput.trim()"
+            @click="verifyPasscode"
+          >
+            {{ passcodeBusy ? '验证中…' : '验证' }}
+          </button>
+        </div>
+      </template>
+      <template v-else>
+        <span class="passcode__ok">口令已生效</span>
+        <span class="passcode__hint">本机不受每 IP 次数限制，全站预算仍生效</span>
+      </template>
+      <p v-if="passcodeMsg" class="hint">{{ passcodeMsg }}</p>
+    </div>
+
     <button class="btn btn--primary submit" type="button" :disabled="!canSubmit" @click="submit()">
       {{ busy ? (phase === 'submitting' ? '提交中…' : `生成中… ${elapsed}s`) : '生成指导书' }}
     </button>
     <p class="hint">
-      通常 8–15 秒。每 IP 每小时 2 次、每日 10 次；失败与超时不计入次数。
+      通常 8–15 秒。每 IP 每小时 2 次、每日 10 次；失败与超时不计入次数。有口令可豁免每 IP 限制。
     </p>
   </div>
 
@@ -304,6 +430,55 @@ onBeforeUnmount(stopTimers)
 
 .hint {
   margin: 8px 0 0;
+  color: var(--c-ink-3);
+  font-size: 13px;
+}
+
+.passcode {
+  margin-top: 12px;
+}
+
+.linkbtn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--c-primary);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.passcode__row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.passcode__input {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+}
+
+.passcode__input:focus {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 1px;
+}
+
+.passcode__ok {
+  color: var(--c-primary-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.passcode__hint {
+  margin-left: 8px;
   color: var(--c-ink-3);
   font-size: 13px;
 }

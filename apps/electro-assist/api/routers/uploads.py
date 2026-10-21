@@ -19,6 +19,40 @@ import slicing
 
 router = APIRouter(prefix="/api/electro/uploads", tags=["uploads"])
 
+# 切图是"读一张 5MB 图 + numpy 统计 + 写多个 PNG"的重活，且不需要任何参数。
+# 上传有限流、切图原先没有——等于给了一个免费放大器。这里单独限流，
+# 并给单个资产加调用上限：正常确认一次就够，反复切只可能是脚本。
+SLICE_PER_HOUR_DEFAULT = 20
+SLICE_PER_DAY_DEFAULT = 100
+SLICE_SITE_PER_DAY_DEFAULT = 500
+MAX_SLICES_PER_ASSET_DEFAULT = 5
+_slice_limiter: ratelimit.Limiter | None = None
+
+
+def _int_env(name: str, default: int) -> int:
+    raw = os.getenv(name)
+    try:
+        return max(1, int(raw)) if raw and raw.strip() else default
+    except ValueError:
+        return default
+
+
+def get_slice_limiter() -> ratelimit.Limiter:
+    global _slice_limiter
+    if _slice_limiter is None:
+        _slice_limiter = ratelimit.Limiter(
+            per_hour=_int_env("SLICE_PER_HOUR", SLICE_PER_HOUR_DEFAULT),
+            per_day=_int_env("SLICE_PER_DAY", SLICE_PER_DAY_DEFAULT),
+            site_per_day=_int_env("SLICE_SITE_PER_DAY", SLICE_SITE_PER_DAY_DEFAULT),
+        )
+    return _slice_limiter
+
+
+def reset_slice_limiter() -> None:
+    """仅供测试：限流器是进程内单例。"""
+    global _slice_limiter
+    _slice_limiter = None
+
 def upload_dir() -> str:
     """运行时读取，便于测试注入；不要改成模块级常量。"""
     return os.getenv("UPLOAD_DIR", "app_data/uploads")
@@ -91,12 +125,42 @@ async def upload(request: Request, file: UploadFile = File(...)) -> dict:
 
 
 @router.post("/{asset_id}/slice")
-def slice_asset(asset_id: str) -> dict:
+def slice_asset(asset_id: str, request: Request) -> dict:
     if not ASSET_RE.match(asset_id):
         raise HTTPException(status_code=400, detail={"code": "bad_asset_id"})
+
+    allowed, retry_after = get_slice_limiter().hit(ratelimit.client_ip(request))
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "rate_limited",
+                "message": f"切图请求过于频繁，请在 {retry_after} 秒后重试",
+                "retry_after": retry_after,
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+
     src = os.path.join(_asset_dir(asset_id), f"{asset_id}.png")
-    if not os.path.exists(src):
+    meta_path = os.path.join(_asset_dir(asset_id), "meta.json")
+    if not os.path.exists(src) or not os.path.exists(meta_path):
         raise HTTPException(status_code=404, detail={"code": "not_found"})
+
+    with open(meta_path, encoding="utf-8") as fh:
+        meta = json.load(fh)
+    calls = int(meta.get("slice_calls", 0))
+    cap = _int_env("MAX_SLICES_PER_ASSET", MAX_SLICES_PER_ASSET_DEFAULT)
+    if calls >= cap:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "slice_limit",
+                "message": f"该图片已切图 {calls} 次，达到上限；如需重试请重新上传",
+            },
+        )
+    meta["slice_calls"] = calls + 1
+    with open(meta_path, "w", encoding="utf-8") as fh:
+        json.dump(meta, fh, ensure_ascii=False, indent=2)
 
     with open(src, "rb") as fh:
         raw = fh.read()

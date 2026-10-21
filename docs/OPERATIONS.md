@@ -1,10 +1,11 @@
 # 运维手册
 
-> 版本 v1.2 · 状态：已确认 · 最后更新：2026-10-21
+> 版本 v1.3 · 状态：已确认 · 最后更新：2026-10-21
 > 本文不含服务器地址、凭证与私有路径。补全信息的操作记录留在私有仓。
 > v0.2 → v1.0（2026-10-20）：修正 §1「两个卷」与实际三条挂载不符；补 §11 待补项的现状；接口清单改指 `docs/API.md`。
 > v1.0 → v1.1（2026-10-20）：新增 §12 发布草稿 CLI（`scripts/publish.py`），补上决策 #16 承诺的发布路径。
 > v1.1 → v1.2（2026-10-21）：发布 CLI 已实测；Caddy 移除粒子死路由（显式 404）；记录页时间兼容修复已部署（详见私有仓验收记录）。
+> v1.2 → v1.3（2026-10-21）：新增 §13 口令通道、§14 清理任务；`/healthz` 增加磁盘检查；切图独立限流；Caddy 移除无效 SSE 配置。
 
 ## 1. 运行形态
 
@@ -96,12 +97,14 @@ systemctl start nginx      # nginx 仍保留配置与证书，30 秒内可恢复
 ## 5. 健康检查与日志
 
 ```bash
-curl -s https://<域名>/healthz          # {"status":"ok","checks":{"electro":"ok","db":"ok"}}
+curl -s https://<域名>/healthz          # {"status":"ok","checks":{"electro":"ok","db":"ok","disk":"ok"}}
 docker compose -f /opt/matrix-hub/compose.yml logs -f --tail 100 web
 docker stats --no-stream
 ```
 
-日志走 stdout。容器日志已限制为 `json-file`、单文件 10MB、保留 3 个（计划 §9.4 #5），
+`checks.disk` 在剩余空间低于 `HEALTHZ_MIN_FREE_RATIO`（默认 0.10）时变 `error`，
+整体 `status` 随之 `degraded`，部署脚本按 `status` 判回滚。**取不到磁盘信息同样算 error**：
+看不见容量就不再是"健康"。日志走 stdout。容器日志已限制为 `json-file`、单文件 10MB、保留 3 个（计划 §9.4 #5），
 不会无限增长。**日志中不得出现密钥、token、请求体。**
 
 ## 6. 证书
@@ -305,9 +308,8 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - 备份恢复演练常态化（每季度一次，脚本见 §7.4）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
 - 监控告警（`/healthz` 外部探测）
-- **上传目录 30 天清理**（`app_data/uploads` 持续增长，当前 1.5MB 可忽略，P2 前必须做）
-- **会话/记录 30 天清理**（`sessions`/`records` 每次作业 4–8 行，当前量小；与上传清理同批）
-- 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯）
+- 清理任务**已实现**（§14），但尚未装 cron；10-25 窗口一起做
+- 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯；已加次数上限与限流）
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`ratelimit.py`、`services/sessions.py` 均假设单 worker）
 
 ## 12. 发布草稿（CLI）
@@ -332,3 +334,79 @@ docker exec matrix-hub python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 > 为什么不做 `--unpublish`：撤下已发布内容涉及"访客可能已经看过/引用过"的语义，
 > 且当前没有鉴权与审计。需要撤下时，走数据库变更并记录原因，不提供一个随手可点的反向开关。
 
+
+## 13. 口令通道（2026-10-21）
+
+用途：现场连续演示或批量生成时，临时不受「每 IP 2 次/时、10 次/日」限制。
+**它不豁免全站日预算**，也不是身份体系——没有用户、没有后台。
+
+配置（服务器 `.env`，600）：
+
+```bash
+# 生成随机口令（不要用示例值）
+openssl rand -base64 24
+
+# 写入 /opt/matrix-hub/.env
+ELECTRO_PASSCODE=<上一步的输出>
+```
+
+改完 `.env` 需要重建容器才生效：
+
+```bash
+cd /opt/matrix-hub && docker compose up -d web
+```
+
+使用：
+
+```bash
+# 1) 换令牌（12 小时有效）
+curl -s -X POST https://<域名>/api/electro/passcode/verify \
+  -H 'Content-Type: application/json' -d '{"code":"<口令>"}'
+# → {"token":"v1.<exp>.<sig>","expires_in":43200}
+
+# 2) 生成时带上令牌
+curl -s -X POST https://<域名>/api/electro/generate \
+  -H 'Content-Type: application/json' \
+  -H 'X-Passcode-Token: v1.<exp>.<sig>' \
+  -d '{"text":"..."}'
+```
+
+边界：
+
+| 项 | 规则 |
+|---|---|
+| 令牌有效期 | 12 小时；过期后重新验证 |
+| 轮换口令 | 改 `.env` 重启，**旧令牌立即失效**（签名密钥由口令派生） |
+| 关闭功能 | 注释掉 `ELECTRO_PASSCODE` 重启；验证接口返回 503 |
+| 验证限流 | 每 IP 10 次/时、50 次/日；全站 500 次/日 |
+| 失败表现 | 口令错误 401 `passcode_invalid`；令牌无效 401（生成接口也是 401，不静默降级） |
+| 日志 | 口令与令牌**一律不得写入日志**；排查只看 `code` |
+| 预算 | 照旧生效；预算耗尽仍返回 429 `budget_exhausted` |
+
+## 14. 清理任务（2026-10-21）
+
+```bash
+# 预演（默认，不删任何东西）
+docker exec matrix-hub python -m scripts.cleanup
+
+# 确认后执行
+docker exec matrix-hub python -m scripts.cleanup --apply
+```
+
+默认保留期与理由：
+
+| 数据 | 默认 | 理由 |
+|---|---|---|
+| 上传目录 | 30 天（按目录 mtime） | 图片只在生成确认期用；切图会刷新 mtime |
+| 会话 + 记录 | 180 天 | 作业留痕要能回溯；180 天后才清 |
+| 已结束任务 | 90 天 | 排障用；queued/running 永不删 |
+| 用量明细 | 365 天 | 当天预算只依赖当天，删旧行不影响熔断 |
+| 指导书 | **永不删** | published 与 draft 都是产品内容 |
+
+首次执行前建议先备份（§7.1），并保留 dry-run 输出。装 cron（周任务，凌晨低峰）：
+
+```bash
+17 4 * * 0 docker exec matrix-hub python -m scripts.cleanup --apply >> /opt/matrix-hub/cleanup.log 2>&1
+```
+
+> 清理是**不可逆**的。`--apply` 前先看一眼 dry-run 的条数与样例；输出里没有删除明细就说明没匹配到数据。

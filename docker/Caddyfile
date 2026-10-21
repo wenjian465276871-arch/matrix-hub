@@ -32,16 +32,8 @@ http://{$SITE_DOMAIN:localhost}, http://www.{$SITE_DOMAIN:localhost} {
 	}
 
 	# ---- API：仅 electro（news 已下架，见 ADR-0002）----
-	# SSE 路由必须单独处理：关闭缓冲 + 在 transport 内设读超时
-	handle /api/electro/diagnose* {
-		reverse_proxy 127.0.0.1:8001 {
-			flush_interval -1
-			transport http {
-				read_timeout 300s
-			}
-		}
-	}
-
+	# B 排查自 2026-10-20 起是一次性 JSON（决策 #19），不再需要 SSE 的
+	# flush_interval -1 / 300s 读超时；这里走通用反代，避免长连接占着资源。
 	handle /api/electro/uploads* {
 		request_body {
 			max_size 6MB

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 import os
+import shutil
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -15,6 +16,7 @@ import store
 from routers import diagnose as diagnose_router
 from routers import guides as guides_router
 from routers import jobs as jobs_router
+from routers import passcode as passcode_router
 from routers import quota as quota_router
 from routers import records as records_router
 from routers import schema as schema_router
@@ -70,6 +72,7 @@ app.include_router(schema_router.router)
 app.include_router(uploads_router.router)
 app.include_router(guides_router.router)
 app.include_router(jobs_router.router)
+app.include_router(passcode_router.router)
 app.include_router(quota_router.router)
 app.include_router(sessions_router.router)
 app.include_router(records_router.router)
@@ -82,6 +85,9 @@ def healthz() -> dict:
 
     加入 DB 检查的理由：读写数据库是后续所有业务端点的前提，
     只探进程活着等于把"能起不能干活"判成健康。
+
+    加入磁盘检查的理由：磁盘写满时进程与 DB 都还"活着"，但上传、备份、
+    SQLite 写入会陆续失败；这类故障必须提前暴露，而不是等用户报错。
     """
     checks = {"electro": "ok"}
     try:
@@ -90,6 +96,25 @@ def healthz() -> dict:
     except Exception as exc:  # noqa: BLE001 - 健康检查不该因为异常类型而 500
         log.warning("healthz DB 检查失败：%s", exc)
         checks["db"] = "error"
+
+    try:
+        usage = shutil.disk_usage(os.path.dirname(store.db_path()) or ".")
+        free_ratio = usage.free / usage.total if usage.total else 0.0
+        try:
+            threshold = float(os.getenv("HEALTHZ_MIN_FREE_RATIO", "0.10"))
+        except ValueError:
+            # 配置写错不该让站点永久 degraded：退回默认值并继续工作。
+            threshold = 0.10
+        checks["disk"] = "ok" if free_ratio >= threshold else "error"
+        if checks["disk"] == "error":
+            log.warning(
+                "healthz 磁盘余量不足：free=%.1f%% threshold=%.1f%%",
+                free_ratio * 100,
+                threshold * 100,
+            )
+    except Exception as exc:  # noqa: BLE001 - 取不到磁盘信息本身就不算健康
+        log.warning("healthz 磁盘检查失败：%s", exc)
+        checks["disk"] = "error"
 
     status = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
     return {"status": status, "checks": checks}

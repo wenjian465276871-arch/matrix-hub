@@ -7,9 +7,10 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
+import passcode
 import ratelimit
 from services import generation
 
@@ -24,10 +25,25 @@ class GenerateIn(BaseModel):
 
 
 @router.post("/generate", status_code=202)
-def generate(body: GenerateIn, request: Request) -> dict:
+def generate(
+    body: GenerateIn,
+    request: Request,
+    x_passcode_token: str | None = Header(default=None, alias="X-Passcode-Token"),
+) -> dict:
+    # 令牌无效时明确报错，而不是静默降级成普通访客：
+    # 否则用户会以为口令生效了，直到第 3 次生成才撞上 429。
+    if x_passcode_token and not passcode.verify_token(x_passcode_token):
+        raise HTTPException(
+            status_code=401,
+            detail={"code": "passcode_invalid", "message": "口令令牌无效或已过期，请重新验证"},
+        )
+
     try:
         job_id = generation.submit(
-            body.text, ratelimit.client_ip(request), body.retry_of
+            body.text,
+            ratelimit.client_ip(request),
+            body.retry_of,
+            privileged=bool(x_passcode_token),
         )
     except generation.GenerateRejected as exc:
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None

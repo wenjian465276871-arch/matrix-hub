@@ -72,8 +72,17 @@ def _cst_day(moment: datetime) -> str:
     return moment.astimezone(CST).date().isoformat()
 
 
-def check(client_ip: str, retry_of: str | None = None, now: datetime | None = None) -> Decision:
-    """能不能再生成一次。不做扣减——扣减由 `create_job` 落库完成。"""
+def check(
+    client_ip: str,
+    retry_of: str | None = None,
+    now: datetime | None = None,
+    unlimited: bool = False,
+) -> Decision:
+    """能不能再生成一次。不做扣减——扣减由 `create_job` 落库完成。
+
+    `unlimited=True` 只跳过**每 IP 的时/日配额**（口令通道），
+    全站日预算仍然生效：费用口径不能向任何人开口子。
+    """
     moment = now or _now()
     lim = limits()
 
@@ -98,6 +107,9 @@ def check(client_ip: str, retry_of: str | None = None, now: datetime | None = No
             return Decision(False, "retry_expired", "超过 24 小时，不能免费重试", 0)
         if store.count_jobs_by_retry_of(retry_of) > 0:
             return Decision(False, "retry_used", "该任务已经重试过一次", 0)
+        return Decision(True)
+
+    if unlimited:
         return Decision(True)
 
     hour_start = _iso(moment - timedelta(hours=1))

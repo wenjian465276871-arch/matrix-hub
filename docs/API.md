@@ -2,7 +2,7 @@
 
 > 由 `apps/electro-assist/api/scripts/export_openapi.py` 从 `app.openapi()` 生成，**不要手改**。
 > 接口变更后重跑脚本并提交本文件：`cd apps/electro-assist/api && ./.venv/Scripts/python.exe scripts/export_openapi.py`
-> 服务版本：`0.5.0` ｜ 端点 **21** 个（业务 **20** + `/healthz`）
+> 服务版本：`0.5.0` ｜ 端点 **22** 个（业务 **21** + `/healthz`）
 
 ## 1. 约定
 
@@ -26,6 +26,7 @@
 | `GET` | `/api/electro/guides` | 指导书列表，**只含已发布**（草稿不进列表） | `—` | `200 · object` |
 | `GET` | `/api/electro/guides/{guide_id}` | 指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读 | `—` | `200 · object` |
 | `GET` | `/api/electro/jobs/{job_id}` | 轮询生成任务状态，成功后带 guide_id | `—` | `200 · object` |
+| `POST` | `/api/electro/passcode/verify` | 用访问口令换短期令牌（只豁免每 IP 配额，预算仍生效） | `PasscodeIn` | `200 · object` |
 | `GET` | `/api/electro/quota` | 查生成配额与全站预算余量 | `—` | `200 · object` |
 | `GET` | `/api/electro/records/{session_id}` | 整份作业记录（按步骤分组、含每次尝试与异常链） | `—` | `200 · object` |
 | `GET` | `/api/electro/schema/guide` | 取 Guide 的 JSON Schema（schema_version 1.1） | `—` | `200 · object` |
@@ -40,7 +41,7 @@
 | `GET` | `/api/electro/uploads/{asset_id}` | 取上传资产的元信息与切片清单 | `—` | `200 · object` |
 | `POST` | `/api/electro/uploads/{asset_id}/slice` | 按模式切图（整图/表格/行带/密集文字） | `—` | `200 · object` |
 | `GET` | `/api/electro/uploads/{asset_id}/{filename}` | 取原图或某张切片（二进制） | `—` | `200 · —` |
-| `GET` | `/healthz` | 健康检查：进程 + 数据库，供部署脚本与容器探针使用 | `—` | `200 · object` |
+| `GET` | `/healthz` | 健康检查：进程 + 数据库 + 磁盘余量，供部署脚本与容器探针使用 | `—` | `200 · object` |
 
 ## 3. 按模块
 
@@ -61,7 +62,11 @@
 
 ### ops
 
-- `GET /healthz` — 健康检查：进程 + 数据库，供部署脚本与容器探针使用
+- `GET /healthz` — 健康检查：进程 + 数据库 + 磁盘余量，供部署脚本与容器探针使用
+
+### passcode
+
+- `POST /api/electro/passcode/verify` — 用访问口令换短期令牌（只豁免每 IP 配额，预算仍生效）
 
 ### quota
 
@@ -138,6 +143,12 @@
 | 字段 | 类型 | 必填 |
 |---|---|---|
 | `detail` | `ValidationError[]` | 否 |
+
+### PasscodeIn
+
+| 字段 | 类型 | 必填 |
+|---|---|---|
+| `code` | `string` | 是 |
 
 ### StartIn
 

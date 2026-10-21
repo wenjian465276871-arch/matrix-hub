@@ -26,7 +26,7 @@ METHOD_ORDER = ["get", "post", "put", "patch", "delete"]
 # 中文说明：OpenAPI 的 summary 来自函数名（英文、且形如 "List Guides"），对读者没有信息量。
 # 这里只补"这个端点干什么"，不重复 schema；新增端点若未登记，退回自动摘要并在导出时提示。
 CURATED = {
-    "GET /healthz": "健康检查：进程 + 数据库，供部署脚本与容器探针使用",
+    "GET /healthz": "健康检查：进程 + 数据库 + 磁盘余量，供部署脚本与容器探针使用",
     "GET /api/electro/schema/guide": "取 Guide 的 JSON Schema（schema_version 1.1）",
     "GET /api/electro/schema/visual": "取视觉 DSL 的 JSON Schema（7 种原语）",
     "POST /api/electro/schema/validate": "校验一份 Guide，返回错误列表",
@@ -40,6 +40,7 @@ CURATED = {
     "POST /api/electro/generate": "提交生成任务，返回 202 + job_id（单 worker 有界队列）",
     "GET /api/electro/jobs/{job_id}": "轮询生成任务状态，成功后带 guide_id",
     "GET /api/electro/quota": "查生成配额与全站预算余量",
+    "POST /api/electro/passcode/verify": "用访问口令换短期令牌（只豁免每 IP 配额，预算仍生效）",
     "POST /api/electro/sessions": "开始一次作业会话（绑定 guide，设备/位置选填）",
     "GET /api/electro/sessions/{session_id}": "取会话状态：当前步号、指导书、已提交记录",
     "POST /api/electro/sessions/{session_id}/steps/{seq}": "提交一步实测值；**必须带 Idempotency-Key**，判定在服务端",

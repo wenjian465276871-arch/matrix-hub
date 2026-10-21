@@ -82,3 +82,48 @@ def test_slice_finds_table(tmp_uploads):
 
 def test_slice_rejects_bad_asset_id(tmp_uploads):
     assert client.post("/api/electro/uploads/not-an-id/slice").status_code == 400
+
+
+# ---- 切图限流与单资产上限（2026-10-21）------------------------------------
+# 切图是唯一"无参数、可重复、重 CPU + 写盘"的操作，必须单独设闸。
+
+
+@pytest.fixture(autouse=True)
+def _reset_slice_limiter():
+    from routers import uploads as uploads_router
+
+    uploads_router.reset_slice_limiter()
+    yield
+    uploads_router.reset_slice_limiter()
+
+
+def test_slice_rate_limited(tmp_uploads, monkeypatch):
+    monkeypatch.setenv("SLICE_PER_HOUR", "1")
+    monkeypatch.setenv("SLICE_PER_DAY", "10")
+    monkeypatch.setenv("MAX_SLICES_PER_ASSET", "10")
+    up = client.post(
+        "/api/electro/uploads", files={"file": ("p.jpg", _make_page(), "image/jpeg")}
+    ).json()
+
+    assert client.post(f"/api/electro/uploads/{up['asset_id']}/slice").status_code == 200
+    r = client.post(f"/api/electro/uploads/{up['asset_id']}/slice")
+    assert r.status_code == 429
+    assert r.json()["detail"]["code"] == "rate_limited"
+    assert int(r.headers["Retry-After"]) >= 1
+
+
+def test_slice_capped_per_asset(tmp_uploads, monkeypatch):
+    monkeypatch.setenv("SLICE_PER_HOUR", "10")
+    monkeypatch.setenv("SLICE_PER_DAY", "20")
+    monkeypatch.setenv("MAX_SLICES_PER_ASSET", "1")
+    up = client.post(
+        "/api/electro/uploads", files={"file": ("p.jpg", _make_page(), "image/jpeg")}
+    ).json()
+
+    assert client.post(f"/api/electro/uploads/{up['asset_id']}/slice").status_code == 200
+    r = client.post(f"/api/electro/uploads/{up['asset_id']}/slice")
+    assert r.status_code == 429
+    assert r.json()["detail"]["code"] == "slice_limit"
+
+    meta = client.get(f"/api/electro/uploads/{up['asset_id']}").json()
+    assert meta["slice_calls"] == 1

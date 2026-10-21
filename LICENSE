@@ -1,0 +1,31 @@
+MIT License
+
+Copyright (c) 2026 SuperPlayer007
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+内容声明（不受上述 MIT 许可覆盖）：
+
+1. 仓库内 `apps/electro-assist/api/samples/`、`apps/electro-assist/api/knowledge/`、
+   `docs/SOURCES.md` 所涉工艺文本、步骤、判据、参数与故障条目，均为**公开资料改写
+   + 虚构参数**的演示内容，仅用于展示系统能力，**不构成任何作业依据**。
+2. 页面与打印件中的图示、截图、录屏仅用于演示。
+3. 实际作业必须遵循设备制造商文件、企业工艺规程与现场安全规定。

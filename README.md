@@ -2,7 +2,7 @@
 
 把一段工艺文本变成**能照着做、做错会拦、做完有记录**的可视化作业指导书，并在作业异常时就地给出排查顺序。
 
-> 状态：**A2 / A1 / B 三个模块已上线**（2026-10-20）。演示站：<https://www.superplayer007.cn/apps/electro-assist/>
+> 状态：**A2 / A1 / B 三个模块已上线**（2026-10-21）。演示站：<https://www.superplayer007.cn/apps/electro-assist/>
 > 站点内所有内容为**公开资料改写 + 虚构参数**的演示数据，页脚常驻「演示数据 · 非实际作业依据」。
 
 ---
@@ -58,13 +58,13 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **149 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **164 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
 | B 检索 | Top-3 **11/11**，未覆盖 2/2，P50 1.1ms / **P95 2.0ms** | `python scripts/eval_diagnose.py` |
-| 前端首屏 | **39.87 KB** gzip（预算 75KB），CSS 4.59 KB（预算 14KB） | `npm run build` |
-| 契约面 | **20 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
+| 前端首屏 | **40.01 KB** gzip（预算 75KB），CSS 4.70 KB（预算 14KB） | `npm run build` |
+| 契约面 | **21 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
 
 ---
 
@@ -91,6 +91,8 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | **不上多容器 / 消息队列** | 2C2G 上 broker 的运维成本大于收益。单 worker 有界队列，队满直接 503——比无限堆线程诚实。代价写在 `OPERATIONS.md` 的"待补"里 |
 
 另外明确不做：多轮对话式排查（决策记录在案）、后台管理页（没有鉴权就不做后台，发布走 CLI）、暗色皮肤（皮肤不是能力）。
+
+**写入治理**：公开浏览；生成入口每 IP 2 次/时、10 次/日 + 全站日预算 ¥3；上传与切图各自限流；有口令可换 12 小时令牌，**只豁免每 IP 配额，不豁免全站预算**。口令只存服务器 `.env`，不进仓库、不进日志。
 
 ---
 
@@ -120,6 +122,8 @@ python scripts/demo_flow.py --base http://127.0.0.1:8001   # 全流程自检
 python -m scripts.publish --list                     # 列出草稿（发布只走 CLI）
 python -m scripts.publish --publish <guide_id>       # 发布指定草稿
 python scripts/export_openapi.py                     # 重新生成 docs/API.md
+python -m scripts.cleanup                            # 清理预演（dry-run）
+python -m scripts.cleanup --apply                    # 清理 30/180/90/365 天前的运行数据
 ```
 
 环境变量统一走 `.env`（模板见 `deploy/.env.example`），**任何密钥都不入库**。
@@ -149,7 +153,7 @@ docs/                     文档索引、架构、运维、接口、演示、开
 | [文档索引](docs/README.md) | 按"想了解什么"组织的入口 |
 | [架构与取舍](docs/ARCHITECTURE.md) | 拓扑、请求链路、LLM 层、为什么 B 是检索 |
 | [部署与回滚](docs/OPERATIONS.md) | 部署/回滚/证书/备份/事故处置/发布 CLI |
-| [API 参考](docs/API.md) | 21 个端点（业务 20 + 健康检查），由 OpenAPI 导出 |
+| [API 参考](docs/API.md) | 22 个端点（业务 21 + 健康检查），由 OpenAPI 导出 |
 | [开发指南](docs/DEVELOPMENT.md) | 本地起站、测试、构建、约定与常见坑 |
 | [演示脚本](docs/DEMO.md) | 5 分钟闭环演示 |
 | [案例来源](docs/SOURCES.md) | 合规清单与登记规则 |
@@ -166,3 +170,4 @@ docs/                     文档索引、架构、运维、接口、演示、开
 - 演示数据，**不作为实际作业依据**；所有数值为虚构示例，不含任何企业内部资料。
 - 生成结果是**草稿**，不进公开列表；发布在服务器执行 `python -m scripts.publish --publish <guide_id>`（先 `--list` 查 id）。
 - 单人项目，未做多租户与横向扩展；容量按 2 核 2G 设计。
+- **许可**：代码 MIT；案例文本、步骤、判据、图示与录屏为**合成演示内容**，不构成作业依据，详见 [`LICENSE`](LICENSE) 的内容声明。

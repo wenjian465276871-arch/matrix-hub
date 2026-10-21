@@ -296,4 +296,9 @@ def test_healthz_reports_db(monkeypatch, db):
 
     r = TestClient(app).get("/healthz")
     assert r.status_code == 200
-    assert r.json() == {"status": "ok", "checks": {"electro": "ok", "db": "ok"}}
+    body = r.json()
+    assert body["status"] == "ok"
+    assert body["checks"]["electro"] == "ok"
+    assert body["checks"]["db"] == "ok"
+    # 2026-10-21 增加：磁盘余量不足时部署脚本必须能看到 degraded
+    assert body["checks"]["disk"] == "ok"
