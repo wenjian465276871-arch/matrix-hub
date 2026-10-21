@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# 每日备份 SQLite 到宿主机目录（卷外），保留最近 7 份。
+# 每日备份 SQLite + 上传目录到宿主机目录（卷外），各保留最近 7 份。
 #
 # 为什么不用 cp：
 # - 库是 WAL 模式，直接 cp 会丢 -wal 里的最后几笔且不报错；
@@ -39,7 +39,14 @@ d.close()
 print(f"created {dst}")
 PY
 
-docker exec -i -e NAME="$NAME" -e KEEP="${KEEP:-7}" "$CONTAINER" python - <<'PY'
+echo "==> 备份上传目录"
+
+# 图片不在库里，只备份 db 等于"恢复后指导书还在、图全丢"。
+# tar 在容器内执行：卷路径只有容器里才看得见，宿主机直接打包会拿到空目录。
+docker exec -e NAME="uploads-${STAMP}.tar.gz" "$CONTAINER" \
+    tar czf "/srv/backups/$NAME" -C /srv/app_data uploads
+
+docker exec -i -e NAME="$NAME" -e UPLOADS="uploads-${STAMP}.tar.gz" -e KEEP="${KEEP:-7}" "$CONTAINER" python - <<'PY'
 import os
 import sqlite3
 
@@ -51,15 +58,25 @@ conn.close()
 if result != "ok":
     raise SystemExit(f"[FAIL] integrity_check={result}")
 
-files = sorted(
-    (f for f in os.listdir(root) if f.startswith("electro-") and f.endswith(".db")),
-    key=lambda f: os.path.getmtime(os.path.join(root, f)),
-    reverse=True,
-)
 keep = int(os.environ.get("KEEP", "7"))
-for old in files[keep:]:
-    os.remove(os.path.join(root, old))
-print(f"integrity=ok kept={min(len(files), keep)}")
+
+
+def prune(prefix: str, suffix: str) -> int:
+    files = sorted(
+        (f for f in os.listdir(root) if f.startswith(prefix) and f.endswith(suffix)),
+        key=lambda f: os.path.getmtime(os.path.join(root, f)),
+        reverse=True,
+    )
+    for old in files[keep:]:
+        os.remove(os.path.join(root, old))
+    return min(len(files), keep)
+
+
+db_kept = prune("electro-", ".db")
+up_kept = prune("uploads-", ".tar.gz")
+upload_path = os.path.join(root, os.environ["UPLOADS"])
+upload_mb = round(os.path.getsize(upload_path) / 1024 / 1024, 2)
+print(f"integrity=ok db_kept={db_kept} uploads_kept={up_kept} uploads={upload_mb}MB")
 PY
 
 echo "==> 完成"

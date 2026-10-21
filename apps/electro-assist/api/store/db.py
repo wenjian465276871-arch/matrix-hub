@@ -207,6 +207,13 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "CREATE INDEX idx_diagnose_steps_run ON diagnose_steps(run_id, check_order)",
         ],
     ),
+    (
+        5,
+        [
+            # 清理脚本按 created_at 扫表；没有索引时它是全表扫描。
+            "CREATE INDEX idx_diagnose_runs_created ON diagnose_runs(created_at)",
+        ],
+    ),
 ]
 
 

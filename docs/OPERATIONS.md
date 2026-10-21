@@ -126,7 +126,7 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 |---|---|---|
 | 站点静态与代码 | Git（本仓库） | 每次提交 |
 | 业务库 | `deploy/backup.sh`（SQLite 在线备份到卷外） | 每日 03:17（cron） |
-| 上传资产 | `app_data` 卷打包 | 每周（手工/快照） |
+| 上传资产 | 同一个脚本打包 `uploads-*.tar.gz`（容器内 tar） | 每日 03:17（cron） |
 | 整机 | 云厂商快照 | 变更前手动 |
 
 **SQLite 不能直接 `cp`。** WAL 模式下最新数据还在 `-wal` 文件里，热拷贝会得到
@@ -134,7 +134,11 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 
 `backup.sh` 的做法：容器内 `sqlite3.Connection.backup()` 在线热备 →
 写到 `/srv/backups`（绑定到宿主机 `/opt/matrix-hub/backups`）→ `PRAGMA integrity_check`
-→ 只保留最近 7 份。备份在卷外，卷损坏时仍然可用。
+→ 再把 `app_data/uploads` 打成 `uploads-*.tar.gz`（tar 必须在容器内执行，
+宿主机看不到卷内路径）→ 两类各保留最近 7 份。备份在卷外，卷损坏时仍然可用。
+
+> 2026-10-22 起备份包含上传目录。此前只备份 db：恢复后指导书在、图片全丢，
+> 而图片是视觉原语与切图的输入，等于半个产品没了。
 
 首次安装（只需一次）：
 
@@ -164,7 +168,8 @@ docker run --rm \
   python:3.12-slim \
   sh -c 'cp /b/electro-YYYYMMDD-HHMM.db /data/electro.db && \
          rm -f /data/electro.db-wal /data/electro.db-shm && \
-         chown 10001:10001 /data/electro.db'
+         tar xzf /b/uploads-YYYYMMDD-HHMM.tar.gz -C /data && \
+         chown -R 10001:10001 /data/electro.db /data/uploads'
 docker start matrix-hub
 curl -s https://<域名>/healthz     # 期望 {"status":"ok","checks":{"electro":"ok","db":"ok"}}
 ```

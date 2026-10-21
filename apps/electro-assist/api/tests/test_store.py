@@ -36,9 +36,9 @@ def guide() -> Guide:
 
 
 def test_migrations_are_idempotent(db):
-    assert store.schema_version() == 4
+    assert store.schema_version() == 5
     assert store.init_db() == []  # 第二次不应重复应用
-    assert store.schema_version() == 4
+    assert store.schema_version() == 5
 
 
 def test_save_and_read_guide(db, guide):

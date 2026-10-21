@@ -58,6 +58,12 @@ http://{$SITE_DOMAIN:localhost}, http://www.{$SITE_DOMAIN:localhost} {
 	# ---- 静态：电气调试助手（Vue SPA）----
 	handle_path /apps/electro-assist/* {
 		root * /srv/static/electro
+
+		# 带内容 hash 的产物长缓存；index.html 每次回源，避免发版后看到旧页面。
+		@hashed path /assets/*
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		header /index.html Cache-Control "no-cache"
+
 		try_files {path} /index.html
 		file_server
 	}
