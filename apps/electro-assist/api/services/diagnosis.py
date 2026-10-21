@@ -10,6 +10,8 @@
 """
 from __future__ import annotations
 
+import math
+import sqlite3
 from dataclasses import dataclass
 
 import store
@@ -226,6 +228,11 @@ def submit(
     if check.kind == "measure":
         if value is None:
             raise DiagnosisError("value_required", "该检查需要回填实测值", 422)
+        # 必须挡非有限数：NaN 与任何数比较都是 False，
+        # `NaN < min or NaN > max` 会直接落进"通过"分支，等于绕过判定。
+        # 上限只为挡住 1e308 这类脏值，不参与业务判断。
+        if not math.isfinite(value) or abs(value) > 1_000_000:
+            raise DiagnosisError("value_invalid", "实测值必须是有限数字", 422)
         if value < check.min or value > check.max:
             verdict = "fail"
         else:
@@ -236,9 +243,16 @@ def submit(
             raise DiagnosisError("result_required", "请提交 通过/异常", 422)
         verdict = result
 
-    store.add_diagnose_step(
-        run_id, order, verdict, value=stored_value, note=note
-    )
+    try:
+        store.add_diagnose_step(
+            run_id, order, verdict, value=stored_value, note=note
+        )
+    except sqlite3.IntegrityError as exc:
+        # 唯一索引 (run_id, check_order) 挡住了重复提交（双击、手机重试、并发）。
+        # 数据没坏，但必须回 409 而不是 500：客户端要能区分"已提交"与"服务器坏了"。
+        raise DiagnosisError(
+            "duplicate_check", "该检查项已提交过，请刷新后继续", 409
+        ) from exc
 
     if verdict == "fail":
         store.update_diagnose_run(

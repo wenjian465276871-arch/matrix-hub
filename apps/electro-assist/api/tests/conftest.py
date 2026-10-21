@@ -18,9 +18,13 @@ import store
 
 @pytest.fixture(autouse=True)
 def _reset_rate_limiter():
+    from routers import diagnose as diagnose_router
+
     ratelimit.reset_limiter()
+    diagnose_router.reset_limiter()
     yield
     ratelimit.reset_limiter()
+    diagnose_router.reset_limiter()
 
 
 @pytest.fixture(scope="session", autouse=True)

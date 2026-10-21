@@ -419,3 +419,21 @@ docker exec matrix-hub python -m scripts.cleanup --apply
 日志 `/opt/matrix-hub/cleanup.log`（600）。连续两周报告正常后，把命令末尾加上 `--apply` 再执行一次 `crontab -e`；改之前先看最后一次日志的条数与样例。
 
 > 清理是**不可逆**的。`--apply` 前先看一眼 dry-run 的条数与样例；输出里没有删除明细就说明没匹配到数据。
+
+## 15. 错误号与重排预算（2026-10-22）
+
+**错误号（ref）**：所有响应带 `X-Request-Id`；未捕获异常统一返回
+`{"detail":{"code":"internal_error","message":"...","ref":"<8位>"}}`。
+排障顺序：用户报 `ref` → `docker logs matrix-hub | grep "<ref>"` → 同一行里有堆栈与路径。
+没有 ref 的 500 属于缺陷，不要靠时间对齐日志。
+
+**重排预算**：B 模块的模型重排有自己的日预算，**不占用生成的 ¥3**：
+
+```bash
+# 服务器 .env
+RERANK_DAY_MICROS=300000   # ¥0.3/日；按单次 ≈¥0.001 估算，约 300 次
+```
+
+- 预算耗尽只是**跳过重排**，检索结果照常返回（关键词顺序）；
+- 结果按 `query + 候选集` 缓存 10 分钟，命中时 `rerank.cached=true`；
+- 想看今天花了多少：响应里的 `rerank.cost_micros` 累加，或查 `usage` 表。

@@ -7,10 +7,12 @@ from __future__ import annotations
 
 import logging
 import os
+import secrets
 import shutil
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
 import store
 from routers import diagnose as diagnose_router
@@ -67,6 +69,41 @@ app = FastAPI(
     openapi_url=None if IS_PROD else "/openapi.json",
     lifespan=lifespan,
 )
+
+
+@app.middleware("http")
+async def attach_request_ref(request: Request, call_next):
+    """给每个请求一个 8 位 ref，同时回写到响应头。
+
+    没有它，线上 500 只能靠时间对齐日志；用户报障也说不出可检索的编号。
+    """
+    ref = (request.headers.get("X-Request-Id") or secrets.token_hex(4))[:16]
+    request.state.ref = ref
+    response = await call_next(request)
+    response.headers["X-Request-Id"] = ref
+    return response
+
+
+@app.exception_handler(Exception)
+async def unhandled_error(request: Request, exc: Exception):
+    """兜底：未捕获异常也必须返回统一信封（与业务错误同形）。
+
+    Starlette 默认的 500 是纯文本 `Internal Server Error`，
+    前端解析失败只能显示"未知错误"，排障时也没有任何线索。
+    """
+    ref = getattr(request.state, "ref", "-")
+    log.exception("未处理异常 ref=%s path=%s", ref, request.url.path)
+    body = {
+        "detail": {
+            "code": "internal_error",
+            "message": "服务内部错误，请稍后重试",
+            "ref": ref,
+        }
+    }
+    response = JSONResponse(status_code=500, content=body)
+    response.headers["X-Request-Id"] = ref
+    return response
+
 
 app.include_router(schema_router.router)
 app.include_router(uploads_router.router)

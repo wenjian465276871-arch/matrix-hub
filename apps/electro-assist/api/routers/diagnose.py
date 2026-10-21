@@ -20,12 +20,26 @@ from services import diagnosis, knowledge
 router = APIRouter(prefix="/api/electro/diagnose", tags=["diagnose"])
 RUN_ID_RE = re.compile(r"^d_[0-9a-f]{16}$")
 
-# 纯内存检索，成本几乎为零；限流只为避免被脚本刷日志与占 CPU。
-_limiter = ratelimit.Limiter(
-    per_hour=int(os.getenv("DIAGNOSE_PER_HOUR", "60")),
-    per_day=int(os.getenv("DIAGNOSE_PER_DAY", "300")),
-    site_per_day=int(os.getenv("DIAGNOSE_SITE_PER_DAY", "3000")),
-)
+def _make_limiter() -> ratelimit.Limiter:
+    """纯内存检索，成本几乎为零；限流只为避免被脚本刷日志与占 CPU。"""
+    return ratelimit.Limiter(
+        per_hour=int(os.getenv("DIAGNOSE_PER_HOUR", "60")),
+        per_day=int(os.getenv("DIAGNOSE_PER_DAY", "300")),
+        site_per_day=int(os.getenv("DIAGNOSE_SITE_PER_DAY", "3000")),
+    )
+
+
+_limiter = _make_limiter()
+
+
+def reset_limiter() -> None:
+    """仅测试使用。
+
+    限流器是模块级单例，`ratelimit.reset_limiter()` 管不到它：
+    不重置的话全量跑会被前面用例耗尽额度，表现为"单跑绿、全量 429"。
+    """
+    global _limiter
+    _limiter = _make_limiter()
 
 
 class Context(BaseModel):

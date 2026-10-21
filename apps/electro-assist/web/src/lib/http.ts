@@ -13,6 +13,7 @@ export class ApiError extends Error {
     readonly status?: number,
     readonly code?: string,
     message?: string,
+    readonly ref?: string,
   ) {
     super(message ?? code ?? kind)
     this.name = 'ApiError'
@@ -37,7 +38,7 @@ function combine(a: AbortSignal, b: AbortSignal): AbortSignal {
 }
 
 interface ErrorBody {
-  detail?: { code?: string; message?: string; retry_after?: number }
+  detail?: { code?: string; message?: string; retry_after?: number; ref?: string }
 }
 
 async function request<T>(
@@ -69,15 +70,19 @@ async function request<T>(
   if (!res.ok) {
     let code: string | undefined
     let message: string | undefined
+    let ref: string | undefined
     try {
       const body = (await res.json()) as ErrorBody
       code = body.detail?.code
       message = body.detail?.message
+      // 服务端 500 会带 ref：显示出来，用户报障时能对上日志。
+      ref = body.detail?.ref || res.headers.get('X-Request-Id') || undefined
     } catch {
-      /* 非 JSON 错误体：保留状态码即可 */
+      ref = res.headers.get('X-Request-Id') || undefined
     }
     const kind: ApiErrorKind = res.status === 429 ? 'ratelimit' : 'server'
-    throw new ApiError(kind, res.status, code, message)
+    const shown = message ? (ref ? `${message}（错误号 ${ref}）` : message) : undefined
+    throw new ApiError(kind, res.status, code, shown, ref)
   }
 
   return (await res.json()) as T

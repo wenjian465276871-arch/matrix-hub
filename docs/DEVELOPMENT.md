@@ -73,7 +73,7 @@ api/
 ├── knowledge/         door 11 / hvac 4 / pantograph 3 条 + eval_queries.json（21+2 条）
 ├── samples/           4 份 published 样例（车门 3 + 空调 1）
 ├── scripts/           eval / demo / export_openapi / publish / cleanup / smoke
-└── tests/             179 条契约测试
+└── tests/             193 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       7 个 SVG 原语 + registry + svg 工具

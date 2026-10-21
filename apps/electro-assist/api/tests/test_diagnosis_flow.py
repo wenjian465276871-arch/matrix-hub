@@ -149,3 +149,103 @@ def test_uncovered_subsystem_cannot_start_a_run():
     r = client.post(BASE, json={"symptom": "制动缸压力不足，闸瓦间隙大"})
     assert r.status_code == 404
     assert r.json()["detail"]["code"] == "system_not_covered"
+
+
+# ---- 边界与并发（M4a 2026-10-22）------------------------------------------
+# 这两类缺陷的共同点：正常操作不会触发，但一旦触发就绕过判定或暴露 500。
+
+
+def test_non_finite_measure_values_are_rejected():
+    """NaN 与任何数比较都是 False，会直接落进"通过"分支——必须挡在判定之前。"""
+    data = _start(symptom="门到关闭位不锁闭", entry_id="kb_door_air_pressure")
+    run_id = data["run"]["id"]
+
+    for literal in ("NaN", "Infinity", "-Infinity"):
+        r = client.post(
+            f"{BASE}/{run_id}/checks/1",
+            content=f'{{"value": {literal}}}',
+            headers={"Content-Type": "application/json"},
+        )
+        assert r.status_code == 422, (literal, r.text)
+        assert r.json()["detail"]["code"] == "value_invalid"
+
+    # 一次都不该推进：仍是第 1 项、零条记录
+    state = client.get(f"{BASE}/{run_id}").json()
+    assert state["run"]["current_order"] == 1
+    assert state["steps"] == []
+
+
+def test_absurd_measure_value_is_rejected():
+    data = _start(symptom="门到关闭位不锁闭", entry_id="kb_door_air_pressure")
+    run_id = data["run"]["id"]
+    r = client.post(f"{BASE}/{run_id}/checks/1", json={"value": 1e308})
+    assert r.status_code == 422
+    assert r.json()["detail"]["code"] == "value_invalid"
+
+
+def test_duplicate_check_submission_returns_409_not_500():
+    """唯一索引挡住重复写；但契约必须是 409，而不是让用户看到 500。"""
+    from store import add_diagnose_step
+
+    data = _start(symptom="门到关闭位不锁闭", entry_id="kb_door_air_pressure")
+    run_id = data["run"]["id"]
+    # 模拟"并发里已经有一条落库"：直接写一条同序号的记录
+    add_diagnose_step(run_id, 1, "pass", value="0.6")
+
+    r = client.post(f"{BASE}/{run_id}/checks/1", json={"value": 0.6})
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"]["code"] == "duplicate_check"
+
+    # 数据仍然只有一条，没有写坏
+    state = client.get(f"{BASE}/{run_id}").json()
+    assert len(state["steps"]) == 1
+
+
+# ---- 边界与并发（M4a 2026-10-22）------------------------------------------
+# 这两类缺陷的共同点：正常操作不会触发，但一旦触发就绕过判定或暴露 500。
+
+
+def test_non_finite_measure_values_are_rejected():
+    """NaN 与任何数比较都是 False，会直接落进"通过"分支——必须挡在判定之前。"""
+    data = _start(symptom="门到关闭位不锁闭", entry_id="kb_door_air_pressure")
+    run_id = data["run"]["id"]
+
+    for literal in ("NaN", "Infinity", "-Infinity"):
+        r = client.post(
+            f"{BASE}/{run_id}/checks/1",
+            content=f'{{"value": {literal}}}',
+            headers={"Content-Type": "application/json"},
+        )
+        assert r.status_code == 422, (literal, r.text)
+        assert r.json()["detail"]["code"] == "value_invalid"
+
+    # 一次都不该推进：仍是第 1 项、零条记录
+    state = client.get(f"{BASE}/{run_id}").json()
+    assert state["run"]["current_order"] == 1
+    assert state["steps"] == []
+
+
+def test_absurd_measure_value_is_rejected():
+    data = _start(symptom="门到关闭位不锁闭", entry_id="kb_door_air_pressure")
+    run_id = data["run"]["id"]
+    r = client.post(f"{BASE}/{run_id}/checks/1", json={"value": 1e308})
+    assert r.status_code == 422
+    assert r.json()["detail"]["code"] == "value_invalid"
+
+
+def test_duplicate_check_submission_returns_409_not_500():
+    """唯一索引挡住重复写；但契约必须是 409，而不是让用户看到 500。"""
+    from store import add_diagnose_step
+
+    data = _start(symptom="门到关闭位不锁闭", entry_id="kb_door_air_pressure")
+    run_id = data["run"]["id"]
+    # 模拟"并发里已经有一条落库"：直接写一条同序号的记录
+    add_diagnose_step(run_id, 1, "pass", value="0.6")
+
+    r = client.post(f"{BASE}/{run_id}/checks/1", json={"value": 0.6})
+    assert r.status_code == 409, r.text
+    assert r.json()["detail"]["code"] == "duplicate_check"
+
+    # 数据仍然只有一条，没有写坏
+    state = client.get(f"{BASE}/{run_id}").json()
+    assert len(state["steps"]) == 1
