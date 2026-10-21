@@ -396,12 +396,12 @@ onMounted(async () => {
               type="number"
               inputmode="decimal"
               step="any"
-              :placeholder="`实测值（${currentCheck.unit}）`"
+              placeholder="填入实测值"
             />
             <span class="measure__unit">{{ currentCheck.unit }}</span>
           </label>
           <span class="measure__range">
-            参考范围 {{ currentCheck.min }}–{{ currentCheck.max }}{{ currentCheck.unit }}
+            参考 {{ currentCheck.min }}–{{ currentCheck.max }} {{ currentCheck.unit }}
           </span>
           <p class="measure__tip">按实测值提交，是否超差由服务端判定。</p>
         </div>
