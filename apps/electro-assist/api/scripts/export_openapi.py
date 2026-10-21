@@ -184,6 +184,11 @@ def render(spec: dict, rows: list[dict]) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", default=str(DEFAULT_OUT))
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="只比对，不写盘；文档与代码不一致时退出码 1（供 CI 使用）",
+    )
     args = parser.parse_args()
 
     from main import app  # 延迟导入：让 argparse 先处理帮助
@@ -192,6 +197,13 @@ def main() -> int:
     rows = collect(spec)
     text = render(spec, rows)
     out = Path(args.out)
+    if args.check:
+        current = out.read_text(encoding="utf-8") if out.exists() else ""
+        if current != text:
+            print(f"[FAIL] {out} 与当前代码不一致，请运行 python scripts/export_openapi.py 重新导出")
+            return 1
+        print(f"[OK] {out} 与代码一致（{len(rows)} 个端点）")
+        return 0
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
     print(f"写入 {out}：{len(rows)} 个端点，{len(spec.get('components', {}).get('schemas', {}))} 个模型")

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import secrets
+import threading
 from datetime import datetime, timedelta, timezone
 
 import store
@@ -26,6 +27,11 @@ log = logging.getLogger("electro.generate")
 MIN_INPUT_CHARS = 10
 MAX_INPUT_CHARS = 20_000
 MAX_TOKENS = 6144
+
+# 配额是"先查后写"的两步操作：并发下两个请求可能都通过检查再各建一个 job。
+# 单 worker 是这套架构的前提（计划 §4），所以一把进程内锁就够；
+# 真要上多 worker，必须改成 DB 级原子操作（BEGIN IMMEDIATE 里 count+insert）。
+_submit_lock = threading.Lock()
 
 
 class GenerateRejected(Exception):
@@ -60,18 +66,19 @@ def submit(
             "input_too_long", f"工艺文本过长（{len(cleaned)} 字符），上限 {MAX_INPUT_CHARS}", status=422
         )
 
-    decision = quota.check(client_ip, retry_of, unlimited=privileged)
-    if not decision.ok:
-        raise GenerateRejected(
-            decision.code, decision.message, status=429, retry_after=decision.retry_after
+    with _submit_lock:
+        decision = quota.check(client_ip, retry_of, unlimited=privileged)
+        if not decision.ok:
+            raise GenerateRejected(
+                decision.code, decision.message, status=429, retry_after=decision.retry_after
+            )
+
+        if job_queue.capacity_left() <= 0:
+            raise GenerateRejected("busy", "生成队列已满，请稍后再试", status=503, retry_after=10)
+
+        job_id = store.create_job(
+            kind="generate", client_ip=client_ip, input_text=cleaned, retry_of=retry_of
         )
-
-    if job_queue.capacity_left() <= 0:
-        raise GenerateRejected("busy", "生成队列已满，请稍后再试", status=503, retry_after=10)
-
-    job_id = store.create_job(
-        kind="generate", client_ip=client_ip, input_text=cleaned, retry_of=retry_of
-    )
     if not job_queue.submit(job_id, cleaned):
         store.finish_job(job_id, "failed", error_code="busy", error_detail="队列已满")
         raise GenerateRejected("busy", "生成队列已满，请稍后再试", status=503, retry_after=10)

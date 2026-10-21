@@ -47,6 +47,15 @@ jobs:
         working-directory: apps/electro-assist/api
         run: python -m pytest tests -q
 
+      # 两个"文档与代码一致性"门禁：不新增功能，只防漂移。
+      - name: API 文档与代码一致
+        working-directory: apps/electro-assist/api
+        run: python scripts/export_openapi.py --check
+
+      - name: 文档指标与代码一致
+        working-directory: apps/electro-assist/api
+        run: python scripts/check_metrics.py
+
   e2e:
     name: E2E 冒烟
     needs: test

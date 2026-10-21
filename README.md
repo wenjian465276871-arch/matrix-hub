@@ -58,7 +58,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **193 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **194 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 错误可追溯 | 500 返回统一 JSON + 8 位 `ref`，响应头带 `X-Request-Id` | 任意错误请求观察响应 |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |

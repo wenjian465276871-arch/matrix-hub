@@ -10,7 +10,8 @@
  */
 import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ApiError, getJson, postJson } from '../lib/http'
+import { errorText as describeError } from '../lib/errors'
+import { getJson, postJson } from '../lib/http'
 import type {
   DiagnoseResponse,
   DiagnoseRunResponse,
@@ -60,10 +61,6 @@ const conclusionLabel: Record<string, string> = {
   aborted: '诊断已中止',
 }
 
-function failText(err: unknown, fallback: string): string {
-  return err instanceof ApiError ? err.message || fallback : fallback
-}
-
 async function submitQuick(): Promise<void> {
   const text = symptom.value.trim()
   if (text.length < 4) {
@@ -82,7 +79,7 @@ async function submitQuick(): Promise<void> {
     })
     phase.value = 'ready'
   } catch (err) {
-    errorText.value = failText(err, '网络异常，排查失败，请稍后再试')
+    errorText.value = describeError(err, '网络异常，排查失败，请稍后再试')
     phase.value = 'error'
   }
 }
@@ -113,7 +110,7 @@ async function startRun(entryId?: string): Promise<void> {
     note.value = ''
     phase.value = 'ready'
   } catch (err) {
-    errorText.value = failText(err, '网络异常，无法开始逐步诊断')
+    errorText.value = describeError(err, '网络异常，无法开始逐步诊断')
     phase.value = 'error'
   } finally {
     runBusy.value = false
@@ -138,7 +135,7 @@ async function submitCheck(verdict: 'pass' | 'fail'): Promise<void> {
     measured.value = ''
     note.value = ''
   } catch (err) {
-    errorText.value = failText(err, '提交失败，请重试')
+    errorText.value = describeError(err, '提交失败，请重试')
   } finally {
     runBusy.value = false
   }
@@ -154,7 +151,7 @@ async function abortRun(): Promise<void> {
       {},
     )
   } catch (err) {
-    errorText.value = failText(err, '中止失败，请重试')
+    errorText.value = describeError(err, '中止失败，请重试')
   } finally {
     runBusy.value = false
   }

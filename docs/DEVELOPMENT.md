@@ -72,8 +72,8 @@ api/
 ├── passcode.py        口令 → 12h 令牌（HMAC）；只豁免每 IP 配额
 ├── knowledge/         door 11 / hvac 4 / pantograph 3 条 + eval_queries.json（21+2 条）
 ├── samples/           4 份 published 样例（车门 3 + 空调 1）
-├── scripts/           eval / demo / export_openapi / publish / cleanup / smoke
-└── tests/             193 条契约测试
+├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / smoke
+└── tests/             194 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       7 个 SVG 原语 + registry + svg 工具
@@ -100,7 +100,7 @@ cd ../web
 npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（Dockerfile）
 ```
 
-CI（`.github/workflows/ci.yml`）顺序：契约测试 → E2E 冒烟（与构建并行）→ ruff → 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 每 10 分钟从 GitHub 探活。
+CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + API 文档一致性 + 文档指标一致性 → E2E 冒烟（与构建并行）→ 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 每 10 分钟从 GitHub 探活。
 
 **前端 E2E（2026-10-21 进 CI）**：`tests/e2e/smoke.spec.ts` 覆盖三条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖。不调模型，用启动时 seed 的案例与知识库。
 
