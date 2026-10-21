@@ -47,6 +47,96 @@ jobs:
         working-directory: apps/electro-assist/api
         run: python -m pytest tests -q
 
+  e2e:
+    name: E2E 冒烟
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/electro-assist/web/package-lock.json
+
+      - name: 安装后端依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r apps/electro-assist/api/requirements.txt \
+                      -r apps/electro-assist/api/requirements-dev.txt
+
+      - name: 安装前端依赖
+        working-directory: apps/electro-assist/web
+        run: npm ci
+
+      - name: 安装浏览器
+        working-directory: apps/electro-assist/web
+        run: npx playwright install --with-deps chromium
+
+      - name: 构建前端
+        working-directory: apps/electro-assist/web
+        run: npm run build
+
+      - name: 起服务并跑冒烟
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/e2e/uploads"
+          (
+            cd apps/electro-assist/api
+            DB_PATH="$RUNNER_TEMP/e2e/e2e.db" \
+            UPLOAD_DIR="$RUNNER_TEMP/e2e/uploads" \
+            APP_ENV=dev \
+            python -m uvicorn main:app --host 127.0.0.1 --port 8001 \
+              > "$RUNNER_TEMP/api.log" 2>&1 &
+            echo $! > "$RUNNER_TEMP/api.pid"
+          )
+          (
+            cd apps/electro-assist/web
+            npm run preview -- --host 127.0.0.1 --port 4173 --strictPort \
+              > "$RUNNER_TEMP/preview.log" 2>&1 &
+            echo $! > "$RUNNER_TEMP/preview.pid"
+          )
+          cleanup() {
+            kill "$(cat "$RUNNER_TEMP/preview.pid" 2>/dev/null)" 2>/dev/null || true
+            kill "$(cat "$RUNNER_TEMP/api.pid" 2>/dev/null)" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          for _ in $(seq 1 40); do
+            if curl -fsS http://127.0.0.1:8001/healthz >/dev/null 2>&1 \
+               && curl -fsS http://127.0.0.1:4173/apps/electro-assist/ >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8001/healthz
+          curl -fsS -o /dev/null http://127.0.0.1:4173/apps/electro-assist/
+
+          cd apps/electro-assist/web
+          npx playwright test
+
+      - name: 失败时打印服务日志
+        if: failure()
+        run: |
+          echo "===== api ====="; tail -80 "$RUNNER_TEMP/api.log" || true
+          echo "===== preview ====="; tail -80 "$RUNNER_TEMP/preview.log" || true
+
+      - name: 上传失败产物
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            apps/electro-assist/web/test-results/
+            apps/electro-assist/web/playwright-report/
+          if-no-files-found: ignore
+
   build:
     name: 构建与校验
     needs: test
@@ -114,7 +204,7 @@ jobs:
 
   deploy:
     name: 部署到服务器
-    needs: build
+    needs: [build, e2e]
     # 割接（P0b）完成前保持关闭：nginx 仍占用 80/443，容器起不来。
     # 割接时在仓库 Settings → Variables 里把 DEPLOY_ENABLED 设为 true 即可启用。
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DEPLOY_ENABLED == 'true'

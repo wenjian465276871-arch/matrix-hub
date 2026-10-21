@@ -43,4 +43,10 @@ logs/
 tmp/
 .tmp/
 
+# Playwright 产物（2026-10-21）
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
 # 注意：锁文件（uv.lock / package-lock.json）必须入库，不要忽略

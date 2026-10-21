@@ -101,8 +101,18 @@ npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（D
 
 CI（`.github/workflows/ci.yml`）顺序：契约测试 → ruff → 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。
 
-**已知缺口**：前端没有单测；Playwright 验收脚本在本地，不在 CI。改 UI 后至少手动跑一遍 390×844。
-新增的运维/安全边界（口令通道、切图限流、磁盘检查、清理）都有对应契约测试，改这些模块时先看测试再改实现。
+**前端 E2E（2026-10-21 进 CI）**：`tests/e2e/smoke.spec.ts` 覆盖三条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖。不调模型，用启动时 seed 的案例与知识库。
+
+```bash
+# 本地：先起 API（临时库）与 preview，再跑
+cd apps/electro-assist/api && DB_PATH=/tmp/e2e.db APP_ENV=dev python -m uvicorn main:app --port 8001
+cd apps/electro-assist/web && npm run build && npm run preview -- --port 4173
+E2E_CHANNEL=msedge npm run test:e2e        # 用系统 Edge，免下载浏览器
+```
+
+CI 里跑 `chromium`（`npx playwright install --with-deps chromium`），**部署依赖 E2E 通过**。
+
+**已知缺口**：前端仍无组件单测；E2E 只覆盖主路径，不覆盖打印与软键盘（这两项靠真机验收）。
 
 ## 5. 发布草稿
 
