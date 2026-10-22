@@ -287,6 +287,8 @@ export interface DiagnoseRerank {
   model?: string
   latency_ms?: number
   cost_micros?: number
+  /** 命中 10 分钟缓存时为 true：同一句话重复问不再计费 */
+  cached?: boolean
 }
 
 export type UncoveredReason = 'system_not_covered' | 'no_match' | null

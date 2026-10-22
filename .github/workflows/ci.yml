@@ -56,6 +56,15 @@ jobs:
         working-directory: apps/electro-assist/api
         run: python scripts/check_metrics.py
 
+      # 覆盖率先只"记录"，不设阈值：没有基线就设阈值只会逼人写凑数的测试。
+      # 它不参与部署门禁（continue-on-error），失败不影响发布。
+      - name: 覆盖率基线（只记录）
+        continue-on-error: true
+        working-directory: apps/electro-assist/api
+        run: |
+          python -m coverage run --source=. --omit=".venv/*,tests/*,scripts/*" -m pytest tests -q
+          python -m coverage report --skip-covered
+
   e2e:
     name: E2E 冒烟
     needs: test
