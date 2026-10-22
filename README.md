@@ -65,8 +65,8 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
 | B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.8ms** / P95 **4.6ms** | `python scripts/eval_diagnose.py` |
 | 前端首屏 | **40.08 KB** gzip（预算 75KB），CSS **5.40 KB**（预算 14KB） | `npm run build` |
-| 性能（Lighthouse Mobile，4G + 4×CPU） | 库页 **Perf 99** / LCP **1.55s** / CLS **0** / TBT **84ms**；指导书页 **99** / **1.85s** / **0** / **43.5ms** | 本机 Edge 无头 + Lighthouse 13.5，`lh.mjs` |
-| 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描） | `axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
+| 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 100** / LCP **1.31s** / CLS **0** / TBT **70ms**；指导书页 **99** / **1.29s** / **0** / **124.5ms** | Lighthouse 13.5 + `scripts/lighthouse.mjs`（2026-10-23 线上） |
+| 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
 | 契约面 | **25 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
 | 前端 E2E | **4 条冒烟**：列表→引导→刷新保持、B 命中、B 未覆盖、**B 逐步诊断收敛** | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
 
@@ -87,6 +87,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 键盘焦点只有浏览器默认 **1px** 焦点环 | Tab 走查 18 次，`outline: auto 1px`，浅底上几乎不可见 | 加 `:focus-visible` 主色 2px 环（+2px offset） |
 
 修完复测：库页 CLS **0.072 → 0**、A11y **94 → 100**、axe 由 1 类违规 → **0**。
+部署到线上后（`203f90e`）再跑一遍，线上是 **Perf 100 / LCP 1.31s / CLS 0 / TBT 70ms**，三项修复均生效。
 这比"一上来就是满分"更值得写进 README——它说明扫描确实能抓到东西。
 
 ---

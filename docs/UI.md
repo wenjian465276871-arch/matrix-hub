@@ -156,7 +156,7 @@
 - 触摸目标：通用 ≥44×44，A1 现场 ≥48×48
 - 打印：Chromium 逐页翻——无半截卡片、二页起表头仍在、图示无灰底、正文 ≥10pt
 - 首屏：JS ≤75KB gzip、CSS ≤14KB gzip —— 实测 **40.08KB / 5.40KB**
-- Lighthouse Mobile：Perf ≥90、LCP ≤2.0s、CLS ≤0.05 —— 实测库页 **99 / 1.55s / 0**、指导书页 **99 / 1.85s / 0**
+- Lighthouse Mobile：Perf ≥90、LCP ≤2.0s、CLS ≤0.05 —— 线上实测库页 **100 / 1.31s / 0**、指导书页 **99 / 1.29s / 0**
 - 焦点可见：键盘 Tab 全程可见 2px 主色环（`:focus-visible`）
 
 > 数据来源与复现命令：`apps/electro-assist/web/scripts/lighthouse.mjs`、`scripts/axe.mjs`；
