@@ -212,17 +212,32 @@ def finish(session_id: str, status: str, note: str = "") -> dict:
     return snapshot(session_id)
 
 
-def _duration_s(session: dict) -> int:
+def _parse_ts(value: str | None) -> datetime | None:
+    if not value:
+        return None
     try:
-        started = datetime.fromisoformat(session["created_at"])
-        ended = (
-            datetime.fromisoformat(session["finished_at"])
-            if session.get("finished_at")
-            else datetime.now(timezone.utc)
-        )
-        return max(0, int((ended - started).total_seconds()))
+        return datetime.fromisoformat(value)
     except (ValueError, TypeError):
+        return None
+
+
+def _duration_s(session: dict) -> int:
+    started = _parse_ts(session.get("created_at"))
+    ended = _parse_ts(session.get("finished_at")) or datetime.now(timezone.utc)
+    if started is None:
         return 0
+    return max(0, int((ended - started).total_seconds()))
+
+
+def _step_duration_s(started: datetime | None, ended: datetime | None) -> int | None:
+    """单步耗时＝本步最后一次提交 − 上一步最后一次提交。
+
+    第 1 步从上会话创建时刻起算。复测的时间算在本步里——现场问的是
+    "这一步花了多久"，不是"第一次点提交花了多久"。
+    """
+    if started is None or ended is None:
+        return None
+    return max(0, int((ended - started).total_seconds()))
 
 
 def report(session_id: str) -> dict:
@@ -235,8 +250,10 @@ def report(session_id: str) -> dict:
 
     steps = []
     latest: list[dict] = []
+    cursor = _parse_ts(session.get("created_at"))
     for step in guide.steps:
         attempts = by_step.get(step.id, [])
+        ended = _parse_ts(attempts[-1]["created_at"]) if attempts else None
         if attempts:
             latest.append(attempts[-1])
         steps.append(
@@ -246,8 +263,13 @@ def report(session_id: str) -> dict:
                 "title": step.title,
                 "attempts": attempts,
                 "final_verdict": attempts[-1]["verdict"] if attempts else "skipped",
+                "started_at": cursor.isoformat(timespec="seconds") if ended else None,
+                "ended_at": attempts[-1]["created_at"] if attempts else None,
+                "duration_s": _step_duration_s(cursor, ended),
             }
         )
+        if ended is not None:
+            cursor = ended
 
     exceptions = []
     for record in records:

@@ -26,7 +26,7 @@
 | 模块 | 做什么 | 关键约束 |
 |---|---|---|
 | **A2** 可视化作业指导书 | 工艺文本 → 结构化 JSON + 视觉 DSL → 前端渲染（步骤卡 / 判据 / 7 种 SVG 图元 / 安全提示） | 模型只输出**受 schema 约束的规格**，不输出 HTML/JS；图元是构建期枚举，渲染失败降级为文字 |
-| **A1** 交互式作业引导 | 逐步执行、提交实测值、服务端判据校验、失败不推进、复测留痕、记录可打印 | 判定在**服务端**算；改请求体塞 `verdict:"pass"` 无效；复测是**新增 attempt**，不覆盖旧记录 |
+| **A1** 交互式作业引导 | 逐步执行、提交实测值、服务端判据校验、失败不推进、复测留痕、**每步耗时**、记录可打印 | 判定在**服务端**算；改请求体塞 `verdict:"pass"` 无效；复测是**新增 attempt**，不覆盖旧记录；耗时按"本步最后一次提交 − 上一步最后一次提交"算，复测计入本步 |
 | **B** 故障排查 | 现象 → 混合召回（关键词 + 稀疏向量）→ 受限重排 → **逐步诊断故障树**（回填实测值、服务端判定、异常即收敛） | 模型**只排序不写事实**：候选 id 之外的输出一律丢弃；条目、阈值、处置全部来自人工整理的公开资料改写 |
 
 闭环：**A2 看懂 → A1 照做 → 异常转 B 兜底 → 记录回看**。
@@ -64,9 +64,30 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
 | B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.8ms** / P95 **4.6ms** | `python scripts/eval_diagnose.py` |
-| 前端首屏 | **38.94 KB** gzip（预算 75KB），CSS 5.25 KB（预算 14KB） | `npm run build` |
+| 前端首屏 | **40.08 KB** gzip（预算 75KB），CSS **5.40 KB**（预算 14KB） | `npm run build` |
+| 性能（Lighthouse Mobile，4G + 4×CPU） | 库页 **Perf 99** / LCP **1.55s** / CLS **0** / TBT **84ms**；指导书页 **99** / **1.85s** / **0** / **43.5ms** | 本机 Edge 无头 + Lighthouse 13.5，`lh.mjs` |
+| 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描） | `axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
 | 契约面 | **25 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
 | 前端 E2E | **4 条冒烟**：列表→引导→刷新保持、B 命中、B 未覆盖、**B 逐步诊断收敛** | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
+
+### 4.1 这组数字是怎么来的，以及它抓到了什么
+
+测量口径：Chrome 兼容内核（本机 Edge）无头模式，Lighthouse 13.5 默认移动端配置
+（390×844、4×CPU、模拟 4G）；axe-core 4.14 用 CDP 注入（CSP 禁内联 `<script>`，
+但 `Runtime.evaluate` 不受 `script-src` 约束），扫描 4 个页面 × 2 个视口。
+复现：`node apps/electro-assist/web/scripts/lighthouse.mjs <url>`、`node scripts/axe.mjs`
+（两个包按需 `npm i --no-save`，不拖慢 CI）。
+
+**第一次跑出来并不达标，三处是真缺陷，已修：**
+
+| 发现 | 证据 | 修法 |
+|---|---|---|
+| 12px 辅助文字对比度 **4.43:1**，低于 AA 的 4.5 | Lighthouse `color-contrast`：`--c-ink-3` `#6B7A83` on `#FFF` | 加深到 `#626F78`（对白 5.17:1、对页面底 4.85:1） |
+| **CLS 0.072**（目标 ≤0.05） | 骨架 2 项 → 真实 6 张卡片，页脚从视口内被顶出去 | `.container` 撑满首屏 `calc(100dvh - var(--nav-h))`，页脚初始就在视口外 |
+| 键盘焦点只有浏览器默认 **1px** 焦点环 | Tab 走查 18 次，`outline: auto 1px`，浅底上几乎不可见 | 加 `:focus-visible` 主色 2px 环（+2px offset） |
+
+修完复测：库页 CLS **0.072 → 0**、A11y **94 → 100**、axe 由 1 类违规 → **0**。
+这比"一上来就是满分"更值得写进 README——它说明扫描确实能抓到东西。
 
 ---
 
@@ -155,6 +176,9 @@ docs/                     文档索引、架构、运维、接口、演示、开
 |---|---|
 | [文档索引](docs/README.md) | 按"想了解什么"组织的入口 |
 | [架构与取舍](docs/ARCHITECTURE.md) | 拓扑、请求链路、LLM 层、B 为什么只让模型排序 |
+| [视觉规范](docs/UI.md) | 令牌、组件、7 个 SVG 原语、打印（as-built） |
+| [交互规范](docs/UX.md) | 页面与路由、三条流程、状态与边界（as-built） |
+| [前端实现](docs/FRONTEND.md) | 工程结构、网络层、性能预算、已知坑（as-built） |
 | [部署与回滚](docs/OPERATIONS.md) | 部署/回滚/证书/备份/事故处置/发布 CLI |
 | [API 参考](docs/API.md) | 26 个端点（业务 25 + 健康检查），由 OpenAPI 导出 |
 | [开发指南](docs/DEVELOPMENT.md) | 本地起站、测试、构建、约定与常见坑 |
@@ -164,7 +188,8 @@ docs/                     文档索引、架构、运维、接口、演示、开
 | [ADR 0001](docs/adr/0001-monorepo-single-image-caddy.md) · [0002](docs/adr/0002-p0-drop-news-insight.md) · [0003](docs/adr/0003-legacy-static-not-shipped.md) | 架构决策记录 |
 | [P0a 迁移方案](docs/archive/P0A-MIGRATION.md) | 已完成的一次性迁移记录（归档） |
 
-界面与交互规范、前端实现方案属于项目管理文档，**不在本仓**：它们包含未公开的设计迭代过程。
+界面与交互规范、前端实现方案以 **as-built** 形式收录（`docs/UI.md` / `docs/UX.md` / `docs/FRONTEND.md`）：
+只写代码里真实存在的规格，未落地的设计在各文末集中登记。设计稿原稿与迭代过程留在项目管理仓。
 
 ---
 

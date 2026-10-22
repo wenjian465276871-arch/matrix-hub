@@ -30,6 +30,17 @@ a:hover {
   text-decoration: underline;
 }
 
+/* 焦点可见性：浏览器默认焦点环只有 1px auto，在 #F6F8F9 底上几乎看不见。
+   只在键盘操作时出现（:focus-visible），鼠标点击不画环。 */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+[role='tab']:focus-visible,
+input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 2px;
+}
+
 h1,
 h2,
 h3 {
@@ -100,6 +111,10 @@ h3 {
   max-width: var(--w-content);
   margin: 0 auto;
   padding: 24px 16px 64px;
+  /* 撑满首屏：内容异步加载时，页脚不会从视口内被顶出去。
+     否则库页 2 个骨架换成 6 张卡片，页脚位移会计入 CLS（实测 0.072）。 */
+  min-height: calc(100vh - var(--nav-h));
+  min-height: calc(100dvh - var(--nav-h));
 }
 
 .page-head {

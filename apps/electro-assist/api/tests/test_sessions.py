@@ -146,6 +146,18 @@ def test_full_session_flow(env):
         "manual",
     ]
 
+    # 每步耗时：首步从会话创建起算，后续步接上一步终了；复测算在本步内
+    steps = report["steps"]
+    assert steps[0]["started_at"] == report["session"]["created_at"]
+    assert steps[0]["ended_at"] == steps[0]["attempts"][-1]["created_at"]
+    assert steps[0]["duration_s"] is not None and steps[0]["duration_s"] >= 0
+    assert steps[2]["ended_at"] == steps[2]["attempts"][-1]["created_at"]
+    assert steps[2]["attempts"][-1]["attempt"] == 2
+    for index in range(1, len(steps)):
+        assert steps[index]["started_at"] == steps[index - 1]["ended_at"]
+    total = sum(s["duration_s"] or 0 for s in steps)
+    assert total <= report["summary"]["duration_s"] + 1
+
 
 def test_client_cannot_forge_verdict(env):
     sid = _start()
@@ -203,6 +215,14 @@ def test_abort_flow(env):
     report = client.get(f"/api/electro/records/{sid}").json()
     assert report["summary"]["aborted"] is True
     assert report["summary"]["recorded_steps"] == 1
+
+    # 中止后未执行的步骤：耗时为 null，不能拿"0 秒"冒充做过
+    assert report["steps"][0]["duration_s"] is not None
+    for step in report["steps"][1:]:
+        assert step["final_verdict"] == "skipped"
+        assert step["started_at"] is None
+        assert step["ended_at"] is None
+        assert step["duration_s"] is None
 
 
 def test_unknown_session_and_guide(env):

@@ -217,6 +217,10 @@ export interface RecordStep {
   title: string
   attempts: RecordItem[]
   final_verdict: Verdict
+  /** 单步耗时：本步最后一次提交 − 上一步最后一次提交；未执行为 null */
+  started_at: string | null
+  ended_at: string | null
+  duration_s: number | null
 }
 
 export interface ExceptionItem {

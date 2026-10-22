@@ -93,7 +93,7 @@ web/
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 164 passed
+pytest tests -q          # 194 passed（约 20s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web
@@ -114,6 +114,25 @@ E2E_CHANNEL=msedge npm run test:e2e        # 用系统 Edge，免下载浏览器
 CI 里跑 `chromium`（`npx playwright install --with-deps chromium`），**部署依赖 E2E 通过**。
 
 **已知缺口**：前端仍无组件单测；E2E 只覆盖主路径，不覆盖打印与软键盘（这两项靠真机验收）。
+
+### 4.1 性能与可访问性实测
+
+两个脚本都不进 CI（lighthouse 会拖慢流水线），按需手动跑：
+
+```bash
+cd apps/electro-assist/web
+npm i --no-save axe-core lighthouse      # 只装本地，不改 package.json
+
+# 前置：API 8001 + vite preview 4173
+node scripts/lighthouse.mjs http://localhost:4173/apps/electro-assist/ lh.json
+node scripts/axe.mjs                      # 4 页 × 2 视口；有违规退出码 2
+```
+
+当前基线（2026-10-23，移动端 390×844）：Perf **99** / LCP **1.55s** / CLS **0** / TBT **84ms**，
+A11y **100**，axe **0 violation**。改动 UI 后请重跑——CLS 与对比度都是"不看不知道"的指标。
+
+> 踩过的坑：axe 用 `page.addScriptTag` 注入会被 CSP 拦，必须 `page.evaluate(src)`；
+> 空结果要先用"注入低对比元素"自检，否则分不清"没问题"和"没跑起来"。
 
 ## 5. 发布草稿
 

@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError, getJson } from '../lib/http'
-import type { CriterionResult, RecordItem, SessionReport, Verdict } from '../types'
+import type { CriterionResult, RecordItem, RecordStep, SessionReport, Verdict } from '../types'
 
 const props = defineProps<{ sid: string }>()
 const router = useRouter()
@@ -65,6 +65,13 @@ function formatTime(value: string | null): string {
     second: '2-digit',
     hourCycle: 'h23',
   })
+}
+
+/** 单步耗时文案：未执行为 null，秒级以下不显示 "0 秒" 这种假精度。 */
+function stepDuration(step: RecordStep): string {
+  if (step.duration_s === null) return '—'
+  if (step.duration_s < 1) return '不足 1 秒'
+  return formatDuration(step.duration_s)
 }
 
 function resultValue(result: CriterionResult): string {
@@ -155,6 +162,9 @@ onMounted(load)
             <h3 class="record-step__title">{{ step.title }}</h3>
             <span class="verdict-chip" :class="`v-${step.final_verdict}`">
               {{ verdictLabel(step.final_verdict) }}
+            </span>
+            <span v-if="step.duration_s !== null" class="step-duration mono">
+              耗时 {{ stepDuration(step) }}
             </span>
           </header>
 
@@ -292,8 +302,15 @@ onMounted(load)
 
 .record-step__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
+}
+
+.step-duration {
+  color: var(--c-ink-3);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .step-seq {
