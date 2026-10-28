@@ -100,7 +100,34 @@ cd ../web
 npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（Dockerfile）
 ```
 
-CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + API 文档一致性 + 文档指标一致性 → E2E 冒烟（与构建并行）→ 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 每 10 分钟从 GitHub 探活。
+CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致性 + 依赖漏洞扫描 + API 文档一致性 + 文档指标一致性 → E2E 冒烟（与构建并行）→ 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 每 10 分钟从 GitHub 探活。
+
+## 4.1 供应链固定（2026-10-24）
+
+| 项 | 做法 |
+|---|---|
+| 后端依赖 | `requirements.lock`（`uv pip compile --generate-hashes`，305 个哈希）；镜像里 `pip install --require-hashes`，包被替换即构建失败 |
+| 前端依赖 | `package-lock.json` + `npm ci` |
+| CI Action | 全部固定到 40 位 commit sha，版本号只写在注释里（`# v4`） |
+| 依赖更新 | `.github/dependabot.yml`：pip / npm / github-actions / docker 四个生态，每周一 03:00 开 PR（同生态 patch+minor 合组，避免 PR 洪水） |
+| 漏洞扫描 | `pip-audit` 与 `npm audit` 进 CI，**continue-on-error**（计划口径：告警不阻塞） |
+
+改依赖的标准动作：
+
+```bash
+cd apps/electro-assist/api
+# 1) 改 requirements.txt
+# 2) 重生成锁文件（必须带 --python-version 3.12，CI 用同一命令比对）
+uv pip compile requirements.txt --generate-hashes --python-version 3.12 -o requirements.lock
+# 3) 本地确认能按哈希安装
+pip install --dry-run --require-hashes -r requirements.lock
+```
+
+> CI 比对时会过滤注释行：uv 把「输入路径」写进头部与 `# via`，从仓库根跑和从 `api/` 跑天然不同，直接 `diff` 会永远失败。
+
+**已知未清**：`starlette 0.41.3`（FastAPI 0.115.6 的传递依赖）被 pip-audit 报了 12 条 advisory（PYSEC-2026-*）。
+升级需要同步抬 FastAPI 并回归 194 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
+
 
 **前端 E2E（2026-10-21 进 CI）**：`tests/e2e/smoke.spec.ts` 覆盖三条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖。不调模型，用启动时 seed 的案例与知识库。
 

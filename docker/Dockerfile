@@ -40,8 +40,10 @@ RUN apt-get update \
 COPY --from=caddy-bin /usr/bin/caddy /usr/bin/caddy
 
 WORKDIR /opt/electro
-COPY apps/electro-assist/api/requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# 依赖一律按 requirements.lock 安装并要求哈希校验：
+# 上游包被替换/篡改会在构建期失败，而不是悄悄装进生产镜像。
+COPY apps/electro-assist/api/requirements.txt apps/electro-assist/api/requirements.lock ./
+RUN pip install --no-cache-dir --require-hashes -r requirements.lock
 COPY apps/electro-assist/api/ ./
 
 COPY docker/Caddyfile /etc/caddy/Caddyfile

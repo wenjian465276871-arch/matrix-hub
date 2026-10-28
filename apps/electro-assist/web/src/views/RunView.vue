@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import GuideFigure from '../figures/GuideFigure.vue'
+import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import { ApiError, getJson, postJson } from '../lib/http'
 import type {
   Criterion,
@@ -243,6 +244,16 @@ async function finish(status: 'done' | 'aborted'): Promise<void> {
   }
 }
 
+function openAbort(): void {
+  if (starting.value) return
+  abortConfirm.value = true
+}
+
+function closeAbort(): void {
+  if (starting.value) return
+  abortConfirm.value = false
+}
+
 function verdictLabel(verdict?: Verdict): string {
   return verdict ? VERDICT_LABEL[verdict] : '未执行'
 }
@@ -422,29 +433,22 @@ onMounted(load)
         <div class="actions">
           <button class="btn btn--primary" type="button" @click="retest">复测本步</button>
           <button class="btn" type="button" @click="goDiagnose">转故障排查</button>
-          <button class="btn btn--danger" type="button" @click="abortConfirm = true">
+          <button class="btn btn--danger" type="button" @click="openAbort">
             停止作业
           </button>
         </div>
       </section>
 
-      <div v-if="abortConfirm" class="card abort-panel">
-        <p><strong>确认中止作业？</strong></p>
-        <p class="state__hint">记录编号 {{ sid }}，已完成的步骤会保留。</p>
-        <div class="actions">
-          <button class="btn" type="button" :disabled="starting" @click="abortConfirm = false">
-            继续作业
-          </button>
-          <button
-            class="btn btn--danger"
-            type="button"
-            :disabled="starting"
-            @click="finish('aborted')"
-          >
-            {{ starting ? '正在结束…' : '确认中止' }}
-          </button>
-        </div>
-      </div>
+      <ConfirmDialog
+        v-if="abortConfirm"
+        title="确认中止作业？"
+        :hint="`记录编号 ${sid}，已完成的步骤会保留。`"
+        confirm-text="确认中止"
+        cancel-text="继续作业"
+        :busy="starting"
+        @cancel="closeAbort"
+        @confirm="finish('aborted')"
+      />
 
       <p v-if="errorText && phase === 'ready'" class="inline-error">{{ errorText }}</p>
 
@@ -454,7 +458,7 @@ onMounted(load)
             class="bar-secondary"
             type="button"
             :disabled="phase === 'submitting' || starting"
-            @click="abortConfirm = true"
+            @click="openAbort"
           >
             中止
           </button>
@@ -753,12 +757,6 @@ onMounted(load)
 
 .btn--danger:hover {
   background: #8f1d17;
-}
-
-.abort-panel {
-  margin-top: 16px;
-  padding: 16px;
-  border-color: #d9a3a0;
 }
 
 .inline-error {

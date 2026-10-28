@@ -1,0 +1,72 @@
+# 依赖更新：每周一 03:00（东八区）开一批 PR。
+# 目的不是"永远最新"，而是让"我们落后了多久"变成可见事实——
+# 没有它，锁文件会把项目锁死在某个再也升不上去的版本上。
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /apps/electro-assist/api
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(pip)"
+    labels:
+      - dependencies
+      - backend
+    groups:
+      backend-minor:
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
+
+  - package-ecosystem: npm
+    directory: /apps/electro-assist/web
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "deps(npm)"
+    labels:
+      - dependencies
+      - frontend
+    groups:
+      frontend-minor:
+        patterns: ["*"]
+        update-types: ["patch", "minor"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "deps(actions)"
+    labels:
+      - dependencies
+      - ci
+    # Action 版本被钉在 commit sha 上，Dependabot 会把新 sha 连同版本注释一起改。
+    groups:
+      actions-all:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+      day: monday
+      time: "03:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: "deps(docker)"
+    labels:
+      - dependencies
+      - docker
