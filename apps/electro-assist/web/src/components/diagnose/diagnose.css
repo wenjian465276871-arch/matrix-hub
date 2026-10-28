@@ -169,7 +169,7 @@
   width: 100%;
 }
 
-.disclaimer {
+.diag-disclaimer {
   margin: 4px 0 0;
   color: var(--c-ink-3);
   font-size: 12px;
@@ -177,6 +177,10 @@
 }
 
 /* ---------- 逐步诊断 ---------- */
+
+/* 注意：本文件是全局导入（DiagnoseView 里 import），所以类名必须带前缀。
+   2026-10-28：`.step` / `.disclaimer` 曾与 base.css 撞名，导致指导书详情页
+   的步骤卡被改成 flex 横排、390px 屏横向溢出 300px（标题挤成一行一个字）。 */
 
 .run__head {
   display: flex;
@@ -363,7 +367,7 @@
   list-style: none;
 }
 
-.step {
+.dstep {
   display: flex;
   gap: 10px;
   align-items: baseline;
@@ -372,39 +376,39 @@
   font-size: 14px;
 }
 
-.step:last-child {
+.dstep:last-child {
   border-bottom: 0;
 }
 
-.step__order {
+.dstep__order {
   flex: 0 0 20px;
   color: var(--c-ink-3);
   font-variant-numeric: tabular-nums;
 }
 
-.step__verdict {
+.dstep__verdict {
   flex: 0 0 auto;
   padding: 1px 8px;
   border-radius: 999px;
   font-size: 12px;
 }
 
-.step__verdict--pass {
+.dstep__verdict--pass {
   background: var(--c-primary-soft);
   color: var(--c-primary-ink);
 }
 
-.step__verdict--fail {
+.dstep__verdict--fail {
   background: var(--c-warning-soft);
   color: var(--c-warning);
 }
 
-.step__value {
+.dstep__value {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
 }
 
-.step__note {
+.dstep__note {
   color: var(--c-ink-3);
   font-size: 13px;
 }

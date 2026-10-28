@@ -9,13 +9,17 @@
 """
 from __future__ import annotations
 
+import logging
 import os
+import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 import store
 
 CST = timezone(timedelta(hours=8))
+
+log = logging.getLogger("electro.quota")
 
 PER_HOUR_DEFAULT = 2
 PER_DAY_DEFAULT = 10
@@ -189,3 +193,99 @@ def snapshot(client_ip: str, now: datetime | None = None) -> dict:
             "limit_cny": round(lim.site_budget_micros / 1_000_000, 2),
         },
     }
+
+
+# ---------- 日预算水位与告警 ----------
+#
+# 为什么要有它：预算熔断只在"已经烧完"时才生效，而那时当天的生成已经全部失败。
+# 没有水位线，你只能在事后翻 usage 表；有水位线，才有机会提前收手。
+#
+# 口径刻意分两级：warn=继续服务但该看账了；critical=再花就熔断。
+# 两者都**不影响 /healthz 的 status**——预算是业务指标，不是存活信号，
+# 把它写进 checks 会让"预算用到 85%"触发部署健康检查失败、回滚一个正常的版本。
+
+BUDGET_WARN_RATIO_DEFAULT = 0.80
+BUDGET_CRITICAL_RATIO_DEFAULT = 0.95
+
+# 同一天同一级别只告警一次：healthz 每 10 分钟被探活一次，
+# 不去重的话日志里会留下一整天的重复告警。
+_alerted: set[tuple[str, str]] = set()
+_alert_lock = threading.Lock()
+
+
+@dataclass(frozen=True)
+class BudgetStatus:
+    day: str
+    used_micros: int
+    limit_micros: int
+    ratio: float
+    level: str  # ok | warn | critical
+
+    def to_dict(self) -> dict:
+        return {
+            "day": self.day,
+            "used_micros": self.used_micros,
+            "limit_micros": self.limit_micros,
+            "ratio": round(self.ratio, 3),
+            "level": self.level,
+        }
+
+
+def _ratio_env(name: str, default: float) -> float:
+    raw = os.getenv(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    # 阈值写错（负数/大于 1）时退回默认，不让配置错误把告警变成永不触发。
+    if not 0 < value <= 1:
+        return default
+    return value
+
+
+def budget_status(now: datetime | None = None) -> BudgetStatus:
+    moment = now or _now()
+    lim = limits()
+    day = _cst_day(moment)
+    used = store.usage_summary(day)["cost_micros"]
+    limit = max(1, lim.site_budget_micros)
+    ratio = used / limit
+    warn = _ratio_env("BUDGET_WARN_RATIO", BUDGET_WARN_RATIO_DEFAULT)
+    critical = _ratio_env("BUDGET_CRITICAL_RATIO", BUDGET_CRITICAL_RATIO_DEFAULT)
+    if ratio >= critical:
+        level = "critical"
+    elif ratio >= warn:
+        level = "warn"
+    else:
+        level = "ok"
+    return BudgetStatus(day=day, used_micros=used, limit_micros=limit, ratio=ratio, level=level)
+
+
+def alert_if_needed(status: BudgetStatus) -> bool:
+    """达到阈值时写一条告警日志；同一天同一级别只写一次。返回是否新写。"""
+    if status.level == "ok":
+        return False
+    key = (status.day, status.level)
+    with _alert_lock:
+        if key in _alerted:
+            return False
+        _alerted.add(key)
+    amount = "已用 %.1f%%（%.4f / %.2f 元，%s）" % (
+        status.ratio * 100,
+        status.used_micros / 1_000_000,
+        status.limit_micros / 1_000_000,
+        status.day,
+    )
+    if status.level == "critical":
+        log.error("LLM 日预算接近熔断：%s——再消耗即拒绝新生成", amount)
+    else:
+        log.warning("LLM 日预算达到告警线：%s", amount)
+    return True
+
+
+def reset_alerts() -> None:
+    """仅供测试：清空当天已告警记录。"""
+    with _alert_lock:
+        _alerted.clear()

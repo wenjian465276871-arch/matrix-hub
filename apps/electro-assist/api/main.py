@@ -25,6 +25,7 @@ from routers import schema as schema_router
 from routers import sessions as sessions_router
 from routers import uploads as uploads_router
 from services import generation, library
+from services import quota as quota_service
 
 APP_ENV = os.getenv("APP_ENV", "dev")
 IS_PROD = APP_ENV == "prod"
@@ -154,4 +155,16 @@ def healthz() -> dict:
         checks["disk"] = "error"
 
     status = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
-    return {"status": status, "checks": checks}
+
+    # 预算水位：只报告，不参与 status。
+    # 预算是业务指标，不是存活信号；把它算进 checks 会让"今天花了 85%"
+    # 触发部署健康检查失败、回滚一个完全正常的版本。
+    budget: dict = {"level": "unknown"}
+    try:
+        budget_status = quota_service.budget_status()
+        quota_service.alert_if_needed(budget_status)
+        budget = budget_status.to_dict()
+    except Exception as exc:  # noqa: BLE001 - 读不到用量不该让健康检查 500
+        log.warning("healthz 预算检查失败：%s", exc)
+
+    return {"status": status, "checks": checks, "budget": budget}

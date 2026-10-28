@@ -108,6 +108,28 @@ docker stats --no-stream
 看不见容量就不再是"健康"。日志走 stdout。容器日志已限制为 `json-file`、单文件 10MB、保留 3 个（计划 §9.4 #5），
 不会无限增长。**日志中不得出现密钥、token、请求体。**
 
+### 5.1 预算水位与告警（2026-10-24 新增）
+
+`/healthz` 额外返回一个 `budget` 块（**不参与 `status`**——预算是业务指标，不是存活信号；
+算进 `checks` 会让"今天花了 85%"触发部署回滚一个正常版本）：
+
+```json
+"budget": {"day":"2026-10-24","used_micros":102000,"limit_micros":3000000,"ratio":0.034,"level":"ok"}
+```
+
+| level | 触发 | 动作 |
+|---|---|---|
+| `ok` | < `BUDGET_WARN_RATIO`（默认 0.80） | 无 |
+| `warn` | ≥ 0.80 | 写一条 `WARNING` 日志（同一天只写一次） |
+| `critical` | ≥ 0.95 | 写一条 `ERROR` 日志；再消耗即触发 `budget_exhausted` |
+
+告警通道不新增基础设施：`uptime.yml` 每 10 分钟读一次 `level`，
+非 `ok` 就让 workflow 失败 → GitHub 按通知设置发邮件。日志侧用
+`docker compose logs web | grep 日预算` 核对，同一天同一级别只出现一次（防日志刷屏）。
+
+阈值可用 `BUDGET_WARN_RATIO` / `BUDGET_CRITICAL_RATIO` 覆盖；写成 0/负数/>1 时退回默认，
+**不会**因为配置写错而永不告警。
+
 ## 6. 证书
 
 Caddy 自动签发与续期，无需 cron。状态与证书在 `matrix-hub_app_data` 卷内。

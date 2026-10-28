@@ -163,6 +163,31 @@ def test_hvac_migration_sample_exists():
     assert hvac.meta.is_demo is True
 
 
+def test_pantograph_migration_sample_exists():
+    """第二个迁移案例：受电弓。
+
+    空调只证明"换一个子系统能跑"，再加一个才排除"恰好空调和车门相似"；
+    同时也把 3 个子系统（车门/空调/受电弓）在 A2 侧补齐——B 侧早已有受电弓知识库。
+    """
+    guides = {g.id: g for g in library.load_fixtures(SAMPLES)}
+    assert "g_pantograph_raise_check" in guides
+    panto = guides["g_pantograph_raise_check"]
+
+    assert panto.meta.system.value == "pantograph"
+    assert 3 <= len(panto.steps) <= 8
+    assert "演示数据 · 非实际作业依据" in panto.disclaimers
+    assert panto.meta.is_demo is True
+    assert "公开资料" in panto.meta.source_note
+
+    # 判据要覆盖"自动判定 + 人工确认"两类，否则换子系统只是换了文案
+    types = {c.type.value for step in panto.steps for c in step.criteria}
+    assert {"range", "manual"} <= types
+    # 每个图元都要能降级成文字：现场渲染失败时靠这句话
+    for step in panto.steps:
+        for fig in step.figures:
+            assert fig.fallback_text.strip()
+
+
 def test_seed_adds_missing_fixtures_without_touching_existing(tmp_path, monkeypatch):
     """部署新增样例后，已有记录不被覆盖，缺的补进来。"""
     shutil.copy(SAMPLES / "door_clearance.json", tmp_path / "a.json")

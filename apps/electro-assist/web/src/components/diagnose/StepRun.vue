@@ -187,17 +187,17 @@ function submit(verdict: 'pass' | 'fail'): void {
     <section v-if="runData.steps.length" class="steps">
       <p class="hit__label">已完成的检查</p>
       <ol class="steps__list">
-        <li v-for="step in runData.steps" :key="step.check_order" class="step">
-          <span class="step__order">{{ step.check_order }}</span>
-          <span class="step__verdict" :class="`step__verdict--${step.verdict}`">
+        <li v-for="step in runData.steps" :key="step.check_order" class="dstep">
+          <span class="dstep__order">{{ step.check_order }}</span>
+          <span class="dstep__verdict" :class="`dstep__verdict--${step.verdict}`">
             {{ step.verdict === 'pass' ? '正常' : '异常' }}
           </span>
-          <span v-if="step.value" class="step__value">{{ step.value }}</span>
-          <span v-if="step.note" class="step__note">{{ step.note }}</span>
+          <span v-if="step.value" class="dstep__value">{{ step.value }}</span>
+          <span v-if="step.note" class="dstep__note">{{ step.note }}</span>
         </li>
       </ol>
     </section>
 
-    <p class="disclaimer">{{ runData.disclaimer }} · 排查建议需专业人员确认后执行</p>
+    <p class="diag-disclaimer">{{ runData.disclaimer }} · 排查建议需专业人员确认后执行</p>
   </section>
 </template>

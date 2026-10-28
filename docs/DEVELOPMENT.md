@@ -73,7 +73,7 @@ api/
 ├── knowledge/         door 11 / hvac 4 / pantograph 3 条 + eval_queries.json（21+2 条）
 ├── samples/           4 份 published 样例（车门 3 + 空调 1）
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / smoke
-└── tests/             194 条契约测试
+└── tests/             202 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       7 个 SVG 原语 + registry + svg 工具
@@ -93,7 +93,7 @@ web/
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 194 passed（约 20s）
+pytest tests -q          # 202 passed（约 20s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web

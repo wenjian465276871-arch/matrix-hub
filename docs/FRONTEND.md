@@ -160,6 +160,7 @@ E2E 抓的是 DOM 回归，比给 `lib/http.ts` 写 mock 更值钱。真要补�
 | `content-visibility` | 打印出空白页 | `@media print` 强制 `visible` |
 | Vite 默认 base | 深链 404 | `base:'/apps/electro-assist/'` + Caddy `try_files` |
 | 单位 chip 自适应 | 判据行参差 | chip 固定 44px，>3 字符统一 56px，绝不 `overflow:hidden` 截断 |
+| 全局导入的 CSS 撞类名 | 诊断页的 `.step` 把指导书步骤卡变成 flex 横排，390px 屏横向溢出 300px、标题一行一个字 | 全局 CSS 的类名必须带模块前缀（`.dstep` / `.diag-disclaimer`）；`cssCodeSplit:false` 意味着所有样式同域，撞名会跨页生效 |
 
 ## 9. 未实现（方案里有、代码里没有）
 

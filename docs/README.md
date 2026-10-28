@@ -52,7 +52,7 @@
 | 项 | 值 | 采集 |
 |---|---|---|
 | 代码基线 | `203f90e`（现已上线） | `git log --oneline -1` |
-| 契约测试 | **194 passed** | `pytest tests -q`（19.9s） |
+| 契约测试 | **202 passed** | `pytest tests -q`（19.9s） |
 | 业务端点 | 25 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
 | 首屏 | **40.08 KB gzip / CSS 5.40 KB** | `npm run build`（vue-tsc + vite） |
 | 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23） |

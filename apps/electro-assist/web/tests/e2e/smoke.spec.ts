@@ -68,5 +68,5 @@ test('B 逐步诊断：判据推进并收敛到结论', async ({ page }) => {
 
   await expect(page.locator('.conclusion')).toBeVisible()
   await expect(page.getByText('已定位到异常点')).toBeVisible()
-  await expect(page.locator('.step').first()).toBeVisible()
+  await expect(page.locator('.dstep').first()).toBeVisible()
 })

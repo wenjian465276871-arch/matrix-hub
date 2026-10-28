@@ -1,0 +1,250 @@
+{
+  "schema_version": "1.1",
+  "id": "g_pantograph_raise_check",
+  "title": "受电弓升弓功能检查（静态调试）",
+  "summary": "单车静态工况下检查受电弓升弓功能：确认作业安全条件与弓头外观、测碳滑板剩余厚度、测升弓气路静态压力、测升弓时间、确认升弓到位信号与弓网接触状态。五项判据全部在范围内为合格。",
+  "meta": {
+    "system": "pantograph",
+    "source_note": "公开资料改写：受电弓升弓气路与碳滑板检查参考公开产品说明与公开课件，型号、参数全部虚构，不含任何企业资料",
+    "model": "deepseek-flash",
+    "generated_at": "2026-10-28T00:00:00Z",
+    "is_demo": true
+  },
+  "steps": [
+    {
+      "id": "s01",
+      "seq": 1,
+      "title": "作业准备与安全确认",
+      "action": "确认车辆已断电挂牌、防溜车措施到位；确认接触网已停电并验电接地，登顶作业许可与防坠落措施齐全；确认升弓区域内无人员与异物后，方可开始检查。",
+      "safety": [
+        "接触网已停电、验电并接地",
+        "登顶作业许可与防坠落措施齐全",
+        "升弓区域无人员与异物",
+        "车辆断电挂牌、防溜车到位"
+      ],
+      "tools": ["绝缘手套", "验电器", "接地线", "警示带"],
+      "criteria": [
+        {
+          "id": "power_off",
+          "label": "车辆已断电并挂牌",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        },
+        {
+          "id": "catenary_grounded",
+          "label": "接触网已停电、验电并接地",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        },
+        {
+          "id": "area_clear",
+          "label": "升弓区域无人员与异物",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "checklist",
+          "params": {
+            "items": [
+              "车辆断电挂牌、防溜车到位",
+              "接触网停电、验电、接地",
+              "登顶许可与防坠落措施齐全",
+              "升弓区域无人员与异物"
+            ]
+          },
+          "caption": "作业前确认清单",
+          "fallback_text": "逐项确认：断电挂牌、接触网停电验电接地、登顶许可与防坠落、升弓区域清空。任一项不满足不得开工。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s02",
+      "seq": 2,
+      "title": "检查弓头外观与碳滑板厚度",
+      "action": "目视检查弓头框架无变形、无裂纹，碳滑板安装牢固、磨耗均匀；用卡尺在滑板两端与中部各测一次剩余厚度，取最小值记录。",
+      "safety": ["登顶作业须系挂安全带", "工具系防坠绳，禁止抛掷"],
+      "tools": ["游标卡尺", "手电", "安全带"],
+      "criteria": [
+        {
+          "id": "strip_thickness",
+          "label": "碳滑板剩余厚度（最小值）",
+          "type": "range",
+          "unit": "mm",
+          "min": 25,
+          "max": 40,
+          "options": null
+        },
+        {
+          "id": "frame_ok",
+          "label": "弓头框架无变形、无裂纹",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 32,
+            "unit": "mm",
+            "min": 25,
+            "max": 40,
+            "label": "碳滑板厚度"
+          },
+          "caption": "读数示例",
+          "fallback_text": "碳滑板剩余厚度示例读数 32 mm，允许范围 25–40 mm；低于下限必须更换。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s03",
+      "seq": 3,
+      "title": "测量升弓气路静态压力",
+      "action": "在升弓气路测试口接压力表，确认总风压力达到工作范围后静置 3 分钟，记录压力值并观察压降；压力不足时不得强行升弓。",
+      "safety": ["带压拆接表计须先泄压", "压力表量程须覆盖工作压力"],
+      "tools": ["压力表（0–1.0 MPa）", "生料带"],
+      "criteria": [
+        {
+          "id": "air_pressure",
+          "label": "升弓气路静态压力",
+          "type": "range",
+          "unit": "MPa",
+          "min": 0.45,
+          "max": 0.6,
+          "options": null
+        },
+        {
+          "id": "leak_state",
+          "label": "气路静置压降是否在允许范围",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": ["正常", "渗漏"]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 0.52,
+            "unit": "MPa",
+            "min": 0.45,
+            "max": 0.6,
+            "label": "升弓气路压力"
+          },
+          "caption": "读数示例",
+          "fallback_text": "升弓气路压力示例读数 0.52 MPa，允许范围 0.45–0.60 MPa。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s04",
+      "seq": 4,
+      "title": "测量升弓时间",
+      "action": "在司机台发出升弓指令，用秒表记录从指令发出到升弓到位信号点亮的时间；连续测三次取平均值，三次均应在范围内。",
+      "safety": ["升弓过程中任何人不得进入弓网区域", "试验前确认受电弓上方无障碍物"],
+      "tools": ["秒表"],
+      "criteria": [
+        {
+          "id": "raise_time",
+          "label": "升弓时间（三次平均）",
+          "type": "range",
+          "unit": "s",
+          "min": 5,
+          "max": 8,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 6.4,
+            "unit": "s",
+            "min": 5,
+            "max": 8,
+            "label": "升弓时间"
+          },
+          "caption": "读数示例",
+          "fallback_text": "升弓时间示例读数 6.4 s，允许范围 5.0–8.0 s；过慢多为气路节流或压力不足。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s05",
+      "seq": 5,
+      "title": "确认升弓到位信号与弓网接触状态",
+      "action": "确认司机台升弓到位指示灯点亮、无故障报警；目视检查弓头与接触网接触无偏斜、无异常放电痕迹，异物排除后记录结论。",
+      "safety": ["确认接触网仍处于停电接地状态", "禁止在带电状态下靠近弓网"],
+      "tools": ["手电"],
+      "criteria": [
+        {
+          "id": "raise_signal",
+          "label": "升弓到位信号",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": ["正常", "异常"]
+        },
+        {
+          "id": "contact_ok",
+          "label": "弓网接触无偏斜、无异常放电痕迹",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        },
+        {
+          "id": "conclusion",
+          "label": "检查结论与处理建议",
+          "type": "text",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "status_light",
+          "params": { "state": "pass", "label": "升弓到位" },
+          "caption": "状态指示",
+          "fallback_text": "升弓到位时，司机台指示灯点亮并给出到位信号。"
+        },
+        {
+          "primitive": "wiring",
+          "params": {
+            "terminals": "X2-1-X2-2-X2-4",
+            "wire_color": "红/黑/白",
+            "note": "到位信号回路示意，针脚定义按公开资料改写"
+          },
+          "caption": "升弓到位信号回路示意",
+          "fallback_text": "升弓到位信号经 X2-1、X2-2、X2-4 三个端子构成回路，线色红、黑、白；以本车型图纸为准。"
+        }
+      ],
+      "duration_s": null
+    }
+  ],
+  "disclaimers": ["演示数据 · 非实际作业依据", "AI 辅助整理，需专业人员复核"]
+}

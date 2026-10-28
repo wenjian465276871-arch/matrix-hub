@@ -70,6 +70,6 @@ const emit = defineEmits<{ run: [entryId: string]; reset: [] }>()
       </button>
     </article>
 
-    <p class="disclaimer">{{ result.disclaimer }} · 排查建议需专业人员确认后执行</p>
+    <p class="diag-disclaimer">{{ result.disclaimer }} · 排查建议需专业人员确认后执行</p>
   </section>
 </template>

@@ -37,3 +37,25 @@ jobs:
             | grep -o '"count":[0-9]*' | head -1 | cut -d: -f2)
           echo "guides: $count"
           test "${count:-0}" -ge 1
+
+      # 额度告警：预算水位是业务指标，不该让站点"不健康"（所以不进 healthz.status），
+      # 但必须有人知道。借 GitHub Actions 的失败通知当告警通道——零新增基础设施。
+      - name: 预算水位（warn/critical 则失败并通知）
+        run: |
+          set -euo pipefail
+          health=$(curl -fsS --max-time 10 https://www.superplayer007.cn/healthz)
+          read -r level ratio <<<"$(printf '%s' "$health" | python3 -c '
+import json, sys
+b = json.load(sys.stdin).get("budget", {})
+print(b.get("level", "unknown"), b.get("ratio", "?"))
+')"
+          echo "budget level=$level ratio=$ratio"
+          case "$level" in
+            warn|critical)
+              echo "::error::LLM 日预算水位 $level（已用比例 $ratio）"
+              exit 1
+              ;;
+            unknown)
+              echo "::warning::healthz 未返回 budget 字段（后端版本可能过旧）"
+              ;;
+          esac

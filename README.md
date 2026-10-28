@@ -58,7 +58,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **194 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **202 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 错误可追溯 | 500 返回统一 JSON + 8 位 `ref`，响应头带 `X-Request-Id` | 任意错误请求观察响应 |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
@@ -101,7 +101,9 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 - **5 分钟演示脚本**：[`docs/DEMO.md`](docs/DEMO.md)（含旁白、兜底方案、不要说的话）
 - **85 秒录屏**：[`docs/assets/demo.webm`](docs/assets/demo.webm)
 - **正式案例**：`g_door_switch_formal_001`，8 步 / 14 图，含接插件针脚与端子线色；来源登记在 [`docs/SOURCES.md`](docs/SOURCES.md)
-- **迁移案例**：`g_hvac_cooling_check`，5 步，客室空调制冷功能检查——用来证明同一套契约/渲染/引导能换子系统，不是只为车门写的
+- **迁移案例（两个子系统）**：`g_hvac_cooling_check`（5 步，客室空调制冷功能检查）与
+  `g_pantograph_raise_check`（5 步 / 6 图，受电弓升弓功能检查，含气路压力与升弓时间判据）——
+  用来证明同一套契约/渲染/引导能换子系统，不是只为车门写的；两个案例才能排除"恰好空调和车门相似"
 - **故障诊断**：知识库覆盖车门 11 / 空调 4 / 受电弓 3，共 18 条；现场可走"逐步诊断"，填实测值由服务端判超差并收敛到结论
 - 现场网络不可靠时，直接用预生成案例与预跑记录，**演示不依赖实时生成**
 
