@@ -54,7 +54,7 @@
 | 代码基线 | `203f90e`（现已上线） | `git log --oneline -1` |
 | 契约测试 | **202 passed** | `pytest tests -q`（19.9s） |
 | 业务端点 | 25 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
-| 首屏 | **40.08 KB gzip / CSS 5.40 KB** | `npm run build`（vue-tsc + vite） |
+| 首屏 | **41.43 KB gzip / CSS 5.58 KB** | `npm run build`（vue-tsc + vite） |
 | 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23） |
 | 线上数据 | guides 6（published 4）/ KB 18 条 / 3 子系统 | 容器内 `sqlite3` 与 `GET /diagnose/kb` |
 | 真机验收 | 通过（Honor/5G，8 步 + 超差复测 + 3 页打印） | 私有仓 `reports/真机验收记录-2026-10-21.md` |
