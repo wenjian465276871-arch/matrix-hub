@@ -13,10 +13,11 @@ permissions:
 concurrency:
   # 2026-10-19：GitHub 出现一个无法取消的 in_progress run，永久占住旧 group。
   # 加 -2 切到新 group；平台回收旧 run 后可去掉后缀。
-  # 2026-10-29：同一个毛病复发（run 40888238581，status 直接是 `in_progress`，
-  # cancel 报 403/不可取消），把 -2 永久卡死，部署排队不动。再切一次到 -3。
-  # 这不是配置问题：`in_progress` 不是合法状态值，是 GitHub 侧的状态机坏了；
-  # 遇到时唯一解是换 group 名，别在原 group 上重试。
+  # 2026-10-29 更正：run 40888238581 的 status 字段是 `in_progress`（非法值），
+  # 当时据此判断"又卡死了"，于是切到 -3；随后该 run 以 9m42s **正常完成并部署成功**。
+  # 所以那不是卡死，是状态字符串异常 + runner 排队（同一分钟 dependabot 开了 6 个 PR）。
+  # 教训：判断卡死要看 job 级日志与实际耗时，不要只看 status 字符串；
+  # 切 group 名本身无副作用，-3 保留，但别把它当成"修了一个 bug"。
   group: ${{ github.workflow }}-${{ github.ref }}-3
   # 不能取消进行中的部署：deploy 经 SSH 在服务器上执行，runner 被 cancel 后
   # 服务器可能停在"镜像已换、健康检查没跑完"的中间态。排队等前一次结束更安全。
