@@ -135,6 +135,11 @@ CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致
 | 后端 pip | Dependabot 只改 `requirements.txt`，**必然卡在锁文件门禁**（它不跑 uv）。要合就先重生成 `requirements.lock`，再跑全量测试 |
 | 前端三大件（vite / @vitejs/plugin-vue / vue-router） | **必须一次升**：vite 8 要 plugin-vue ≥6，vue-router 5 要 vite ≥7，单独提都是 `ERESOLVE`。已在 `dependabot.yml` 忽略这三者的 major |
 | 基础镜像 | `node` 只跟 LTS（忽略 major）；`caddy` 保留自动 PR，但合并前要走一次网关窗口（反代 / CSP / 证书 / 回滚） |
+| 镜像源同步差 | `pydantic` / `pydantic-core` 固定到镜像源已有的版本；升级前先确认阿里云镜像已同步，再改声明并重生成锁文件 |
+
+> 2026-10-30 实测：PyPI 发布 `pydantic 2.14.2` 后，CI 按浮动声明解析出新版本，锁文件门禁先阻断；
+> 更新锁文件后，镜像构建又因阿里云镜像尚无该版本哈希而失败。现在声明固定为
+> `pydantic==2.14.1` / `pydantic-core==2.50.1`，避免「CI 能解析、镜像不能装」。
 
 改依赖的标准动作：
 
