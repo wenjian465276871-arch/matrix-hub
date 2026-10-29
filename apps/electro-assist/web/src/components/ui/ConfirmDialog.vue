@@ -29,7 +29,6 @@ const emit = defineEmits<{ confirm: []; cancel: [] }>()
 
 const panel = ref<HTMLElement | null>(null)
 const cancelBtn = ref<HTMLButtonElement | null>(null)
-const confirmBtn = ref<HTMLButtonElement | null>(null)
 let previous: HTMLElement | null = null
 
 function focusables(): HTMLElement[] {
@@ -105,7 +104,6 @@ function onOverlayClick(event: MouseEvent): void {
             {{ props.cancelText }}
           </button>
           <button
-            ref="confirmBtn"
             class="btn btn--danger"
             type="button"
             :disabled="props.busy"

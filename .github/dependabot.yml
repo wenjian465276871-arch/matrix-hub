@@ -49,6 +49,12 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@vitejs/plugin-vue"
         update-types: ["version-update:semver-major"]
+      # 2026-10-30：TypeScript 7 是原生重写版，不再导出 `typescript/lib/tsc`，
+      # 而 vue-tsc 依赖这个子路径——CI 实测报 ERR_PACKAGE_PATH_NOT_EXPORTED，
+      # 构建与 E2E 全部起不来（PR #9）。TS 7 只能等 vue-tsc 适配后单独评估，
+      # 现在忽略 major，避免每周开一个必然红的 PR。
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
