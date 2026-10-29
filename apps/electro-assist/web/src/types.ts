@@ -27,6 +27,12 @@ export type Primitive =
   | 'connector'
   | 'torque_gauge'
   | 'checklist'
+  | 'motion_timeline'
+  | 'flow_arrow'
+  | 'callout'
+  | 'gate_state'
+  | 'table'
+  | 'annotation'
 
 export type Scalar = string | number | boolean
 
@@ -132,6 +138,67 @@ export interface GenerateAccepted {
   job_id: string
   status: 'queued'
   poll_after_ms: number
+}
+
+/* ---------- 工艺预检（POST /processes） ---------- */
+
+export interface ProcessStepHint {
+  seq: number
+  action: string
+  criterion_hint: string | null
+}
+
+export interface ProcessPrecheck {
+  process: {
+    name: string | null
+    station: string | null
+    system: System | null
+    tools: string[]
+    safety: string[]
+    steps: ProcessStepHint[]
+  }
+  missing: string[]
+  warnings: string[]
+  stats: {
+    chars: number
+    lines: number
+    steps: number
+    steps_with_criterion: number
+  }
+  next: string
+}
+
+/* ---------- 图片识别（POST /extract） ---------- */
+
+export interface ExtractedStep {
+  seq: number
+  action: string
+  criterion: string | null
+  source_line: number | null
+  verified: boolean
+}
+
+export interface ExtractResult {
+  lines: string[]
+  fields: {
+    name: string | null
+    station: string | null
+    tools: string[]
+    safety: string[]
+    steps: ExtractedStep[]
+  }
+  warnings: string[]
+  unverified: string[]
+  needs_review: true
+  stats: {
+    lines: number
+    steps: number
+    verified_steps: number
+  }
+  disclaimer: string
+  model: string
+  latency_ms: number
+  cost_micros: number
 }
 
 /* ---------- 现场素材 ---------- */
@@ -271,11 +338,25 @@ export interface ExceptionItem {
   created_at: string
 }
 
+/** A1 记录里回写的 B 结论。只带展示所需字段，不复制结论全文。 */
+export interface LinkedDiagnosis {
+  id: string
+  symptom: string
+  system: System
+  status: 'active' | 'concluded' | 'aborted'
+  current_order: number | null
+  conclusion: DiagnoseConclusion | null
+  created_at: string
+  finished_at: string | null
+  checks: number
+}
+
 export interface SessionReport {
   session: Session
   guide: Guide
   steps: RecordStep[]
   exceptions: ExceptionItem[]
+  diagnoses: LinkedDiagnosis[]
   summary: {
     status: SessionStatus
     total_steps: number

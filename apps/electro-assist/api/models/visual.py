@@ -42,6 +42,12 @@ class Primitive(str, Enum):
     connector = "connector"          # 接插件：针脚编号 + 定义
     torque_gauge = "torque_gauge"    # 力矩扳手：目标值 + 公差
     checklist = "checklist"          # 检查清单：多条勾选项
+    motion_timeline = "motion_timeline"  # 运动时序：分段动作 + 时间
+    flow_arrow = "flow_arrow"            # 流程箭头：前后依赖的操作序列
+    callout = "callout"                  # 气泡标注：单点强调
+    gate_state = "gate_state"            # 开关/闸门状态：开/半开/关
+    table = "table"                      # 表格：表头 + 行（竖线分隔单元格）
+    annotation = "annotation"            # 标注示意图：编号点 + 图例
 
 
 # 每个原语允许的参数键。未列出的键一律拒绝，防止 LLM 塞任意内容。
@@ -53,10 +59,29 @@ _ALLOWED_PARAMS: dict[Primitive, set[str]] = {
     Primitive.connector: {"pins", "note"},
     Primitive.torque_gauge: {"target", "tolerance", "unit"},
     Primitive.checklist: {"items"},
+    Primitive.motion_timeline: {"steps", "total", "label"},
+    Primitive.flow_arrow: {"steps", "label"},
+    Primitive.callout: {"target", "note", "position"},
+    Primitive.gate_state: {"state", "label", "note"},
+    Primitive.table: {"headers", "rows", "label"},
+    Primitive.annotation: {"title", "points", "note"},
+}
+
+# 必填参数：缺了就不是"降级成文字"，而是渲染出一张没有信息量的空图。
+# 校验放在服务端，模型才会收到明确的拒绝理由去补。
+_REQUIRED_PARAMS: dict[Primitive, set[str]] = {
+    Primitive.motion_timeline: {"steps"},
+    Primitive.flow_arrow: {"steps"},
+    Primitive.callout: {"target", "note"},
+    Primitive.gate_state: {"state"},
+    Primitive.table: {"headers", "rows"},
+    Primitive.annotation: {"points"},
 }
 
 # 公开给 prompt 使用：枚举值只在这里定义一次，避免"文档写一套、校验另一套"。
 STATE_VALUES = ("pass", "warn", "danger", "idle")
+GATE_STATES = ("open", "closed", "half")
+CALLOUT_POSITIONS = ("left", "right", "top", "bottom")
 
 
 def allowed_params() -> dict[str, list[str]]:
@@ -96,12 +121,57 @@ class VisualSpec(BaseModel):
         return v
 
     def validate_against_primitive(self) -> None:
-        """按原语校验参数键与枚举值。schema 层只做结构，语义在这里。"""
+        """按原语校验参数键、必填项与枚举值。schema 层只做结构，语义在这里。"""
         allowed = _ALLOWED_PARAMS[self.primitive]
         unknown = set(self.params) - allowed
         if unknown:
             raise ValueError(f"{self.primitive.value} 不支持参数: {sorted(unknown)}")
+
+        missing = _REQUIRED_PARAMS.get(self.primitive, set()) - set(self.params)
+        if missing:
+            raise ValueError(f"{self.primitive.value} 缺少必填参数: {sorted(missing)}")
+
         if self.primitive is Primitive.status_light:
             state = self.params.get("state")
             if state not in STATE_VALUES:
                 raise ValueError(f"status_light.state 必须是 {sorted(STATE_VALUES)}")
+
+        if self.primitive is Primitive.gate_state:
+            state = self.params.get("state")
+            if state not in GATE_STATES:
+                raise ValueError(f"gate_state.state 必须是 {sorted(GATE_STATES)}")
+
+        if self.primitive is Primitive.callout:
+            position = self.params.get("position", "right")
+            if position not in CALLOUT_POSITIONS:
+                raise ValueError(f"callout.position 必须是 {sorted(CALLOUT_POSITIONS)}")
+
+        if self.primitive is Primitive.motion_timeline:
+            steps = self.params.get("steps")
+            if not isinstance(steps, list) or not 2 <= len(steps) <= 6:
+                raise ValueError("motion_timeline.steps 必须是 2–6 项的字符串数组")
+
+        if self.primitive is Primitive.flow_arrow:
+            steps = self.params.get("steps")
+            if not isinstance(steps, list) or not 2 <= len(steps) <= 5:
+                raise ValueError("flow_arrow.steps 必须是 2–5 项的字符串数组")
+
+        if self.primitive is Primitive.annotation:
+            points = self.params.get("points")
+            if not isinstance(points, list) or not 1 <= len(points) <= 6:
+                raise ValueError("annotation.points 必须是 1–6 项的字符串数组")
+
+        if self.primitive is Primitive.table:
+            headers = self.params.get("headers")
+            rows = self.params.get("rows")
+            if not isinstance(headers, list) or not 2 <= len(headers) <= 4:
+                raise ValueError("table.headers 必须是 2–4 项的字符串数组")
+            if not isinstance(rows, list) or not 1 <= len(rows) <= 10:
+                raise ValueError("table.rows 必须是 1–10 项的字符串数组")
+            for row in rows:
+                # 行列不齐是表格最典型的模型错误：多给一列会被画到边界外，
+                # 少给一列会让后面的值整体左移，现场读到的就是错的标准。
+                if not isinstance(row, str) or len(row.split("|")) != len(headers):
+                    raise ValueError(
+                        f"table.rows 每行必须用 | 分成 {len(headers)} 格，与 headers 对齐"
+                    )

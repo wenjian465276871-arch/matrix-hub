@@ -25,7 +25,7 @@
 
 | 模块 | 做什么 | 关键约束 |
 |---|---|---|
-| **A2** 可视化作业指导书 | 工艺文本 → 结构化 JSON + 视觉 DSL → 前端渲染（步骤卡 / 判据 / 7 种 SVG 图元 / 安全提示）；可附**现场素材**（截图/照片），生成后在草稿页挂到对应步骤 | 模型只输出**受 schema 约束的规格**，不输出 HTML/JS；图元是构建期枚举，渲染失败降级为文字；**图片只排版不识别**——模型看不到图，位置由人挂 |
+| **A2** 可视化作业指导书 | 工艺文本 → 结构化 JSON + 视觉 DSL → 前端渲染（步骤卡 / 判据 / 13 种 SVG 图元 / 安全提示）；可附**现场素材**（截图/照片），生成后在草稿页挂到对应步骤；可选**图片识别**，结果只回填文本、必须人工核对 | 模型只输出**受 schema 约束的规格**，不输出 HTML/JS；图元是构建期枚举，渲染失败降级为文字；**生成链路模型看不到图**，位置由人挂；识别是独立入口，数值不在转录里就清空 |
 | **A1** 交互式作业引导 | 逐步执行、提交实测值、服务端判据校验、失败不推进、复测留痕、**每步耗时**、记录可打印 | 判定在**服务端**算；改请求体塞 `verdict:"pass"` 无效；复测是**新增 attempt**，不覆盖旧记录；耗时按"本步最后一次提交 − 上一步最后一次提交"算，复测计入本步 |
 | **B** 故障排查 | 现象 → 混合召回（关键词 + 稀疏向量）→ 受限重排 → **逐步诊断故障树**（回填实测值、服务端判定、异常即收敛） | 模型**只排序不写事实**：候选 id 之外的输出一律丢弃；条目、阈值、处置全部来自人工整理的公开资料改写 |
 
@@ -58,7 +58,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **217 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **259 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 错误可追溯 | 500 返回统一 JSON + 8 位 `ref`，响应头带 `X-Request-Id` | 任意错误请求观察响应 |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
@@ -67,8 +67,8 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 前端首屏 | **41.47 KB** gzip（预算 75KB），CSS **6.10 KB**（预算 14KB） | `npm run build` |
 | 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 100** / LCP **1.31s** / CLS **0** / TBT **70ms**；指导书页 **99** / **1.29s** / **0** / **124.5ms** | Lighthouse 13.5 + `scripts/lighthouse.mjs`（2026-10-23 线上） |
 | 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
-| 契约面 | **26 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
-| 前端 E2E | **4 条冒烟**：列表→引导→刷新保持、B 命中、B 未覆盖、**B 逐步诊断收敛** | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
+| 契约面 | **30 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
+| 前端 E2E | **6 条冒烟**：列表→引导→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检 | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
 
 ### 4.1 这组数字是怎么来的，以及它抓到了什么
 
@@ -114,7 +114,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 不做 | 原因 |
 |---|---|
 | **不引入 embedding 服务与向量库** | 18 条知识库用**进程内** n-gram/IDF 稀疏向量 + 人工关键词就够：Top-3 21/21、P95 4.2ms、零外部依赖。条目上万再上 embedding 与向量库——`KnowledgeProvider` 已是替换点，路由与返回结构不用动 |
-| **不做运行时 Agent 代码生成** | 图元是构建期固定的 7 个原语，模型只输出参数。现场要的是**可预期**：同一份输入渲染结果稳定，出问题能定位到哪一行规格 |
+| **不做运行时 Agent 代码生成** | 图元是构建期固定的 13 个原语，模型只输出参数。现场要的是**可预期**：同一份输入渲染结果稳定，出问题能定位到哪一行规格 |
 | **不上多容器 / 消息队列** | 2C2G 上 broker 的运维成本大于收益。单 worker 有界队列，队满直接 503——比无限堆线程诚实。代价写在 `OPERATIONS.md` 的"待补"里 |
 
 另外明确不做：多轮对话式排查（决策记录在案）、后台管理页（没有鉴权就不做后台，发布走 CLI）、暗色皮肤（皮肤不是能力）。
@@ -161,7 +161,7 @@ python -m scripts.cleanup --apply                    # 清理 30/180/90/365 天�
 
 ```
 apps/electro-assist/api   FastAPI：models / routers / services / store / llm / knowledge / scripts / tests
-apps/electro-assist/web   Vue 3 + TS：views / figures（7 原语）/ lib/http.ts / styles
+apps/electro-assist/web   Vue 3 + TS：views / figures（13 原语）/ lib/http.ts / styles
 apps/portal/public        门户首页（自包含，零外链）
 archive/                  不构建、不服务的历史代码（particle-system-legacy / portal-legacy，ADR-0003）
 docker/                   Dockerfile（多阶段）/ Caddyfile / compose.yml / supervisord.conf
@@ -179,11 +179,11 @@ docs/                     文档索引、架构、运维、接口、演示、开
 |---|---|
 | [文档索引](docs/README.md) | 按"想了解什么"组织的入口 |
 | [架构与取舍](docs/ARCHITECTURE.md) | 拓扑、请求链路、LLM 层、B 为什么只让模型排序 |
-| [视觉规范](docs/UI.md) | 令牌、组件、7 个 SVG 原语、打印（as-built） |
+| [视觉规范](docs/UI.md) | 令牌、组件、13 个 SVG 原语、打印（as-built） |
 | [交互规范](docs/UX.md) | 页面与路由、三条流程、状态与边界（as-built） |
 | [前端实现](docs/FRONTEND.md) | 工程结构、网络层、性能预算、已知坑（as-built） |
 | [部署与回滚](docs/OPERATIONS.md) | 部署/回滚/证书/备份/事故处置/发布 CLI |
-| [API 参考](docs/API.md) | 27 个端点（业务 26 + 健康检查），由 OpenAPI 导出 |
+| [API 参考](docs/API.md) | 31 个端点（业务 30 + 健康检查），由 OpenAPI 导出 |
 | [开发指南](docs/DEVELOPMENT.md) | 本地起站、测试、构建、约定与常见坑 |
 | [演示脚本](docs/DEMO.md) | 5 分钟闭环演示 |
 | [案例来源](docs/SOURCES.md) | 合规清单与登记规则 |

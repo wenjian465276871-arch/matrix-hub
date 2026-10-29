@@ -1,8 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError, getJson, postForm, postJson } from '../lib/http'
-import type { GenerateAccepted, JobSnapshot, QuotaSnapshot, UploadedAsset } from '../types'
+import type {
+  ExtractResult,
+  GenerateAccepted,
+  JobSnapshot,
+  ProcessPrecheck,
+  QuotaSnapshot,
+  UploadedAsset,
+} from '../types'
 
 const router = useRouter()
 
@@ -81,6 +88,32 @@ function fillSample(): void {
   text.value = SAMPLE_TEXT
 }
 
+/* ---------- 结构化预检 ----------
+ * 提交前先看一眼"系统认出了什么、缺什么"。它不调模型、不扣次数，
+ * 所以可以随便点——这也是它存在的理由：让人觉得"先检查一下"是零成本的。 */
+const precheck = ref<ProcessPrecheck | null>(null)
+const precheckBusy = ref(false)
+const precheckError = ref('')
+
+async function runPrecheck(): Promise<void> {
+  if (precheckBusy.value || !text.value.trim()) return
+  precheckBusy.value = true
+  precheckError.value = ''
+  try {
+    precheck.value = await postJson<ProcessPrecheck>('/api/electro/processes', {
+      text: text.value,
+    })
+  } catch (err) {
+    precheck.value = null
+    precheckError.value =
+      err instanceof ApiError && err.code === 'input_too_short'
+        ? '文本太短，先写至少 10 个字。'
+        : '预检失败，不影响直接生成。'
+  } finally {
+    precheckBusy.value = false
+  }
+}
+
 function uploadErrorText(err: unknown): string {
   if (!(err instanceof ApiError)) return '上传失败，请检查网络后重试。'
   switch (err.code) {
@@ -148,6 +181,166 @@ async function onPickFiles(event: Event): Promise<void> {
 
 function removeAsset(index: number): void {
   staged.value.splice(index, 1)
+}
+
+/* ---------- 切图选择 ----------
+ * 整页截图直接入稿，字只有几像素；切块是"同一张图的局部放大"。
+ * 采纳 = 把切块复制成一个独立素材（后端做），这里只负责让人挑哪一块。
+ * 注意：不做自动选择——切图算法不知道哪块是"判据表"，猜错等于给了错的依据。 */
+interface SliceRegion {
+  id: string
+  reason: 'full' | 'table_band' | 'table' | 'dense_text'
+  bbox: number[]
+  scale: number
+  width: number
+  height: number
+  path: string
+  bytes: number
+}
+
+const REGION_LABEL: Record<SliceRegion['reason'], string> = {
+  full: '整图',
+  table_band: '表格行带',
+  table: '表格区',
+  dense_text: '密集文字',
+}
+
+const sliceFor = ref<StagedAsset | null>(null)
+const sliceRegions = ref<SliceRegion[]>([])
+const sliceNote = ref('')
+const sliceBusy = ref(false)
+const sliceAdopting = ref('')
+const sliceError = ref('')
+const sliceCloseBtn = ref<HTMLButtonElement | null>(null)
+
+async function openSlice(item: StagedAsset): Promise<void> {
+  if (sliceBusy.value) return
+  sliceFor.value = item
+  sliceRegions.value = []
+  sliceNote.value = ''
+  sliceError.value = ''
+  sliceBusy.value = true
+  try {
+    const res = await postJson<{ regions: SliceRegion[]; note: string }>(
+      `/api/electro/uploads/${item.asset_id}/slice`,
+      {},
+    )
+    sliceRegions.value = res.regions
+    sliceNote.value = res.note
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'slice_limit') {
+      sliceError.value = '这张图已经切过多次，达到上限；请重新上传。'
+    } else if (err instanceof ApiError && err.kind === 'ratelimit') {
+      sliceError.value = err.message || '切图过于频繁，请稍后再试。'
+    } else {
+      sliceError.value = err instanceof ApiError ? err.message : '切图失败，请稍后再试。'
+    }
+  } finally {
+    sliceBusy.value = false
+    await nextTick()
+    sliceCloseBtn.value?.focus()
+  }
+}
+
+function closeSlice(): void {
+  sliceFor.value = null
+  sliceRegions.value = []
+  sliceError.value = ''
+}
+
+async function adoptRegion(region: SliceRegion): Promise<void> {
+  const source = sliceFor.value
+  if (!source || sliceAdopting.value) return
+  sliceAdopting.value = region.id
+  sliceError.value = ''
+  try {
+    const res = await postJson<UploadedAsset>(
+      `/api/electro/uploads/${source.asset_id}/slice/${region.id}/adopt`,
+      {},
+    )
+    const adopted: StagedAsset = {
+      asset_id: res.asset_id,
+      caption: source.caption,
+      url: `/api/electro/uploads/${res.asset_id}/${res.asset_id}.png`,
+    }
+    if (staged.value.length < MAX_ASSETS) {
+      staged.value.push(adopted)
+    } else {
+      // 位置满了就替换原图：用户点"选区域"的意图本来就是"用这一块代替整页"。
+      const index = staged.value.findIndex((item) => item.asset_id === source.asset_id)
+      if (index >= 0) staged.value.splice(index, 1, adopted)
+    }
+    closeSlice()
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'adopt_limit') {
+      sliceError.value = '这张图采纳次数已达上限，请重新上传。'
+    } else {
+      sliceError.value = err instanceof ApiError ? err.message : '采纳失败，请稍后再试。'
+    }
+  } finally {
+    sliceAdopting.value = ''
+  }
+}
+
+/* ---------- 图片识别 ----------
+ * 识别结果只回填到文本框，不直接生成：模型读图会漏行、会改写，
+ * 人必须对着原图确认一遍。这也是它不自动发布的原因。 */
+const extractBusy = ref(false)
+const extractResult = ref<ExtractResult | null>(null)
+const extractError = ref('')
+
+async function runExtract(): Promise<void> {
+  if (extractBusy.value || !staged.value.length) return
+  extractBusy.value = true
+  extractError.value = ''
+  try {
+    extractResult.value = await postJson<ExtractResult>('/api/electro/extract', {
+      asset_ids: staged.value.slice(0, 3).map((item) => item.asset_id),
+    })
+  } catch (err) {
+    extractResult.value = null
+    if (err instanceof ApiError && err.code === 'vision_not_configured') {
+      extractError.value = '服务端未配置视觉模型，图片识别不可用；可以手工录入文本。'
+    } else if (err instanceof ApiError && err.kind === 'ratelimit') {
+      extractError.value = err.message || '识别过于频繁，请稍后再试。'
+    } else if (err instanceof ApiError && err.code === 'extract_invalid') {
+      extractError.value = '这张图没读出可用的结构，换一张更清晰的截图试试。'
+    } else {
+      extractError.value = err instanceof ApiError ? err.message : '识别失败，请稍后再试。'
+    }
+  } finally {
+    extractBusy.value = false
+  }
+}
+
+function composeExtraction(result: ExtractResult): string {
+  const { fields } = result
+  const lines: string[] = []
+  if (fields.name) lines.push(`工序：${fields.name}`)
+  if (fields.station) lines.push(`工位：${fields.station}`)
+  if (fields.tools.length) lines.push(`工具：${fields.tools.join('、')}`)
+  fields.steps.forEach((step, index) => {
+    const criterion = step.criterion ? `（判据 ${step.criterion}）` : ''
+    lines.push(`${index + 1}. ${step.action}${criterion}`)
+  })
+  if (fields.safety.length) lines.push(`安全提示：${fields.safety.join('；')}`)
+  return lines.join('\n')
+}
+
+function applyExtraction(): void {
+  if (!extractResult.value) return
+  const block = composeExtraction(extractResult.value)
+  if (!block) {
+    extractError.value = '没识别到可回填的内容。'
+    return
+  }
+  text.value = text.value.trim() ? `${text.value.trim()}\n\n${block}` : block
+  extractResult.value = null
+}
+
+function clearExtraction(): void {
+  extractResult.value = null
+  extractError.value = ''
 }
 
 function humanError(code: string | null, fallback: string | null): string {
@@ -399,7 +592,44 @@ onBeforeUnmount(stopTimers)
     <div class="row">
       <span class="hint">{{ text.trim().length }} / {{ MAX_CHARS }} 字符</span>
       <button class="btn" type="button" :disabled="busy" @click="fillSample">填入示例</button>
+      <button
+        class="btn btn--ghost"
+        type="button"
+        :disabled="busy || precheckBusy || !text.trim()"
+        @click="runPrecheck"
+      >
+        {{ precheckBusy ? '预检中…' : '结构化预检' }}
+      </button>
     </div>
+
+    <p v-if="precheckError" class="asset-error" role="alert">{{ precheckError }}</p>
+
+    <section v-if="precheck" class="precheck" aria-live="polite">
+      <div class="precheck__head">
+        <strong>结构化预检</strong>
+        <span class="hint">不消耗次数、不调用模型</span>
+        <button class="linkbtn" type="button" @click="precheck = null">收起</button>
+      </div>
+      <p v-if="precheck.missing.length" class="precheck__missing">
+        缺：{{ precheck.missing.join('、') }}——生成时会留空，不会替你编。
+      </p>
+      <p v-else class="hint">字段齐全，可以直接生成。</p>
+      <p class="hint">
+        识别到 {{ precheck.stats.steps }} 步，其中
+        {{ precheck.stats.steps_with_criterion }} 步带可核对判据。
+      </p>
+      <ol v-if="precheck.process.steps.length" class="precheck__steps">
+        <li v-for="step in precheck.process.steps" :key="step.seq">
+          <span>{{ step.action }}</span>
+          <span v-if="step.criterion_hint" class="precheck__criterion">
+            判据 {{ step.criterion_hint }}
+          </span>
+        </li>
+      </ol>
+      <p v-for="(warning, index) in precheck.warnings" :key="index" class="hint">
+        · {{ warning }}
+      </p>
+    </section>
 
     <section class="assets">
       <div class="assets__head">
@@ -418,10 +648,18 @@ onBeforeUnmount(stopTimers)
             @change="onPickFiles"
           />
         </label>
+        <button
+          class="btn btn--ghost"
+          type="button"
+          :disabled="busy || extractBusy || !staged.length"
+          @click="runExtract"
+        >
+          {{ extractBusy ? '识别中…' : '识别图中内容' }}
+        </button>
       </div>
       <p class="hint">
-        图片只做排版，不做识别：系统不会替你判断图里是什么，挂到哪一步由你在草稿页决定。
-        请勿上传含企业名称、工号、图纸编号等敏感信息的截图。
+        图片可用于排版（挂到哪一步由你在草稿页决定），也可以点「识别图中内容」转成文本草稿；
+        识别会把图片发送到模型服务，结果必须对着原图核对。请勿上传含企业名称、工号、图纸编号等敏感信息的截图。
       </p>
       <p v-if="assetError" class="asset-error" role="alert">{{ assetError }}</p>
 
@@ -448,9 +686,55 @@ onBeforeUnmount(stopTimers)
             <button class="linkbtn" type="button" :disabled="busy" @click="removeAsset(index)">
               移除
             </button>
+            <button class="linkbtn" type="button" :disabled="busy" @click="openSlice(item)">
+              选择区域
+            </button>
           </div>
         </li>
       </ul>
+
+      <section v-if="extractResult || extractError" class="extract" aria-live="polite">
+        <div class="extract__head">
+          <strong>识别结果</strong>
+          <span class="hint">只做录入，不自动生成</span>
+          <button class="linkbtn" type="button" @click="clearExtraction">关闭</button>
+        </div>
+
+        <p v-if="extractError" class="asset-error" role="alert">{{ extractError }}</p>
+
+        <template v-if="extractResult">
+          <p class="extract__note">{{ extractResult.disclaimer }}</p>
+          <p class="hint">
+            转录 {{ extractResult.stats.lines }} 行，识别 {{ extractResult.stats.steps }} 步，其中
+            {{ extractResult.stats.verified_steps }} 步逐字匹配原文。
+          </p>
+          <p
+            v-for="(item, index) in extractResult.unverified.slice(0, 6)"
+            :key="`u-${index}`"
+            class="asset-error"
+          >
+            · {{ item }}
+          </p>
+          <p v-if="extractResult.unverified.length > 6" class="hint">
+            另有 {{ extractResult.unverified.length - 6 }} 处待核对。
+          </p>
+          <p v-for="(item, index) in extractResult.warnings" :key="`w-${index}`" class="hint">
+            · {{ item }}
+          </p>
+
+          <details class="extract__lines">
+            <summary>查看转录原文（{{ extractResult.lines.length }} 行）</summary>
+            <pre class="extract__pre">{{ extractResult.lines.join('\n') }}</pre>
+          </details>
+
+          <div class="row">
+            <button class="btn btn--primary" type="button" @click="applyExtraction">
+              填入工艺文本
+            </button>
+            <button class="btn" type="button" @click="extractResult = null">放弃</button>
+          </div>
+        </template>
+      </section>
     </section>
 
     <div v-if="quota" class="quota">
@@ -516,6 +800,56 @@ onBeforeUnmount(stopTimers)
       {{ lastJobFailed ? '免费重试一次' : '重试' }}
     </button>
   </div>
+
+  <div
+    v-if="sliceFor"
+    class="sheet"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="slice-title"
+    tabindex="-1"
+    @click.self="closeSlice"
+    @keydown.esc="closeSlice"
+  >
+    <div class="sheet__panel">
+      <header class="sheet__head">
+        <h2 id="slice-title" class="sheet__title">选择区域</h2>
+        <button ref="sliceCloseBtn" class="linkbtn" type="button" @click="closeSlice">
+          关闭
+        </button>
+      </header>
+      <p class="hint">
+        切块是同一张图的局部放大。选中后它会作为一张新素材加入草稿，原图保留。
+      </p>
+      <p v-if="sliceError" class="asset-error" role="alert">{{ sliceError }}</p>
+      <p v-if="sliceBusy" class="hint" aria-live="polite">正在切图…</p>
+      <p v-else-if="sliceNote" class="hint">{{ sliceNote }}</p>
+
+      <ul v-if="sliceRegions.length" class="slice-grid">
+        <li v-for="region in sliceRegions" :key="region.id" class="slice-card">
+          <img
+            class="slice-card__img"
+            :src="`/api/electro/uploads/${sliceFor.asset_id}/${region.path}`"
+            :alt="`${REGION_LABEL[region.reason]} ${region.width}×${region.height}`"
+            loading="lazy"
+            decoding="async"
+          />
+          <div class="slice-card__meta">
+            <span>{{ REGION_LABEL[region.reason] }}</span>
+            <span class="mono">{{ region.width }}×{{ region.height }}</span>
+          </div>
+          <button
+            class="btn btn--ghost"
+            type="button"
+            :disabled="!!sliceAdopting"
+            @click="adoptRegion(region)"
+          >
+            {{ sliceAdopting === region.id ? '加入中…' : '用这块' }}
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -546,10 +880,52 @@ onBeforeUnmount(stopTimers)
 
 .row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   margin-top: 10px;
+}
+
+/* 预检结果：贴在被检文本下面，而不是弹窗——改一个字就要重看一次，弹窗会挡路。 */
+.precheck {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--c-line);
+  border-radius: 8px;
+  background: var(--c-bg);
+}
+
+.precheck__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.precheck__head .linkbtn {
+  margin-left: auto;
+}
+
+.precheck__missing {
+  margin: 4px 0;
+  color: var(--c-warning);
+  font-size: 13px;
+}
+
+.precheck__steps {
+  margin: 8px 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.precheck__criterion {
+  margin-left: 8px;
+  color: var(--c-primary-ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
 }
 
 .quota {
@@ -575,9 +951,55 @@ onBeforeUnmount(stopTimers)
 
 .assets__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+/* 识别结果：一段带原文的"待确认草稿"，不是成品。视觉上要弱于正文，
+   但 unverified 必须显眼——那几行是"模型写了、图里没有"的地方。 */
+.extract {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--c-line);
+  border-radius: 8px;
+  background: var(--c-bg);
+}
+
+.extract__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.extract__head .linkbtn {
+  margin-left: auto;
+}
+
+.extract__note {
+  margin: 6px 0;
+  color: var(--c-warning);
+  font-size: 13px;
+}
+
+.extract__lines {
+  margin: 8px 0;
+  font-size: 13px;
+}
+
+.extract__pre {
+  max-height: 220px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding: 8px;
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  background: var(--c-surface);
+  font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace);
+  font-size: 12px;
+  white-space: pre-wrap;
 }
 
 .field-label--inline {
@@ -707,5 +1129,87 @@ onBeforeUnmount(stopTimers)
   margin-left: 8px;
   color: var(--c-ink-3);
   font-size: 13px;
+}
+
+/* 切图选择弹层：移动端从底部上来，桌面端居中；宽度用 min() 而不是媒体查询，
+   390px 与 1280px 共用一套规则，少一个断点就少一处漏改。 */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgb(18 24 28 / 55%);
+  padding: 0;
+}
+
+.sheet__panel {
+  width: min(560px, 100%);
+  max-height: 86vh;
+  overflow-y: auto;
+  padding: 16px;
+  border-radius: 12px 12px 0 0;
+  background: var(--c-surface);
+  box-shadow: 0 -8px 24px rgb(18 24 28 / 18%);
+}
+
+.sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.sheet__title {
+  margin: 0;
+  font-size: 16px;
+}
+
+.slice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.slice-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border: 1px solid var(--c-line);
+  border-radius: 8px;
+  background: var(--c-bg);
+}
+
+.slice-card__img {
+  width: 100%;
+  height: 108px;
+  object-fit: contain;
+  border-radius: 4px;
+  background: var(--c-surface);
+}
+
+.slice-card__meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  color: var(--c-ink-3);
+  font-size: 12px;
+}
+
+@media (min-width: 640px) {
+  .sheet {
+    align-items: center;
+    padding: 24px;
+  }
+
+  .sheet__panel {
+    border-radius: 12px;
+  }
 }
 </style>

@@ -117,7 +117,67 @@ class DeepSeekProvider:
 
         latency_ms = int((time.monotonic() - started) * 1000)
         self._raise_for_status(resp)
+        return self._parse(resp, latency_ms)
 
+    def vision(
+        self,
+        *,
+        system: str,
+        user: str,
+        images: list[str],
+        timeout_s: float,
+        max_tokens: int = 2048,
+    ) -> Completion:
+        """图片 + 文字 → 文本。`images` 是 data URL（`data:image/png;base64,...`）。
+
+        刻意不开 `response_format=json_object`：多模态 + JSON 模式在部分模型上
+        会互相打架（要么忽略 JSON 约束，要么把图当附件不读）。这里靠提示词约束，
+        再用 `extract_json` 做有限容错——与生成链路同一套解析策略。
+        """
+        if not images:
+            raise ValueError("vision 调用缺少图片")
+
+        content: list[dict[str, Any]] = [{"type": "text", "text": user}]
+        content.extend(
+            {"type": "image_url", "image_url": {"url": url, "detail": "high"}}
+            for url in images
+        )
+
+        body = {
+            "model": self.name,
+            "messages": [
+                {"role": "system", "content": system},
+                {"role": "user", "content": content},
+            ],
+            "max_tokens": max_tokens,
+            "temperature": 0.0,
+            "stream": False,
+        }
+
+        started = time.monotonic()
+        try:
+            resp = self._client.post(
+                "/chat/completions",
+                json=body,
+                timeout=httpx.Timeout(
+                    connect=max(1.0, min(5.0, timeout_s)),
+                    read=timeout_s,
+                    write=max(1.0, min(10.0, timeout_s)),
+                    pool=max(1.0, min(5.0, timeout_s)),
+                ),
+            )
+        except httpx.TimeoutException as exc:
+            raise LLMError("timeout", f"图片识别超过 {timeout_s:.0f}s") from exc
+        except httpx.HTTPError as exc:
+            raise LLMError("network", f"网络错误（{type(exc).__name__}）") from exc
+
+        latency_ms = int((time.monotonic() - started) * 1000)
+        self._raise_for_status(resp)
+        return self._parse(resp, latency_ms)
+
+    # ------------------------------------------------------------------ 内部
+
+    def _parse(self, resp: httpx.Response, latency_ms: int) -> Completion:
         try:
             data = resp.json()
         except ValueError as exc:
@@ -162,8 +222,6 @@ class DeepSeekProvider:
             finish_reason=finish_reason,
             latency_ms=latency_ms,
         )
-
-    # ------------------------------------------------------------------ 内部
 
     @staticmethod
     def _raise_for_status(resp: httpx.Response) -> None:

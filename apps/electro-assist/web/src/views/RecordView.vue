@@ -19,6 +19,16 @@ const VERDICT_LABEL: Record<Verdict, string> = {
   skipped: '未执行',
 }
 
+const DIAG_STATUS_LABEL: Record<string, string> = {
+  active: '进行中',
+  concluded: '已出结论',
+  aborted: '已中止',
+}
+
+function diagStatusLabel(status: string): string {
+  return DIAG_STATUS_LABEL[status] ?? status
+}
+
 const statusLabel = computed(() => {
   const status = report.value?.summary.status
   if (status === 'done') return '已完成'
@@ -128,6 +138,9 @@ onMounted(load)
           <button class="btn btn--primary" type="button" @click="printRecord">
             打印 / 导出 PDF
           </button>
+          <a class="btn" :href="`/api/electro/records/${report.session.id}/export.html`" download>
+            导出 HTML
+          </a>
           <button class="btn" type="button" @click="backToGuide">返回指导书</button>
         </div>
       </header>
@@ -213,6 +226,29 @@ onMounted(load)
             <li v-for="message in item.messages" :key="message">{{ message }}</li>
           </ul>
           <p v-if="item.note" class="attempt-note">备注：{{ item.note }}</p>
+        </div>
+      </section>
+
+      <section v-if="report.diagnoses.length" class="card exception-box">
+        <h2 class="section-title">关联排查结论</h2>
+        <div v-for="run in report.diagnoses" :key="run.id" class="diag-item">
+          <p class="exception-head">
+            {{ run.symptom }}
+            <span class="chip-plain">{{ diagStatusLabel(run.status) }}</span>
+            <span class="attempt-time">{{ run.checks }} 项检查</span>
+          </p>
+          <p v-if="run.conclusion?.cause" class="attempt-note">
+            定位：{{ run.conclusion.cause }}
+          </p>
+          <p v-if="run.conclusion?.action" class="attempt-note">
+            处置：{{ run.conclusion.action }}
+          </p>
+          <router-link
+            class="linkbtn no-print"
+            :to="{ name: 'diagnose', query: { symptom: run.symptom } }"
+          >
+            按此现象再查
+          </router-link>
         </div>
       </section>
     </template>
@@ -439,6 +475,25 @@ onMounted(load)
 .exception-item {
   padding: 10px 0;
   border-top: 1px dashed var(--c-line-soft);
+}
+
+/* B 的结论块：与异常链同一套排版，但状态用中性标签——它是"另一个页面的结果"，
+   不该抢异常链的红色。 */
+.diag-item {
+  padding: 10px 0;
+  border-top: 1px dashed var(--c-line-soft);
+}
+
+.diag-item:first-of-type {
+  border-top: none;
+}
+
+.chip-plain {
+  padding: 0 6px;
+  border: 1px solid var(--c-line);
+  border-radius: 3px;
+  color: var(--c-ink-2);
+  font-size: 12px;
 }
 
 .exception-item:first-of-type {

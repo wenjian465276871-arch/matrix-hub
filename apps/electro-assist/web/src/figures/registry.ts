@@ -5,11 +5,17 @@
  *  新增原语必须同时改后端枚举、`_ALLOWED_PARAMS` 和这里，三处缺一不可。
  */
 import type { Component } from 'vue'
+import Annotation from './primitives/Annotation.vue'
+import Callout from './primitives/Callout.vue'
 import Checklist from './primitives/Checklist.vue'
 import Connector from './primitives/Connector.vue'
+import FlowArrow from './primitives/FlowArrow.vue'
+import GateState from './primitives/GateState.vue'
 import Meter from './primitives/Meter.vue'
+import MotionTimeline from './primitives/MotionTimeline.vue'
 import StatusLight from './primitives/StatusLight.vue'
 import StepCard from './primitives/StepCard.vue'
+import Table from './primitives/Table.vue'
 import TorqueGauge from './primitives/TorqueGauge.vue'
 import Wiring from './primitives/Wiring.vue'
 
@@ -21,4 +27,10 @@ export const FIGURES: Record<string, Component> = {
   connector: Connector,
   torque_gauge: TorqueGauge,
   checklist: Checklist,
+  motion_timeline: MotionTimeline,
+  flow_arrow: FlowArrow,
+  callout: Callout,
+  gate_state: GateState,
+  table: Table,
+  annotation: Annotation,
 }

@@ -295,11 +295,32 @@ def report(session_id: str) -> dict:
     def count(verdict: str) -> int:
         return sum(1 for r in latest if r["verdict"] == verdict)
 
+    # B 的结论必须回到 A1 的记录里：现场是"照着 A1 做、做不下去转 B"，
+    # 报告却只留 A1 的异常，等于把排查结论丢在了另一个页面。
+    # 这里按 session_id 关联，不复制结论内容——诊断改了，记录跟着改。
+    diagnoses = []
+    for run in store.list_diagnose_runs_by_session(session_id):
+        conclusion = run.get("conclusion") or None
+        diagnoses.append(
+            {
+                "id": run["id"],
+                "symptom": run["symptom"],
+                "system": run["system"],
+                "status": run["status"],
+                "current_order": run["current_order"],
+                "conclusion": conclusion,
+                "created_at": run["created_at"],
+                "finished_at": run["finished_at"],
+                "checks": len(store.list_diagnose_steps(run["id"])),
+            }
+        )
+
     return {
         "session": session,
         "guide": guide_dict,
         "steps": steps,
         "exceptions": exceptions,
+        "diagnoses": diagnoses,
         "summary": {
             "status": session["status"],
             "total_steps": len(guide.steps),

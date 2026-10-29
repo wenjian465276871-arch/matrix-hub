@@ -127,3 +127,119 @@ def test_slice_capped_per_asset(tmp_uploads, monkeypatch):
 
     meta = client.get(f"/api/electro/uploads/{up['asset_id']}").json()
     assert meta["slice_calls"] == 1
+
+
+# ---- 切块采纳（2026-10-29）--------------------------------------------------
+# 切块不是 asset：`assets.exists()` 只认 `<id>/<id>.png + meta.json`。
+# 采纳 = 复制成独立 asset，引用层因此不需要理解两种形态。
+
+
+def _slice_once(tmp_uploads) -> tuple[str, dict]:
+    up = client.post(
+        "/api/electro/uploads", files={"file": ("p.jpg", _make_page(), "image/jpeg")}
+    ).json()
+    sliced = client.post(f"/api/electro/uploads/{up['asset_id']}/slice").json()
+    return up["asset_id"], sliced
+
+
+def test_adopt_region_creates_usable_asset(tmp_uploads):
+    asset_id, sliced = _slice_once(tmp_uploads)
+    region = next(r for r in sliced["regions"] if r["reason"] != "full")
+
+    r = client.post(f"/api/electro/uploads/{asset_id}/slice/{region['id']}/adopt")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["asset_id"] != asset_id
+    assert body["derived_from"] == asset_id
+    assert body["region_id"] == region["id"]
+    assert body["stored_width"] > 0 and body["stored_height"] > 0
+
+    png = client.get(f"/api/electro/uploads/{body['asset_id']}/{body['asset_id']}.png")
+    assert png.status_code == 200
+    assert png.headers["content-type"] == "image/png"
+
+
+def test_adopt_rejects_region_from_another_asset(tmp_uploads):
+    asset_id, _ = _slice_once(tmp_uploads)
+    other = client.post(
+        "/api/electro/uploads", files={"file": ("p.jpg", _make_page(), "image/jpeg")}
+    ).json()["asset_id"]
+    r = client.post(f"/api/electro/uploads/{asset_id}/slice/{other}-table-1/adopt")
+    assert r.status_code == 400
+    assert r.json()["detail"]["code"] == "bad_region_id"
+
+
+def test_adopt_missing_region_returns_404(tmp_uploads):
+    asset_id, _ = _slice_once(tmp_uploads)
+    r = client.post(f"/api/electro/uploads/{asset_id}/slice/{asset_id}-table-9/adopt")
+    assert r.status_code == 404
+    assert r.json()["detail"]["code"] == "region_not_found"
+
+
+def test_adopt_capped_per_source_asset(tmp_uploads, monkeypatch):
+    monkeypatch.setenv("MAX_ADOPTS_PER_ASSET", "1")
+    asset_id, sliced = _slice_once(tmp_uploads)
+    region = next(r for r in sliced["regions"] if r["reason"] != "full")
+
+    assert client.post(f"/api/electro/uploads/{asset_id}/slice/{region['id']}/adopt").status_code == 200
+    r = client.post(f"/api/electro/uploads/{asset_id}/slice/{region['id']}/adopt")
+    assert r.status_code == 429
+    assert r.json()["detail"]["code"] == "adopt_limit"
+
+
+# ---- 切块采纳（2026-10-29）--------------------------------------------------
+# 切块不是 asset：`assets.exists()` 只认 `<id>/<id>.png + meta.json`。
+# 采纳 = 复制成独立 asset，引用层因此不需要理解两种形态。
+
+
+def _slice_once(tmp_uploads) -> tuple[str, dict]:
+    up = client.post(
+        "/api/electro/uploads", files={"file": ("p.jpg", _make_page(), "image/jpeg")}
+    ).json()
+    sliced = client.post(f"/api/electro/uploads/{up['asset_id']}/slice").json()
+    return up["asset_id"], sliced
+
+
+def test_adopt_region_creates_usable_asset(tmp_uploads):
+    asset_id, sliced = _slice_once(tmp_uploads)
+    region = next(r for r in sliced["regions"] if r["reason"] != "full")
+
+    r = client.post(f"/api/electro/uploads/{asset_id}/slice/{region['id']}/adopt")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["asset_id"] != asset_id
+    assert body["derived_from"] == asset_id
+    assert body["region_id"] == region["id"]
+    assert body["stored_width"] > 0 and body["stored_height"] > 0
+
+    png = client.get(f"/api/electro/uploads/{body['asset_id']}/{body['asset_id']}.png")
+    assert png.status_code == 200
+    assert png.headers["content-type"] == "image/png"
+
+
+def test_adopt_rejects_region_from_another_asset(tmp_uploads):
+    asset_id, _ = _slice_once(tmp_uploads)
+    other = client.post(
+        "/api/electro/uploads", files={"file": ("p.jpg", _make_page(), "image/jpeg")}
+    ).json()["asset_id"]
+    r = client.post(f"/api/electro/uploads/{asset_id}/slice/{other}-table-1/adopt")
+    assert r.status_code == 400
+    assert r.json()["detail"]["code"] == "bad_region_id"
+
+
+def test_adopt_missing_region_returns_404(tmp_uploads):
+    asset_id, _ = _slice_once(tmp_uploads)
+    r = client.post(f"/api/electro/uploads/{asset_id}/slice/{asset_id}-table-9/adopt")
+    assert r.status_code == 404
+    assert r.json()["detail"]["code"] == "region_not_found"
+
+
+def test_adopt_capped_per_source_asset(tmp_uploads, monkeypatch):
+    monkeypatch.setenv("MAX_ADOPTS_PER_ASSET", "1")
+    asset_id, sliced = _slice_once(tmp_uploads)
+    region = next(r for r in sliced["regions"] if r["reason"] != "full")
+
+    assert client.post(f"/api/electro/uploads/{asset_id}/slice/{region['id']}/adopt").status_code == 200
+    r = client.post(f"/api/electro/uploads/{asset_id}/slice/{region['id']}/adopt")
+    assert r.status_code == 429
+    assert r.json()["detail"]["code"] == "adopt_limit"

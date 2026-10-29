@@ -16,9 +16,11 @@ from fastapi.responses import JSONResponse
 
 import store
 from routers import diagnose as diagnose_router
+from routers import extract as extract_router
 from routers import guides as guides_router
 from routers import jobs as jobs_router
 from routers import passcode as passcode_router
+from routers import processes as processes_router
 from routers import quota as quota_router
 from routers import records as records_router
 from routers import schema as schema_router
@@ -112,7 +114,9 @@ async def unhandled_error(request: Request, exc: Exception):
 
 
 app.include_router(schema_router.router)
+app.include_router(processes_router.router)
 app.include_router(uploads_router.router)
+app.include_router(extract_router.router)
 app.include_router(guides_router.router)
 app.include_router(jobs_router.router)
 app.include_router(passcode_router.router)

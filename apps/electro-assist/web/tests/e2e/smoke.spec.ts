@@ -55,7 +55,8 @@ test('B 未覆盖：明确说未覆盖', async ({ page }) => {
   await expect(page.getByText('未覆盖').first()).toBeVisible()
 })
 
-test('B 逐步诊断：判据推进并收敛到结论', async ({ page }) => {  await page.goto('./diagnose')
+test('B 逐步诊断：判据推进并收敛到结论', async ({ page }) => {
+  await page.goto('./diagnose')
   await page.getByRole('tab', { name: /逐步诊断/ }).click()
   await page.getByPlaceholder('例如：门关到一半又自己弹开了').fill('门到关闭位不锁闭')
   await page.getByRole('button', { name: '开始逐步诊断' }).click()
@@ -90,4 +91,16 @@ test('素材上传：图能进页面，也能移除', async ({ page }) => {
 
   await page.getByRole('button', { name: '移除' }).click()
   await expect(page.locator('.asset-item')).toHaveCount(0)
+})
+
+test('结构化预检：不调模型也能看出缺什么', async ({ page }) => {
+  await page.goto('./new')
+  await page.fill(
+    '#process-text',
+    '工序：门机螺栓复紧\n工位：3 号车门\n工具：力矩扳手、套筒\n1. 按对角顺序复紧四颗螺栓，力矩 0.7–0.9 N·m。\n2. 复查防松标记。\n安全提示：复紧前确认门机断电。',
+  )
+  await page.getByRole('button', { name: '结构化预检' }).click()
+  await expect(page.locator('.precheck')).toBeVisible()
+  await expect(page.locator('.precheck')).toContainText('识别到 2 步')
+  await expect(page.locator('.precheck')).toContainText('字段齐全')
 })

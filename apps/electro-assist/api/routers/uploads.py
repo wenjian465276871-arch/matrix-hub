@@ -5,12 +5,16 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
+import shutil
 import uuid
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
+from PIL import Image
 
 import assets
 import imaging
@@ -18,6 +22,13 @@ import ratelimit
 import slicing
 
 router = APIRouter(prefix="/api/electro/uploads", tags=["uploads"])
+
+# 切块 id 形如 `a_xxx-table_band-2`。前缀必须与路径里的 asset_id 一致，
+# 否则就能拿 A 图的分块 id 去 adopt B 图的目录——路径拼接最典型的越权口子。
+SLICE_REGION_RE = re.compile(
+    r"^(?P<asset>a_[0-9a-f]{16})-(?P<reason>full|table_band|table|dense_text)-(?P<idx>\d{1,2})$"
+)
+MAX_ADOPTS_PER_ASSET_DEFAULT = 6
 
 # 切图是"读一张 5MB 图 + numpy 统计 + 写多个 PNG"的重活，且不需要任何参数。
 # 上传有限流、切图原先没有——等于给了一个免费放大器。这里单独限流，
@@ -180,6 +191,88 @@ def slice_asset(asset_id: str, request: Request) -> dict:
         "regions": [r.to_dict() for r in regions],
         "note": note,
     }
+
+
+@router.post("/{asset_id}/slice/{region_id}/adopt")
+def adopt_region(asset_id: str, region_id: str) -> dict:
+    """把一个切块"采纳"成独立素材。
+
+    为什么不直接让 Guide 引用 `a_xxx_r2.png`：`assets.exists()` 只认
+    `<id>/<id>.png + meta.json` 这一种形态。让引用层同时理解"整图"和"分块"
+    会把这套约定撕成两半，清理脚本也得跟着改。复制一份（几十 KB）换一条干净的契约，划算。
+
+    采纳上限按源图计：切块接口已有 5 次上限，但 adopt 会真的多存一份文件，
+    不设上限就是"一次上传、无限膨胀"的放大器。
+    """
+    if not ASSET_RE.match(asset_id):
+        raise HTTPException(status_code=400, detail={"code": "bad_asset_id"})
+    match = SLICE_REGION_RE.match(region_id)
+    if not match or match.group("asset") != asset_id:
+        raise HTTPException(status_code=400, detail={"code": "bad_region_id"})
+
+    src_dir = _asset_dir(asset_id)
+    meta_path = os.path.join(src_dir, "meta.json")
+    if not os.path.exists(meta_path):
+        raise HTTPException(status_code=404, detail={"code": "not_found"})
+
+    reason, index = match.group("reason"), int(match.group("idx"))
+    filename = f"{asset_id}_full.png" if reason == "full" else f"{asset_id}_r{index}.png"
+    src = os.path.join(src_dir, filename)
+    if not os.path.exists(src):
+        raise HTTPException(
+            status_code=404,
+            detail={"code": "region_not_found", "message": "该切块不存在，请先切图"},
+        )
+
+    with open(meta_path, encoding="utf-8") as fh:
+        source_meta = json.load(fh)
+    adopted = int(source_meta.get("adopted", 0))
+    cap = _int_env("MAX_ADOPTS_PER_ASSET", MAX_ADOPTS_PER_ASSET_DEFAULT)
+    if adopted >= cap:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "adopt_limit",
+                "message": f"这张图已采纳 {adopted} 个切块，达到上限；请重新上传",
+            },
+        )
+
+    new_id = "a_" + uuid.uuid4().hex[:16]
+    new_dir = _asset_dir(new_id)
+    os.makedirs(new_dir, exist_ok=True)
+    target = os.path.join(new_dir, f"{new_id}.png")
+    shutil.copyfile(src, target)
+
+    with open(target, "rb") as fh:
+        payload = fh.read()
+    with Image.open(target) as image:
+        width, height = image.size
+        stored_format = image.format or "PNG"
+
+    meta = {
+        "asset_id": new_id,
+        "source_format": stored_format,
+        "source_width": width,
+        "source_height": height,
+        "stored_width": width,
+        "stored_height": height,
+        "stored_bytes": len(payload),
+        "sha256": hashlib.sha256(payload).hexdigest(),
+        "warnings": [],
+        "exif_stripped": True,
+        "derived_from": asset_id,
+        "region_id": region_id,
+        "region_reason": reason,
+        "url": assets.public_url(new_id),
+    }
+    with open(os.path.join(new_dir, "meta.json"), "w", encoding="utf-8") as fh:
+        json.dump(meta, fh, ensure_ascii=False, indent=2)
+
+    source_meta["adopted"] = adopted + 1
+    with open(meta_path, "w", encoding="utf-8") as fh:
+        json.dump(source_meta, fh, ensure_ascii=False, indent=2)
+
+    return meta
 
 
 @router.get("/{asset_id}")

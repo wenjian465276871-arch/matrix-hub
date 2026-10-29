@@ -35,6 +35,21 @@
           },
           "caption": "作业前确认清单",
           "fallback_text": "逐项确认：断电挂牌、防溜车、区域警示、门扇范围内无人无障碍、通讯正常。任一项不满足不得开工。"
+        },
+        {
+          "primitive": "flow_arrow",
+          "params": { "steps": ["断开主控并挂牌", "验电确认无电", "设置防溜车", "确认门区无人"] },
+          "caption": "开工前动作顺序",
+          "fallback_text": "开工顺序：断开主控并挂牌 → 验电确认无电 → 设置防溜车 → 确认门区无人。顺序不得颠倒。"
+        },
+        {
+          "primitive": "annotation",
+          "params": {
+            "title": "门区作业部位",
+            "points": ["门扇：检查间隙", "门机：复紧螺栓", "门控器：核对插头"]
+          },
+          "caption": "门区部位",
+          "fallback_text": "门区三个作业部位：门扇检查间隙、门机复紧螺栓、门控器核对插头。"
         }
       ],
       "duration_s": 180
@@ -112,6 +127,16 @@
           "params": { "state": "pass", "label": "联锁条件满足" },
           "caption": "联锁状态",
           "fallback_text": "隔离锁正常位且解锁手柄复位时，联锁条件满足，可进行电动试验。"
+        },
+        {
+          "primitive": "gate_state",
+          "params": {
+            "state": "half",
+            "label": "门扇位置",
+            "note": "隔离后应可手动半开，松手不自动回位"
+          },
+          "caption": "隔离状态下的门扇",
+          "fallback_text": "隔离与紧急解锁后，门扇应能被手动拉开至半开位置，松手不自动回位。"
         }
       ],
       "duration_s": 240
@@ -132,6 +157,16 @@
           "params": { "target": 0.8, "tolerance": 0.1, "unit": "N·m" },
           "caption": "力矩目标与公差带",
           "fallback_text": "门机安装力矩目标 0.8 N·m，公差 ±0.1 N·m。"
+        },
+        {
+          "primitive": "callout",
+          "params": {
+            "target": "门机安装螺栓",
+            "note": "对角顺序分两次复紧至规定力矩",
+            "position": "right"
+          },
+          "caption": "复紧位置",
+          "fallback_text": "门机四颗安装螺栓按对角顺序分两次复紧到规定力矩，不要一次拧到底。"
         }
       ],
       "duration_s": 300
@@ -163,6 +198,15 @@
           "params": { "value": 2.6, "unit": "s", "min": 2.0, "max": 3.5, "label": "开门时间" },
           "caption": "开门时间读数",
           "fallback_text": "开门时间示例读数 2.6 s，允许范围 2.0–3.5 s。"
+        },
+        {
+          "primitive": "motion_timeline",
+          "params": {
+            "steps": ["0–0.4s 收到开门指令", "0.4–1.2s 解锁并启动", "1.2–2.8s 匀速运行至全开", "2.8–3.2s 到位缓冲"],
+            "total": "3.2s"
+          },
+          "caption": "开门时序（示例值）",
+          "fallback_text": "开门时序：0–0.4s 收到指令，0.4–1.2s 解锁启动，1.2–2.8s 匀速运行，2.8–3.2s 到位缓冲。"
         }
       ],
       "duration_s": 480
@@ -219,6 +263,15 @@
           "params": { "state": "pass", "label": "锁闭到位" },
           "caption": "锁闭指示",
           "fallback_text": "锁定凸轮开关输出 100% 关闭信号时，锁闭到位指示为通过。"
+        },
+        {
+          "primitive": "table",
+          "params": {
+            "headers": ["项目", "标准"],
+            "rows": ["门扇间隙|2.0–5.0mm", "锁闭信号|100% 关闭", "关门到位|无回弹"]
+          },
+          "caption": "锁闭与间隙判据（示例值）",
+          "fallback_text": "锁闭判据：门扇间隙 2.0–5.0mm，锁闭信号为 100% 关闭，关门到位无回弹。"
         }
       ],
       "duration_s": 300

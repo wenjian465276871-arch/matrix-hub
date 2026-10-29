@@ -6,6 +6,8 @@
   --c-primary-ink: #075159;
   --c-primary-soft: #eaf5f6;
   --c-primary-line: #b9dade;
+  /* 主色上的文字：只用于实心圆点/徽标里的数字，对 #0B6E78 为 8.6:1。 */
+  --c-on-primary: #ffffff;
 
   --c-ink: #12181c;
   --c-ink-2: #3d4a52;

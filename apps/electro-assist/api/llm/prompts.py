@@ -19,12 +19,22 @@ DOC_OPEN = "<document>"
 DOC_CLOSE = "</document>"
 
 
+_PRIMITIVE_HINTS: dict[str, str] = {
+    "status_light": f"state 只能取 {' / '.join(STATE_VALUES)}",
+    "gate_state": "state 只能取 open / closed / half（开 / 关 / 半开）",
+    "callout": "position 只能取 left / right / top / bottom，省略则 right",
+    "motion_timeline": "steps 为 2–6 项，每项形如「0–1.2s 门扇启动」",
+    "flow_arrow": "steps 为 2–5 项，按执行先后排列",
+    "table": "rows 每项是一行，用 | 分格，格数必须与 headers 相同",
+    "annotation": "points 为 1–6 项，每项形如「门扇：检查间隙」",
+}
+
+
 def _primitive_table() -> str:
     rows = []
     for name, keys in allowed_params().items():
-        extra = ""
-        if name == "status_light":
-            extra = f"；**state 只能取 {' / '.join(STATE_VALUES)}**"
+        hint = _PRIMITIVE_HINTS.get(name)
+        extra = f"；**{hint}**" if hint else ""
         rows.append(f"- {name}：参数 {', '.join(keys)}{extra}")
     return "\n".join(rows)
 
@@ -75,6 +85,9 @@ def system_prompt() -> str:
    - meter：`value` 只在文档给出**实测值**时填写。只给允许范围（如"99-121V"）时省略 value，
      前端会画成范围条；硬编一个 value 等于伪造读数。
    - step_card：`icon` 只能是 1–2 个字符的短标记（如 ✓ ! ⚡），没有就省略，不要写英文单词。
+   - 动作先后用 flow_arrow，分段耗时用 motion_timeline，开关/门到位状态用 gate_state，
+     单点强调用 callout，参数对照用 table，部位说明用 annotation；
+     **表格类内容不要塞进 checklist**，两者的读法不一样。
    - 清单类参数（items、terminals、pins）**直接给字符串数组**，例如 ["断电挂牌","防溜车"]；
      最多 10 项，每项不超过 40 字。不要用嵌套对象。
 7. disclaimers 必须包含「{REQUIRED_DISCLAIMER}」，且不得删除。

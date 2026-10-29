@@ -496,6 +496,10 @@ h3 {
   fill: var(--c-primary);
 }
 
+.fig-on-primary {
+  fill: var(--c-on-primary);
+}
+
 .fig-primary-soft {
   fill: var(--c-primary-soft);
 }

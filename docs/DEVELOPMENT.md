@@ -64,7 +64,7 @@ npm run preview    # http://localhost:4173/apps/electro-assist/
 api/
 ├── main.py            FastAPI 装配、CORS/静态挂载、启动 seed、健康检查
 ├── models/            Pydantic 契约：guide（schema 1.2）、visual（7 原语）、knowledge
-├── routers/           26 个业务端点；只做参数校验与 HTTP 语义
+├── routers/           30 个业务端点；只做参数校验与 HTTP 语义
 ├── services/          业务规则：generation / quota / jobqueue / criteria / sessions / library
 │                      knowledge（混合召回）/ rerank（只排序）/ diagnosis（故障树推进）
 ├── store/             SQLite：db（连接/迁移）、dao（读写，不含业务规则）
@@ -74,7 +74,7 @@ api/
 ├── knowledge/         door 11 / hvac 4 / pantograph 3 条 + eval_queries.json（21+2 条）
 ├── samples/           5 份 published 样例（车门 3 + 空调 1 + 受电弓 1）
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / smoke
-└── tests/             217 条契约测试
+└── tests/             259 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       7 个 SVG 原语 + registry + svg 工具
@@ -94,7 +94,7 @@ web/
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 217 passed（约 19s）
+pytest tests -q          # 259 passed（约 19s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web
@@ -184,16 +184,22 @@ python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 ## 5.1 现场素材（图片）
 
 链路是「用户上传 → 随生成请求带上 → 进草稿素材区 → 人在草稿页挂到某一步」。
-**全程不做识别**：模型看不到图，也不参与决定图属于哪一步。
+生成链路里**模型看不到图**：识别是另一条入口（§5.3），必须人确认后才变成文本。
 
 | 环节 | 位置 | 约定 |
 |---|---|---|
 | 上传 | `POST /uploads`（`routers/uploads.py`） | ≤5MB、长边 ≥1000px、只收 PNG/JPEG/WebP，EXIF 剥离后重编码为 PNG |
+| 切图 | `POST /uploads/{id}/slice` | 返回整图 + 局部块；每资产 5 次上限 |
+| 采纳切块 | `POST /uploads/{id}/slice/{region_id}/adopt` | 把块复制成**独立 asset**（含 `meta.json`），`derived_from` 记来源；每源图 6 次上限 |
 | 存在性 | `assets.py` | `assets.exists()` 校验 PNG + `meta.json` 都在；生成入口 422 `asset_not_found` |
 | 随生成 | `GenerateIn.assets`（≤4）→ `jobs.assets_json` | 只存 `asset_id + caption`，不存路径 |
 | 落草稿 | `services/generation._attach_assets()` | 全部进 `Guide.assets`；**模型的 assets 输出在 runner 里被剥掉** |
 | 归位 | `PUT /guides/{id}/assets` | 全量替换；只接受这份草稿已有的 id；已发布 409 |
 | 渲染 | `GuideView.vue` | 步骤内 `figure` + 文末「现场素材」区；编号全文连续；打印 `break-inside: avoid` |
+
+为什么切块要"采纳"成新 asset，而不是让 Guide 直接引用 `a_xxx_r2.png`：
+`assets.exists()` 只认 `<id>/<id>.png + meta.json` 一种形态。让引用层理解两种形态，
+清理脚本、生成校验、前端 URL 都要跟着分叉；复制几十 KB 换一条干净契约，划算。
 
 三条不能破的边界：
 
@@ -216,6 +222,45 @@ python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 
 排障提示：`GET /guides` 顶层的 `schema_version` 才是**当前契约版本**；单份指导书里的
 `guide.schema_version` 是**这份文档自己的**。看到后者是 1.1 不代表部署失败。
+
+### 5.3 图片识别（`POST /extract`）
+
+**单通道**，与决策 #13 的 P4 口径一致："做单通道（二选一）或继续延后"。
+用 `deepseek-flash` 的原生视觉输入，不再引第二个供应商。
+
+| 环节 | 位置 | 约定 |
+|---|---|---|
+| 入口 | `routers/extract.py` | ≤3 张、每张必须已存在；限流 3/时 · 8/日 · 全站 30/日 |
+| 提示词 | `llm/extract.py` | 只转录可见文字；数值逐字照抄；看不清写 null |
+| 三层校验 | `llm/extract.py: reconcile()` | 结构（pydantic）→ 语义（值必须出现在转录里）→ 回溯（`source_line`） |
+| 预算 | `quota.check(unlimited=True)` + `store.record_usage` | 只跳每 IP 生成配额；**全站预算照算**，失败调用也记账 |
+| 确认 | `NewGuideView.vue` | 结果只回填文本框，`needs_review` 恒 true；不自动生成、不自动发布 |
+
+必须记住的一条：**数值不在转录里就清空判据**。模型读图时最危险的不是漏字，
+是"看起来合理"的补数——`1.0–2.0s` 和 `2.0–3.5s` 在页面上一样整齐，
+现场照着做才知道错。校验逻辑宁可多标 `unverified`，也不放行一个没出处的数。
+
+未配置 `DEEPSEEK_API_KEY` 时返回 503 `vision_not_configured`，不是 500——
+这是配置缺失，不是服务故障，前端要能据此提示"手工录入"。
+
+### 5.4 工艺预检（`POST /processes`）
+
+不调模型、不落库、不扣配额。它只回答"这段文本里认得出哪些字段、缺哪些"。
+
+- 规则解析在 `routers/processes.py`：`工序：`/`工位：`/`工具：`/`安全：` 前缀行 + 编号步骤；
+- 判据线索只做"有没有"的判断（区间、≤/≥、带单位数值），**不判定合格与否**；
+- 返回 `missing` 与 `warnings`，前端贴在文本框下方展示；
+- 计划 §3.5 写的"创建工艺"落地为预检：建实体就要建表、版本与清理策略，
+  而 `/generate` 已经能直接吃文本，多一个没有消费者的实体只会多一处空壳。
+
+### 5.5 作业报告导出（`GET /records/{sid}/export.html`）
+
+服务端渲染自包含 HTML（`services/report_html.py`），`Content-Disposition: attachment`。
+
+- 样式内联，无外链、无脚本：文件要能在离线电脑上双击打开；
+- 所有用户输入走 `html.escape`——备注里写 `<script>` 时，导出文件不能执行它；
+- 报告含"关联排查结论"：`report()` 按 `session_id` 关联 `diagnose_runs`，不复制结论内容；
+- 前端另有 `window.print()`，两者并存：打印给现场，HTML 给归档与转发。
 
 ## 6. 改文档的规矩
 

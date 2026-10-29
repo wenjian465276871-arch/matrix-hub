@@ -8,7 +8,9 @@ from __future__ import annotations
 import re
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import HTMLResponse
 
+from services import report_html
 from services import sessions as service
 
 router = APIRouter(prefix="/api/electro/records", tags=["records"])
@@ -27,3 +29,30 @@ def get_report(session_id: str) -> dict:
             status_code=exc.status,
             detail={"code": exc.code, "message": exc.message, **exc.extra},
         ) from exc
+
+
+@router.get("/{session_id}/export.html")
+def export_report(session_id: str) -> HTMLResponse:
+    """导出独立 HTML。
+
+    用 `attachment` 而不是直接内联：这个文件会被下载到本地再双击打开，
+    内联会让它落在本站 CSP 下——而它自带样式，不需要也不应该受站点的限制。
+    """
+    if not SESSION_ID_RE.match(session_id):
+        raise HTTPException(status_code=404, detail={"code": "not_found"})
+    try:
+        report = service.report(session_id)
+    except service.SessionError as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail={"code": exc.code, "message": exc.message, **exc.extra},
+        ) from exc
+
+    return HTMLResponse(
+        content=report_html.render(report),
+        headers={
+            "Content-Disposition": f'attachment; filename="record-{session_id}.html"',
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )

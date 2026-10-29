@@ -100,10 +100,21 @@
 | 素材归位面板（仅草稿） | 主色浅底卡 · 标题 15 + 说明 13 · 每行 64×64 缩略图 + 「图 N 说明」+「放在」下拉（素材区 / 第 N 步）；保存按钮 h40，成功用 `--c-success` 文案、失败 `--c-danger` 文案；整块 `.no-print` |
 | 素材图（正文） | 宽 100% · `max-height: 360px` · `object-fit: contain` · 1px `--c-line` + `--radius-sm`；说明 13/`--c-ink-2` 紧跟图下；编号「图 N · 说明」全文连续，与正文引用一致 |
 
-## 4. SVG 原语（7 个）
+## 4. SVG 原语（13 个）
 
-`StepCard` / `Meter` / `StatusLight` / `Wiring` / `Connector` / `TorqueGauge` / `Checklist`，
-由 `figures/registry.ts` 按 `kind` 映射，未知类型降级为"无图版"而不是空白。
+`StepCard` / `Meter` / `StatusLight` / `Wiring` / `Connector` / `TorqueGauge` / `Checklist` /
+`MotionTimeline` / `FlowArrow` / `Callout` / `GateState` / `Table` / `Annotation`，
+由 `figures/registry.ts` 按 `primitive` 映射，未知类型降级为"无图版"而不是空白。
+参数白名单与语义校验在 `models/visual.py`：键名不在白名单、必填缺失、表格行列不齐，一律拒绝。
+
+| 原语 | 用途 | 关键约束 |
+|---|---|---|
+| `motion_timeline` | 分段动作时序 | `steps` 2–6 项；竖排，时间写在原文里，不做坐标换算 |
+| `flow_arrow` | 操作先后顺序 | `steps` 2–5 项；每行最多 3 个，超出换行 |
+| `callout` | 单点强调 | `target` + `note` 必填；`position` 取 left/right/top/bottom |
+| `gate_state` | 开关/门到位状态 | `state` 取 open/closed/half；文字标签恒显示，颜色只是第二重编码 |
+| `table` | 参数对照 | `headers` 2–4 列，`rows` 每行用 `|` 分格且格数必须相等 |
+| `annotation` | 部位标注 | `points` 1–6 项；只画编号点与图例，不画设备轮廓（没有几何信息） |
 
 | 元素 | 规则 |
 |---|---|
@@ -174,5 +185,4 @@
 | 移动 `⋯` 全屏抽屉（focus trap） | **未实现**，窄屏是一条简化导航 | 模块只有 3 个入口，抽屉多一次点击 |
 | `<360px` 判据行堆叠 | **未实现**，仍为水平排布 | 现有 390px 机型无溢出；等真机反馈再动 |
 | 横屏短高两栏（图示 6 : 判据 4） | **未实现** | 现场以竖屏为主；横屏会把判据区压到 280px 以下 |
-| 原语 10–15 个 | **7 个** | 够覆盖现有关门/空调案例；新增按案例需求登记 |
 | 令牌命名与设计稿不一致 | 代码用 `--c-ink/-line`，设计稿用 `--c-text/-border` | 以代码为准；改名只增加 diff，不增加可读性 |
