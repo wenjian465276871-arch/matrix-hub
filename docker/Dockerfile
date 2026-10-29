@@ -6,7 +6,7 @@
 FROM caddy:2.8-alpine AS caddy-bin
 
 # ---- 前端构建（Node 只在构建阶段存在，不进运行镜像）----
-FROM node:22-alpine AS web
+FROM node:25-alpine AS web
 WORKDIR /app
 # 先只拷 manifest：依赖不变时这一层可命中缓存
 COPY apps/electro-assist/web/package.json apps/electro-assist/web/package-lock.json ./
