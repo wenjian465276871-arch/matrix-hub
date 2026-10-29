@@ -51,7 +51,7 @@
 
 | 项 | 值 | 采集 |
 |---|---|---|
-| 代码基线 | `691314d`（现已上线） | `git log --oneline -1` |
+| 代码基线 | `59f06f7`（现已上线；含 `9c4c33a` 目录重组） | `git log --oneline -1` |
 | 契约测试 | **259 passed** | `pytest tests -q`（约 23s） |
 | 业务端点 | 30 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
 | 首屏 | **41.69 KB gzip / CSS 6.52 KB** | `npm run build`（vue-tsc + vite） |
