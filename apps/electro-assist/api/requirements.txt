@@ -1,8 +1,8 @@
-fastapi==0.115.6
-uvicorn==0.34.0
+fastapi==0.162.0
+uvicorn==0.54.0
 python-multipart==0.0.32
 pillow==13.0.0
-numpy==2.2.1
+numpy==2.5.4
 httpx==0.28.1
 
 # 镜像构建用阿里云镜像源，新版本同步比 PyPI 晚数小时；不锁死会出现
