@@ -14,7 +14,7 @@ import threading
 from pathlib import Path
 
 import store
-from models.guide import Guide
+from models.guide import SCHEMA_VERSION, Guide
 
 log = logging.getLogger("electro.library")
 
@@ -78,6 +78,39 @@ def ensure_seeded() -> int:
     with _seed_lock:
         _seeded_paths.add(key)
     return seeded
+
+
+def normalize_schema_versions() -> int:
+    """把存量指导书的 `schema_version` 归一到当前契约版本。
+
+    为什么需要：样例文件写于 1.0/1.1，而 seed 只补缺、不覆盖已有记录；
+    结果线上 `GET /guides/{id}` 一直返回旧版本号，看起来像"部署没生效"，
+    排查时白花时间（2026-10-29 自己就差点这样误判）。
+
+    边界：
+    - **只改版本戳**，steps / criteria / figures / assets 一个字不动；
+    - 必须先用当前 `Guide` 校验通过才写回——校验不过说明内容真的不兼容，
+      留着旧版本号是诚实的，不能硬掰；
+    - 幂等：全部一致时一次查询、零写入；启动时调用可接受。
+    """
+    fixed = 0
+    for row in store.list_guides_with_schema_version(SCHEMA_VERSION):
+        try:
+            data = json.loads(row["json"])
+            data["schema_version"] = SCHEMA_VERSION
+            guide = Guide.model_validate(data)
+        except Exception as exc:  # noqa: BLE001 - 一份坏数据不该挡住启动
+            log.warning("跳过版本归一化 %s：%s", row["id"], exc)
+            continue
+        store.update_guide_schema_version(
+            guide.id,
+            SCHEMA_VERSION,
+            json.dumps(guide.model_dump(mode="json"), ensure_ascii=False),
+        )
+        fixed += 1
+    if fixed:
+        log.info("存量指导书版本戳升级到 %s：%d 份", SCHEMA_VERSION, fixed)
+    return fixed
 
 
 def _card(row: dict) -> dict:

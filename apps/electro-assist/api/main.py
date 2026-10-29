@@ -54,6 +54,11 @@ async def lifespan(_app: FastAPI):
         log.warning("启动清扫：%d 个残留 job 标记为 timeout", stale)
 
     library.ensure_seeded()
+    # 存量指导书保留着作者当年的 schema_version，会让"部署是否生效"难以判断。
+    # 只改版本戳、内容过校验才写回，见 library.normalize_schema_versions。
+    bumped = library.normalize_schema_versions()
+    if bumped:
+        log.info("版本戳归一化：%d 份存量指导书", bumped)
     generation.start_worker()
     try:
         yield

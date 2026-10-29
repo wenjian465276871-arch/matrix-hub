@@ -144,6 +144,33 @@ def list_guides(*, status: GuideStatus | None = None, limit: int = 50) -> list[d
         return [dict(r) for r in conn.execute(sql, params)]
 
 
+def list_guides_with_schema_version(version: str) -> list[dict[str, Any]]:
+    """取出 schema_version 与给定值不同的指导书（含全文）。
+
+    只给"版本戳归一化"用：存量样例写于 1.0/1.1，而 seed 只补缺不覆盖，
+    于是接口一直返回旧版本号。归一化只改版本戳，内容要先过当前模型校验。
+    """
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, schema_version, json FROM guides WHERE schema_version != ?", (version,)
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def update_guide_schema_version(guide_id: str, version: str, payload: str) -> None:
+    """只改版本戳与整份 JSON，不碰 status / published_at / 发布状态。
+
+    已发布内容不可覆盖是硬规则；这里覆盖的是"同一份内容在新契约下的写法"，
+    调用方必须先 `Guide.model_validate` 通过才允许调用。
+    """
+    with connect() as conn:
+        with tx(conn):
+            conn.execute(
+                "UPDATE guides SET schema_version = ?, json = ?, updated_at = ? WHERE id = ?",
+                (version, payload, now_iso(), guide_id),
+            )
+
+
 def publish_guide(guide_id: str) -> bool:
     now = now_iso()
     with connect() as conn:

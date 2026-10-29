@@ -24,6 +24,7 @@ from .dao import (
     list_diagnose_runs_by_session,
     list_diagnose_steps,
     list_guides,
+    list_guides_with_schema_version,
     list_records,
     mark_job_running,
     oldest_job_between,
@@ -33,6 +34,7 @@ from .dao import (
     submit_step,
     sweep_stale_jobs,
     update_diagnose_run,
+    update_guide_schema_version,
     usage_summary,
 )
 
@@ -47,7 +49,9 @@ __all__ = [
     "save_guide",
     "get_guide",
     "list_guides",
+    "list_guides_with_schema_version",
     "publish_guide",
+    "update_guide_schema_version",
     "count_guides",
     "create_job",
     "mark_job_running",

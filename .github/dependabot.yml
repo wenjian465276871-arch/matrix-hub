@@ -38,6 +38,17 @@ updates:
       frontend-minor:
         patterns: ["*"]
         update-types: ["patch", "minor"]
+    # 2026-10-29：vite 8 与 vue-router 5 单独开 PR 都是红的——
+    # vite 8 要求 @vitejs/plugin-vue ≥6，vue-router 5 又要求 vite ≥7，
+    # 三者互相咬住。分开提只会留下永远合不进去的红 PR，所以忽略 major，
+    # 改由人工开「vite + plugin-vue + vue-router」联动分支升级（见 DEVELOPMENT §4.1）。
+    ignore:
+      - dependency-name: "vite"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vue-router"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitejs/plugin-vue"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
@@ -70,3 +81,9 @@ updates:
     labels:
       - dependencies
       - docker
+    # node 只在 LTS 线上走：25 是奇数版（非 LTS），升上去等于拿生产做实验。
+    # caddy 不忽略——它是网关，升版要过反代/CSP/证书，但"落后多久"必须可见，
+    # PR 会一直挂着，等运维窗口验证后再合。
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]

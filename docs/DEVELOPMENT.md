@@ -74,7 +74,7 @@ api/
 ├── knowledge/         door 11 / hvac 4 / pantograph 3 条 + eval_queries.json（21+2 条）
 ├── samples/           5 份 published 样例（车门 3 + 空调 1 + 受电弓 1）
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / smoke
-└── tests/             216 条契约测试
+└── tests/             217 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       7 个 SVG 原语 + registry + svg 工具
@@ -94,7 +94,7 @@ web/
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 216 passed（约 20s）
+pytest tests -q          # 217 passed（约 19s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web
@@ -112,6 +112,14 @@ CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致
 | CI Action | 全部固定到 40 位 commit sha，版本号只写在注释里（`# v4`） |
 | 依赖更新 | `.github/dependabot.yml`：pip / npm / github-actions / docker 四个生态，每周一 03:00 开 PR（同生态 patch+minor 合组，避免 PR 洪水） |
 | 漏洞扫描 | `pip-audit` 与 `npm audit` 进 CI，**continue-on-error**（计划口径：告警不阻塞） |
+
+依赖升级的三条口径（2026-10-29 定）：
+
+| 情况 | 做法 |
+|---|---|
+| 后端 pip | Dependabot 只改 `requirements.txt`，**必然卡在锁文件门禁**（它不跑 uv）。要合就先重生成 `requirements.lock`，再跑全量测试 |
+| 前端三大件（vite / @vitejs/plugin-vue / vue-router） | **必须一次升**：vite 8 要 plugin-vue ≥6，vue-router 5 要 vite ≥7，单独提都是 `ERESOLVE`。已在 `dependabot.yml` 忽略这三者的 major |
+| 基础镜像 | `node` 只跟 LTS（忽略 major）；`caddy` 保留自动 PR，但合并前要走一次网关窗口（反代 / CSP / 证书 / 回滚） |
 
 改依赖的标准动作：
 
@@ -196,6 +204,18 @@ python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 
 改这块时最容易踩的坑：`step.assets` 与 `guide.assets` 的**全局唯一**校验在 `Guide._check_steps`。
 赋值不会重跑 pydantic 的 model_validator，所以 `PUT` 里显式 `model_validate` 了一次。
+
+### 5.2 存量指导书的版本戳
+
+`schema_version` 是"这份文档按哪版契约写的"，不是"服务端当前支持哪版"。
+
+- 新生成与草稿归位一律写当前版本（`models/guide.SCHEMA_VERSION`）；
+- 早期样例写的是 1.0/1.1，`ensure_seeded` 只补缺、不覆盖，于是库里会长期留着旧版本号；
+- 启动时 `library.normalize_schema_versions()` 做一次归一：**先按当前 Guide 校验通过，只改版本戳**，
+  steps / criteria / figures / assets 一个字不动；校验不过就跳过（说明内容真的不兼容，留着旧号是诚实的）。
+
+排障提示：`GET /guides` 顶层的 `schema_version` 才是**当前契约版本**；单份指导书里的
+`guide.schema_version` 是**这份文档自己的**。看到后者是 1.1 不代表部署失败。
 
 ## 6. 改文档的规矩
 

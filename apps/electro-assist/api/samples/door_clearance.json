@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.2",
   "id": "g_door_clearance_001",
   "title": "客室侧门关闭间隙检查",
   "summary": "以门扇关闭状态下的密封间隙为对象，演示数值判据与图示原语的组织方式。全部为演示数据。",

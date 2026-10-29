@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.2",
   "id": "g_door_switch_test_001",
   "title": "客室侧门开关门功能试验",
   "summary": "以单门开关门时间与门机紧固为对象，覆盖判据四类型与全部七个视觉原语。全部为演示数据，参数为示例值。",

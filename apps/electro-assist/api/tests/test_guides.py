@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import shutil
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -56,7 +57,7 @@ def test_get_returns_full_guide(fresh_library):
     body = r.json()
     assert body["status"] == "published"
     guide = body["guide"]
-    assert guide["schema_version"] == "1.0"
+    assert guide["schema_version"] == SCHEMA_VERSION  # 样例已随契约升到 1.2
     assert len(guide["steps"]) == 3
     assert guide["steps"][0]["seq"] == 1
     assert "演示数据 · 非实际作业依据" in guide["disclaimers"]
@@ -208,3 +209,45 @@ def test_seed_adds_missing_fixtures_without_touching_existing(tmp_path, monkeypa
     assert library.ensure_seeded() == 1
     assert store.get_guide("g_door_clearance_001")["title"] == "客室侧门关闭间隙检查"
     assert store.get_guide("g_door_switch_formal_001") is not None
+
+
+def test_normalize_schema_versions_only_touches_stamp(tmp_path, monkeypatch):
+    """存量 1.0/1.1 指导书要能被归一化，但只改版本戳。
+
+    这条测试守的是 2026-10-29 踩过的坑：线上样例一直返回 1.1，
+    看起来像"部署没生效"，实际是历史 JSON 里的旧版本号。
+    """
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "electro.db"))
+    store.init_db()
+
+    data = json.loads((SAMPLES / "door_switch_test.json").read_text(encoding="utf-8"))
+    data["schema_version"] = "1.0"
+    payload = json.dumps(data, ensure_ascii=False)
+    con = sqlite3.connect(store.db_path())
+    try:
+        with con:
+            con.execute(
+                "INSERT INTO guides (id, schema_version, title, system, status, json,"
+                " step_count, created_at, updated_at)"
+                " VALUES (?, '1.0', ?, 'door', 'published', ?, ?, 'x', 'x')",
+                (data["id"], data["title"], payload, len(data["steps"])),
+            )
+            # 内容真的不兼容的记录：必须跳过，不能硬掰版本号
+            con.execute(
+                "INSERT INTO guides (id, schema_version, title, system, status, json,"
+                " step_count, created_at, updated_at)"
+                " VALUES ('g_broken_0001', '1.0', '坏数据', 'door', 'draft', '{}', 0, 'x', 'x')"
+            )
+    finally:
+        con.close()
+
+    assert library.normalize_schema_versions() == 1
+    row = store.get_guide(data["id"])
+    assert row["schema_version"] == SCHEMA_VERSION
+    assert row["guide"]["schema_version"] == SCHEMA_VERSION
+    assert len(row["guide"]["steps"]) == len(data["steps"])
+    assert row["status"] == "published"  # 发布状态没被顺手改掉
+    # 坏数据原样留着，版本号不动
+    assert store.get_guide("g_broken_0001")["schema_version"] == "1.0"
+    # 幂等：第二次没有可改的
+    assert library.normalize_schema_versions() == 0
