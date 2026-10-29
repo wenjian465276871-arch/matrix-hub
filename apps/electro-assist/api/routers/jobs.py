@@ -10,9 +10,9 @@ import re
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 
-import assets as asset_store
-import passcode
-import ratelimit
+from core import assets as asset_store
+from core import passcode
+from core import ratelimit
 from models.guide import ASSET_ID_RE
 from services import generation
 

@@ -10,8 +10,8 @@ import os
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-import passcode
-import ratelimit
+from core import passcode
+from core import ratelimit
 
 router = APIRouter(prefix="/api/electro/passcode", tags=["passcode"])
 

@@ -12,7 +12,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, Header, HTTPException, Path, Request
 from pydantic import BaseModel, Field
 
-import ratelimit
+from core import ratelimit
 from services import sessions as service
 
 router = APIRouter(prefix="/api/electro/sessions", tags=["sessions"])

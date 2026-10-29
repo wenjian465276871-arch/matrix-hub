@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from models.guide import Guide, REQUIRED_DISCLAIMER
 
-SAMPLE = json.loads((Path(__file__).parent.parent / "samples" / "door_clearance.json").read_text(encoding="utf-8"))
+SAMPLE = json.loads((Path(__file__).parent.parent / "data" / "samples" / "door_clearance.json").read_text(encoding="utf-8"))
 
 
 def test_sample_is_valid():

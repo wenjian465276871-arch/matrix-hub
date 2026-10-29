@@ -28,7 +28,7 @@ def guide_dir() -> Path:
     env = os.getenv("GUIDE_DIR")
     if env:
         return Path(env)
-    return Path(__file__).resolve().parent.parent / "samples"
+    return Path(__file__).resolve().parent.parent / "data" / "samples"
 
 
 def _iter_fixtures(directory: Path):

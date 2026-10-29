@@ -16,7 +16,7 @@ import store
 from models.guide import Guide
 from scripts import publish
 
-SAMPLES = Path(__file__).resolve().parent.parent / "samples"
+SAMPLES = Path(__file__).resolve().parent.parent / "data" / "samples"
 
 
 def _draft(guide_id: str) -> Guide:

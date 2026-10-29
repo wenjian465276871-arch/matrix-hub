@@ -23,7 +23,7 @@ from models.guide import SCHEMA_VERSION
 from services import library
 
 client = TestClient(app)
-SAMPLES = Path(__file__).resolve().parent.parent / "samples"
+SAMPLES = Path(__file__).resolve().parent.parent / "data" / "samples"
 SAMPLE_ID = "g_door_clearance_001"
 
 

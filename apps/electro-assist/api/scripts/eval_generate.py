@@ -31,7 +31,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from llm import LLMError, generate_guide, get_provider  # noqa: E402
 from models.visual import Primitive  # noqa: E402
 
-CORPUS_DIR = Path(__file__).resolve().parent / "corpus"
+CORPUS_DIR = Path(__file__).resolve().parent.parent / "data" / "corpus"
 
 
 def load_env_file(path: Path) -> None:

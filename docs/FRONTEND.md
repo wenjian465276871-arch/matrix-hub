@@ -1,6 +1,6 @@
 # 前端实现方案（as-built）
 
-> 版本 v1.0 · 最后更新：2026-10-23 · 代码位置 `apps/electro-assist/web`
+> 版本 v1.1 · 最后更新：2026-10-30 · 代码位置 `apps/electro-assist/web`
 > Vue 3.5 + Vite 6 + TypeScript，静态产物由 Caddy 直服，base `/apps/electro-assist/`。
 > 本文是**代码结构说明**，不是设计稿：写"实际有什么"，以及"为什么比方案简单"。
 > 视觉值见 `UI.md`，交互状态见 `UX.md`。
@@ -114,9 +114,10 @@ export class ApiError extends Error {
 
 ## 4. 图示渲染
 
-`figures/registry.ts` 把 DSL 的 `kind` 映射到 7 个原语组件：
-`step_card / meter / status_light / wiring / connector / torque_gauge / checklist`。
-`GuideFigure.vue` 用 `defineAsyncComponent` 按需加载，未知类型降级为"无图版"而不是空白。
+`figures/registry.ts` 把 DSL 的 `primitive` 映射到 13 个原语组件（静态导入，随 `GuideView` 的 chunk 一起加载）：
+`step_card / meter / status_light / wiring / connector / torque_gauge / checklist /
+motion_timeline / flow_arrow / callout / gate_state / table / annotation`。
+`GuideFigure.vue` 用 `onErrorCaptured` 兜底，未知类型或渲染抛错都降级为 `fallback_text`，不是空白。
 
 所有原语是**内联 SVG**（`svg.ts` 提供线宽/配色/标注工具函数）：继承 `currentColor`、可打印、零请求。
 DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**前端不做任何布局推断**，
@@ -135,9 +136,9 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 
 | 项 | 预算（gzip） | 实测 |
 |---|---|---|
-| 首屏 JS | ≤75KB（硬顶 90KB） | **41.47KB** |
-| 首屏 CSS | ≤14KB | **6.10KB** |
-| 路由 chunk | ≤30KB | 最大 5.89KB（`DiagnoseView`） |
+| 首屏 JS | ≤75KB（硬顶 90KB） | **41.69KB** |
+| 首屏 CSS | ≤14KB | **6.52KB** |
+| 路由 chunk | ≤30KB | 最大 7.96KB（`NewGuideView`） |
 | 单个原语 chunk | ≤2KB | 由 `GuideFigure` 共享 chunk 承载 |
 
 `cssCodeSplit:false` 让全站 CSS 合成一个文件（一次 RTT 拿全，代价是后续路由不再请求样式）；
@@ -152,11 +153,11 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 |---|---|
 | 类型检查 | `vue-tsc --noEmit`，0 error 才出包 |
 | 单测 | **无**（未引入 Vitest） |
-| E2E | Playwright 4 条：生成链路、A1 四步含复测、异常转排查、诊断会话；CI 内跑，失败阻断发布 |
+| E2E | Playwright 6 条：列表→引导→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检；CI 内跑，失败阻断发布 |
 | 打印 | Chromium 打印记录页，A4 三页无截断（真机验收 2026-10-21） |
 | 可访问性 | 人工抽查键盘与 `aria`；**未跑 axe-core 全量扫描**（见根 `README.md` 的验收章节） |
 
-为什么不补前端单测：核心判定全在服务端（194 条测试覆盖），前端只有 6 个视图；
+为什么不补前端单测：核心判定全在服务端（259 条测试覆盖），前端只有 6 个视图；
 E2E 抓的是 DOM 回归，比给 `lib/http.ts` 写 mock 更值钱。真要补，优先补 `errors.ts` 的映射表。
 
 ## 8. 已知坑（都踩过，别再踩）

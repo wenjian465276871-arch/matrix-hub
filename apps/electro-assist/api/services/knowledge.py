@@ -82,7 +82,7 @@ def kb_dir() -> Path:
     env = os.getenv("KNOWLEDGE_DIR")
     if env:
         return Path(env)
-    return Path(__file__).resolve().parent.parent / "knowledge"
+    return Path(__file__).resolve().parent.parent / "data" / "knowledge"
 
 
 def infer_system(text: str) -> str | None:

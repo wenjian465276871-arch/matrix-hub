@@ -259,7 +259,7 @@ curl -s https://<域名>/healthz     # 期望 {"status":"ok","checks":{"electro"
 | 单 IP / 日 | 20 | `UPLOAD_RATE_PER_DAY` | 429 + `Retry-After` |
 | 全站 / 日 | 200 | `UPLOAD_SITE_PER_DAY` | 429 + `Retry-After` |
 
-实现是**进程内滑窗**（`apps/electro-assist/api/ratelimit.py`），前提是**单容器单 worker**。
+实现是**进程内滑窗**（`apps/electro-assist/api/core/ratelimit.py`），前提是**单容器单 worker**。
 重启即清零，这是刻意取舍：限流用于抬高滥用成本，精确计量走后续 SQLite `usage` 表。
 **改成多 worker 或多实例后此机制失效**（各进程各记一份），必须换成 Caddy 层限流或 Redis。
 
@@ -338,7 +338,7 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - 监控告警：**GitHub Actions 定时探活已加**（`.github/workflows/uptime.yml`，每 10 分钟查 `/healthz`、页面与 guides；失败会以 workflow 失败通知）；UptimeRobot 仍可选，用于更及时告警
 - 清理任务**已实现并安装空跑 cron**（§14，2026-10-21）；两周报告正常后评估改 `--apply`
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯；已加次数上限与限流）
-- 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`ratelimit.py`、`services/sessions.py` 均假设单 worker）
+- 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`core/ratelimit.py`、`services/sessions.py` 均假设单 worker）
 
 ## 12. 发布草稿（CLI）
 
@@ -464,3 +464,30 @@ RERANK_DAY_MICROS=300000   # ¥0.3/日；按单次 ≈¥0.001 估算，约 300 �
 - 预算耗尽只是**跳过重排**，检索结果照常返回（关键词顺序）；
 - 结果按 `query + 候选集` 缓存 10 分钟，命中时 `rerank.cached=true`；
 - 想看今天花了多少：响应里的 `rerank.cost_micros` 累加，或查 `usage` 表。
+
+## 16. 2026-10-29/30 变更（A2 六项 + 目录重组）
+
+**新增接口**（都在 `/api/electro` 下）：
+
+| 接口 | 用途 | 资源限制 |
+|---|---|---|
+| `POST /extract` | 图片单通道识别，只回填文本 | 3 张/次；每 IP 3/时、8/日；全站 30/日；按图片 token 计入全站日预算 |
+| `POST /processes` | 工艺文本预检（规则解析） | 无额外限制；不调模型、不扣配额 |
+| `POST /uploads/{id}/slice/{region}/adopt` | 切块采纳为独立素材 | 每源图 6 次 |
+| `GET /records/{sid}/export.html` | 下载自包含 HTML 报告 | 无额外限制；不落盘、`no-store` |
+
+**识别依赖**：复用现有 `DEEPSEEK_API_KEY` 与 `deepseek-flash`（原生视觉），**不需要新供应商**。
+未配置 Key 时 `/extract` 返回 503 `vision_not_configured`，其余功能不受影响。
+
+**目录变化**（镜像内路径同步，`uvicorn main:app` 不变）：
+
+```
+/opt/electro/core/          横切能力（assets / imaging / slicing / ratelimit / passcode）
+/opt/electro/data/          samples / knowledge / corpus
+```
+
+排障提示：如果容器里找不到 `imaging.py`，先看 `/opt/electro/core/`——2026-10-30 起已迁入 `core/`。
+
+**存量样例不重刷**：`ensure_seeded` 只补缺失、不覆盖已存在记录，`published` 内容不可覆盖。
+线上 5 份旧样例仍显示收紧前的图元；新原语只在**新生成**的指导书里出现。
+要换演示样例必须显式删行重 seed（会破坏该 guide 的历史记录关联），当前不做。

@@ -22,7 +22,7 @@ from services import sessions as session_service
 
 client = TestClient(app)
 GUIDE_ID = "g_door_switch_test_001"
-SAMPLES = Path(__file__).resolve().parent.parent / "samples"
+SAMPLES = Path(__file__).resolve().parent.parent / "data" / "samples"
 
 
 @pytest.fixture()

@@ -16,10 +16,10 @@ from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 from PIL import Image
 
-import assets
-import imaging
-import ratelimit
-import slicing
+from core import assets
+from core import imaging
+from core import ratelimit
+from core import slicing
 
 router = APIRouter(prefix="/api/electro/uploads", tags=["uploads"])
 

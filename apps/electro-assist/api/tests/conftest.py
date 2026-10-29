@@ -12,7 +12,7 @@ import os
 
 import pytest
 
-import ratelimit
+from core import ratelimit
 import store
 
 

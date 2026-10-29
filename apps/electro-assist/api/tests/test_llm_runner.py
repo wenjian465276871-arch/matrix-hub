@@ -18,7 +18,7 @@ from llm.runner import MAX_INPUT_CHARS, extract_json, generate_guide
 from models.guide import Guide
 
 SAMPLE_TEXT = json.loads(
-    (Path(__file__).resolve().parent.parent / "samples" / "door_switch_test.json").read_text(
+    (Path(__file__).resolve().parent.parent / "data" / "samples" / "door_switch_test.json").read_text(
         encoding="utf-8"
     )
 )

@@ -2,7 +2,7 @@
 
 把一段工艺文本变成**能照着做、做错会拦、做完有记录**的可视化作业指导书，并在作业异常时就地给出排查顺序。
 
-> 状态：**A2 / A1 / B 三个模块已上线**（2026-10-21）。演示站：<https://www.superplayer007.cn/apps/electro-assist/>
+> 状态：**A2 / A1 / B 三个模块已上线**（2026-10-30，最新 `691314d`）。演示站：<https://www.superplayer007.cn/apps/electro-assist/>
 > 站点内所有内容为**公开资料改写 + 虚构参数**的演示数据，页脚常驻「演示数据 · 非实际作业依据」。
 
 ---
@@ -45,6 +45,7 @@ Caddy ── 静态资源：镜像内 Vue 产物（CSP: default-src 'self'）
 FastAPI（127.0.0.1:8001，非 root uid 10001）
   ├─ SQLite（WAL，guides / jobs / usage / sessions / records / diagnose_runs / diagnose_steps）
   ├─ 生成：进程内单 worker 有界队列 → DeepSeek（结构化 JSON 输出）
+  ├─ 识别：POST /extract → DeepSeek 视觉（单通道，结果只回填文本，不落库）
   └─ 排查：HybridProvider（关键词 + n-gram/IDF 稀疏向量）→ 受限重排（模型只能排序）→ 故障树推进
 ```
 
@@ -64,7 +65,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
 | B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.8ms** / P95 **4.6ms** | `python scripts/eval_diagnose.py` |
-| 前端首屏 | **41.47 KB** gzip（预算 75KB），CSS **6.10 KB**（预算 14KB） | `npm run build` |
+| 前端首屏 | **41.69 KB** gzip（预算 75KB），CSS **6.52 KB**（预算 14KB） | `npm run build` |
 | 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 100** / LCP **1.31s** / CLS **0** / TBT **70ms**；指导书页 **99** / **1.29s** / **0** / **124.5ms** | Lighthouse 13.5 + `scripts/lighthouse.mjs`（2026-10-23 线上） |
 | 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
 | 契约面 | **30 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |

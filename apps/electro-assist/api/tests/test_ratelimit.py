@@ -13,8 +13,8 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-import imaging
-import ratelimit
+from core import imaging
+from core import ratelimit
 from main import app
 
 client = TestClient(app)

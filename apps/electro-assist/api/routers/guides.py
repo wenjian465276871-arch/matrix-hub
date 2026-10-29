@@ -16,9 +16,9 @@ import re
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-import ratelimit
+from core import ratelimit
 import store
-from assets import ASSET_RE
+from core.assets import ASSET_RE
 from models.guide import SCHEMA_VERSION, AssetRef, Guide
 from services import library
 

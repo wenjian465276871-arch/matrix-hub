@@ -13,7 +13,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-import ratelimit
+from core import ratelimit
 from models.guide import System
 from services import diagnosis, knowledge
 

@@ -13,7 +13,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-import passcode
+from core import passcode
 import store
 from main import app
 from routers import passcode as passcode_router

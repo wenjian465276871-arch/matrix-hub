@@ -13,8 +13,8 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, ValidationError
 
-import assets
-import ratelimit
+from core import assets
+from core import ratelimit
 import store
 from llm import LLMError, get_provider
 from llm.extract import (

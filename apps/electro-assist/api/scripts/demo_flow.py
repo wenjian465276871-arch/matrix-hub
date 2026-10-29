@@ -22,7 +22,7 @@ from pathlib import Path
 
 import httpx
 
-CORPUS = Path(__file__).resolve().parent / "corpus" / "08_door_full_cycle.txt"
+CORPUS = Path(__file__).resolve().parent.parent / "data" / "corpus" / "08_door_full_cycle.txt"
 DEFAULT_GUIDE = "g_door_switch_formal_001"
 
 # 按判据 id 给值：演示脚本不猜，值必须与正式案例的判据对得上。

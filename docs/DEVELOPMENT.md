@@ -32,12 +32,12 @@ python -m uvicorn main:app --reload --port 8001
 启动时会做两件事：
 
 - `store.init_db()`：建表 + 执行未应用的迁移（当前 v6）；
-- `library.ensure_seeded()`：把 `samples/*.json` 按 id 增量 seed 成 published（已存在的不覆盖）。
+- `library.ensure_seeded()`：把 `data/samples/*.json` 按 id 增量 seed 成 published（已存在的不覆盖）。
 
-默认数据库 `app_data/electro.db`，默认样例目录 `samples/`。常用覆盖：
+默认数据库 `app_data/electro.db`，默认样例目录 `data/samples/`。常用覆盖：
 
 ```bash
-DB_PATH=/tmp/electro.db GUIDE_DIR=./samples SEED_GUIDES=0 uvicorn main:app --port 8001
+DB_PATH=/tmp/electro.db GUIDE_DIR=./data/samples SEED_GUIDES=0 uvicorn main:app --port 8001
 ```
 
 ### 2.2 前端
@@ -63,25 +63,40 @@ npm run preview    # http://localhost:4173/apps/electro-assist/
 ```
 api/
 ├── main.py            FastAPI 装配、CORS/静态挂载、启动 seed、健康检查
-├── models/            Pydantic 契约：guide（schema 1.2）、visual（7 原语）、knowledge
+├── core/              横切能力，不依赖任何业务模块
+│   ├── assets.py      素材落盘约定与存在性校验（上传/生成/归位共用）
+│   ├── imaging.py     图片准入（格式/尺寸/EXIF 剥离/重编码）
+│   ├── slicing.py     版面切分（表格线/密集文字）
+│   ├── ratelimit.py   进程内滑窗限流（单 worker 前提）
+│   └── passcode.py    口令 → 12h 令牌（HMAC）；只豁免每 IP 配额
+├── models/            Pydantic 契约：guide（schema 1.2）、visual（13 原语）、knowledge
 ├── routers/           30 个业务端点；只做参数校验与 HTTP 语义
 ├── services/          业务规则：generation / quota / jobqueue / criteria / sessions / library
-│                      knowledge（混合召回）/ rerank（只排序）/ diagnosis（故障树推进）
+│                      knowledge（混合召回）/ rerank（只排序）/ diagnosis（故障树推进）/ report_html
 ├── store/             SQLite：db（连接/迁移）、dao（读写，不含业务规则）
-├── llm/               Provider 协议、DeepSeek 实现、runner（重试/超时/校验）、pricing、prompts
-├── assets.py          素材落盘约定与存在性校验（上传/生成/归位共用）
-├── passcode.py        口令 → 12h 令牌（HMAC）；只豁免每 IP 配额
-├── knowledge/         door 11 / hvac 4 / pantograph 3 条 + eval_queries.json（21+2 条）
-├── samples/           5 份 published 样例（车门 3 + 空调 1 + 受电弓 1）
+├── llm/               Provider 协议、DeepSeek 实现、runner（重试/超时/校验）、pricing、prompts、extract
+├── data/              运行数据（与代码分离，全部随镜像发布）
+│   ├── samples/       5 份 published 样例（车门 3 + 空调 1 + 受电弓 1）
+│   ├── knowledge/     door 11 / hvac 4 / pantograph 3 条 + eval_queries.json
+│   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / smoke
 └── tests/             259 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
-├── src/figures/       7 个 SVG 原语 + registry + svg 工具
+├── src/figures/       13 个 SVG 原语 + registry + svg 工具
+├── src/components/    ui/（确认弹层）与 diagnose/（快速结果、逐步诊断）
 ├── src/lib/http.ts    唯一网络层：超时、错误归一、JSON / multipart / PUT
 ├── src/styles/        tokens / base / print
 └── src/types.ts       与后端契约对应的 TS 类型
 ```
+
+**依赖方向**（重组后强制）：
+
+```
+main → routers → services / store / llm → core
+```
+
+`core/` 不反向引用业务模块：它只回答"文件在不在、图能不能收、请求是否超限、令牌是否有效"，不判断业务语义。新增横切能力先问一句"它需要知道 Step 或 Guide 吗"，需要就不属于 core。
 
 **边界约定**：
 
@@ -191,7 +206,7 @@ python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 | 上传 | `POST /uploads`（`routers/uploads.py`） | ≤5MB、长边 ≥1000px、只收 PNG/JPEG/WebP，EXIF 剥离后重编码为 PNG |
 | 切图 | `POST /uploads/{id}/slice` | 返回整图 + 局部块；每资产 5 次上限 |
 | 采纳切块 | `POST /uploads/{id}/slice/{region_id}/adopt` | 把块复制成**独立 asset**（含 `meta.json`），`derived_from` 记来源；每源图 6 次上限 |
-| 存在性 | `assets.py` | `assets.exists()` 校验 PNG + `meta.json` 都在；生成入口 422 `asset_not_found` |
+| 存在性 | `core/assets.py` | `assets.exists()` 校验 PNG + `meta.json` 都在；生成入口 422 `asset_not_found` |
 | 随生成 | `GenerateIn.assets`（≤4）→ `jobs.assets_json` | 只存 `asset_id + caption`，不存路径 |
 | 落草稿 | `services/generation._attach_assets()` | 全部进 `Guide.assets`；**模型的 assets 输出在 runner 里被剥掉** |
 | 归位 | `PUT /guides/{id}/assets` | 全量替换；只接受这份草稿已有的 id；已发布 409 |

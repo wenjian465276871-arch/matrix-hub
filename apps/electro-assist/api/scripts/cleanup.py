@@ -42,7 +42,7 @@ if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
 import store  # noqa: E402 - 必须在 sys.path 调整之后导入
-from assets import ASSET_RE  # noqa: E402 - 与上传/生成/归位共用同一套格式
+from core.assets import ASSET_RE  # noqa: E402 - 与上传/生成/归位共用同一套格式
 
 
 @dataclass

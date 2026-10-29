@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
 
-import imaging
+from core import imaging
 from main import app
 
 client = TestClient(app)

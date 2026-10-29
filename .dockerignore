@@ -7,7 +7,7 @@
 **/__pycache__
 **/*.pyc
 **/tests
-# 注意：**/samples 不能排除——它是指导书 fixture，运行时由 /api/electro/guides 读取
+# 注意：**/data 不能排除——samples / knowledge 是运行时读的 fixture，由 /api/electro 读取
 node_modules
 **/node_modules
 **/dist

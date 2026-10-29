@@ -1,6 +1,6 @@
 # 文档索引
 
-> 版本 v1.1 · 2026-10-23 · 维护规则：**每份文档只回答一类问题；数字必须附命令与日期；历史结论进 `archive/`，未实现方案进 `proposals/`。**
+> 版本 v1.2 · 2026-10-30 · 维护规则：**每份文档只回答一类问题；数字必须附命令与日期；历史结论进 `archive/`，未实现方案进 `proposals/`。**
 
 ## 1. 先看哪份
 
@@ -38,25 +38,25 @@
 | `docs/OPERATIONS.md` | 运维 | 当前 | 部署/回滚/证书/备份/事故/发布 CLI |
 | `docs/DEMO.md` | 演示 | 当前 | 5 分钟闭环 + 兜底 |
 | `docs/SOURCES.md` | 合规 | 当前 | 案例与知识库来源登记（D-01～D-07、K-01～K-03） |
-| `docs/proposals/A2-IMAGE-INPUT.md` | 提案 | **未实现** | P4 备选；上传/切图契约仍维护 |
+| `docs/proposals/A2-IMAGE-INPUT.md` | 提案 | **部分实现** | 单通道识别已上线；双通道待模型提供文字坐标 |
 | `docs/adr/0001` | ADR | 已接受 | 单仓单镜像 + Caddy |
 | `docs/adr/0002` | ADR | 已接受 | P0 下架 news-insight |
 | `docs/adr/0003` | ADR | 已接受 | 旧静态页归档、不入镜像 |
 | `docs/archive/P0A-MIGRATION.md` | 归档 | 历史 | P0a 迁移方案与执行记录 |
-| `apps/electro-assist/api/scripts/corpus/README.md` | 测试数据 | 当前 | 评测语料说明；04 已上架为 HVAC 案例 |
+| `apps/electro-assist/api/data/corpus/README.md` | 测试数据 | 当前 | 评测语料说明；04 已上架为 HVAC 案例 |
 | `archive/particle-system-legacy/README.md` | 归档 | 历史 | 手势粒子实验，不构建、不服务 |
 | `archive/portal-legacy/` | 归档 | 历史 | 旧门户，不构建、不服务 |
 
-## 3. 当前基线（2026-10-23 本机实测）
+## 3. 当前基线（2026-10-30 本机实测）
 
 | 项 | 值 | 采集 |
 |---|---|---|
-| 代码基线 | `203f90e`（现已上线） | `git log --oneline -1` |
-| 契约测试 | **259 passed** | `pytest tests -q`（16s） |
-| 业务端点 | 26 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
-| 首屏 | **41.47 KB gzip / CSS 6.10 KB** | `npm run build`（vue-tsc + vite） |
+| 代码基线 | `691314d`（现已上线） | `git log --oneline -1` |
+| 契约测试 | **259 passed** | `pytest tests -q`（约 23s） |
+| 业务端点 | 30 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
+| 首屏 | **41.69 KB gzip / CSS 6.52 KB** | `npm run build`（vue-tsc + vite） |
 | 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23） |
-| 线上数据 | guides 6（published 4）/ KB 18 条 / 3 子系统 | 容器内 `sqlite3` 与 `GET /diagnose/kb` |
+| 线上数据 | 已发布指导书 5 / KB 18 条 / 3 子系统 | `GET /guides` 与 `GET /diagnose/kb` |
 | 真机验收 | 通过（Honor/5G，8 步 + 超差复测 + 3 页打印） | 私有仓 `reports/真机验收记录-2026-10-21.md` |
 | 已知边界 | 前端无单测；axe/Lighthouse 全量扫描未做；备份同盘无异地 | 私有仓 `reports/项目审查与开发计划-2026-10-22.md` |
 

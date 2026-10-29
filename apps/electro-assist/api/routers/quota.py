@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
-import ratelimit
+from core import ratelimit
 from services import quota
 from services.jobqueue import job_queue
 
