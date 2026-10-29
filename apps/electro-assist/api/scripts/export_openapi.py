@@ -27,7 +27,7 @@ METHOD_ORDER = ["get", "post", "put", "patch", "delete"]
 # 这里只补"这个端点干什么"，不重复 schema；新增端点若未登记，退回自动摘要并在导出时提示。
 CURATED = {
     "GET /healthz": "健康检查：进程 + 数据库 + 磁盘余量，供部署脚本与容器探针使用",
-    "GET /api/electro/schema/guide": "取 Guide 的 JSON Schema（schema_version 1.1）",
+    "GET /api/electro/schema/guide": "取 Guide 的 JSON Schema（schema_version 1.2）",
     "GET /api/electro/schema/visual": "取视觉 DSL 的 JSON Schema（7 种原语）",
     "POST /api/electro/schema/validate": "校验一份 Guide，返回错误列表",
     "POST /api/electro/schema/validate-visual": "只校验视觉 DSL 片段",
@@ -37,6 +37,7 @@ CURATED = {
     "GET /api/electro/uploads/{asset_id}/{filename}": "取原图或某张切片（二进制）",
     "GET /api/electro/guides": "指导书列表，**只含已发布**（草稿不进列表）",
     "GET /api/electro/guides/{guide_id}": "指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读",
+    "PUT /api/electro/guides/{guide_id}/assets": "草稿素材归位：全量重排已有素材到步骤/素材区；已发布 409",
     "POST /api/electro/generate": "提交生成任务，返回 202 + job_id（单 worker 有界队列）",
     "GET /api/electro/jobs/{job_id}": "轮询生成任务状态，成功后带 guide_id",
     "GET /api/electro/quota": "查生成配额与全站预算余量",

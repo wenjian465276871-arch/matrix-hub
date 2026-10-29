@@ -8,6 +8,7 @@
 清理口径（刻意保守）：
 - **指导书永不删除**（published 与 draft 都是产品内容）；
 - 上传资产：按目录 mtime 计龄，默认 **30 天**；切图会刷新 mtime；
+  **被任何指导书引用的资产永不删除**——否则已发布页面的图会在 30 天后变成裂图；
 - 会话 + 其记录：按 `sessions.created_at` 计龄，默认 **180 天**；
 - 逐步诊断（run + steps）：与作业记录同口径，默认 **180 天**（进行中的也按创建时间清，避免僵尸会话）；
 - 已结束任务：默认 **90 天**（queued/running 不动）；
@@ -27,8 +28,8 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
-import re
 import shutil
 import sqlite3
 import sys
@@ -41,8 +42,7 @@ if str(API_DIR) not in sys.path:
     sys.path.insert(0, str(API_DIR))
 
 import store  # noqa: E402 - 必须在 sys.path 调整之后导入
-
-ASSET_RE = re.compile(r"^a_[0-9a-f]{16}$")
+from assets import ASSET_RE  # noqa: E402 - 与上传/生成/归位共用同一套格式
 
 
 @dataclass
@@ -86,6 +86,29 @@ def _dir_size(path: str) -> int:
     return total
 
 
+def _referenced_assets(con: sqlite3.Connection) -> set[str]:
+    """扫全部指导书，收集被引用的 asset_id。
+
+    直接读 JSON 而不是建引用表：指导书是整份 JSON 落库的，没有第二处真相；
+    加一张引用表就要在生成、归位、发布三处同步维护，漏一处就是"图被删了"。
+    规模上限是"指导书数量"，演示站几十份，全表扫描的成本可以忽略。
+    """
+    referenced: set[str] = set()
+    for row in con.execute("SELECT json FROM guides"):
+        try:
+            data = json.loads(row["json"])
+        except (TypeError, ValueError):
+            continue
+        buckets = [data.get("assets") or []]
+        buckets += [step.get("assets") or [] for step in data.get("steps") or []]
+        for bucket in buckets:
+            for item in bucket:
+                asset_id = item.get("asset_id") if isinstance(item, dict) else None
+                if isinstance(asset_id, str):
+                    referenced.add(asset_id)
+    return referenced
+
+
 def plan(
     *,
     now: datetime | None = None,
@@ -100,6 +123,7 @@ def plan(
 
     con = sqlite3.connect(store.db_path())
     con.row_factory = sqlite3.Row
+    referenced: set[str] = set()
     try:
         sessions_cut = _iso(moment - timedelta(days=sessions_days))
         report.sessions = [
@@ -145,6 +169,9 @@ def plan(
         report.usage = con.execute(
             "SELECT COUNT(*) FROM usage WHERE created_at < ?", (usage_cut,)
         ).fetchone()[0]
+
+        # 连接关掉之前取引用集：上传目录的扫描在 finally 之后进行。
+        referenced = _referenced_assets(con)
     finally:
         con.close()
 
@@ -153,6 +180,8 @@ def plan(
         cutoff = (moment - timedelta(days=uploads_days)).timestamp()
         for entry in os.scandir(root):
             if not entry.is_dir() or entry.is_symlink() or not ASSET_RE.match(entry.name):
+                continue
+            if entry.name in referenced:
                 continue
             try:
                 if os.path.getmtime(entry.path) >= cutoff:

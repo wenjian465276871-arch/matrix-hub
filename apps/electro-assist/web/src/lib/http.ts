@@ -21,6 +21,8 @@ export class ApiError extends Error {
 }
 
 const TIMEOUT_MS = 15_000
+/** 上传要走完整读文件 + 转码 + 落盘，15 秒在移动网络下不够；页面只等这一件事。 */
+const UPLOAD_TIMEOUT_MS = 60_000
 
 /** 现场 WebView 版本不可控：`AbortSignal.timeout` / `AbortSignal.any`
  * 不是所有内核都有（Chrome < 103、Safari < 16.4 会直接抛 TypeError，
@@ -45,6 +47,7 @@ async function request<T>(
   path: string,
   init: RequestInit,
   signal?: AbortSignal,
+  timeoutMs: number = TIMEOUT_MS,
 ): Promise<T> {
   // 不用 AbortSignal.timeout：老内核没有这个静态方法，会在 fetch 之前就抛
   // TypeError，被上层当成"未知错误"。timedOut 标记同时解决了"超时"与
@@ -54,7 +57,7 @@ async function request<T>(
   const timer = setTimeout(() => {
     timedOut = true
     timeoutCtrl.abort()
-  }, TIMEOUT_MS)
+  }, timeoutMs)
   const merged = signal ? combine(signal, timeoutCtrl.signal) : timeoutCtrl.signal
 
   let res: Response
@@ -95,6 +98,8 @@ export function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
 export interface PostOptions {
   signal?: AbortSignal
   headers?: Record<string, string>
+  /** 覆盖默认 15s；上传走 60s */
+  timeoutMs?: number
 }
 
 export function postJson<T>(
@@ -114,5 +119,41 @@ export function postJson<T>(
       body: JSON.stringify(body),
     },
     options.signal,
+    options.timeoutMs,
+  )
+}
+
+export function putJson<T>(
+  path: string,
+  body: unknown,
+  options: PostOptions = {},
+): Promise<T> {
+  return request<T>(
+    path,
+    {
+      method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      body: JSON.stringify(body),
+    },
+    options.signal,
+    options.timeoutMs,
+  )
+}
+
+/** multipart 上传。**不要手动设 Content-Type**：boundary 由浏览器生成。 */
+export function postForm<T>(
+  path: string,
+  form: FormData,
+  options: PostOptions = {},
+): Promise<T> {
+  return request<T>(
+    path,
+    { method: 'POST', headers: { Accept: 'application/json', ...options.headers }, body: form },
+    options.signal,
+    options.timeoutMs ?? UPLOAD_TIMEOUT_MS,
   )
 }

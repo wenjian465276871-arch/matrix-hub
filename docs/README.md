@@ -33,7 +33,7 @@
 | `docs/UI.md` | 规范 | 当前 | 视觉 as-built：令牌、组件、SVG 原语、打印 |
 | `docs/UX.md` | 规范 | 当前 | 交互 as-built：信息架构、三条流程、状态与边界 |
 | `docs/FRONTEND.md` | 方案 | 当前 | 前端 as-built：结构、网络层、性能、坑、未实现 |
-| `docs/API.md` | 契约 | 当前 | OpenAPI 导出，26 端点（业务 25 + `/healthz`） |
+| `docs/API.md` | 契约 | 当前 | OpenAPI 导出，27 端点（业务 26 + `/healthz`） |
 | `docs/DEVELOPMENT.md` | 指南 | 当前 | 本地运行、测试、约定、常见坑 |
 | `docs/OPERATIONS.md` | 运维 | 当前 | 部署/回滚/证书/备份/事故/发布 CLI |
 | `docs/DEMO.md` | 演示 | 当前 | 5 分钟闭环 + 兜底 |
@@ -52,9 +52,9 @@
 | 项 | 值 | 采集 |
 |---|---|---|
 | 代码基线 | `203f90e`（现已上线） | `git log --oneline -1` |
-| 契约测试 | **202 passed** | `pytest tests -q`（19.9s） |
-| 业务端点 | 25 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
-| 首屏 | **41.43 KB gzip / CSS 5.58 KB** | `npm run build`（vue-tsc + vite） |
+| 契约测试 | **216 passed** | `pytest tests -q`（16s） |
+| 业务端点 | 26 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
+| 首屏 | **41.47 KB gzip / CSS 6.10 KB** | `npm run build`（vue-tsc + vite） |
 | 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23） |
 | 线上数据 | guides 6（published 4）/ KB 18 条 / 3 子系统 | 容器内 `sqlite3` 与 `GET /diagnose/kb` |
 | 真机验收 | 通过（Honor/5G，8 步 + 超差复测 + 3 页打印） | 私有仓 `reports/真机验收记录-2026-10-21.md` |

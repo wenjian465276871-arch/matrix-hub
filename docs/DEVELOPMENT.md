@@ -31,7 +31,7 @@ python -m uvicorn main:app --reload --port 8001
 
 启动时会做两件事：
 
-- `store.init_db()`：建表 + 执行未应用的迁移（当前 v3）；
+- `store.init_db()`：建表 + 执行未应用的迁移（当前 v6）；
 - `library.ensure_seeded()`：把 `samples/*.json` 按 id 增量 seed 成 published（已存在的不覆盖）。
 
 默认数据库 `app_data/electro.db`，默认样例目录 `samples/`。常用覆盖：
@@ -63,21 +63,22 @@ npm run preview    # http://localhost:4173/apps/electro-assist/
 ```
 api/
 ├── main.py            FastAPI 装配、CORS/静态挂载、启动 seed、健康检查
-├── models/            Pydantic 契约：guide（schema 1.1）、visual（7 原语）、knowledge
-├── routers/           25 个业务端点；只做参数校验与 HTTP 语义
+├── models/            Pydantic 契约：guide（schema 1.2）、visual（7 原语）、knowledge
+├── routers/           26 个业务端点；只做参数校验与 HTTP 语义
 ├── services/          业务规则：generation / quota / jobqueue / criteria / sessions / library
 │                      knowledge（混合召回）/ rerank（只排序）/ diagnosis（故障树推进）
 ├── store/             SQLite：db（连接/迁移）、dao（读写，不含业务规则）
 ├── llm/               Provider 协议、DeepSeek 实现、runner（重试/超时/校验）、pricing、prompts
+├── assets.py          素材落盘约定与存在性校验（上传/生成/归位共用）
 ├── passcode.py        口令 → 12h 令牌（HMAC）；只豁免每 IP 配额
 ├── knowledge/         door 11 / hvac 4 / pantograph 3 条 + eval_queries.json（21+2 条）
-├── samples/           4 份 published 样例（车门 3 + 空调 1）
+├── samples/           5 份 published 样例（车门 3 + 空调 1 + 受电弓 1）
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / smoke
-└── tests/             202 条契约测试
+└── tests/             216 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       7 个 SVG 原语 + registry + svg 工具
-├── src/lib/http.ts    唯一网络层：超时、错误归一、JSON
+├── src/lib/http.ts    唯一网络层：超时、错误归一、JSON / multipart / PUT
 ├── src/styles/        tokens / base / print
 └── src/types.ts       与后端契约对应的 TS 类型
 ```
@@ -93,7 +94,7 @@ web/
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 202 passed（约 20s）
+pytest tests -q          # 216 passed（约 20s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web
@@ -129,7 +130,7 @@ pip install --dry-run --require-hashes -r requirements.lock
 升级需要同步抬 FastAPI 并回归 194 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
 
 
-**前端 E2E（2026-10-21 进 CI）**：`tests/e2e/smoke.spec.ts` 覆盖三条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖。不调模型，用启动时 seed 的案例与知识库。
+**前端 E2E（2026-10-21 进 CI）**：`tests/e2e/smoke.spec.ts` 覆盖四条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、素材上传。不调模型，用启动时 seed 的案例与知识库。
 
 ```bash
 # 本地：先起 API（临时库）与 preview，再跑
@@ -171,6 +172,30 @@ python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 ```
 
 发布前会做一次 `Guide.model_validate`；已发布内容不会被再次生成覆盖。详细语义见 `OPERATIONS.md` §12。
+
+## 5.1 现场素材（图片）
+
+链路是「用户上传 → 随生成请求带上 → 进草稿素材区 → 人在草稿页挂到某一步」。
+**全程不做识别**：模型看不到图，也不参与决定图属于哪一步。
+
+| 环节 | 位置 | 约定 |
+|---|---|---|
+| 上传 | `POST /uploads`（`routers/uploads.py`） | ≤5MB、长边 ≥1000px、只收 PNG/JPEG/WebP，EXIF 剥离后重编码为 PNG |
+| 存在性 | `assets.py` | `assets.exists()` 校验 PNG + `meta.json` 都在；生成入口 422 `asset_not_found` |
+| 随生成 | `GenerateIn.assets`（≤4）→ `jobs.assets_json` | 只存 `asset_id + caption`，不存路径 |
+| 落草稿 | `services/generation._attach_assets()` | 全部进 `Guide.assets`；**模型的 assets 输出在 runner 里被剥掉** |
+| 归位 | `PUT /guides/{id}/assets` | 全量替换；只接受这份草稿已有的 id；已发布 409 |
+| 渲染 | `GuideView.vue` | 步骤内 `figure` + 文末「现场素材」区；编号全文连续；打印 `break-inside: avoid` |
+
+三条不能破的边界：
+
+1. **模型不碰素材**。给模型看的 schema 由 `llm/prompts.output_schema()` 删掉 `assets` 字段；
+   即便它硬塞，runner 解析后也会剥掉。位置是事实，事实由人给。
+2. **已发布只读**。`PUT` 遇 `published` 直接 409；`save_guide` 的 upsert 也只更新 draft。
+3. **不能清空**。传空数组会 422 `assets_required`——归位只认已有素材，清空后没有入口加回来。
+
+改这块时最容易踩的坑：`step.assets` 与 `guide.assets` 的**全局唯一**校验在 `Guide._check_steps`。
+赋值不会重跑 pydantic 的 model_validator，所以 `PUT` 里显式 `model_validate` 了一次。
 
 ## 6. 改文档的规矩
 

@@ -159,6 +159,40 @@ def test_plan_and_apply_delete_only_expired(env):
     assert (env / "uploads" / ("a_" + "1" * 16)).exists()
 
 
+def test_referenced_assets_are_never_deleted(env):
+    """被指导书引用的图不能按年龄清掉：已发布页面会直接裂图。"""
+    import json
+
+    referenced = "a_" + "2" * 16
+    orphan = "a_" + "3" * 16
+    _seed({})  # 只建 g_demo 这一份指导书
+    _asset(env, referenced, 400)
+    _asset(env, orphan, 400)
+
+    con = sqlite3.connect(store.db_path())
+    try:
+        with con:
+            con.execute(
+                "UPDATE guides SET json = ? WHERE id = 'g_demo'",
+                (
+                    json.dumps(
+                        {
+                            "assets": [{"asset_id": referenced, "caption": "门锁间隙"}],
+                            "steps": [],
+                        }
+                    ),
+                ),
+            )
+    finally:
+        con.close()
+
+    report = cleanup.plan()
+    assert [name for name, _ in report.uploads] == [orphan]
+    cleanup.apply(report)
+    assert (env / "uploads" / referenced).exists()
+    assert not (env / "uploads" / orphan).exists()
+
+
 def test_plan_keeps_active_jobs_even_if_old(env):
     _seed({"j_old": 100})
     con = sqlite3.connect(store.db_path())

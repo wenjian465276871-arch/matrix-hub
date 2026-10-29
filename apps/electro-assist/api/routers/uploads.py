@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import uuid
 
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
 
+import assets
 import imaging
 import ratelimit
 import slicing
@@ -55,9 +55,11 @@ def reset_slice_limiter() -> None:
 
 def upload_dir() -> str:
     """运行时读取，便于测试注入；不要改成模块级常量。"""
-    return os.getenv("UPLOAD_DIR", "app_data/uploads")
-ASSET_RE = re.compile(r"^a_[0-9a-f]{16}$")
-FILE_RE = re.compile(r"^a_[0-9a-f]{16}(_r\d+|_full)?\.png$")
+    return assets.upload_dir()
+
+
+ASSET_RE = assets.ASSET_RE
+FILE_RE = assets.FILE_RE
 
 
 def _asset_dir(asset_id: str) -> str:

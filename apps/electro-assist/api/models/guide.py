@@ -15,8 +15,35 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from .visual import VisualSpec
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 REQUIRED_DISCLAIMER = "演示数据 · 非实际作业依据"
+
+# 素材 id 由上传接口分配（`a_` + 16 位十六进制）。这里只做格式校验，
+# "这张图真的存在"必须在服务层查磁盘——模型不认识素材，也不该由它担保。
+ASSET_ID_RE = r"^a_[0-9a-f]{16}$"
+
+
+class AssetRef(BaseModel):
+    """一张用户自带的现场素材（截图/照片）。
+
+    为什么没有 crop 字段：切图接口还在，但"选哪一块入稿"需要确认页，
+    当前链路没做确认页，先只接整图。加字段容易，去掉错的数据难。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    asset_id: str = Field(pattern=ASSET_ID_RE)
+    caption: str = Field(min_length=2, max_length=60)
+
+    @field_validator("caption")
+    @classmethod
+    def _plain_caption(cls, v: str) -> str:
+        text = v.strip()
+        if not text:
+            raise ValueError("素材说明不能为空")
+        if "<" in text or "javascript:" in text.lower():
+            raise ValueError("素材说明含疑似标记内容")
+        return text
 
 
 class System(str, Enum):
@@ -72,6 +99,9 @@ class Step(BaseModel):
     tools: list[str] = Field(default_factory=list, max_length=8)
     criteria: list[Criterion] = Field(default_factory=list, max_length=8)
     figures: list[VisualSpec] = Field(default_factory=list, max_length=3)
+    # 用户自带的现场素材（照片/截图）。给模型看的 schema 里已剔除该字段，
+    # 服务端在生成后填充；位置由人在草稿页决定。
+    assets: list[AssetRef] = Field(default_factory=list, max_length=3)
     duration_s: int | None = Field(default=None, ge=1, le=7200)
 
     @field_validator("safety", "tools")
@@ -123,6 +153,9 @@ class Guide(BaseModel):
     summary: str = Field(min_length=10, max_length=300)
     meta: GuideMeta
     steps: list[Step] = Field(min_length=1, max_length=30)
+    # 还没归位的素材放这里，渲染成指导书末尾的「现场素材」区。
+    # 归位（挂到某一步）由人来做，不是模型：见 PUT /guides/{id}/assets。
+    assets: list[AssetRef] = Field(default_factory=list, max_length=6)
     disclaimers: list[str] = Field(default_factory=lambda: [REQUIRED_DISCLAIMER])
 
     @model_validator(mode="after")
@@ -135,4 +168,9 @@ class Guide(BaseModel):
             raise ValueError("步骤 id 重复")
         if REQUIRED_DISCLAIMER not in self.disclaimers:
             raise ValueError(f"必须包含声明：{REQUIRED_DISCLAIMER}")
+        # 同一张图在全文只能出现一次：重复引用会让编号错乱，打印出来还占两页。
+        used = [a.asset_id for step in self.steps for a in step.assets]
+        used += [a.asset_id for a in self.assets]
+        if len(set(used)) != len(used):
+            raise ValueError("同一素材在步骤与素材区之间不能重复引用")
         return self

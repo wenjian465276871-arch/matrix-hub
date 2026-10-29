@@ -214,6 +214,14 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "CREATE INDEX idx_diagnose_runs_created ON diagnose_runs(created_at)",
         ],
     ),
+    (
+        6,
+        [
+            # 生成时提交的素材要跟着 job 走：worker 只拿 job_id，
+            # 把它塞进内存队列会让"重启后续跑"和"队列里只看文本"两件事都变脏。
+            "ALTER TABLE jobs ADD COLUMN assets_json TEXT NOT NULL DEFAULT '[]'",
+        ],
+    ),
 ]
 
 

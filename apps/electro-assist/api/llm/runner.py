@@ -22,7 +22,13 @@ from models.guide import Guide
 
 from .base import Completion, LLMError, LLMProvider, Usage
 from .pricing import cost_micros
-from .prompts import repair_prompt, system_prompt, truncation_prompt, user_prompt
+from .prompts import (
+    output_schema,
+    repair_prompt,
+    system_prompt,
+    truncation_prompt,
+    user_prompt,
+)
 
 MAX_INPUT_CHARS = 20_000
 MIN_INPUT_CHARS = 10
@@ -108,7 +114,7 @@ def generate_guide(
 
     system = system_prompt()
     prompt = user_prompt(cleaned)
-    schema = Guide.model_json_schema()
+    schema = output_schema()
 
     deadline = clock() + budget_s
     usage = Usage()
@@ -160,6 +166,12 @@ def generate_guide(
 
         try:
             payload = json.loads(extract_json(completion.text))
+            # assets 不在给模型看的 schema 里，但模型可能凭"见过类似任务"硬塞。
+            # 先剔掉再校验：素材归属是服务端事实，不能让模型的一次发挥把整次生成判死。
+            payload.pop("assets", None)
+            for step in payload.get("steps", []):
+                if isinstance(step, dict):
+                    step.pop("assets", None)
             # is_demo 与 model/source_note 一样属于服务端所有：模型写 false 时
             # 不浪费一次重试去纠正，直接覆盖后再校验（模型层还有一道拒绝，防其他入口）。
             if isinstance(payload.get("meta"), dict):

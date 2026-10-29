@@ -29,6 +29,30 @@ def _primitive_table() -> str:
     return "\n".join(rows)
 
 
+def output_schema() -> dict:
+    """给模型看的 Guide schema：**去掉 assets**。
+
+    素材是用户拍的照片，模型看不到；字段留在 schema 里，它就会"顺手填一个"，
+    填错还不报错（格式合法、图片不存在），最后表现为详情页图裂开。
+    这不是模型不听话，是契约不该给它这个机会。
+
+    做法是"代码生成的 schema 再删两个键"，而不是手写第二份 schema：
+    手写的那份迟早和模型定义漂移。
+    """
+    schema = Guide.model_json_schema()
+    schema.get("properties", {}).pop("assets", None)
+    if "required" in schema:
+        schema["required"] = [name for name in schema["required"] if name != "assets"]
+    for definition in schema.get("$defs", {}).values():
+        properties = definition.get("properties")
+        if isinstance(properties, dict):
+            properties.pop("assets", None)
+        required = definition.get("required")
+        if isinstance(required, list):
+            definition["required"] = [name for name in required if name != "assets"]
+    return schema
+
+
 def system_prompt() -> str:
     return f"""你是电气调试作业指导书的结构化生成器。你的输出会被程序直接解析并渲染成现场作业页面，格式错误等同于失败。
 
@@ -65,7 +89,7 @@ def system_prompt() -> str:
 输出语言：简体中文。
 
 JSON Schema：
-{_json(Guide.model_json_schema())}
+{_json(output_schema())}
 """
 
 

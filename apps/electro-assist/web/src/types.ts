@@ -42,6 +42,12 @@ export interface VisualSpec {
   fallback_text: string
 }
 
+/** 用户自带的现场素材（截图/照片）。位置由人挂，不由模型猜。 */
+export interface AssetRef {
+  asset_id: string
+  caption: string
+}
+
 export interface Step {
   id: string
   seq: number
@@ -51,6 +57,7 @@ export interface Step {
   tools: string[]
   criteria: Criterion[]
   figures: VisualSpec[]
+  assets: AssetRef[]
   duration_s: number | null
 }
 
@@ -69,6 +76,8 @@ export interface Guide {
   summary: string
   meta: GuideMeta
   steps: Step[]
+  /** 还没归位的素材，渲染成末尾「现场素材」区 */
+  assets: AssetRef[]
   disclaimers: string[]
 }
 
@@ -123,6 +132,35 @@ export interface GenerateAccepted {
   job_id: string
   status: 'queued'
   poll_after_ms: number
+}
+
+/* ---------- 现场素材 ---------- */
+
+export interface UploadedAsset {
+  asset_id: string
+  source_format: string
+  source_width: number
+  source_height: number
+  stored_width: number
+  stored_height: number
+  stored_bytes: number
+  sha256: string
+  warnings: string[]
+  exif_stripped: boolean
+}
+
+/** 归位请求体：step_id 为空 = 留在末尾素材区 */
+export interface AttachAsset {
+  asset_id: string
+  caption: string
+  step_id?: string | null
+}
+
+export interface AttachResult {
+  status: GuideStatus
+  guide_id: string
+  attached: number
+  loose: number
 }
 
 export interface QuotaBucket {

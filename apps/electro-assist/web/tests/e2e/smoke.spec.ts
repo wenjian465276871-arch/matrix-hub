@@ -1,10 +1,17 @@
+
+import { fileURLToPath } from 'node:url'
+
 import { expect, test } from '@playwright/test'
 
+// 这个 spec 以 ESM 运行，没有 __dirname；用 import.meta.url 反推。
+const SHOT = fileURLToPath(new URL('./fixtures/shot.png', import.meta.url))
+
 /**
- * 三条冒烟路径：
+ * 四条冒烟路径：
  * 1. 列表 → 正式案例 → 开始引导 → 第 1 步 → 提交 → 第 2 步 → 刷新仍保持；
  * 2. B 命中：现象能检索到条目，并给出"按顺序检查"；
- * 3. B 未覆盖：明确说"未覆盖"，不编造。
+ * 3. B 未覆盖：明确说"未覆盖"，不编造；
+ * 4. 素材上传：图能进页面、能移除（不上传就不会进生成请求，不花配额）。
  *
  * 不依赖模型调用：用的都是启动时 seed 的已发布案例与知识库。
  */
@@ -48,8 +55,7 @@ test('B 未覆盖：明确说未覆盖', async ({ page }) => {
   await expect(page.getByText('未覆盖').first()).toBeVisible()
 })
 
-test('B 逐步诊断：判据推进并收敛到结论', async ({ page }) => {
-  await page.goto('./diagnose')
+test('B 逐步诊断：判据推进并收敛到结论', async ({ page }) => {  await page.goto('./diagnose')
   await page.getByRole('tab', { name: /逐步诊断/ }).click()
   await page.getByPlaceholder('例如：门关到一半又自己弹开了').fill('门到关闭位不锁闭')
   await page.getByRole('button', { name: '开始逐步诊断' }).click()
@@ -69,4 +75,19 @@ test('B 逐步诊断：判据推进并收敛到结论', async ({ page }) => {
   await expect(page.locator('.conclusion')).toBeVisible()
   await expect(page.getByText('已定位到异常点')).toBeVisible()
   await expect(page.locator('.dstep').first()).toBeVisible()
+})
+
+test('素材上传：图能进页面，也能移除', async ({ page }) => {
+  await page.goto('./new')
+  await expect(page.getByRole('heading', { name: '生成作业指导书' })).toBeVisible()
+
+  // 只上传、不提交生成：不花配额，也不依赖模型
+  await page.setInputFiles('input[type="file"]', SHOT)
+  const item = page.locator('.asset-item')
+  await expect(item).toHaveCount(1)
+  await expect(item.locator('img')).toBeVisible()
+  await expect(item.locator('input')).toBeEditable()
+
+  await page.getByRole('button', { name: '移除' }).click()
+  await expect(page.locator('.asset-item')).toHaveCount(0)
 })

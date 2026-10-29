@@ -28,7 +28,7 @@ apps/electro-assist/web/
     ├── main.ts  App.vue     # 顶部 48px 深色条 + RouterView + 页脚声明
     ├── types.ts             # 与服务端契约对应的类型（385 行）
     ├── router/index.ts      # 6 条路由 + 通配回落
-    ├── lib/http.ts          # 唯一网络层：15s 超时、错误归一、JSON 解析；不自动重试
+    ├── lib/http.ts          # 唯一网络层：15s（上传 60s）超时、错误归一、JSON/multipart；不自动重试
     ├── lib/errors.ts        # 服务端 code → 用户文案映射
     ├── styles/              # tokens.css / base.css / print.css
     ├── figures/             # registry.ts + svg.ts + GuideFigure.vue + primitives/（7 个）
@@ -80,7 +80,16 @@ export class ApiError extends Error {
 判定顺序：`timedOut` → `timeout`；`!navigator.onLine` → `network`；`404` → `notfound`；
 `429` → `ratelimit`；`≥500` → `server`。**不做自动重试**——生成接口有配额，"重试"必须由用户显式触发。
 
-超时 15s，用 `AbortController` + `setTimeout`，`timedOut` 标记区分"超时"与"页面卸载主动 abort"。
+超时默认 15s，用 `AbortController` + `setTimeout`，`timedOut` 标记区分"超时"与"页面卸载主动 abort"。
+**上传走 60s**（`postForm` 的默认值）：读文件 + 转码 + 落盘，移动网络下 15s 不够。
+
+三个出口，共用同一个 `request()`：
+
+| 函数 | 用途 | 注意 |
+|---|---|---|
+| `getJson` / `postJson` | 业务读写 | `Content-Type: application/json` |
+| `putJson` | 草稿素材归位 | 全量替换语义 |
+| `postForm` | 图片上传 | **不要手设 `Content-Type`**，boundary 由浏览器生成 |
 
 > **为什么不用 `AbortSignal.timeout`**：Chrome <103 / Safari <16.4 没有这个静态方法，
 > 调用会在 `fetch` 之前抛 `TypeError`，页面表现就是"未知错误"（真机踩过）。
@@ -126,9 +135,9 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 
 | 项 | 预算（gzip） | 实测 |
 |---|---|---|
-| 首屏 JS | ≤75KB（硬顶 90KB） | **40.08KB** |
-| 首屏 CSS | ≤14KB | **5.40KB** |
-| 路由 chunk | ≤30KB | 最大 5.88KB（`DiagnoseView`） |
+| 首屏 JS | ≤75KB（硬顶 90KB） | **41.47KB** |
+| 首屏 CSS | ≤14KB | **6.10KB** |
+| 路由 chunk | ≤30KB | 最大 5.89KB（`DiagnoseView`） |
 | 单个原语 chunk | ≤2KB | 由 `GuideFigure` 共享 chunk 承载 |
 
 `cssCodeSplit:false` 让全站 CSS 合成一个文件（一次 RTT 拿全，代价是后续路由不再请求样式）；

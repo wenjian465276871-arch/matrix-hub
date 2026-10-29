@@ -236,7 +236,7 @@ curl -s https://<域名>/healthz     # 期望 {"status":"ok","checks":{"electro"
 
 | 变更 | 影响 |
 |---|---|
-| 上传目录 `UPLOAD_DIR=/srv/app_data/uploads` | 上传资产落在 `app_data` 卷，重建容器不丢；**30 天清理未实现** |
+| 上传目录 `UPLOAD_DIR=/srv/app_data/uploads` | 上传资产落在 `app_data` 卷，重建容器不丢；30 天清理由 `scripts/cleanup.py --uploads-days 30` 负责（cron 仍空跑，转 `--apply` 前先看日志） |
 | 依赖升级 | Pillow 13.0.0 / python-multipart 0.0.32 / numpy 2.2.1；升级前先跑 `pytest`，再验证线上上传与切图 |
 | 部署变更门控 | 仅 `docs/**`、`*.md`、`.github/**` 的改动不重启生产；改代码仍会中断约 15–20 秒 |
 | 镜像标签 | 一律用 commit SHA，禁止 `latest`；单镜像约 318MB（压缩后 80MB 量级），prune 保留 168h |
@@ -430,7 +430,7 @@ docker exec matrix-hub python -m scripts.cleanup --apply
 
 | 数据 | 默认 | 理由 |
 |---|---|---|
-| 上传目录 | 30 天（按目录 mtime） | 图片只在生成确认期用；切图会刷新 mtime |
+| 上传目录 | 30 天（按目录 mtime），**被任何指导书引用的资产永久保留** | 未入稿的截图只用于生成确认期；已入稿的图是页面内容，删了就是裂图 |
 | 会话 + 记录 | 180 天 | 作业留痕要能回溯；180 天后才清 |
 | 逐步诊断（run + steps） | 180 天 | 与作业记录同口径；含僵尸会话（长期 active 的也按创建时间清） |
 | 已结束任务 | 90 天 | 排障用；queued/running 永不删 |

@@ -96,6 +96,9 @@
 | 空状态 | 线性 SVG + H3 + 14/22 说明（≤40 字）+ 1 个主按钮；无数据与失败两类文案分开，失败附错误号（mono） |
 | 焦点环 | `:focus-visible` 主色 2px + `outline-offset: 2px`；只对键盘生效，鼠标点击不画环。浏览器默认 1px `auto` 在浅底上不可见（axe/Tab 走查发现） |
 | 图示容器 | 4:3 或 16:10 · padding 24 · 屏显 `--c-surface-2` / 打印纯白 · `--radius` + 1px 描边 |
+| 素材上传项 | 72×72 缩略图（`object-fit: cover`）+ 说明输入（h44，maxlength 60）+ 文本按钮「移除」；最多 4 项，纵向 8px 间距；上传中按钮文案换「上传中…」，**不阻塞已填文本** |
+| 素材归位面板（仅草稿） | 主色浅底卡 · 标题 15 + 说明 13 · 每行 64×64 缩略图 + 「图 N 说明」+「放在」下拉（素材区 / 第 N 步）；保存按钮 h40，成功用 `--c-success` 文案、失败 `--c-danger` 文案；整块 `.no-print` |
+| 素材图（正文） | 宽 100% · `max-height: 360px` · `object-fit: contain` · 1px `--c-line` + `--radius-sm`；说明 13/`--c-ink-2` 紧跟图下；编号「图 N · 说明」全文连续，与正文引用一致 |
 
 ## 4. SVG 原语（7 个）
 
@@ -145,6 +148,7 @@
 - 隐藏 `.site-nav`、`.site-foot`、`.no-print`（按钮、底栏、错误条）
 - 卡片去边框去阴影，图示去底去圆角，线宽不变
 - 步骤卡 `break-inside: avoid`，标题 `break-after: avoid`
+- 素材图 `break-inside: avoid`、`max-height: 80mm`；文末「现场素材」区随图成块，不跨页
 - 打印时强制亮色令牌（`--c-bg:#FFF`、`--c-ink:#000`…），否则深色皮肤会打出黑底
 - 记录页页眉用 `<thead>` 内单行（左编号 / 右时间 / 0.75pt 分隔线），**不做页码**——
   `position:fixed` 在 Chromium 打印只出首页，`@page` margin box 支持面太窄
@@ -155,7 +159,7 @@
 - 对比度：正文 ≥4.5:1、判据数值 ≥7:1、非文字 ≥3:1 —— 实测 axe **0 violation**（4 页 × 2 视口）
 - 触摸目标：通用 ≥44×44，A1 现场 ≥48×48
 - 打印：Chromium 逐页翻——无半截卡片、二页起表头仍在、图示无灰底、正文 ≥10pt
-- 首屏：JS ≤75KB gzip、CSS ≤14KB gzip —— 实测 **41.43KB / 5.58KB**
+- 首屏：JS ≤75KB gzip、CSS ≤14KB gzip —— 实测 **41.47KB / 6.10KB**
 - Lighthouse Mobile：Perf ≥90、LCP ≤2.0s、CLS ≤0.05 —— 线上实测库页 **100 / 1.31s / 0**、指导书页 **99 / 1.29s / 0**
 - 焦点可见：键盘 Tab 全程可见 2px 主色环（`:focus-visible`）
 

@@ -2,7 +2,7 @@
 
 > 由 `apps/electro-assist/api/scripts/export_openapi.py` 从 `app.openapi()` 生成，**不要手改**。
 > 接口变更后重跑脚本并提交本文件：`cd apps/electro-assist/api && ./.venv/Scripts/python.exe scripts/export_openapi.py`
-> 服务版本：`0.6.0` ｜ 端点 **26** 个（业务 **25** + `/healthz`）
+> 服务版本：`0.6.0` ｜ 端点 **27** 个（业务 **26** + `/healthz`）
 
 ## 1. 约定
 
@@ -29,11 +29,12 @@
 | `POST` | `/api/electro/generate` | 提交生成任务，返回 202 + job_id（单 worker 有界队列） | `GenerateIn` | `202 · object` |
 | `GET` | `/api/electro/guides` | 指导书列表，**只含已发布**（草稿不进列表） | `—` | `200 · object` |
 | `GET` | `/api/electro/guides/{guide_id}` | 指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读 | `—` | `200 · object` |
+| `PUT` | `/api/electro/guides/{guide_id}/assets` | 草稿素材归位：全量重排已有素材到步骤/素材区；已发布 409 | `AttachIn` | `200 · object` |
 | `GET` | `/api/electro/jobs/{job_id}` | 轮询生成任务状态，成功后带 guide_id | `—` | `200 · object` |
 | `POST` | `/api/electro/passcode/verify` | 用访问口令换短期令牌（只豁免每 IP 配额，预算仍生效） | `PasscodeIn` | `200 · object` |
 | `GET` | `/api/electro/quota` | 查生成配额与全站预算余量 | `—` | `200 · object` |
 | `GET` | `/api/electro/records/{session_id}` | 整份作业记录（按步骤分组、含每次尝试与异常链） | `—` | `200 · object` |
-| `GET` | `/api/electro/schema/guide` | 取 Guide 的 JSON Schema（schema_version 1.1） | `—` | `200 · object` |
+| `GET` | `/api/electro/schema/guide` | 取 Guide 的 JSON Schema（schema_version 1.2） | `—` | `200 · object` |
 | `POST` | `/api/electro/schema/validate` | 校验一份 Guide，返回错误列表 | `object` | `200 · object` |
 | `POST` | `/api/electro/schema/validate-visual` | 只校验视觉 DSL 片段 | `object` | `200 · object` |
 | `GET` | `/api/electro/schema/visual` | 取视觉 DSL 的 JSON Schema（7 种原语） | `—` | `200 · object` |
@@ -67,6 +68,7 @@
 
 - `GET /api/electro/guides` — 指导书列表，**只含已发布**（草稿不进列表）
 - `GET /api/electro/guides/{guide_id}` — 指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读
+- `PUT /api/electro/guides/{guide_id}/assets` — 草稿素材归位：全量重排已有素材到步骤/素材区；已发布 409
 
 ### ops
 
@@ -86,7 +88,7 @@
 
 ### schema
 
-- `GET /api/electro/schema/guide` — 取 Guide 的 JSON Schema（schema_version 1.1）
+- `GET /api/electro/schema/guide` — 取 Guide 的 JSON Schema（schema_version 1.2）
 - `POST /api/electro/schema/validate` — 校验一份 Guide，返回错误列表
 - `POST /api/electro/schema/validate-visual` — 只校验视觉 DSL 片段
 - `GET /api/electro/schema/visual` — 取视觉 DSL 的 JSON Schema（7 种原语）
@@ -108,6 +110,27 @@
 ## 4. 数据模型
 
 字段与约束以 `apps/electro-assist/api/models/` 为准，本节只列形状。
+
+### AssetIn
+
+| 字段 | 类型 | 必填 |
+|---|---|---|
+| `asset_id` | `string` | 是 |
+| `caption` | `—` | 否 |
+
+### AttachIn
+
+| 字段 | 类型 | 必填 |
+|---|---|---|
+| `assets` | `AttachItem[]` | 否 |
+
+### AttachItem
+
+| 字段 | 类型 | 必填 |
+|---|---|---|
+| `asset_id` | `string` | 是 |
+| `caption` | `string` | 是 |
+| `step_id` | `—` | 否 |
 
 ### Body_upload_api_electro_uploads_post
 
@@ -153,6 +176,7 @@
 |---|---|---|
 | `text` | `string` | 是 |
 | `retry_of` | `—` | 否 |
+| `assets` | `AssetIn[]` | 否 |
 
 ### HTTPValidationError
 

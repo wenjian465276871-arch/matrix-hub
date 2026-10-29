@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import json
 import logging
 import secrets
 import threading
@@ -18,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 import store
 from llm import LLMError, generate_guide, get_provider
 from llm.pricing import PRICE_VERSION
+from models.guide import SCHEMA_VERSION, AssetRef
 
 from . import quota
 from .jobqueue import job_queue
@@ -55,6 +57,7 @@ def submit(
     client_ip: str,
     retry_of: str | None = None,
     privileged: bool = False,
+    assets: list[dict[str, str]] | None = None,
 ) -> str:
     cleaned = text.strip()
     if len(cleaned) < MIN_INPUT_CHARS:
@@ -77,7 +80,11 @@ def submit(
             raise GenerateRejected("busy", "生成队列已满，请稍后再试", status=503, retry_after=10)
 
         job_id = store.create_job(
-            kind="generate", client_ip=client_ip, input_text=cleaned, retry_of=retry_of
+            kind="generate",
+            client_ip=client_ip,
+            input_text=cleaned,
+            retry_of=retry_of,
+            assets=assets,
         )
     if not job_queue.submit(job_id, cleaned):
         store.finish_job(job_id, "failed", error_code="busy", error_detail="队列已满")
@@ -100,6 +107,32 @@ def _record_usage(job_id: str, model: str, usage, cost_micros: int) -> None:
     )
 
 
+def _attach_assets(guide, job_id: str) -> None:
+    """把本次提交的素材挂到草稿上（**不放进模型**）。
+
+    为什么不让模型分配：它没看过图，只能凭说明猜位置——猜错就是"把 A 门的
+    照片贴到 B 门步骤下"，而这种错在现场不会被发现，只会被照着做。
+    图片位置是事实，事实由人给；模型只做它看得到的文本结构化。
+
+    归位（挂到某一步）由人在草稿页完成，见 `PUT /guides/{id}/assets`。
+    """
+    row = store.get_job(job_id) or {}
+    raw = row.get("assets_json") or "[]"
+    try:
+        items = json.loads(raw)
+    except (TypeError, ValueError):
+        log.warning("job 素材字段损坏，按无素材处理 job=%s", job_id)
+        return
+    refs = []
+    for item in items:
+        try:
+            refs.append(AssetRef(**item))
+        except Exception:  # noqa: BLE001 - 单条坏数据不该让整次生成失败
+            log.warning("跳过非法素材 job=%s item=%s", job_id, item)
+    # 模型即便照 schema 编了 assets，也在这一步被清掉：只有提交时校验过的才作数。
+    guide.assets = refs
+
+
 def run(job_id: str, text: str, provider_factory=get_provider) -> None:
     """worker 入口。同步阻塞，只在单线程队列里执行。"""
     if not store.mark_job_running(job_id):
@@ -112,6 +145,12 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
         draft = generate_guide(provider, text, max_tokens=MAX_TOKENS)
         # 服务端接管 ID：模型给的 id 只对"它自己"有意义，不能当主键
         draft.guide.id = new_guide_id()
+        # 版本号同理：模型抄错一个数字，前端就会按旧结构解析。
+        draft.guide.schema_version = SCHEMA_VERSION
+        # 素材同理：模型即使照 schema 编了 asset_id 也一律丢弃，只认提交时传过的。
+        for step in draft.guide.steps:
+            step.assets = []
+        _attach_assets(draft.guide, job_id)
         saved = store.save_guide(draft.guide, status="draft", job_id=job_id)
 
         _record_usage(job_id, draft.model, draft.usage, draft.cost_micros)

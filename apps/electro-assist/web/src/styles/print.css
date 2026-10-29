@@ -69,4 +69,22 @@
   .figure {
     border: 1px solid #ccc;
   }
+
+  /* 现场素材：不裂页、不超一页高度。用户照片尺寸不可控，
+     一张竖拍的手机会整页放不下，必须在打印时压住。 */
+  .asset,
+  .guide-assets {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .asset__img {
+    max-height: 80mm;
+    border: 1px solid #ccc;
+  }
+
+  .asset__cap {
+    color: #333;
+    font-size: 9pt;
+  }
 }

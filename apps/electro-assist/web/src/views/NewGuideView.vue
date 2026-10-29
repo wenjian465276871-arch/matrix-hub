@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ApiError, getJson, postJson } from '../lib/http'
-import type { GenerateAccepted, JobSnapshot, QuotaSnapshot } from '../types'
+import { ApiError, getJson, postForm, postJson } from '../lib/http'
+import type { GenerateAccepted, JobSnapshot, QuotaSnapshot, UploadedAsset } from '../types'
 
 const router = useRouter()
 
@@ -42,7 +42,26 @@ let tickTimer: number | undefined
 let pollFailures = 0
 let pollingStartedAt = 0
 
-const busy = computed(() => phase.value === 'submitting' || phase.value === 'polling')
+/* ---------- 现场素材 ----------
+ * 图片只做"排版与标注"，不做识别：模型看不到图，也就不会替你判断图里是什么。
+ * 上传后进草稿的「素材区」，生成完再决定挂到哪一步。 */
+const MAX_ASSETS = 4
+const MAX_ASSET_BYTES = 5 * 1024 * 1024
+const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
+
+interface StagedAsset {
+  asset_id: string
+  caption: string
+  url: string
+}
+
+const staged = ref<StagedAsset[]>([])
+const uploading = ref(false)
+const assetError = ref('')
+
+const busy = computed(
+  () => phase.value === 'submitting' || phase.value === 'polling' || uploading.value,
+)
 const canSubmit = computed(() => !busy.value && text.value.trim().length >= MIN_CHARS)
 const hourLeft = computed(() =>
   quota.value ? Math.max(0, quota.value.hour.limit - quota.value.hour.used) : null,
@@ -60,6 +79,75 @@ function stopTimers(): void {
 
 function fillSample(): void {
   text.value = SAMPLE_TEXT
+}
+
+function uploadErrorText(err: unknown): string {
+  if (!(err instanceof ApiError)) return '上传失败，请检查网络后重试。'
+  switch (err.code) {
+    case 'too_large':
+      return '单张不能超过 5 MB。'
+    case 'too_small':
+      return '图片分辨率太低，请换一张更清晰的截图。'
+    case 'bad_format':
+      return '只支持 PNG / JPEG / WebP。'
+    case 'unreadable':
+      return '这张图可能已损坏或被截断，无法解析。'
+    case 'rate_limited':
+      return err.message || '上传过于频繁，请稍后再试。'
+    default:
+      return err.message || '上传失败，请稍后再试。'
+  }
+}
+
+async function onPickFiles(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  // 立刻清空：不清的话，同一张图删掉后再选一次不会触发 change
+  input.value = ''
+  if (!files.length) return
+
+  assetError.value = ''
+  const room = MAX_ASSETS - staged.value.length
+  if (room <= 0) {
+    assetError.value = `最多 ${MAX_ASSETS} 张素材。`
+    return
+  }
+  const picked = files.slice(0, room)
+  if (files.length > room) {
+    assetError.value = `最多 ${MAX_ASSETS} 张素材，已忽略多余的 ${files.length - room} 张。`
+  }
+
+  uploading.value = true
+  try {
+    for (const file of picked) {
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        assetError.value = '只支持 PNG / JPEG / WebP。'
+        continue
+      }
+      if (file.size > MAX_ASSET_BYTES) {
+        assetError.value = '单张不能超过 5 MB。'
+        continue
+      }
+      const form = new FormData()
+      form.append('file', file)
+      try {
+        const res = await postForm<UploadedAsset>('/api/electro/uploads', form)
+        staged.value.push({
+          asset_id: res.asset_id,
+          caption: '',
+          url: `/api/electro/uploads/${res.asset_id}/${res.asset_id}.png`,
+        })
+      } catch (err) {
+        assetError.value = uploadErrorText(err)
+      }
+    }
+  } finally {
+    uploading.value = false
+  }
+}
+
+function removeAsset(index: number): void {
+  staged.value.splice(index, 1)
 }
 
 function humanError(code: string | null, fallback: string | null): string {
@@ -246,6 +334,10 @@ async function submit(retryOf?: string): Promise<void> {
       {
         text: trimmed,
         retry_of: retryOf ?? null,
+        assets: staged.value.map((item, index) => ({
+          asset_id: item.asset_id,
+          caption: item.caption.trim() || `图 ${index + 1}`,
+        })),
       },
       {
         headers: passcodeToken.value
@@ -308,6 +400,58 @@ onBeforeUnmount(stopTimers)
       <span class="hint">{{ text.trim().length }} / {{ MAX_CHARS }} 字符</span>
       <button class="btn" type="button" :disabled="busy" @click="fillSample">填入示例</button>
     </div>
+
+    <section class="assets">
+      <div class="assets__head">
+        <span class="field-label field-label--inline">
+          现场素材
+          <span class="field-label__opt">（可选，最多 {{ MAX_ASSETS }} 张）</span>
+        </span>
+        <label class="btn btn--ghost" :aria-disabled="busy || staged.length >= MAX_ASSETS">
+          {{ uploading ? '上传中…' : '添加图片' }}
+          <input
+            class="sr-only"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            multiple
+            :disabled="busy || staged.length >= MAX_ASSETS"
+            @change="onPickFiles"
+          />
+        </label>
+      </div>
+      <p class="hint">
+        图片只做排版，不做识别：系统不会替你判断图里是什么，挂到哪一步由你在草稿页决定。
+        请勿上传含企业名称、工号、图纸编号等敏感信息的截图。
+      </p>
+      <p v-if="assetError" class="asset-error" role="alert">{{ assetError }}</p>
+
+      <ul v-if="staged.length" class="asset-list">
+        <li v-for="(item, index) in staged" :key="item.asset_id" class="asset-item">
+          <img
+            class="asset-item__img"
+            :src="item.url"
+            :alt="`素材 ${index + 1} 预览`"
+            loading="lazy"
+            decoding="async"
+          />
+          <div class="asset-item__body">
+            <label class="sr-only" :for="`cap-${item.asset_id}`">素材 {{ index + 1 }} 说明</label>
+            <input
+              :id="`cap-${item.asset_id}`"
+              v-model="item.caption"
+              class="asset-item__input"
+              type="text"
+              maxlength="60"
+              :disabled="busy"
+              placeholder="说明：这张图拍的是什么（如 门锁间隙测量位置）"
+            />
+            <button class="linkbtn" type="button" :disabled="busy" @click="removeAsset(index)">
+              移除
+            </button>
+          </div>
+        </li>
+      </ul>
+    </section>
 
     <div v-if="quota" class="quota">
       <span>本小时剩余 {{ hourLeft }} / {{ quota.hour.limit }}</span>
@@ -419,6 +563,88 @@ onBeforeUnmount(stopTimers)
   background: var(--c-primary-soft);
   color: var(--c-ink-2);
   font-size: 13px;
+}
+
+/* ---------- 现场素材 ---------- */
+
+.assets {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--c-line);
+}
+
+.assets__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field-label--inline {
+  margin-bottom: 0;
+}
+
+.field-label__opt {
+  color: var(--c-ink-3);
+  font-weight: 400;
+}
+
+.asset-error {
+  margin: 8px 0 0;
+  color: var(--c-danger);
+  font-size: 13px;
+}
+
+.asset-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.asset-item {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 8px;
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  background: var(--c-surface);
+}
+
+.asset-item__img {
+  width: 72px;
+  height: 72px;
+  border-radius: 4px;
+  background: var(--c-line-soft);
+  object-fit: cover;
+}
+
+.asset-item__body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.asset-item__input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 14px;
+}
+
+.asset-item__input:focus {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 1px;
 }
 
 .submit {

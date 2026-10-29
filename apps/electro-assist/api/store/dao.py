@@ -175,15 +175,17 @@ def create_job(
     client_ip: str,
     input_text: str,
     retry_of: str | None = None,
+    assets: list[dict[str, str]] | None = None,
 ) -> str:
     job_id = _new_id("j")
+    payload = json.dumps(assets or [], ensure_ascii=False)
     with connect() as conn:
         with tx(conn):
             conn.execute(
                 """
                 INSERT INTO jobs (id, kind, status, client_ip, input_sha256, input_chars,
-                                  retry_of, created_at)
-                VALUES (?, ?, 'queued', ?, ?, ?, ?, ?)
+                                  retry_of, assets_json, created_at)
+                VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job_id,
@@ -192,6 +194,7 @@ def create_job(
                     hashlib.sha256(input_text.encode("utf-8")).hexdigest(),
                     len(input_text),
                     retry_of,
+                    payload,
                     now_iso(),
                 ),
             )
