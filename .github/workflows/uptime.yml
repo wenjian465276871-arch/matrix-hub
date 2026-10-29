@@ -45,10 +45,10 @@ jobs:
           set -euo pipefail
           health=$(curl -fsS --max-time 10 https://www.superplayer007.cn/healthz)
           read -r level ratio <<<"$(printf '%s' "$health" | python3 -c '
-import json, sys
-b = json.load(sys.stdin).get("budget", {})
-print(b.get("level", "unknown"), b.get("ratio", "?"))
-')"
+          import json, sys
+          b = json.load(sys.stdin).get("budget", {})
+          print(b.get("level", "unknown"), b.get("ratio", "?"))
+          ')"
           echo "budget level=$level ratio=$ratio"
           case "$level" in
             warn|critical)
