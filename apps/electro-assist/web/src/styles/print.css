@@ -7,7 +7,12 @@
 }
 
 @media print {
-  :root {
+  /* 必须同时命中 `html.theme-dark`：暗色令牌写在 `html.theme-dark` 上（0,1,1），
+     只写 `:root`（0,1,0）压不过它——暗色下打印会变成黑底白字。
+     同优先级 + 后加载，才轮得到这里说"纸面永远亮色"。 */
+  :root,
+  html.theme-dark {
+    color-scheme: light;
     --c-bg: #fff;
     --c-surface: #fff;
     --c-ink: #000;
@@ -15,6 +20,16 @@
     --c-ink-3: #555;
     --c-line: #bbb;
     --c-line-soft: #ddd;
+    /* 语义色也要回亮色版：暗色的 #4EC98A 打到白纸上几乎看不见。 */
+    --c-primary: #0b6e78;
+    --c-primary-ink: #075159;
+    --c-primary-soft: #eaf5f6;
+    --c-primary-line: #b9dade;
+    --c-on-primary: #fff;
+    --c-success: #157f3d;
+    --c-warning: #a85b00;
+    --c-warning-line: #f0d3a6;
+    --c-danger: #c0262a;
   }
 
   body {

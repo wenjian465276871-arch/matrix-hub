@@ -2,10 +2,15 @@
 /** status_light：状态灯。三重编码——图形（✓ ! × –）+ 文字 + 颜色，
  *  不允许只靠颜色表意：现场有色觉差异，且黑白打印会全部糊成一个灰点。 */
 import { computed } from 'vue'
-import type { ParamValue } from '../../types'
+import type { MotionTrack, ParamValue } from '../../types'
+import { motionClasses } from '../motion'
 import { str } from '../svg'
 
-const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
+const props = defineProps<{
+  params: Record<string, ParamValue>
+  label?: string
+  motion?: MotionTrack[]
+}>()
 
 const STATES = {
   pass: { cls: 'fig-pass', glyph: '✓', text: '通过' },
@@ -30,7 +35,12 @@ const model = computed(() => {
     preserveAspectRatio="xMidYMid meet"
   >
     <circle cx="42" cy="44" r="27" fill="none" stroke-width="2" class="fig-stroke-line" />
-    <circle cx="42" cy="44" r="20" :class="model.cls" />
+    <circle
+      cx="42"
+      cy="44"
+      r="20"
+      :class="[model.cls, ...motionClasses(props.motion, 'lamp')]"
+    />
     <text
       x="42"
       y="44"
@@ -38,7 +48,7 @@ const model = computed(() => {
       dominant-baseline="central"
       font-size="20"
       font-weight="700"
-      fill="#ffffff"
+      class="fig-on-primary"
     >
       {{ model.glyph }}
     </text>

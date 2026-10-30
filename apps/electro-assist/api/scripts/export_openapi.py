@@ -28,7 +28,7 @@ METHOD_ORDER = ["get", "post", "put", "patch", "delete"]
 CURATED = {
     "GET /healthz": "健康检查：进程 + 数据库 + 磁盘余量，供部署脚本与容器探针使用",
     "GET /api/electro/schema/guide": "取 Guide 的 JSON Schema（schema_version 1.2）",
-    "GET /api/electro/schema/visual": "取视觉 DSL 的 JSON Schema（7 种原语）",
+    "GET /api/electro/schema/visual": "取视觉原语清单与动效槽位（13 种原语 + motion）",
     "POST /api/electro/schema/validate": "校验一份 Guide，返回错误列表",
     "POST /api/electro/schema/validate-visual": "只校验视觉 DSL 片段",
     "POST /api/electro/uploads": "上传工艺截图（≤5MB，限流 6/时·20/日）",

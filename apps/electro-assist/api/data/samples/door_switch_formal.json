@@ -40,7 +40,8 @@
           "primitive": "flow_arrow",
           "params": { "steps": ["断开主控并挂牌", "验电确认无电", "设置防溜车", "确认门区无人"] },
           "caption": "开工前动作顺序",
-          "fallback_text": "开工顺序：断开主控并挂牌 → 验电确认无电 → 设置防溜车 → 确认门区无人。顺序不得颠倒。"
+          "fallback_text": "开工顺序：断开主控并挂牌 → 验电确认无电 → 设置防溜车 → 确认门区无人。顺序不得颠倒。",
+          "motion": [{ "target": "arrow", "anim": "flow", "duration": 900 }]
         },
         {
           "primitive": "annotation",
@@ -136,7 +137,8 @@
             "note": "隔离后应可手动半开，松手不自动回位"
           },
           "caption": "隔离状态下的门扇",
-          "fallback_text": "隔离与紧急解锁后，门扇应能被手动拉开至半开位置，松手不自动回位。"
+          "fallback_text": "隔离与紧急解锁后，门扇应能被手动拉开至半开位置，松手不自动回位。",
+          "motion": [{ "target": "leaf", "anim": "pulse", "duration": 1200 }]
         }
       ],
       "duration_s": 240
@@ -206,7 +208,8 @@
             "total": "3.2s"
           },
           "caption": "开门时序（示例值）",
-          "fallback_text": "开门时序：0–0.4s 收到指令，0.4–1.2s 解锁启动，1.2–2.8s 匀速运行，2.8–3.2s 到位缓冲。"
+          "fallback_text": "开门时序：0–0.4s 收到指令，0.4–1.2s 解锁启动，1.2–2.8s 匀速运行，2.8–3.2s 到位缓冲。",
+          "motion": [{ "target": "segment", "anim": "pulse", "duration": 1600 }]
         }
       ],
       "duration_s": 480

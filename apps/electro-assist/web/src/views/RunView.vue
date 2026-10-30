@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import GuideFigure from '../figures/GuideFigure.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
+import ThemeNoticeBar from '../components/ui/ThemeNoticeBar.vue'
 import { ApiError, getJson, postJson } from '../lib/http'
 import type {
   Criterion,
@@ -268,6 +269,8 @@ onMounted(load)
 
 <template>
   <div class="run-page">
+    <!-- 现场语境：暗色下常驻逃生条。占文档流、不 overlay，第一张卡不会被盖住。 -->
+    <ThemeNoticeBar />
     <div v-if="phase === 'loading'" class="card state" aria-busy="true">正在载入作业…</div>
 
     <div v-else-if="phase === 'error'" class="card state state--error">

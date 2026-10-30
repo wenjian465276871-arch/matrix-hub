@@ -6,10 +6,15 @@
  *  不做坐标换算——换算过一次，图上就会出现文档没写的秒数。
  */
 import { computed } from 'vue'
-import type { ParamValue } from '../../types'
+import type { MotionTrack, ParamValue } from '../../types'
+import { motionClasses } from '../motion'
 import { MONO, splitList, str, wrapText } from '../svg'
 
-const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
+const props = defineProps<{
+  params: Record<string, ParamValue>
+  label?: string
+  motion?: MotionTrack[]
+}>()
 
 const ROW_H = 36
 const TEXT_X = 40
@@ -49,7 +54,11 @@ const model = computed(() => {
       stroke-width="2"
       class="fig-stroke-track"
     />
-    <g v-for="row in model.rows" :key="row.index">
+    <g
+      v-for="row in model.rows"
+      :key="row.index"
+      :class="motionClasses(props.motion, 'segment')"
+    >
       <circle cx="20" :cy="row.y - 4" r="7" class="fig-primary-soft" />
       <text
         x="20"

@@ -228,7 +228,9 @@ h3 {
 .btn--primary {
   border-color: var(--c-primary);
   background: var(--c-primary);
-  color: #fff;
+  /* 实心按钮上的字：亮色白、暗色深。暗色主色是提亮过的 #4FC3CE，
+     白字在它上面只有 1.7:1，等于看不见。 */
+  color: var(--c-on-primary);
 }
 
 .btn--primary:hover {
@@ -239,7 +241,7 @@ h3 {
 .btn--ok {
   border-color: var(--c-success);
   background: var(--c-success);
-  color: #fff;
+  color: var(--c-on-primary);
 }
 
 .btn--ok:hover {
@@ -249,7 +251,7 @@ h3 {
 .btn--warn {
   border-color: var(--c-warning);
   background: var(--c-warning);
-  color: #fff;
+  color: var(--c-on-primary);
 }
 
 .btn--warn:hover {
@@ -259,6 +261,24 @@ h3 {
 .btn--ghost {
   background: transparent;
   color: var(--c-ink-2);
+}
+
+/* 暗色下 hover 反向提亮：亮色的 hover 是压暗，配深色字会直接失去对比。 */
+html.theme-dark .btn--ok:hover {
+  background: #63d69a;
+}
+
+html.theme-dark .btn--warn:hover {
+  background: #f6c37a;
+}
+
+/* 暗色下 hover 反向提亮：亮色的 hover 是压暗，配深色字会直接失去对比。 */
+html.theme-dark .btn--ok:hover {
+  background: #63d69a;
+}
+
+html.theme-dark .btn--warn:hover {
+  background: #f6c37a;
 }
 
 .btn:disabled {
@@ -497,6 +517,8 @@ h3 {
 }
 
 .fig-on-primary {
+  /* 实心色块上的文字/图形：亮色下是白字，暗色下压成深色——
+     暗色把填充色提亮了（#4FC3CE / #4EC98A），白字会直接糊掉。 */
   fill: var(--c-on-primary);
 }
 
@@ -550,6 +572,128 @@ h3 {
 
 .fig-stroke-warn-soft {
   stroke: var(--c-warning-line);
+}
+
+/* ---------- 图示动效（计划 §2.1 tracks） ----------
+   全部用类承载，理由同颜色：CSP `style-src 'self'` 会丢弃内联 style 属性，
+   而动画时长必须"可变"——所以只能收成三档固定时长，档位由类名表达。
+   语义约定：pulse=注意、blink=异常、flow=方向、draw=从此开始、shake=超差。
+   动效只做强调，去掉它图仍然完整可读（这也是 prefers-reduced-motion 能安全关掉它的前提）。 */
+
+.fig-anim {
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.fig-anim--fast {
+  animation-duration: 600ms;
+}
+
+.fig-anim--mid {
+  animation-duration: 900ms;
+}
+
+.fig-anim--slow {
+  animation-duration: 1600ms;
+}
+
+@keyframes fig-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@keyframes fig-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  99% {
+    opacity: 0.2;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes fig-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+@keyframes fig-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes fig-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+.fig-anim--pulse {
+  animation-name: fig-pulse;
+}
+
+.fig-anim--blink {
+  animation-name: fig-blink;
+  animation-timing-function: steps(1, end);
+}
+
+/* 流动与生长都靠 dash：元素必须带 pathLength="100"，否则 dash 长度会被解释成
+   用户单位，整条线直接消失。服务端只允许 flow/draw 落在 needle、arrow 两个
+   已经写了 pathLength 的槽位上。 */
+.fig-anim--flow {
+  animation-name: fig-flow;
+  animation-timing-function: linear;
+  stroke-dasharray: 6 6;
+}
+
+.fig-anim--draw {
+  animation-name: fig-draw;
+  animation-timing-function: ease-out;
+  animation-iteration-count: 1;
+  animation-fill-mode: both;
+  stroke-dasharray: 100;
+}
+
+.fig-anim--shake {
+  animation-name: fig-shake;
+  animation-iteration-count: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* 打印时停止循环动画：纸面上只有一帧，停在半透明或抖动位移上是脏图。 */
+@media print {
+  .fig-anim {
+    animation: none !important;
+  }
+}
+
+/* 减少动效：整条关掉，而不是把时长压到 0.01ms（那等于让无限循环高频闪）。 */
+@media (prefers-reduced-motion: reduce) {
+  .fig-anim {
+    animation: none !important;
+  }
 }
 
 .figure__caption {
@@ -621,6 +765,12 @@ h3 {
 }
 
 /* ---------- 工具类 ---------- */
+
+/* 抽屉打开时锁滚动：不锁的话背景会跟着滑，手指一划就在"菜单后面"滚文档。 */
+html.drawer-open,
+html.drawer-open body {
+  overflow: hidden;
+}
 
 /* 视觉隐藏、读屏可读。上传控件的原生 input 用它藏起来，label 当按钮。 */
 .sr-only {

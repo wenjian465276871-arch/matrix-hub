@@ -41,11 +41,24 @@ export type Scalar = string | number | boolean
  *  后端已放宽为 `Scalar | string[]`（决策 #15），前端同步。 */
 export type ParamValue = Scalar | string[]
 
+/** 动效类型：只做强调，不表达文档没写的时间/顺序。 */
+export type MotionAnim = 'pulse' | 'blink' | 'flow' | 'draw' | 'shake'
+
+/** 一条动效轨道。`target` 是原语内部槽位（见 `/schema/visual` 的 motion.slots）。
+ *  `duration` 会被前端归到 600/900/1600ms 三档——CSP 禁内联样式，
+ *  没有地方写任意毫秒数。 */
+export interface MotionTrack {
+  target: string
+  anim: MotionAnim
+  duration: number
+}
+
 export interface VisualSpec {
   primitive: Primitive
   params: Record<string, ParamValue>
   caption?: string | null
   fallback_text: string
+  motion?: MotionTrack[]
 }
 
 /** 用户自带的现场素材（截图/照片）。位置由人挂，不由模型猜。 */

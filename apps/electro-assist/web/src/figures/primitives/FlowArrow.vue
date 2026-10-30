@@ -6,10 +6,15 @@
  *  换行处画一段折线箭头，明确"下一步从下一行左边继续"。
  */
 import { computed } from 'vue'
-import type { ParamValue } from '../../types'
+import type { MotionTrack, ParamValue } from '../../types'
+import { motionClasses } from '../motion'
 import { splitList, wrapText } from '../svg'
 
-const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
+const props = defineProps<{
+  params: Record<string, ParamValue>
+  label?: string
+  motion?: MotionTrack[]
+}>()
 
 const PAD = 10
 const GAP = 18
@@ -112,7 +117,8 @@ const model = computed(() => {
           :x2="box.x + box.w + GAP - 6"
           :y2="box.y + BOX_H / 2"
           stroke-width="1.5"
-          class="fig-stroke-ink2"
+          pathLength="100"
+          :class="['fig-stroke-ink2', ...motionClasses(props.motion, 'arrow')]"
         />
         <polygon
           :points="`${box.x + box.w + GAP - 6},${box.y + BOX_H / 2} ${box.x + box.w + GAP - 11},${box.y + BOX_H / 2 - 3.5} ${box.x + box.w + GAP - 11},${box.y + BOX_H / 2 + 3.5}`"
@@ -127,7 +133,8 @@ const model = computed(() => {
         :points="`${link.fromX},${link.fromY} ${link.fromX},${link.midY} ${link.toX},${link.midY} ${link.toX},${link.toY - 5}`"
         fill="none"
         stroke-width="1.5"
-        class="fig-stroke-ink2"
+        pathLength="100"
+        :class="['fig-stroke-ink2', ...motionClasses(props.motion, 'arrow')]"
       />
       <polygon
         :points="`${link.toX},${link.toY} ${link.toX - 3.5},${link.toY - 5} ${link.toX + 3.5},${link.toY - 5}`"

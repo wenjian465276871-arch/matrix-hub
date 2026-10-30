@@ -56,7 +56,7 @@ const model = computed(() => {
       dominant-baseline="central"
       font-size="17"
       font-weight="700"
-      fill="#ffffff"
+      class="fig-on-primary"
       :font-family="MONO"
     >
       {{ model.index }}

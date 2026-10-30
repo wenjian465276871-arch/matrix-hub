@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from pydantic import ValidationError
 
 from models.guide import Guide
-from models.visual import Primitive, VisualSpec
+from models.visual import MAX_MOTION_TRACKS, MotionAnim, Primitive, VisualSpec, motion_slots
 
 router = APIRouter(prefix="/api/electro/schema", tags=["schema"])
 
@@ -24,9 +24,17 @@ def visual_primitives() -> dict[str, Any]:
     return {
         "primitives": [p.value for p in Primitive],
         "required": ["primitive", "fallback_text"],
+        "motion": {
+            "max_tracks": MAX_MOTION_TRACKS,
+            "duration_ms": [400, 2400],
+            "anims": [a.value for a in MotionAnim],
+            "slots": motion_slots(),
+        },
         "notes": [
             "params 只允许标量，键名必须在该原语的白名单内",
             "fallback_text 必填：渲染失败时降级为文字，现场必须可读",
+            "motion 可选：target 必须是该原语的槽位，同一槽位只能一条轨道",
+            "flow / draw 只作用于描边槽位（meter.needle、flow_arrow.arrow）",
         ],
     }
 

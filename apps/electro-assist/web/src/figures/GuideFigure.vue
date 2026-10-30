@@ -43,6 +43,7 @@ onErrorCaptured((err) => {
       v-if="component && !failed"
       :params="spec.params"
       :label="spec.caption || spec.fallback_text"
+      :motion="spec.motion"
     />
     <p v-else class="figure__fallback">{{ spec.fallback_text }}</p>
     <p v-if="failed" class="figure__pending">{{ reason }} · 已降级为文字</p>

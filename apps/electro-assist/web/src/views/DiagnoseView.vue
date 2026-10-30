@@ -13,6 +13,7 @@ import { useRoute } from 'vue-router'
 
 import '../components/diagnose/diagnose.css'
 import QuickResult from '../components/diagnose/QuickResult.vue'
+import ThemeNoticeBar from '../components/ui/ThemeNoticeBar.vue'
 import StepRun from '../components/diagnose/StepRun.vue'
 import { useDiagnoseRun } from '../composables/useDiagnoseRun'
 import { errorText as describeError } from '../lib/errors'
@@ -137,6 +138,7 @@ onMounted(async () => {
 </script>
 
 <template>
+  <ThemeNoticeBar />
   <div class="page-head">
     <h1 class="page-title">故障排查</h1>
     <p class="page-sub">

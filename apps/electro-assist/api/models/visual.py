@@ -25,11 +25,9 @@ ParamValue = Union[Scalar, list[str]]
 
 MAX_LIST_ITEMS = 10
 MAX_LIST_ITEM_CHARS = 40
-# 列表只允许「字符串列表」，不允许对象/嵌套，避免参数变成任意结构。
-ParamValue = Union[Scalar, list[str]]
 
-MAX_LIST_ITEMS = 10
-MAX_LIST_ITEM_CHARS = 40
+# 动效上限：一张图最多 3 条轨道。再多就不是"强调"，是交通信号灯。
+MAX_MOTION_TRACKS = 3
 
 
 class Primitive(str, Enum):
@@ -84,6 +82,61 @@ GATE_STATES = ("open", "closed", "half")
 CALLOUT_POSITIONS = ("left", "right", "top", "bottom")
 
 
+class MotionAnim(str, Enum):
+    """动效类型。每一种都对应一条**有语义**的现场动作，不是装饰。
+
+    - pulse：呼吸，表示"注意这里"（可反复，不误导时序）
+    - blink：闪烁，表示"异常/禁止"（比 pulse 更急）
+    - flow：沿线流动，表示方向（只对描边有效）
+    - draw：描边生长，表示"从此处开始"（只对描边有效，只播一次）
+    - shake：抖动，表示"超差/告警"
+    """
+
+    pulse = "pulse"
+    blink = "blink"
+    flow = "flow"
+    draw = "draw"
+    shake = "shake"
+
+
+# 槽位：原语内部"可动的那一小块"。整图动起来只会让现场找不到重点，
+# 所以只给图上确实存在、动起来也不会改变语义的部位开口子。
+_MOTION_SLOTS: dict[Primitive, set[str]] = {
+    Primitive.status_light: {"lamp"},
+    Primitive.meter: {"needle", "readout"},
+    Primitive.gate_state: {"leaf"},
+    Primitive.flow_arrow: {"arrow"},
+    Primitive.motion_timeline: {"segment"},
+}
+
+# 描边类动效只能落在描边元素上：给填充色块加 draw，会得到一片空白。
+_STROKE_SLOTS: set[tuple[Primitive, str]] = {
+    (Primitive.meter, "needle"),
+    (Primitive.flow_arrow, "arrow"),
+}
+_STROKE_ONLY_ANIMS = {MotionAnim.flow, MotionAnim.draw}
+
+
+def motion_slots() -> dict[str, list[str]]:
+    """给 prompt 与 `/schema/visual` 共用：哪些原语、哪些槽位能动。"""
+    return {p.value: sorted(slots) for p, slots in _MOTION_SLOTS.items()}
+
+
+class MotionTrack(BaseModel):
+    """一条动效轨道，对应计划 §2.1 的 `tracks[{target, anim, duration}]`。
+
+    `duration` 收在 400–2400ms：短于 400ms 现场看不成"动作"，长于 2.4s
+    一次循环还没走完人已经看下一步了。前端按 ≤600 / ≤1200 / >1200 分三档，
+    因为 CSP 禁内联样式，不能把毫秒数写进 style 属性。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    target: str = Field(min_length=1, max_length=16)
+    anim: MotionAnim
+    duration: int = Field(default=900, ge=400, le=2400)
+
+
 def allowed_params() -> dict[str, list[str]]:
     """给 prompt 与 `/schema/visual` 共用，避免"文档说允许、代码拒绝"的漂移。"""
     return {p.value: sorted(keys) for p, keys in _ALLOWED_PARAMS.items()}
@@ -98,6 +151,8 @@ class VisualSpec(BaseModel):
     params: dict[str, ParamValue] = Field(default_factory=dict)
     caption: str | None = Field(default=None, max_length=60)
     fallback_text: str = Field(min_length=2, max_length=200)
+    # 动效是可选的强调手段：不写就是静态图，写了必须过槽位与动效的兼容校验。
+    motion: list[MotionTrack] = Field(default_factory=list, max_length=MAX_MOTION_TRACKS)
 
     @field_validator("params")
     @classmethod
@@ -175,3 +230,35 @@ class VisualSpec(BaseModel):
                     raise ValueError(
                         f"table.rows 每行必须用 | 分成 {len(headers)} 格，与 headers 对齐"
                     )
+
+        self._check_motion()
+
+    def _check_motion(self) -> None:
+        """动效校验：槽位存在、不重复、描边动效不落到填充元素上。
+
+        三条都只在服务端判：前端 `motionClass()` 找不到槽位会静默不画，
+        静默正是最坏的结果——模型以为加了强调，现场什么都没发生。
+        """
+        if not self.motion:
+            return
+        slots = _MOTION_SLOTS.get(self.primitive) or set()
+        if not slots:
+            raise ValueError(
+                f"{self.primitive.value} 不支持 motion；可动原语：{sorted(motion_slots())}"
+            )
+        seen: set[str] = set()
+        for track in self.motion:
+            if track.target not in slots:
+                raise ValueError(
+                    f"{self.primitive.value}.motion.target 必须是 {sorted(slots)} 之一"
+                )
+            if track.target in seen:
+                # 同一槽位两条轨道会互相覆盖，谁赢取决于 CSS 顺序——不可预测即不可用。
+                raise ValueError(f"motion.target {track.target} 重复")
+            seen.add(track.target)
+            if track.anim in _STROKE_ONLY_ANIMS and (
+                self.primitive,
+                track.target,
+            ) not in _STROKE_SLOTS:
+                names = sorted(f"{p.value}.{s}" for p, s in _STROKE_SLOTS)
+                raise ValueError(f"{track.anim.value} 只能用于描边槽位：{names}")

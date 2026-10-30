@@ -11,12 +11,27 @@ from fastapi.testclient import TestClient
 
 from llm.prompts import system_prompt
 from main import app
-from models.visual import Primitive, VisualSpec, allowed_params
+from models.visual import (
+    MAX_MOTION_TRACKS,
+    MotionAnim,
+    Primitive,
+    VisualSpec,
+    allowed_params,
+    motion_slots,
+)
 
 
 def spec(primitive: str, params: dict, fallback: str = "图示降级文字") -> VisualSpec:
     return VisualSpec.model_validate(
         {"primitive": primitive, "params": params, "fallback_text": fallback}
+    )
+
+
+def moving(
+    primitive: str, params: dict, motion: list[dict], fallback: str = "图示降级文字"
+) -> VisualSpec:
+    return VisualSpec.model_validate(
+        {"primitive": primitive, "params": params, "fallback_text": fallback, "motion": motion}
     )
 
 
@@ -82,3 +97,88 @@ def test_prompt_mentions_every_primitive():
 
 def test_prompt_warns_against_checklist_as_table():
     assert "不要塞进 checklist" in system_prompt()
+
+
+# ---------- 动效轨道（计划 §2.1 tracks） ----------
+# 动效是"可选强调"，所以两类错误都要挡住：写错槽位（静默不画）与
+# 用动效表达文档没写的时间/顺序（比不画更危险）。
+
+
+@pytest.mark.parametrize(
+    ("primitive", "params", "target", "anim"),
+    [
+        ("status_light", {"state": "warn", "label": "门区"}, "lamp", "blink"),
+        ("meter", {"value": 1.2, "unit": "s", "min": 0, "max": 3}, "needle", "flow"),
+        ("meter", {"value": 1.2, "unit": "s", "min": 0, "max": 3}, "readout", "pulse"),
+        ("gate_state", {"state": "half"}, "leaf", "pulse"),
+        ("flow_arrow", {"steps": ["断电", "验电"]}, "arrow", "draw"),
+        ("motion_timeline", {"steps": ["0–1.2s 启动", "1.2–2.8s 运行"]}, "segment", "pulse"),
+    ],
+)
+def test_motion_accepts_valid_slot_and_anim(primitive, params, target, anim):
+    visual = moving(primitive, params, [{"target": target, "anim": anim, "duration": 900}])
+    visual.validate_against_primitive()
+    assert visual.motion[0].anim is MotionAnim(anim)
+
+
+def test_motion_defaults_duration_when_omitted():
+    visual = moving("status_light", {"state": "pass"}, [{"target": "lamp", "anim": "pulse"}])
+    assert visual.motion[0].duration == 900
+
+
+@pytest.mark.parametrize(
+    ("primitive", "params", "motion", "expect"),
+    [
+        # 不支持动效的原语：写错位置比写错值更难查，直接拒
+        ("step_card", {"index": 1, "action": "确认"}, [{"target": "lamp", "anim": "pulse"}], "不支持 motion"),
+        # 槽位不存在
+        ("gate_state", {"state": "open"}, [{"target": "hinge", "anim": "pulse"}], "motion.target"),
+        # 同一槽位两条轨道会互相覆盖，顺序不可预测
+        (
+            "status_light",
+            {"state": "pass"},
+            [{"target": "lamp", "anim": "pulse"}, {"target": "lamp", "anim": "shake"}],
+            "重复",
+        ),
+        # 填充元素上做描边生长 → 一片空白
+        ("gate_state", {"state": "closed"}, [{"target": "leaf", "anim": "draw"}], "描边"),
+        ("status_light", {"state": "danger"}, [{"target": "lamp", "anim": "flow"}], "描边"),
+    ],
+)
+def test_motion_rejects_bad_track(primitive, params, motion, expect):
+    visual = moving(primitive, params, motion)
+    with pytest.raises(ValueError, match=expect):
+        visual.validate_against_primitive()
+
+
+def test_motion_rejects_out_of_range_duration():
+    with pytest.raises(ValueError):
+        moving("status_light", {"state": "pass"}, [{"target": "lamp", "anim": "pulse", "duration": 200}])
+
+
+def test_motion_rejects_unknown_anim():
+    with pytest.raises(ValueError):
+        moving("status_light", {"state": "pass"}, [{"target": "lamp", "anim": "spin"}])
+
+
+def test_motion_is_capped():
+    tracks = [
+        {"target": "segment", "anim": "pulse"} for _ in range(MAX_MOTION_TRACKS + 1)
+    ]
+    with pytest.raises(ValueError):
+        moving("motion_timeline", {"steps": ["a", "b"]}, tracks)
+
+
+def test_schema_visual_publishes_motion_slots():
+    with TestClient(app) as client:
+        body = client.get("/api/electro/schema/visual").json()
+    assert set(body["motion"]["slots"]) == set(motion_slots())
+    assert body["motion"]["anims"] == [a.value for a in MotionAnim]
+    assert body["motion"]["max_tracks"] == MAX_MOTION_TRACKS
+
+
+def test_prompt_lists_motion_slots():
+    """prompt 与校验共用同一份槽位表：写错了模型只会一直撞 422。"""
+    prompt = system_prompt()
+    for primitive, slots in motion_slots().items():
+        assert f"- {primitive}：target 取 {', '.join(slots)}" in prompt

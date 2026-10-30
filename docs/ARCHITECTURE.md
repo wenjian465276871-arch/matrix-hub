@@ -58,6 +58,14 @@ llm/
 `schema_version` 1.2。原因见 `apps/electro-assist/api/models/visual.py` 顶部注释：
 清单参数只允许标量，等于逼模型做 `a|b|c` 字符串编码，稳定性撑不住。
 
+**动效轨道（决策 #24）**：计划 §2.1 的 `tracks[{target, anim, duration}]` 落地为
+`VisualSpec.motion`，但 `target` 收窄为**原语内部槽位**（`status_light.lamp`、
+`meter.needle|readout`、`gate_state.leaf`、`flow_arrow.arrow`、`motion_timeline.segment`）。
+原语是自包含组件，没有可寻址的全局图形 id；放开任意 target 等于让模型猜坐标。
+三条硬约束：≤3 条轨道、同一槽位只一条、`flow`/`draw` 只能落在描边槽位
+（给填充色块做描边生长会渲染成空白）。前端把轨道翻成 CSS 类而不是内联样式——
+CSP `style-src 'self'` 会丢弃 `style=""`，动画写了等于没写。
+
 ## 1.2 B 模块：为什么只让模型排序，不让它诊断
 
 ```

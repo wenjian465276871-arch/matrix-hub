@@ -49,6 +49,21 @@ let tickTimer: number | undefined
 let pollFailures = 0
 let pollingStartedAt = 0
 
+/* 取消：计划 §12.4 的口径是"前端停止轮询并忽略结果，服务端任务继续到完成/超时"。
+   不去打断 LLM（也打断不了），但用户必须能拿回控制权——否则一次 20 秒的等待
+   会把人锁在页面上，连改一个错字都要等它跑完。
+   代价要如实说：任务仍在后台跑，结果会落进草稿箱。 */
+const cancelledJobId = ref('')
+
+function cancelWait(): void {
+  if (phase.value !== 'polling') return
+  stopTimers()
+  cancelledJobId.value = jobId.value
+  job.value = null
+  elapsed.value = 0
+  phase.value = 'idle'
+}
+
 /* ---------- 现场素材 ----------
  * 图片只做"排版与标注"，不做识别：模型看不到图，也就不会替你判断图里是什么。
  * 上传后进草稿的「素材区」，生成完再决定挂到哪一步。 */
@@ -520,6 +535,7 @@ async function submit(retryOf?: string): Promise<void> {
   errorCode.value = ''
   lastJobFailed.value = false
   job.value = null
+  cancelledJobId.value = ''
 
   try {
     const res = await postJson<GenerateAccepted>(
@@ -791,6 +807,14 @@ onBeforeUnmount(stopTimers)
   <div v-if="phase === 'polling'" class="card state" aria-live="polite">
     <p>正在生成… 已等待 {{ elapsed }} 秒</p>
     <p class="state__hint">任务 {{ jobId }}</p>
+    <button class="btn" type="button" @click="cancelWait">停止等待</button>
+  </div>
+
+  <div v-if="cancelledJobId" class="card state" aria-live="polite">
+    <p>已停止等待，可以继续修改文本或单独提交。</p>
+    <p class="state__hint">
+      任务 {{ cancelledJobId }} 仍在后台运行；跑完只会生成一份草稿，不会进入公开列表。
+    </p>
   </div>
 
   <div v-if="phase === 'error'" class="card state state--error">

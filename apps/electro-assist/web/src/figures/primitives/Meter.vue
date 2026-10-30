@@ -8,10 +8,15 @@
  *    就是伪造数据；空着又会让整张图降级成文字。范围条是第三种正确答案。
  */
 import { computed } from 'vue'
-import type { ParamValue } from '../../types'
+import type { MotionTrack, ParamValue } from '../../types'
+import { motionClasses } from '../motion'
 import { MONO, num, str } from '../svg'
 
-const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
+const props = defineProps<{
+  params: Record<string, ParamValue>
+  label?: string
+  motion?: MotionTrack[]
+}>()
 
 const V = 340
 const PAD = 16
@@ -68,7 +73,7 @@ const model = computed(() => {
       text-anchor="end"
       font-size="17"
       :font-family="MONO"
-      class="fig-ink"
+      :class="['fig-ink', ...motionClasses(props.motion, 'readout')]"
     >
       {{ model.value }}<tspan dx="4" font-size="12" class="fig-ink3">{{ model.unit }}</tspan>
     </text>
@@ -93,7 +98,8 @@ const model = computed(() => {
       :x2="model.x"
       :y2="TRACK_Y + TRACK_H + 8"
       stroke-width="2"
-      class="fig-stroke-ink"
+      pathLength="100"
+      :class="['fig-stroke-ink', ...motionClasses(props.motion, 'needle')]"
     />
 
     <text

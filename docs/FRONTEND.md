@@ -26,16 +26,17 @@ apps/electro-assist/web/
 ├── playwright.config.ts     # E2E：本机 msedge，双视口
 └── src/
     ├── main.ts  App.vue     # 顶部 48px 深色条 + RouterView + 页脚声明
-    ├── types.ts             # 与服务端契约对应的类型（385 行）
+    ├── types.ts             # 与服务端契约对应的类型（含 MotionTrack）
     ├── router/index.ts      # 6 条路由 + 通配回落
     ├── lib/http.ts          # 唯一网络层：15s（上传 60s）超时、错误归一、JSON/multipart；不自动重试
     ├── lib/errors.ts        # 服务端 code → 用户文案映射
-    ├── styles/              # tokens.css / base.css / print.css
-    ├── figures/             # registry.ts + svg.ts + GuideFigure.vue + primitives/（7 个）
+    ├── lib/theme.ts         # 皮肤单例：唯一 key electro-theme、唯一写入点、导入即上色
+    ├── styles/              # tokens.css（亮/暗两套令牌） / base.css / print.css
+    ├── figures/             # registry.ts + svg.ts + motion.ts + GuideFigure.vue + primitives/（13 个）
     └── views/               # LibraryView / NewGuideView / GuideView / RunView / RecordView / DiagnoseView
 ```
 
-规模：前端 5238 行（vue/ts/css），最大文件 `RunView.vue` 825 行。
+规模：前端 **8443** 行（vue/ts/css），最大文件 `NewGuideView.vue` 1239 行（下一轮待拆）、`RunView.vue` 826 行。
 
 ### 1.1 路由
 
@@ -136,8 +137,8 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 
 | 项 | 预算（gzip） | 实测 |
 |---|---|---|
-| 首屏 JS | ≤75KB（硬顶 90KB） | **41.69KB** |
-| 首屏 CSS | ≤14KB | **6.52KB** |
+| 首屏 JS | ≤75KB（硬顶 90KB） | **43.00KB**（抽屉异步化后 +1.3KB；`<Transition>` 会拖入 BaseTransition +1.4KB，已弃用） |
+| 首屏 CSS | ≤14KB | **7.62KB**（暗色令牌与动效类） |
 | 路由 chunk | ≤30KB | 最大 7.96KB（`NewGuideView`） |
 | 单个原语 chunk | ≤2KB | 由 `GuideFigure` 共享 chunk 承载 |
 
@@ -153,11 +154,11 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 |---|---|
 | 类型检查 | `vue-tsc --noEmit`，0 error 才出包 |
 | 单测 | **无**（未引入 Vitest） |
-| E2E | Playwright 6 条：列表→引导→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检；CI 内跑，失败阻断发布 |
+| E2E | Playwright **10 条**：原 6 条冒烟 + 抽屉/暗色持久化、A1 暗色逃生条、暗色下打印仍亮色、生成可取消（后两条用 route mock，不花 token）；CI 内跑，失败阻断发布 |
 | 打印 | Chromium 打印记录页，A4 三页无截断（真机验收 2026-10-21） |
 | 可访问性 | 人工抽查键盘与 `aria`；**未跑 axe-core 全量扫描**（见根 `README.md` 的验收章节） |
 
-为什么不补前端单测：核心判定全在服务端（259 条测试覆盖），前端只有 6 个视图；
+为什么不补前端单测：核心判定全在服务端（276 条测试覆盖），前端只有 6 个视图；
 E2E 抓的是 DOM 回归，比给 `lib/http.ts` 写 mock 更值钱。真要补，优先补 `errors.ts` 的映射表。
 
 ## 8. 已知坑（都踩过，别再踩）

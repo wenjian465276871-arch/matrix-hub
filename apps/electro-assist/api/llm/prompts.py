@@ -13,7 +13,13 @@ from __future__ import annotations
 from typing import Any
 
 from models.guide import REQUIRED_DISCLAIMER, SCHEMA_VERSION, Guide
-from models.visual import STATE_VALUES, allowed_params
+from models.visual import (
+    MAX_MOTION_TRACKS,
+    STATE_VALUES,
+    MotionAnim,
+    allowed_params,
+    motion_slots,
+)
 
 DOC_OPEN = "<document>"
 DOC_CLOSE = "</document>"
@@ -37,6 +43,15 @@ def _primitive_table() -> str:
         extra = f"；**{hint}**" if hint else ""
         rows.append(f"- {name}：参数 {', '.join(keys)}{extra}")
     return "\n".join(rows)
+
+
+def _motion_table() -> str:
+    """动效槽位表：也由代码生成，避免 prompt 里写"手势"代码里不认。"""
+    anims = " / ".join(a.value for a in MotionAnim)
+    lines = [f"   - anim 只能取 {anims}；duration 取 400–2400（毫秒）。"]
+    for primitive, slots in motion_slots().items():
+        lines.append(f"   - {primitive}：target 取 {', '.join(slots)}")
+    return "\n".join(lines)
 
 
 def output_schema() -> dict:
@@ -90,6 +105,9 @@ def system_prompt() -> str:
      **表格类内容不要塞进 checklist**，两者的读法不一样。
    - 清单类参数（items、terminals、pins）**直接给字符串数组**，例如 ["断电挂牌","防溜车"]；
      最多 10 项，每项不超过 40 字。不要用嵌套对象。
+   - 需要强调动作时可给 `motion`（可选，最多 {MAX_MOTION_TRACKS} 条；拿不准就省略）：
+{_motion_table()}
+     动效只做强调，**不得用它表达文档没写的时间、顺序或数值**；没有动效的图照样成立。
 7. disclaimers 必须包含「{REQUIRED_DISCLAIMER}」，且不得删除。
 8. meta.model 固定填 "deepseek-flash"，meta.source_note 固定填 "演示用途"，meta.is_demo 固定为 true。
    这两个字段由系统覆盖，**不要编造来源说明**（你没有检索能力，写出来就是假的）。

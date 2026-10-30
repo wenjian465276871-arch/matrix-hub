@@ -6,10 +6,15 @@
  *  但文字永远在——现场有色觉差异的人不少，不能只靠颜色判断。
  */
 import { computed } from 'vue'
-import type { ParamValue } from '../../types'
+import type { MotionTrack, ParamValue } from '../../types'
+import { motionClasses } from '../motion'
 import { str, wrapText } from '../svg'
 
-const props = defineProps<{ params: Record<string, ParamValue>; label?: string }>()
+const props = defineProps<{
+  params: Record<string, ParamValue>
+  label?: string
+  motion?: MotionTrack[]
+}>()
 
 const FRAME = { x: 70, y: 24, w: 200, h: 76 }
 const STATE_LABEL: Record<string, string> = { open: '开启', half: '半开', closed: '关闭' }
@@ -72,7 +77,11 @@ const model = computed(() => {
       :height="model.left.h"
       rx="3"
       stroke-width="1.2"
-      class="fig-stroke-primary fig-primary-soft"
+      :class="[
+        'fig-stroke-primary',
+        'fig-primary-soft',
+        ...motionClasses(props.motion, 'leaf'),
+      ]"
     />
     <rect
       :x="model.right.x"
@@ -81,7 +90,11 @@ const model = computed(() => {
       :height="model.right.h"
       rx="3"
       stroke-width="1.2"
-      class="fig-stroke-primary fig-primary-soft"
+      :class="[
+        'fig-stroke-primary',
+        'fig-primary-soft',
+        ...motionClasses(props.motion, 'leaf'),
+      ]"
     />
     <line
       v-if="model.hasGap"
