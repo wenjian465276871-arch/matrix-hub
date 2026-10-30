@@ -440,24 +440,21 @@ docker exec matrix-hub python -m scripts.cleanup --apply
 
 防呆：删除草稿时 SQL 会再判一次 `status='draft'`——plan 与 apply 之间有人把它发布了，也不会被删。
 
-首次执行前先备份（§7.1），并保留 dry-run 输出。当前 crontab 里仍是空跑（每周日 04:17，只报告）：
-
-```bash
-17 4 * * 0 /usr/bin/docker exec matrix-hub python -m scripts.cleanup >> /opt/matrix-hub/cleanup.log 2>&1
-```
+首次执行前先备份（§7.1），并保留 dry-run 输出。
 
 **2026-10-31 已在生产手工执行一次 `--apply`**（先 `sqlite3 backup` 到 `.bak-20261031T0209`）：
 插入一条 40 天前的演练草稿 → dry-run 报「草稿 1」→ `--apply` 删除 1 条 → `guides` 回到 7、`integrity_check=ok`。
 即删除链路在线上真跑过，不是只写在文档里。
 
-每日化（把上面那行换成下面这行，`crontab -e` 一次）：
+**同日已把 cron 从"每周日空跑"改为"每日真删"**（2026-10-31 02:26，`crontab -l` 已核对，`systemctl is-active cron` = active）：
 
 ```bash
+# 备份 03:17 → 清理 03:40：先备份再删，出事能回滚
+17 3 * * * /opt/matrix-hub/backup.sh >> /var/log/matrix-hub-backup.log 2>&1
 40 3 * * * /usr/bin/docker exec matrix-hub python -m scripts.cleanup --apply >> /opt/matrix-hub/cleanup.log 2>&1
 ```
 
-时间取 03:40 是为了排在 03:17 的备份之后——先备份再删，出事能回滚。
-日志 `/opt/matrix-hub/cleanup.log`（600）。改之前先看最后一次 dry-run 的条数与样例；`--apply` 不可逆。
+日志 `/opt/matrix-hub/cleanup.log`（600）。`--apply` 不可逆：要改窗口先跑一次 dry-run 看条数与样例。
 
 > 清理是**不可逆**的。`--apply` 前先看一眼 dry-run 的条数与样例；输出里没有删除明细就说明没匹配到数据。
 
