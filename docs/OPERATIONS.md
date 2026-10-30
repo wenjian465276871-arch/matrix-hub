@@ -123,7 +123,7 @@ docker stats --no-stream
 | `warn` | ≥ 0.80 | 写一条 `WARNING` 日志（同一天只写一次） |
 | `critical` | ≥ 0.95 | 写一条 `ERROR` 日志；再消耗即触发 `budget_exhausted` |
 
-告警通道不新增基础设施：`uptime.yml` 每 10 分钟读一次 `level`，
+告警通道不新增基础设施：`uptime.yml` 读一次 `level`，
 非 `ok` 就让 workflow 失败 → GitHub 按通知设置发邮件。日志侧用
 `docker compose logs web | grep 日预算` 核对，同一天同一级别只出现一次（防日志刷屏）。
 
@@ -335,7 +335,7 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 
 - 备份恢复演练常态化（每季度一次，脚本见 §7.4）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
-- 监控告警：**GitHub Actions 定时探活已加**（`.github/workflows/uptime.yml`，每 10 分钟查 `/healthz`、页面与 guides；失败会以 workflow 失败通知）；UptimeRobot 仍可选，用于更及时告警
+- 监控告警：**GitHub Actions 定时探活已加**（`.github/workflows/uptime.yml`，查 `/healthz`、页面与 guides；失败会以 workflow 失败通知）。**注意实际频次**：cron 写每 10 分钟，但 GitHub 调度实测日均约 2–8 次（10-22～10-30），最坏间隔可达数小时；它只是低成本兜底，需要分钟级告警请外接 UptimeRobot 一类服务
 - 清理任务**已实现并安装空跑 cron**（§14，2026-10-21）；两周报告正常后评估改 `--apply`
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯；已加次数上限与限流）
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`core/ratelimit.py`、`services/sessions.py` 均假设单 worker）

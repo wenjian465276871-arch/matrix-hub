@@ -49,7 +49,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
   └─ 排查：HybridProvider（关键词 + n-gram/IDF 稀疏向量）→ 受限重排（模型只能排序）→ 故障树推进
 ```
 
-单容器、单镜像、一条流水线：`push → 契约测试 → E2E 冒烟 → 构建（含 CSP 产物检查）→ 推私有镜像仓 → 服务器拉取 → 3 次健康检查 → 失败自动回滚`。服务器只拉镜像，不编译。另有 `uptime.yml` 每 10 分钟从 GitHub 外部探活。
+单容器、单镜像、一条流水线：`push → 契约测试 → E2E 冒烟 → 构建（含 CSP 产物检查）→ 推私有镜像仓 → 服务器拉取 → 3 次健康检查 → 失败自动回滚`。服务器只拉镜像，不编译。另有 `uptime.yml` 从 GitHub 外部探活（cron 写每 10 分钟，**实际日均约 2–8 次**，只作低成本兜底；分钟级告警需外接监控）。
 
 细节与取舍见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)，运维见 [`docs/OPERATIONS.md`](docs/OPERATIONS.md)，接口见 [`docs/API.md`](docs/API.md)。
 

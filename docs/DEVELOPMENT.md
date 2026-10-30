@@ -116,7 +116,7 @@ cd ../web
 npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（Dockerfile）
 ```
 
-CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致性 + 依赖漏洞扫描 + API 文档一致性 + 文档指标一致性 → E2E 冒烟（与构建并行）→ 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 每 10 分钟从 GitHub 探活。
+CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致性 + 依赖漏洞扫描 + API 文档一致性 + 文档指标一致性 → E2E 冒烟（与构建并行）→ 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 从 GitHub 探活：**cron 写每 10 分钟，但 GitHub 实际日均约 2–8 次（2026-10-22～10-30 实测），只作兜底，不是分钟级告警**。
 
 ## 4.1 供应链固定（2026-10-24）
 
@@ -156,10 +156,10 @@ pip install --dry-run --require-hashes -r requirements.lock
 > CI 比对时会过滤注释行：uv 把「输入路径」写进头部与 `# via`，从仓库根跑和从 `api/` 跑天然不同，直接 `diff` 会永远失败。
 
 **已知未清**：`starlette 0.41.3`（FastAPI 0.115.6 的传递依赖）被 pip-audit 报了 12 条 advisory（PYSEC-2026-*）。
-升级需要同步抬 FastAPI 并回归 194 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
+升级需要同步抬 FastAPI 并回归 259 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
 
 
-**前端 E2E（2026-10-21 进 CI）**：`tests/e2e/smoke.spec.ts` 覆盖四条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、素材上传。不调模型，用启动时 seed 的案例与知识库。
+**前端 E2E（2026-10-21 进 CI，现 6 条）**：`tests/e2e/smoke.spec.ts` 覆盖六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检。不调模型，用启动时 seed 的案例与知识库。
 
 ```bash
 # 本地：先起 API（临时库）与 preview，再跑
