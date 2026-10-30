@@ -116,6 +116,89 @@ def save_guide(
     return {"id": guide.id, "status": status, "updated_at": now, "skipped": False}
 
 
+def refresh_sample_guide(guide: Guide) -> dict[str, Any]:
+    """用样例文件覆盖一条**已发布**指导书的内容。只给 `scripts/refresh_sample.py` 调用。
+
+    与 `save_guide` 的分工：`save_guide` 拒绝覆盖已发布内容（防生成流程顶替案例），
+    这一条专门做"样例内容刷新"——保留 `id` / `status` / `created_at` / `published_at`，
+    只换内容。因为主键没变，`sessions.guide_id` 与 `records.step_id` 全部继续有效。
+
+    两条前置条件（不满足直接抛错，不做半套更新）：
+    1. 记录必须是 published——草稿是生成产物或用户资产，样例不该覆盖它；
+    2. 步骤 id 序列必须完全一致——变了就等于老记录指向的 `step_id` 失效，
+       记录页会拼不出那一步。
+    """
+    now = now_iso()
+    payload = json.dumps(guide.model_dump(mode="json"), ensure_ascii=False)
+    duration = sum(step.duration_s or 0 for step in guide.steps)
+    new_ids = [step.id for step in guide.steps]
+
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT status, json, created_at, published_at FROM guides WHERE id = ?",
+            (guide.id,),
+        ).fetchone()
+        if row is None:
+            raise LookupError(f"指导书不存在：{guide.id}")
+        if row["status"] != "published":
+            raise ValueError(f"只刷新已发布样例，{guide.id} 当前是 {row['status']}")
+
+        old_payload = json.loads(row["json"])
+        old_ids = [step.get("id") for step in old_payload.get("steps", [])]
+        if old_ids != new_ids:
+            raise ValueError(
+                f"{guide.id} 步骤 id 序列变了（旧 {old_ids} / 新 {new_ids}），"
+                "刷新会让已有记录失去对应步骤；改用人工迁移或新建样例 id"
+            )
+
+        with tx(conn):
+            conn.execute(
+                """
+                UPDATE guides SET
+                  schema_version = ?, title = ?, system = ?, json = ?,
+                  step_count = ?, duration_s = ?, summary = ?, source_note = ?,
+                  generated_at = ?, updated_at = ?
+                WHERE id = ? AND status = 'published'
+                """,
+                (
+                    guide.schema_version,
+                    guide.title,
+                    guide.meta.system.value,
+                    payload,
+                    len(guide.steps),
+                    duration,
+                    guide.summary,
+                    guide.meta.source_note,
+                    guide.meta.generated_at.isoformat(),
+                    now,
+                    guide.id,
+                ),
+            )
+
+    return {
+        "id": guide.id,
+        "before": _sample_stats(old_payload),
+        "after": _sample_stats(json.loads(payload)),
+        "created_at": row["created_at"],
+        "published_at": row["published_at"],
+        "updated_at": now,
+    }
+
+
+def _sample_stats(payload: dict[str, Any]) -> dict[str, int]:
+    """样例刷新前后对比用的三个数：图数 / 原语种数 / 带动效的图数。"""
+    figures = [
+        figure
+        for step in payload.get("steps", [])
+        for figure in (step.get("figures") or [])
+    ]
+    return {
+        "figures": len(figures),
+        "primitives": len({figure.get("primitive") for figure in figures}),
+        "motion": sum(1 for figure in figures if figure.get("motion")),
+    }
+
+
 def get_guide(guide_id: str) -> dict[str, Any] | None:
     with connect() as conn:
         row = conn.execute("SELECT * FROM guides WHERE id = ?", (guide_id,)).fetchone()

@@ -488,6 +488,26 @@ RERANK_DAY_MICROS=300000   # ¥0.3/日；按单次 ≈¥0.001 估算，约 300 �
 
 排障提示：如果容器里找不到 `imaging.py`，先看 `/opt/electro/core/`——2026-10-30 起已迁入 `core/`。
 
-**存量样例不重刷**：`ensure_seeded` 只补缺失、不覆盖已存在记录，`published` 内容不可覆盖。
-线上 5 份旧样例仍显示收紧前的图元；新原语只在**新生成**的指导书里出现。
-要换演示样例必须显式删行重 seed（会破坏该 guide 的历史记录关联），当前不做。
+**存量样例刷新（2026-10-30 起有工具）**：`ensure_seeded` 仍只补缺失、不覆盖；
+要更新已发布样例的内容，用**显式**脚本，别手工删行重 seed：
+
+```bash
+# 容器内，先看差异（默认 dry-run）
+docker exec -w /opt/electro matrix-hub python -m scripts.refresh_sample
+# 确认后写入
+docker exec -w /opt/electro matrix-hub python -m scripts.refresh_sample --yes
+```
+
+口径：**只换内容，保留 id / status / created_at / published_at**。
+因此 `sessions.guide_id` 与 `records.step_id` 继续有效，现场会话与历史记录不会断。
+两条前置条件不满足就整份拒绝（不做半套更新）：记录必须是 `published`；
+步骤 id 序列必须与文件完全一致（变了意味着老记录找不到对应步骤）。
+
+写入前先备份库：
+
+```bash
+docker exec matrix-hub python -c "import sqlite3;s=sqlite3.connect('/srv/app_data/electro.db');d=sqlite3.connect('/srv/app_data/electro.db.bak-$(date -u +%Y%m%dT%H%M)');s.backup(d);d.close()"
+```
+
+本地演练（2026-10-31，用 `b5cfe72` 的旧样例造库）：`g_door_switch_formal_001` 14 图 / 7 原语 / 0 动效 →
+20 图 / 13 原语 / 3 动效；`created_at` 与 `published_at` 未变，会话与记录各 1 条仍可读。

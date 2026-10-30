@@ -79,8 +79,8 @@ api/
 │   ├── samples/       5 份 published 样例（车门 3 + 空调 1 + 受电弓 1）
 │   ├── knowledge/     door 11 / hvac 4 / pantograph 3 条 + eval_queries.json
 │   └── corpus/        8 份生成评测语料 + README
-├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / smoke
-└── tests/             276 条契约测试
+├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
+└── tests/             281 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -109,7 +109,7 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 276 passed（约 21s）
+pytest tests -q          # 281 passed（约 22s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web
@@ -156,7 +156,7 @@ pip install --dry-run --require-hashes -r requirements.lock
 > CI 比对时会过滤注释行：uv 把「输入路径」写进头部与 `# via`，从仓库根跑和从 `api/` 跑天然不同，直接 `diff` 会永远失败。
 
 **已知未清**：`starlette 0.41.3`（FastAPI 0.115.6 的传递依赖）被 pip-audit 报了 12 条 advisory（PYSEC-2026-*）。
-升级需要同步抬 FastAPI 并回归 276 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
+升级需要同步抬 FastAPI 并回归 281 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
 
 
 **前端 E2E（2026-10-21 进 CI，现 10 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）。

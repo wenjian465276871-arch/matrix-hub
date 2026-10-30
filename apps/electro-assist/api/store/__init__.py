@@ -30,6 +30,7 @@ from .dao import (
     oldest_job_between,
     publish_guide,
     record_usage,
+    refresh_sample_guide,
     save_guide,
     submit_step,
     sweep_stale_jobs,
