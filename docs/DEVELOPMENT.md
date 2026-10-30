@@ -134,6 +134,7 @@ CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致
 |---|---|
 | 后端 pip | Dependabot 只改 `requirements.txt`，**必然卡在锁文件门禁**（它不跑 uv）。要合就先重生成 `requirements.lock`，再跑全量测试 |
 | 前端三大件（vite / @vitejs/plugin-vue / vue-router） | **必须一次升**：vite 8 要 plugin-vue ≥6，vue-router 5 要 vite ≥7，单独提都是 `ERESOLVE`。已在 `dependabot.yml` 忽略这三者的 major |
+| 前端 patch 安全升级 | 三家锁的是 major，所以 **patch / minor 不必联动**，可以单升（如 vite `6.4.4 → 6.4.5` 修 `server.fs.deny` 绕过，2026-10-31）。两个坑：① 本机 `.npmrc` 指向 npmmirror，`npm install` 会把 `resolved` 写成镜像地址，与其余条目混源——升完把 `resolved` 指回 `registry.npmjs.org`（`integrity` 两源一致，`npm ci --dry-run` 可验）；② npmmirror 不实现 `/-/npm/v1/security/audits`，`npm audit` 会 404，要核对版本就用 `npm view <pkg>@<ver> dist.integrity` |
 | 基础镜像 | `node` 只跟 LTS（忽略 major）；`caddy` 保留自动 PR，但合并前要走一次网关窗口（反代 / CSP / 证书 / 回滚） |
 | 镜像源同步差 | `pydantic` / `pydantic-core` 固定到镜像源已有的版本；升级前先确认阿里云镜像已同步，再改声明并重生成锁文件 |
 | TypeScript / vue-tsc | `typescript` major 已忽略（TS 7 是原生重写版，不再导出 `typescript/lib/tsc`，vue-tsc 直接崩）；`vue-tsc` 已升到 **3.3.13**（2026-10-30），它的 `noUnusedLocals` 更严，升级前先跑一遍 `vue-tsc --noEmit`，会直接暴露旧代码里的未用变量 |
