@@ -3,7 +3,7 @@
 # 构建只在 CI 发生；服务器只拉成品镜像
 
 # ---- Caddy 二进制来源（正式构建时改为按 digest 固定）----
-FROM caddy:2.8-alpine AS caddy-bin
+FROM caddy:2.11-alpine AS caddy-bin
 
 # ---- 前端构建（Node 只在构建阶段存在，不进运行镜像）----
 FROM node:22-alpine AS web
