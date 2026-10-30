@@ -136,6 +136,7 @@ def test_plan_and_apply_delete_only_expired(env):
         "diagnose_runs": 1,
         "diagnose_steps": 1,
         "jobs": 1,
+        "drafts": 0,
         "usage": 1,
         "uploads": 1,
     }
@@ -207,3 +208,76 @@ def test_plan_keeps_active_jobs_even_if_old(env):
 def test_dry_run_report_is_empty_on_fresh_data(env):
     _seed({"s_new": 0, "j_new": 0, "u_new": 0})
     assert cleanup.plan().empty()
+
+
+def _guide_row(guide_id: str, status: str, age_days: int) -> None:
+    now = datetime.now(timezone.utc)
+    ts = _iso(now - timedelta(days=age_days))
+    con = sqlite3.connect(store.db_path())
+    try:
+        with con:
+            con.execute(
+                "INSERT INTO guides (id, schema_version, title, system, status, json,"
+                " step_count, duration_s, created_at, updated_at)"
+                " VALUES (?, '1.2', 't', 'door', ?, '{}', 1, 0, ?, ?)",
+                (guide_id, status, ts, ts),
+            )
+    finally:
+        con.close()
+
+
+def test_plan_lists_old_drafts_but_never_published(env):
+    _seed({})
+    _guide_row("g_old_draft", "draft", 40)
+    _guide_row("g_new_draft", "draft", 5)
+
+    report = cleanup.plan()
+    assert report.drafts == ["g_old_draft"]
+    # _seed 里那份 999 天的已发布案例必须不在名单里
+    assert "g_demo" not in report.drafts
+
+
+def test_apply_deletes_drafts_and_keeps_published(env):
+    _seed({})
+    _guide_row("g_old_draft", "draft", 40)
+
+    report = cleanup.plan()
+    deleted = cleanup.apply(report)
+    assert deleted["drafts"] == 1
+
+    con = sqlite3.connect(store.db_path())
+    try:
+        left = {row[0] for row in con.execute("SELECT id FROM guides")}
+    finally:
+        con.close()
+    assert "g_old_draft" not in left
+    assert "g_demo" in left
+
+
+def test_apply_does_not_delete_a_draft_published_in_between(env):
+    """plan 之后、apply 之前被发布：必须跳过，否则会把产品内容删掉。"""
+    _seed({})
+    _guide_row("g_soon_published", "draft", 40)
+
+    report = cleanup.plan()
+    con = sqlite3.connect(store.db_path())
+    try:
+        with con:
+            con.execute("UPDATE guides SET status = 'published' WHERE id = ?", ("g_soon_published",))
+    finally:
+        con.close()
+
+    deleted = cleanup.apply(report)
+    assert deleted["drafts"] == 0
+    con = sqlite3.connect(store.db_path())
+    try:
+        assert con.execute(
+            "SELECT COUNT(*) FROM guides WHERE id = ?", ("g_soon_published",)
+        ).fetchone()[0] == 1
+    finally:
+        con.close()
+
+
+def test_usage_default_retention_is_90_days(env):
+    _seed({"u_100": 100, "u_30": 30})
+    assert cleanup.plan().usage == 1

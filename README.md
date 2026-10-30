@@ -59,17 +59,17 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **281 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **285 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 错误可追溯 | 500 返回统一 JSON + 8 位 `ref`，响应头带 `X-Request-Id` | 任意错误请求观察响应 |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
 | B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.8ms** / P95 **4.6ms** | `python scripts/eval_diagnose.py` |
-| 前端首屏 | **43.00 KB** gzip（预算 75KB），CSS **7.62 KB**（预算 14KB） | `npm run build` |
+| 前端首屏 | **43.23 KB** gzip（预算 75KB），CSS **7.83 KB**（预算 14KB） | `npm run build` |
 | 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 100** / LCP **1.31s** / CLS **0** / TBT **70ms**；指导书页 **99** / **1.29s** / **0** / **124.5ms** | Lighthouse 13.5 + `scripts/lighthouse.mjs`（2026-10-23 线上） |
 | 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
 | 契约面 | **30 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
-| 前端 E2E | **10 条**：原 6 条冒烟 + 抽屉/暗色持久化、A1 暗色逃生条、打印强制亮色、生成可取消 | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
+| 前端 E2E | **14 条**：6 条冒烟 + 抽屉/暗色/打印/取消 4 条 + 刷新续接、429 倒计时、90s 超时、隐私页 4 条 | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
 
 ### 4.1 这组数字是怎么来的，以及它抓到了什么
 

@@ -32,6 +32,12 @@ const router = createRouter({
       props: true,
     },
     {
+      path: '/privacy',
+      name: 'privacy',
+      // 纯静态说明页：单独 chunk，不进首屏
+      component: () => import('../views/PrivacyView.vue'),
+    },
+    {
       path: '/diagnose',
       name: 'diagnose',
       // B 模块：现场排查。只做检索，页面本身不引入任何模型相关代码。

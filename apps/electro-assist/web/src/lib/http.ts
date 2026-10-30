@@ -14,6 +14,8 @@ export class ApiError extends Error {
     readonly code?: string,
     message?: string,
     readonly ref?: string,
+    /** 429/503 的等待秒数。服务端同时给 body 与 `Retry-After` 头，两处都认。 */
+    readonly retryAfter?: number,
   ) {
     super(message ?? code ?? kind)
     this.name = 'ApiError'
@@ -41,6 +43,20 @@ function combine(a: AbortSignal, b: AbortSignal): AbortSignal {
 
 interface ErrorBody {
   detail?: { code?: string; message?: string; retry_after?: number; ref?: string }
+}
+
+/** `Retry-After` 允许秒数或 HTTP-date（RFC 9110）。两处来源都可能是空的。 */
+function parseRetryAfter(header: string | null, bodyValue: number | undefined): number | undefined {
+  if (typeof bodyValue === 'number' && Number.isFinite(bodyValue) && bodyValue > 0) {
+    return Math.round(bodyValue)
+  }
+  if (!header) return undefined
+  const raw = header.trim()
+  if (/^\d+$/.test(raw)) return Number(raw)
+  const at = Date.parse(raw)
+  if (Number.isNaN(at)) return undefined
+  const seconds = Math.round((at - Date.now()) / 1000)
+  return seconds > 0 ? seconds : undefined
 }
 
 async function request<T>(
@@ -74,10 +90,12 @@ async function request<T>(
     let code: string | undefined
     let message: string | undefined
     let ref: string | undefined
+    let retryAfterBody: number | undefined
     try {
       const body = (await res.json()) as ErrorBody
       code = body.detail?.code
       message = body.detail?.message
+      retryAfterBody = body.detail?.retry_after
       // 服务端 500 会带 ref：显示出来，用户报障时能对上日志。
       ref = body.detail?.ref || res.headers.get('X-Request-Id') || undefined
     } catch {
@@ -85,7 +103,8 @@ async function request<T>(
     }
     const kind: ApiErrorKind = res.status === 429 ? 'ratelimit' : 'server'
     const shown = message ? (ref ? `${message}（错误号 ${ref}）` : message) : undefined
-    throw new ApiError(kind, res.status, code, shown, ref)
+    const retryAfter = parseRetryAfter(res.headers.get('Retry-After'), retryAfterBody)
+    throw new ApiError(kind, res.status, code, shown, ref, retryAfter)
   }
 
   return (await res.json()) as T

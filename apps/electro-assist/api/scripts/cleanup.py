@@ -5,20 +5,21 @@
 但真实用户的数据会永久堆在 40G 磁盘上；记录里还有设备号、位置、备注，
 没有保留期限本身就是隐私问题。
 
-清理口径（刻意保守）：
-- **指导书永不删除**（published 与 draft 都是产品内容）；
+清理口径（对齐计划 §11.3.3 的保留期表，刻意保守）：
+- **已发布指导书永不删除**（产品内容）；**访客草稿默认 30 天**——草稿里可能
+  有访客粘的工艺文本，留着就是隐私负债，与"产品内容"不是一回事；
 - 上传资产：按目录 mtime 计龄，默认 **30 天**；切图会刷新 mtime；
   **被任何指导书引用的资产永不删除**——否则已发布页面的图会在 30 天后变成裂图；
 - 会话 + 其记录：按 `sessions.created_at` 计龄，默认 **180 天**；
 - 逐步诊断（run + steps）：与作业记录同口径，默认 **180 天**（进行中的也按创建时间清，避免僵尸会话）；
 - 已结束任务：默认 **90 天**（queued/running 不动）；
-- 用量明细：默认 **365 天**（当天预算只依赖当天，删旧行不影响熔断）。
+- 用量明细：默认 **90 天**（计划要求 90；当天预算只依赖当天，删旧行不影响熔断）。
 
 用法（在 `apps/electro-assist/api` 下）：
 
     python -m scripts.cleanup                 # dry-run，只报告
     python -m scripts.cleanup --apply         # 真删
-    python -m scripts.cleanup --apply --uploads-days 30 --sessions-days 180
+    python -m scripts.cleanup --apply --uploads-days 30 --drafts-days 30 --sessions-days 180
 
 服务器容器内：
 
@@ -52,6 +53,7 @@ class Report:
     diagnose_runs: list[str] = field(default_factory=list)
     diagnose_steps: int = 0
     jobs: list[str] = field(default_factory=list)
+    drafts: list[str] = field(default_factory=list)
     usage: int = 0
     usage_cutoff: str = ""
     uploads: list[tuple[str, int]] = field(default_factory=list)
@@ -66,6 +68,7 @@ class Report:
             or self.records
             or self.diagnose_runs
             or self.jobs
+            or self.drafts
             or self.usage
             or self.uploads
         )
@@ -114,8 +117,9 @@ def plan(
     now: datetime | None = None,
     uploads_days: int = 30,
     sessions_days: int = 180,
+    drafts_days: int = 30,
     jobs_days: int = 90,
-    usage_days: int = 365,
+    usage_days: int = 90,
     upload_dir: str | None = None,
 ) -> Report:
     moment = now or datetime.now(timezone.utc)
@@ -153,6 +157,18 @@ def plan(
                 f"SELECT COUNT(*) FROM diagnose_steps WHERE run_id IN ({placeholders})",
                 report.diagnose_runs,
             ).fetchone()[0]
+
+        # 访客草稿按计划 §11.3.3 的 30 天清；已发布案例永不删（产品内容）。
+        # 只看 created_at：没有编辑界面，草稿内容不会变，创建时间就是它的寿命起点。
+        drafts_cut = _iso(moment - timedelta(days=drafts_days))
+        report.drafts = [
+            row["id"]
+            for row in con.execute(
+                "SELECT id FROM guides WHERE status = 'draft' AND created_at < ? "
+                "ORDER BY created_at",
+                (drafts_cut,),
+            )
+        ]
 
         jobs_cut = _iso(moment - timedelta(days=jobs_days))
         report.jobs = [
@@ -216,6 +232,7 @@ def apply(report: Report, upload_dir: str | None = None) -> dict:
         "diagnose_runs": 0,
         "diagnose_steps": 0,
         "jobs": 0,
+        "drafts": 0,
         "usage": 0,
         "uploads": 0,
     }
@@ -242,6 +259,13 @@ def apply(report: Report, upload_dir: str | None = None) -> dict:
                 deleted["diagnose_runs"] = con.execute(
                     f"DELETE FROM diagnose_runs WHERE id IN ({placeholders})",
                     report.diagnose_runs,
+                ).rowcount
+            if report.drafts:
+                placeholders = ",".join("?" for _ in report.drafts)
+                # 再判一次 status：plan 与 apply 之间可能有人把它发布了
+                deleted["drafts"] = con.execute(
+                    f"DELETE FROM guides WHERE status = 'draft' AND id IN ({placeholders})",
+                    report.drafts,
                 ).rowcount
             if report.jobs:
                 placeholders = ",".join("?" for _ in report.jobs)
@@ -275,8 +299,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--apply", action="store_true", help="真正删除；不加则只报告")
     parser.add_argument("--uploads-days", type=int, default=30)
     parser.add_argument("--sessions-days", type=int, default=180)
+    parser.add_argument("--drafts-days", type=int, default=30)
     parser.add_argument("--jobs-days", type=int, default=90)
-    parser.add_argument("--usage-days", type=int, default=365)
+    parser.add_argument("--usage-days", type=int, default=90)
     args = parser.parse_args(argv)
 
     if not os.path.exists(store.db_path()):
@@ -286,6 +311,7 @@ def main(argv: list[str] | None = None) -> int:
     report = plan(
         uploads_days=args.uploads_days,
         sessions_days=args.sessions_days,
+        drafts_days=args.drafts_days,
         jobs_days=args.jobs_days,
         usage_days=args.usage_days,
     )
@@ -295,7 +321,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"可清理：会话 {len(report.sessions)} / 记录 {report.records} / "
         f"诊断 {len(report.diagnose_runs)}（步骤 {report.diagnose_steps}） / "
-        f"任务 {len(report.jobs)} / 用量 {report.usage} / "
+        f"任务 {len(report.jobs)} / 草稿 {len(report.drafts)} / 用量 {report.usage} / "
         f"上传 {len(report.uploads)} 个目录（{_fmt_bytes(report.upload_bytes)}）"
     )
     if report.sessions:
@@ -315,7 +341,7 @@ def main(argv: list[str] | None = None) -> int:
     print(
         f"\n已删除：会话 {deleted['sessions']} / 记录 {deleted['records']} / "
         f"诊断 {deleted['diagnose_runs']}（步骤 {deleted['diagnose_steps']}） / "
-        f"任务 {deleted['jobs']} / 用量 {deleted['usage']} / "
+        f"任务 {deleted['jobs']} / 草稿 {deleted['drafts']} / 用量 {deleted['usage']} / "
         f"上传目录 {deleted['uploads']}"
     )
     return 0

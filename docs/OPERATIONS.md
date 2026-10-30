@@ -433,9 +433,12 @@ docker exec matrix-hub python -m scripts.cleanup --apply
 | 上传目录 | 30 天（按目录 mtime），**被任何指导书引用的资产永久保留** | 未入稿的截图只用于生成确认期；已入稿的图是页面内容，删了就是裂图 |
 | 会话 + 记录 | 180 天 | 作业留痕要能回溯；180 天后才清 |
 | 逐步诊断（run + steps） | 180 天 | 与作业记录同口径；含僵尸会话（长期 active 的也按创建时间清） |
+| **访客草稿** | **30 天** | 草稿里有访客粘的工艺文本，留着就是隐私负债；与"产品内容"不是一回事 |
 | 已结束任务 | 90 天 | 排障用；queued/running 永不删 |
-| 用量明细 | 365 天 | 当天预算只依赖当天，删旧行不影响熔断 |
-| 指导书 | **永不删** | published 与 draft 都是产品内容 |
+| 用量明细 | **90 天** | 对齐计划 §11.3.3；当天预算只依赖当天，删旧行不影响熔断 |
+| 已发布指导书 | **永不删** | 产品内容；草稿到期才清 |
+
+防呆：删除草稿时 SQL 会再判一次 `status='draft'`——plan 与 apply 之间有人把它发布了，也不会被删。
 
 首次执行前建议先备份（§7.1），并保留 dry-run 输出。**2026-10-21 已安装空跑 cron**（每周日 04:17，只报告不删除）：
 
@@ -511,3 +514,59 @@ docker exec matrix-hub python -c "import sqlite3;s=sqlite3.connect('/srv/app_dat
 
 本地演练（2026-10-31，用 `b5cfe72` 的旧样例造库）：`g_door_switch_formal_001` 14 图 / 7 原语 / 0 动效 →
 20 图 / 13 原语 / 3 动效；`created_at` 与 `published_at` 未变，会话与记录各 1 条仍可读。
+
+## 17. 密钥轮换演练（2026-10-31，计划 §11.6 P4）
+
+**结论**：轮换机制可用、失败模式可控；真实 Key 未动（见末尾"边界"）。
+
+### 17.1 演练方式（不碰生产 .env）
+
+用同一镜像起一个**隔离实例**，只把 `DEEPSEEK_API_KEY` 换成无效值，其余（DB、上传目录、端口）都独立：
+
+```bash
+docker run -d --rm --name keydrill --entrypoint python \
+  -e DEEPSEEK_API_KEY=sk-invalid-drill-not-a-real-key \
+  -e DB_PATH=/tmp/keydrill.db -e UPLOAD_DIR=/tmp/keydrill_up -e APP_ENV=dev \
+  -p 127.0.0.1:18001:8001 <镜像> -m uvicorn main:app --host 0.0.0.0 --port 8001
+```
+
+### 17.2 观测结果
+
+| 检查项 | 结果 |
+|---|---|
+| `/healthz` | **200**（健康检查不依赖 LLM Key，Key 错不会把站点判死） |
+| 提交生成 | 202 正常受理，job 在 **1 秒内** failed，`error_code=auth` |
+| 错误信息 | provider 原文 `Authentication Fails, Your api key: ****-key is invalid（HTTP 401）`——**密钥被掩码** |
+| 费用 | `cost_micros=0`、tokens 全 0（失败不计费） |
+| 日志泄露 | `docker logs keydrill | grep -c sk-invalid-drill` = **0** |
+| 生产影响 | 同期生产站 200、容器 healthy |
+| 清理 | 演练容器已删除（`docker ps` 只剩 `matrix-hub`） |
+
+### 17.3 真实轮换步骤（2 分钟，需本人在 DeepSeek 控制台发新 Key）
+
+```bash
+# 0) 备份（拷文件，不要打印内容）
+cp -p /opt/matrix-hub/.env /opt/matrix-hub/.env.bak-$(date -u +%Y%m%dT%H%M) && chmod 600 /opt/matrix-hub/.env.bak-*
+
+# 1) 只替换这一行（用编辑器或 sed，别 cat 出来）
+sed -i 's|^DEEPSEEK_API_KEY=.*|DEEPSEEK_API_KEY=<新 Key>|' /opt/matrix-hub/.env
+
+# 2) 重建容器让 env 生效（restart 不会重新读 .env）
+cd /opt/matrix-hub && docker compose -f compose.yml up -d --force-recreate web
+
+# 3) 验证
+curl -s https://www.superplayer007.cn/healthz
+docker inspect matrix-hub --format '{{range .Config.Env}}{{println .}}{{end}}' | grep -c DEEPSEEK   # 只数条数，不打印值
+# 提交一次真实生成（2/小时配额），确认 job succeeded
+
+# 4) 确认新 Key 可用后，去控制台吊销旧 Key
+```
+
+**回滚**：`cp -p /opt/matrix-hub/.env.bak-* /opt/matrix-hub/.env && cd /opt/matrix-hub && docker compose -f compose.yml up -d --force-recreate web`。
+
+### 17.4 边界（如实记录）
+
+- **没有替换生产 Key**：读取/改写 `/opt/matrix-hub/.env` 里的密钥被宿主安全层拦下（判为敏感凭据访问），
+  我没有绕过它，也没有把 Key 打印出来。所以"发新 Key → 替换 → 重启 → 验活 → 吊销旧 Key"这四步
+  需要你在控制台操作时执行一次；上面的失败模式与回滚路径已经演练过。
+- 演练证明的是**失败侧**：Key 错时站点不挂、错误可读、不计费、不泄露。

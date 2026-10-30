@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { ApiError, getJson, postForm, postJson } from '../lib/http'
 import type {
   ExtractResult,
@@ -15,7 +15,11 @@ const router = useRouter()
 
 const MIN_CHARS = 10
 const MAX_CHARS = 20_000
-const HARD_TIMEOUT_MS = 120_000
+/** 服务端总预算 90s（单次 40s、最多 2 次）。客户端只负责"不再等了"：
+ *  多给 5s 容差，否则第 90 秒服务端刚写库、前端先掐断，配额白扣一次。 */
+const SERVER_BUDGET_MS = 90_000
+const CLIENT_GRACE_MS = 5_000
+const HARD_TIMEOUT_MS = SERVER_BUDGET_MS + CLIENT_GRACE_MS
 
 const SAMPLE_TEXT = `工序：客室侧门开关门功能试验（演示文本，参数为示例值）
 
@@ -54,10 +58,75 @@ let pollingStartedAt = 0
    会把人锁在页面上，连改一个错字都要等它跑完。
    代价要如实说：任务仍在后台跑，结果会落进草稿箱。 */
 const cancelledJobId = ref('')
+const resumed = ref(false)
+
+/* 刷新续接：job_id 与 startedAt 存 sessionStorage（关标签页即失效）。
+   startedAt 是 90s 预算的唯一基准，**不能因为刷新而重置**——
+   否则每刷一次就能重新等 90 秒，把"超时"变成"无限等"。 */
+const JOB_KEY = 'electro:job'
+
+interface StoredJob {
+  jobId: string
+  startedAt: number
+}
+
+function readStoredJob(): StoredJob | null {
+  try {
+    const raw = sessionStorage.getItem(JOB_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<StoredJob>
+    if (typeof parsed.jobId !== 'string' || typeof parsed.startedAt !== 'number') return null
+    if (!/^j_[0-9a-f]{16}$/.test(parsed.jobId)) return null
+    return { jobId: parsed.jobId, startedAt: parsed.startedAt }
+  } catch {
+    return null
+  }
+}
+
+function writeStoredJob(id: string, startedAt: number): void {
+  try {
+    sessionStorage.setItem(JOB_KEY, JSON.stringify({ jobId: id, startedAt }))
+  } catch {
+    // 隐私模式写不进：只影响"刷新续接"，不影响本次生成
+  }
+}
+
+function clearStoredJob(): void {
+  try {
+    sessionStorage.removeItem(JOB_KEY)
+  } catch {
+    /* 同上 */
+  }
+}
+
+/* 429 倒计时：服务端给 Retry-After，这里只做展示与禁点。
+   不自动重试——额度是钱，什么时候再花必须由人决定。 */
+const cooldownUntil = ref(0)
+const clock = ref(Date.now())
+const cooldownLeft = computed(() =>
+  Math.max(0, Math.ceil((cooldownUntil.value - clock.value) / 1000)),
+)
+let cooldownTimer: number | undefined
+
+function startCooldown(seconds: number | undefined): void {
+  if (!seconds || seconds <= 0) return
+  cooldownUntil.value = Date.now() + seconds * 1000
+  clock.value = Date.now()
+  if (cooldownTimer !== undefined) window.clearInterval(cooldownTimer)
+  cooldownTimer = window.setInterval(() => {
+    clock.value = Date.now()
+    if (cooldownLeft.value === 0 && cooldownTimer !== undefined) {
+      window.clearInterval(cooldownTimer)
+      cooldownTimer = undefined
+    }
+  }, 1000)
+}
 
 function cancelWait(): void {
   if (phase.value !== 'polling') return
   stopTimers()
+  clearStoredJob()
+  resumed.value = false
   cancelledJobId.value = jobId.value
   job.value = null
   elapsed.value = 0
@@ -84,7 +153,9 @@ const assetError = ref('')
 const busy = computed(
   () => phase.value === 'submitting' || phase.value === 'polling' || uploading.value,
 )
-const canSubmit = computed(() => !busy.value && text.value.trim().length >= MIN_CHARS)
+const canSubmit = computed(
+  () => !busy.value && text.value.trim().length >= MIN_CHARS && cooldownLeft.value === 0,
+)
 const hourLeft = computed(() =>
   quota.value ? Math.max(0, quota.value.hour.limit - quota.value.hour.used) : null,
 )
@@ -391,6 +462,7 @@ function handleError(err: unknown): void {
   if (err instanceof ApiError) {
     errorCode.value = err.code ?? ''
     if (err.kind === 'ratelimit') {
+      startCooldown(err.retryAfter)
       errorText.value = err.message || '额度已用完，请稍后再试。'
     } else if (err.kind === 'timeout') {
       errorText.value = '请求超时，请检查网络后重试。'
@@ -482,7 +554,10 @@ async function poll(): Promise<void> {
   if (!jobId.value) return
   if (Date.now() - pollingStartedAt > HARD_TIMEOUT_MS) {
     stopTimers()
-    errorText.value = '等待超过 2 分钟仍未完成。请稍后在“我的任务”里重试，或重新提交。'
+    clearStoredJob()
+    resumed.value = false
+    errorText.value =
+      '等待超过 90 秒仍未完成（服务端总预算也是 90 秒）。任务可能仍在后台跑，稍后重试不扣配额。'
     errorCode.value = 'client_timeout'
     phase.value = 'error'
     return
@@ -495,11 +570,15 @@ async function poll(): Promise<void> {
 
     if (snap.status === 'succeeded' && snap.guide_id) {
       stopTimers()
+      clearStoredJob()
+      resumed.value = false
       await router.push({ name: 'guide', params: { id: snap.guide_id }, query: { draft: '1' } })
       return
     }
     if (snap.status === 'failed' || snap.status === 'timeout') {
       stopTimers()
+      clearStoredJob()
+      resumed.value = false
       lastJobFailed.value = true
       errorCode.value = snap.error_code ?? ''
       errorText.value = humanError(snap.error_code, snap.error_message)
@@ -559,6 +638,8 @@ async function submit(retryOf?: string): Promise<void> {
     elapsed.value = 0
     pollFailures = 0
     pollingStartedAt = Date.now()
+    writeStoredJob(res.job_id, pollingStartedAt)
+    resumed.value = false
     stopTimers()
     tickTimer = window.setInterval(() => {
       elapsed.value += 1
@@ -581,8 +662,30 @@ function retry(): void {
 onMounted(() => {
   passcodeToken.value = readStoredToken()
   void loadQuota()
+
+  const stored = readStoredJob()
+  if (!stored) return
+  const age = Date.now() - stored.startedAt
+  if (age >= HARD_TIMEOUT_MS) {
+    // 超过预算的任务不该继续等：清掉，让人重新提交
+    clearStoredJob()
+    return
+  }
+  jobId.value = stored.jobId
+  pollingStartedAt = stored.startedAt
+  elapsed.value = Math.floor(age / 1000)
+  resumed.value = true
+  phase.value = 'polling'
+  tickTimer = window.setInterval(() => {
+    elapsed.value += 1
+  }, 1000)
+  pollTimer = window.setTimeout(poll, 300)
 })
-onBeforeUnmount(stopTimers)
+
+onBeforeUnmount(() => {
+  stopTimers()
+  if (cooldownTimer !== undefined) window.clearInterval(cooldownTimer)
+})
 </script>
 
 <template>
@@ -604,6 +707,12 @@ onBeforeUnmount(stopTimers)
       :disabled="busy"
       placeholder="例如：工序名称、步骤、判据范围、工具与安全提示。事实没写就留空，系统不会替你编。"
     />
+
+    <p class="hint hint--privacy">
+      请勿输入真实企业敏感信息（客户名、工号、未公开参数、图纸编号）。
+      演示站：正文只用于本次生成，草稿 30 天后自动清理，
+      <RouterLink to="/privacy">数据怎么处理</RouterLink>。
+    </p>
 
     <div class="row">
       <span class="hint">{{ text.trim().length }} / {{ MAX_CHARS }} 字符</span>
@@ -797,7 +906,15 @@ onBeforeUnmount(stopTimers)
     </div>
 
     <button class="btn btn--primary submit" type="button" :disabled="!canSubmit" @click="submit()">
-      {{ busy ? (phase === 'submitting' ? '提交中…' : `生成中… ${elapsed}s`) : '生成指导书' }}
+      {{
+        cooldownLeft > 0
+          ? `额度恢复后可生成 · ${cooldownLeft}s`
+          : busy
+            ? phase === 'submitting'
+              ? '提交中…'
+              : `生成中… ${elapsed}s`
+            : '生成指导书'
+      }}
     </button>
     <p class="hint">
       通常 8–15 秒。每 IP 每小时 2 次、每日 10 次；失败与超时不计入次数。有口令可豁免每 IP 限制。
@@ -806,8 +923,18 @@ onBeforeUnmount(stopTimers)
 
   <div v-if="phase === 'polling'" class="card state" aria-live="polite">
     <p>正在生成… 已等待 {{ elapsed }} 秒</p>
+    <p v-if="resumed" class="state__hint">
+      已续接刷新前的任务：90 秒预算不因刷新重置，超时后会提示重试。
+    </p>
     <p class="state__hint">任务 {{ jobId }}</p>
     <button class="btn" type="button" @click="cancelWait">停止等待</button>
+  </div>
+
+  <div v-if="cooldownLeft > 0" class="card state" role="status" aria-live="polite">
+    <p>额度已用完，{{ cooldownLeft }} 秒后可以再生成。</p>
+    <p class="state__hint">
+      倒计时结束按钮自动解禁；不自动重试——额度是钱，什么时候再花由你决定。有口令可豁免每 IP 限制。
+    </p>
   </div>
 
   <div v-if="cancelledJobId" class="card state" aria-live="polite">
@@ -882,6 +1009,11 @@ onBeforeUnmount(stopTimers)
   margin-bottom: 8px;
   font-weight: 600;
   color: var(--c-ink);
+}
+
+.hint--privacy {
+  margin: 8px 0 0;
+  line-height: 20px;
 }
 
 .textarea {

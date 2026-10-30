@@ -68,7 +68,8 @@ watch(
   </main>
 
   <footer class="site-foot">
-    演示数据 · 非实际作业依据 · AI 生成内容需专业人员复核
+    演示数据 · 非实际作业依据 · AI 生成内容需专业人员复核 ·
+    <RouterLink class="site-foot__link" to="/privacy">隐私与数据</RouterLink>
   </footer>
 
   <SiteDrawer v-if="drawerOpen" @close="close" />
@@ -92,6 +93,16 @@ watch(
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
+}
+
+.site-foot__link {
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.site-foot__link:hover {
+  color: #fff;
 }
 
 .nav-more:hover {
