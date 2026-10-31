@@ -160,7 +160,7 @@ pip install --dry-run --require-hashes -r requirements.lock
 升级需要同步抬 FastAPI 并回归 285 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
 
 
-**前端 E2E（2026-10-21 进 CI，现 14 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）。
+**前端 E2E（2026-10-21 进 CI，现 15 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）。
 
 ```bash
 # 本地：先起 API（临时库）与 preview，再跑

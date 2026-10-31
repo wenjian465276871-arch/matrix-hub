@@ -57,7 +57,11 @@ function backToLight(): void {
     aria-live="polite"
   >
     <span class="theme-notice__icon" aria-hidden="true">!</span>
-    <p class="theme-notice__text">现场作业建议切换亮色</p>
+    <!-- 横屏单列（SE 档）文案压成 5 个字：h44 与热区都不动，只让位给宽度。 -->
+    <p class="theme-notice__text">
+      <span class="theme-notice__full">现场作业建议切换亮色</span>
+      <span class="theme-notice__short">建议切亮色</span>
+    </p>
     <button class="theme-notice__btn" type="button" @click="backToLight">切回亮色</button>
   </div>
 </template>
@@ -93,6 +97,21 @@ function backToLight(): void {
   margin: 0;
   font-size: 13px;
   font-weight: 500;
+}
+
+.theme-notice__short {
+  display: none;
+}
+
+/* 横屏短高 + 单列（SE 667 宽）：文案换短的，h44 与 44px 热区不变。 */
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 749px) {
+  .theme-notice__full {
+    display: none;
+  }
+
+  .theme-notice__short {
+    display: inline;
+  }
 }
 
 .theme-notice__btn {

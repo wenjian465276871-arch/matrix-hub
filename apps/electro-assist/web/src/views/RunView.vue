@@ -308,104 +308,108 @@ onMounted(load)
           <span class="step__seq">{{ String(shownStep.seq).padStart(2, '0') }}</span>
           <h2 class="step__title">{{ shownStep.title }}</h2>
         </div>
-        <p class="step__action">{{ shownStep.action }}</p>
-
-        <div v-if="shownStep.safety.length" class="step__block">
-          <p class="block-label">安全</p>
-          <ul class="safety">
-            <li v-for="item in shownStep.safety" :key="item">{{ item }}</li>
-          </ul>
-        </div>
-
-        <div v-if="shownStep.tools.length" class="step__block">
-          <p class="block-label">工具</p>
-          <div class="tool-list">
-            <span v-for="item in shownStep.tools" :key="item" class="tag tag--plain">
-              {{ item }}
-            </span>
-          </div>
-        </div>
-
-        <div v-if="shownStep.figures.length" class="step__block">
-          <p class="block-label">图示</p>
-          <GuideFigure
-            v-for="(figure, index) in shownStep.figures"
-            :key="`${shownStep.id}-fig-${index}`"
-            :spec="figure"
-          />
-        </div>
-
-        <section v-if="phase === 'ready'" class="step__block">
-          <p class="block-label">验收判据</p>
-
-          <div
-            v-for="criterion in shownStep.criteria"
-            :key="criterion.id"
-            class="field"
-            :class="{ 'field--bad': rangeWarning(criterion) }"
-          >
-            <label class="field__label" :for="`c-${criterion.id}`">
-              {{ criterion.label }}
-              <span v-if="criterion.type === 'range'" class="field__hint">
-                要求 {{ criterion.min }}–{{ criterion.max }} {{ criterion.unit }}
-              </span>
-            </label>
-
-            <!-- range 分支必须整块包在 template 里：否则后面的 v-else-if
-                 会挂在「超差提示 <p v-if>」上，导致 range 判据同时渲染出
-                 一个数值输入框和一个文本域（重复 id，现场会看到空文本框）。 -->
-            <template v-if="criterion.type === 'range'">
-              <div class="input-row">
-                <input
-                  :id="`c-${criterion.id}`"
-                  v-model="values[criterion.id]"
-                  class="num-input"
-                  type="number"
-                  inputmode="decimal"
-                  step="any"
-                  placeholder="实测值"
-                />
-                <span class="unit-chip">{{ criterion.unit }}</span>
-              </div>
-              <p v-if="rangeWarning(criterion)" class="field__error">
-                {{ rangeWarning(criterion) }}
-              </p>
-            </template>
-
-            <select
-              v-else-if="criterion.type === 'enum'"
-              :id="`c-${criterion.id}`"
-              v-model="values[criterion.id]"
-              class="select"
-            >
-              <option value="" disabled>请选择</option>
-              <option v-for="option in criterion.options ?? []" :key="option" :value="option">
-                {{ option }}
-              </option>
-            </select>
-
-            <label v-else-if="criterion.type === 'manual'" class="check-row">
-              <input
-                :id="`c-${criterion.id}`"
-                class="checkbox"
-                type="checkbox"
-                :checked="values[criterion.id] === 'true'"
-                @change="setManual(criterion.id, ($event.target as HTMLInputElement).checked)"
-              />
-              <span>已确认</span>
-            </label>
-
-            <textarea
-              v-else
-              :id="`c-${criterion.id}`"
-              v-model="values[criterion.id]"
-              class="textarea"
-              rows="2"
-              maxlength="500"
-              placeholder="记录观察结果"
+        <div class="run-step__panel">
+          <div v-if="shownStep.figures.length" class="step__block run-split__figure">
+            <p class="block-label">图示</p>
+            <GuideFigure
+              v-for="(figure, index) in shownStep.figures"
+              :key="`${shownStep.id}-fig-${index}`"
+              :spec="figure"
             />
           </div>
-        </section>
+          <div class="run-step__read">
+            <p class="run-step__action step__action">{{ shownStep.action }}</p>
+
+            <div v-if="shownStep.safety.length" class="run-step__safety step__block">
+              <p class="block-label">安全</p>
+              <ul class="safety">
+                <li v-for="item in shownStep.safety" :key="item">{{ item }}</li>
+              </ul>
+            </div>
+
+            <div v-if="shownStep.tools.length" class="run-step__tools step__block">
+              <p class="block-label">工具</p>
+              <div class="tool-list">
+                <span v-for="item in shownStep.tools" :key="item" class="tag tag--plain">
+                  {{ item }}
+                </span>
+              </div>
+            </div>
+
+
+            <section v-if="phase === 'ready'" class="step__block run-split__criteria">
+              <p class="block-label">验收判据</p>
+
+              <div
+                v-for="criterion in shownStep.criteria"
+                :key="criterion.id"
+                class="field"
+                :class="{ 'field--bad': rangeWarning(criterion) }"
+              >
+                <label class="field__label" :for="`c-${criterion.id}`">
+                  {{ criterion.label }}
+                  <span v-if="criterion.type === 'range'" class="field__hint">
+                    要求 {{ criterion.min }}–{{ criterion.max }} {{ criterion.unit }}
+                  </span>
+                </label>
+
+                <!-- range 分支必须整块包在 template 里：否则后面的 v-else-if
+                     会挂在「超差提示 <p v-if>」上，导致 range 判据同时渲染出
+                     一个数值输入框和一个文本域（重复 id，现场会看到空文本框）。 -->
+                <template v-if="criterion.type === 'range'">
+                  <div class="input-row">
+                    <input
+                      :id="`c-${criterion.id}`"
+                      v-model="values[criterion.id]"
+                      class="num-input"
+                      type="number"
+                      inputmode="decimal"
+                      step="any"
+                      placeholder="实测值"
+                    />
+                    <span class="unit-chip">{{ criterion.unit }}</span>
+                  </div>
+                  <p v-if="rangeWarning(criterion)" class="field__error">
+                    {{ rangeWarning(criterion) }}
+                  </p>
+                </template>
+
+                <select
+                  v-else-if="criterion.type === 'enum'"
+                  :id="`c-${criterion.id}`"
+                  v-model="values[criterion.id]"
+                  class="select"
+                >
+                  <option value="" disabled>请选择</option>
+                  <option v-for="option in criterion.options ?? []" :key="option" :value="option">
+                    {{ option }}
+                  </option>
+                </select>
+
+                <label v-else-if="criterion.type === 'manual'" class="check-row">
+                  <input
+                    :id="`c-${criterion.id}`"
+                    class="checkbox"
+                    type="checkbox"
+                    :checked="values[criterion.id] === 'true'"
+                    @change="setManual(criterion.id, ($event.target as HTMLInputElement).checked)"
+                  />
+                  <span>已确认</span>
+                </label>
+
+                <textarea
+                  v-else
+                  :id="`c-${criterion.id}`"
+                  v-model="values[criterion.id]"
+                  class="textarea"
+                  rows="2"
+                  maxlength="500"
+                  placeholder="记录观察结果"
+                />
+              </div>
+            </section>
+        </div>
+        </div>
       </article>
 
       <section v-if="phase === 'passed'" class="result-box result-box--ok" aria-live="polite">
@@ -823,4 +827,172 @@ onMounted(load)
     padding: 24px;
   }
 }
+/* ---------- 横屏短高（视觉规范 v1.5 §3.2 / 体验 §4） ----------
+   横屏唯一稀缺的是高度、最不缺的是宽度，所以拿宽度换高度：
+   顶栏 48 / 逃生条 44 / 底栏 64 一个都不砍，压掉的是页头留白与「已完成」列表，
+   余下的高度全给「图示 6 : 判据 4」两栏。
+   750px 是算出来的：右栏 ≥280 ⇒ 0.4 × (W − 32 页边 − 16 间距) ≥ 280 ⇒ W ≥ 748。
+   SE 横屏 667 落单列（逃生条文案压成「建议切亮色」，h44 与热区不动）。 */
+@media (orientation: landscape) and (max-height: 560px) {
+  .run-page {
+    padding-bottom: 72px;
+  }
+
+  /* 页头压成一行：横屏第一屏的高度预算优先给图示与判据 */
+  .run-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .run-kicker {
+    font-size: 12px;
+  }
+
+  .run-title {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  .progress {
+    display: none;
+  }
+
+  /* 「已完成」是回溯信息，不是当前步的操作依据 */
+  .done-list {
+    display: none;
+  }
+
+  .run-card {
+    padding: 12px 16px;
+  }
+
+  .step__block {
+    margin: 8px 0 0 12px;
+  }
+
+  /* 整行 800px 的主按钮要右手拇指跨半屏，反而破坏拇指区纪律 */
+  .run-bar__inner {
+    max-width: none;
+    justify-content: flex-end;
+  }
+
+  .bar-primary {
+    flex: 0 0 240px;
+    width: 240px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 560px) and (min-width: 750px) {
+  /* 卡片锁高，余下高度交给 1fr 行：
+     顶栏 48 + 容器上边距 24 + 页头 40 + 底栏 65 + 余量 8 = 185 */
+  .run-card {
+    --ls-chrome: 185px;
+    display: grid;
+    height: calc(100dvh - var(--ls-chrome));
+    grid-template-areas:
+      'head'
+      'panel';
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  /* 暗色多一条 44px 逃生条，预算跟着减，否则底栏会压住判据最后一行 */
+  :global(html.theme-dark) .run-card {
+    --ls-chrome: 229px;
+  }
+
+  .step__head {
+    grid-area: head;
+  }
+
+  /* 两栏放在面板里：面板是卡片的 1fr 行，高度确定，右列才能自己滚。 */
+  .run-step__panel {
+    grid-area: panel;
+    display: grid;
+    grid-template-columns: minmax(0, 6fr) minmax(280px, 4fr);
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: 16px;
+    min-height: 0;
+    align-self: stretch;
+    overflow: hidden;
+  }
+
+  /* 左栏：图保持高度驱动后一张 93px，一步 3 张时该列自己纵向滚。
+     用纵向而不是横向：工程场景里没人预期"图往右滑"，
+     横向挤出来的半张图看起来像渲染坏了，纵向切一刀才是正常的滚动条语义。 */
+  .run-split__figure {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+  }
+
+  /* 「图示」这个标签在横屏是废话：左栏除了图没别的 */
+  .run-split__figure > .block-label {
+    display: none;
+  }
+
+  .run-split__figure .figure {
+    /* 盒子贴住图：列宽 436 而图只有 186 时，撑满会让虚线框拉横、图缩在中间。 */
+    flex: 0 0 auto;
+    width: max-content;
+    max-width: 100%;
+    padding: 12px;
+  }
+
+  /* 显式高度，不靠 height:100%：父级高度由网格行推导，百分比会退化成 auto
+     → SVG 按内在比例撑高 → 把右列和判据挤走。宽度给 auto，让它按 viewBox 自己算，
+     这样既有高度驱动，也不会等比拉伸。 */
+  /* svg 在 GuideFigure 子组件里，scoped 选择器够不着，必须 :deep()——
+     上一版就是漏了这个，height 规则压根没生效，图被底边裁掉 5px。 */
+  .run-split__figure .figure :deep(svg) {
+    /* 高度驱动：高度写死（同一个 --ls-chrome 推算），宽度按 viewBox 比例回推。
+       不写 height:100%——父级高度由网格行推导，百分比会退化成 auto，
+       结果是 SVG 按 340 宽设计稿撑满、把右列和判据挤走。 */
+    width: auto;
+    height: calc(100dvh - var(--ls-chrome) - 112px);
+    max-width: 100%;
+    max-height: none;
+    margin: 0 auto;
+  }
+
+  /* 右列 = 判据 + 动作 + 安全 + 工具，一个滚动容器。
+     判据排最上：这一列在 390 高必然要滚，唯一要动手填的东西不能被压在下面。 */
+  .run-step__read {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding-right: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .run-step__read .step__action {
+    font-size: 14px;
+    line-height: 18px;
+  }
+
+  .run-split__criteria {
+    order: -1;
+    margin-top: 0;
+  }
+
+  .run-step__safety {
+    order: 2;
+  }
+
+  .run-step__tools {
+    order: 3;
+  }
+
+  .run-step__read .safety li {
+    line-height: 18px;
+  }
+}
+
 </style>

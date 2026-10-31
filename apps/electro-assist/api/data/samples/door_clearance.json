@@ -68,7 +68,8 @@
           "primitive": "meter",
           "params": {"value": 2.0, "unit": "mm", "min": 1.0, "max": 3.0, "label": "中部间隙"},
           "caption": "读数示例",
-          "fallback_text": "中部间隙示例读数 2.0 mm，允许范围 1.0–3.0 mm。"
+          "fallback_text": "中部间隙示例读数 2.0 mm，允许范围 1.0–3.0 mm。",
+          "motion": [{ "target": "needle", "anim": "draw", "duration": 900 }]
         },
         {
           "primitive": "wiring",
@@ -97,7 +98,8 @@
           "primitive": "status_light",
           "params": {"state": "pass", "label": "间隙合格"},
           "caption": "状态指示",
-          "fallback_text": "判定为合格时，状态灯显示通过。"
+          "fallback_text": "判定为合格时，状态灯显示通过。",
+          "motion": [{ "target": "lamp", "anim": "pulse", "duration": 1200 }]
         }
       ],
       "duration_s": 60

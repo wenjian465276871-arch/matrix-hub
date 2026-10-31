@@ -249,7 +249,8 @@
             "unit": "MPa"
           },
           "caption": "要求 1.4-1.8 MPa",
-          "fallback_text": "制冷剂高压侧压力要求 1.4-1.8 MPa。"
+          "fallback_text": "制冷剂高压侧压力要求 1.4-1.8 MPa。",
+          "motion": [{ "target": "needle", "anim": "draw", "duration": 1200 }]
         },
         {
           "primitive": "status_light",
@@ -258,7 +259,8 @@
             "state": "idle"
           },
           "caption": "合格判定",
-          "fallback_text": "电源电压、风速、送回风温差、压缩机电流、高压压力五项均在范围内判合格；任一超差先复测一次，复测仍超差记录实测值并转入异常处置。"
+          "fallback_text": "电源电压、风速、送回风温差、压缩机电流、高压压力五项均在范围内判合格；任一超差先复测一次，复测仍超差记录实测值并转入异常处置。",
+          "motion": [{ "target": "lamp", "anim": "blink", "duration": 1400 }]
         }
       ],
       "duration_s": null

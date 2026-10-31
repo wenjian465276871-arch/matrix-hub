@@ -86,7 +86,8 @@
           "primitive": "meter",
           "params": { "value": 2.6, "unit": "s", "min": 2.0, "max": 3.5, "label": "开门时间" },
           "caption": "时间读数",
-          "fallback_text": "开门时间示例读数 2.6 s，允许范围 2.0–3.5 s。"
+          "fallback_text": "开门时间示例读数 2.6 s，允许范围 2.0–3.5 s。",
+          "motion": [{ "target": "needle", "anim": "flow", "duration": 900 }]
         }
       ],
       "duration_s": 420
@@ -114,7 +115,8 @@
           "primitive": "status_light",
           "params": { "state": "pass", "label": "开关门功能合格" },
           "caption": "判定指示",
-          "fallback_text": "电压、时间、力矩三项均在范围内时，判定为合格。"
+          "fallback_text": "电压、时间、力矩三项均在范围内时，判定为合格。",
+          "motion": [{ "target": "lamp", "anim": "pulse", "duration": 1000 }]
         }
       ],
       "duration_s": 240

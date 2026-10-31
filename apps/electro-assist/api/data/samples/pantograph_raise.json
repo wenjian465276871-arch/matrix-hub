@@ -107,7 +107,8 @@
             "label": "碳滑板厚度"
           },
           "caption": "读数示例",
-          "fallback_text": "碳滑板剩余厚度示例读数 32 mm，允许范围 25–40 mm；低于下限必须更换。"
+          "fallback_text": "碳滑板剩余厚度示例读数 32 mm，允许范围 25–40 mm；低于下限必须更换。",
+          "motion": [{ "target": "needle", "anim": "draw", "duration": 900 }]
         }
       ],
       "duration_s": null
@@ -230,7 +231,8 @@
           "primitive": "status_light",
           "params": { "state": "pass", "label": "升弓到位" },
           "caption": "状态指示",
-          "fallback_text": "升弓到位时，司机台指示灯点亮并给出到位信号。"
+          "fallback_text": "升弓到位时，司机台指示灯点亮并给出到位信号。",
+          "motion": [{ "target": "lamp", "anim": "pulse", "duration": 1000 }]
         },
         {
           "primitive": "wiring",
