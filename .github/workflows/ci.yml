@@ -134,6 +134,9 @@ jobs:
         working-directory: apps/electro-assist/web
         run: npm run build
 
+      # 配额放开到 50：E2E 每个会话就是一次真实生成入口调用，16 条用例里
+      # smoke / landscape / mobile 各建 1 个会话，正好撞上生产配额（2 次/小时）。
+      # 这只影响 CI 的临时库，生产配额不受影响。
       - name: 起服务并跑冒烟
         run: |
           set -euo pipefail
@@ -143,6 +146,7 @@ jobs:
             DB_PATH="$RUNNER_TEMP/e2e/e2e.db" \
             UPLOAD_DIR="$RUNNER_TEMP/e2e/uploads" \
             APP_ENV=dev \
+            GENERATE_PER_HOUR=50 \
             python -m uvicorn main:app --host 127.0.0.1 --port 8001 \
               > "$RUNNER_TEMP/api.log" 2>&1 &
             echo $! > "$RUNNER_TEMP/api.pid"

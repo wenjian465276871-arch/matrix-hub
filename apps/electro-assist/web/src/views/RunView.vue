@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import GuideFigure from '../figures/GuideFigure.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import ThemeNoticeBar from '../components/ui/ThemeNoticeBar.vue'
 import { ApiError, getJson, postJson } from '../lib/http'
+import { watchKeyboardInset } from '../lib/viewport'
 import type {
   Criterion,
   CriterionResult,
@@ -264,7 +265,34 @@ function formatResult(result: CriterionResult): string {
   return `${String(result.value)}${result.unit ? ` ${result.unit}` : ''}`
 }
 
-onMounted(load)
+/* 超差项数：>0 时底栏主按钮改文案为「仍要提交」。
+   计划 §12.4 的口径是「提示但不阻断」——不让前端替现场做判断，
+   但也不能让人闭眼点「提交本步」，所以把按钮文案换成一次显式确认。 */
+const warningCount = computed(
+  () => (currentStep.value?.criteria ?? []).filter((criterion) => rangeWarning(criterion)).length,
+)
+
+const submitLabel = computed(() => {
+  if (phase.value === 'submitting') return '提交中…'
+  // 超差时换文案：一次显式确认，但**不阻断**——服务端判 fail 才是结论
+  return warningCount.value ? `仍要提交 · ${warningCount.value} 项超差` : '提交本步'
+})
+
+/* 软键盘顶升（§12.5）：底栏是 fixed bottom:0，键盘一弹就被盖住。
+   用 visualViewport 的差值写进 CSS 变量，样式仍在 CSS 里（CSP 禁内联 style）。 */
+let stopViewport: (() => void) | undefined
+
+onMounted(() => {
+  void load()
+  stopViewport = watchKeyboardInset((inset) => {
+    document.documentElement.style.setProperty('--kb-inset', `${inset}px`)
+  })
+})
+
+onBeforeUnmount(() => {
+  stopViewport?.()
+  document.documentElement.style.removeProperty('--kb-inset')
+})
 </script>
 
 <template>
@@ -460,6 +488,10 @@ onMounted(load)
       <p v-if="errorText && phase === 'ready'" class="inline-error">{{ errorText }}</p>
 
       <div v-if="phase === 'ready' || phase === 'submitting'" class="run-bar no-print">
+        <!-- 超差提示放在底栏上方而不是弹窗：现场要的是"我知道这项超了"，不是再点一次确认框 -->
+        <p v-if="warningCount" class="run-bar__warn" role="status" aria-live="polite">
+          {{ warningCount }} 项超差，提交后本步记为异常
+        </p>
         <div class="run-bar__inner">
           <button
             class="bar-secondary"
@@ -475,7 +507,7 @@ onMounted(load)
             :disabled="phase === 'submitting'"
             @click="submitStep"
           >
-            {{ phase === 'submitting' ? '提交中…' : '提交本步' }}
+            {{ submitLabel }}
           </button>
         </div>
       </div>
@@ -775,7 +807,8 @@ onMounted(load)
 .run-bar {
   position: fixed;
   right: 0;
-  bottom: 0;
+  /* 软键盘顶升：--kb-inset 由 visualViewport 写入（§12.5）。没有键盘时恒为 0。 */
+  bottom: var(--kb-inset, 0px);
   left: 0;
   z-index: 20;
   border-top: 1px solid var(--c-line);
@@ -789,6 +822,15 @@ onMounted(load)
   gap: 12px;
   max-width: 760px;
   margin: 0 auto;
+}
+
+/* 超差提示：一条 12px 的 waring 行，不抢按钮的位置 */
+.run-bar__warn {
+  max-width: 760px;
+  margin: 0 auto 6px;
+  color: var(--c-danger);
+  font-size: 12px;
+  line-height: 16px;
 }
 
 .bar-secondary {
@@ -827,6 +869,36 @@ onMounted(load)
     padding: 24px;
   }
 }
+/* 极窄屏（<360px，如 320 宽的旧机型）：判据行改为上下堆叠（§12.5）。
+   横向挤的时候数值框只剩 150px，44px 的单位 chip 还要占位，输入一位小数就被截断。 */
+@media (max-width: 359px) {
+  .input-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+  }
+
+  .num-input {
+    flex: none;
+    width: 100%;
+  }
+
+  .unit-chip {
+    min-width: 0;
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 12px;
+  }
+
+  .run-bar__inner {
+    gap: 8px;
+  }
+
+  .bar-primary {
+    font-size: 15px;
+  }
+}
+
 /* ---------- 横屏短高（视觉规范 v1.5 §3.2 / 体验 §4） ----------
    横屏唯一稀缺的是高度、最不缺的是宽度，所以拿宽度换高度：
    顶栏 48 / 逃生条 44 / 底栏 64 一个都不砍，压掉的是页头留白与「已完成」列表，

@@ -62,6 +62,8 @@ const model = computed(() => {
     headers,
     widths,
     xs,
+    // 原始单元格：窄屏堆叠表要按"表头: 值"逐条排，不能拿已经折行/截断的 SVG 布局
+    grid: rows,
     rows: layout,
     headerH: 26,
     height: 26 + y + 2,
@@ -71,12 +73,14 @@ const model = computed(() => {
 </script>
 
 <template>
-  <svg
-    :viewBox="`0 0 340 ${model.height}`"
-    role="img"
-    :aria-label="label || `对照表，${model.vertical} 行`"
-    preserveAspectRatio="xMidYMid meet"
-  >
+  <div class="fig-table">
+    <svg
+      class="fig-table__svg"
+      :viewBox="`0 0 340 ${model.height}`"
+      role="img"
+      :aria-label="label || `对照表，${model.vertical} 行`"
+      preserveAspectRatio="xMidYMid meet"
+    >
     <rect x="0" y="0" width="340" :height="model.headerH" class="fig-track" />
     <g v-for="(header, col) in model.headers" :key="header">
       <text
@@ -137,6 +141,77 @@ const model = computed(() => {
       fill="none"
       stroke-width="1"
       class="fig-stroke-line"
-    />
-  </svg>
+      />
+    </svg>
+
+    <!-- 窄屏（<360px）堆叠：SVG 里 11px 的字缩到 320 宽只剩 9px，横着排谁也读不了。
+         用真表格而不是 div：读屏仍按表格播报，视觉上再拆成「表头: 值」。
+         首列当行标题（th），其余 td 用 data-label 出标签。 -->
+    <table class="fig-table__stack">
+      <tbody>
+        <tr v-for="(row, rowIndex) in model.grid" :key="rowIndex">
+          <th scope="row">{{ row[0] }}</th>
+          <td
+            v-for="(cell, col) in row.slice(1)"
+            :key="col"
+            :data-label="model.headers[col + 1]"
+          >
+            {{ cell }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
 </template>
+
+<style scoped>
+.fig-table__stack {
+  display: none;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+@media (max-width: 359px) {
+  .fig-table__svg {
+    display: none;
+  }
+
+  .fig-table__stack {
+    display: table;
+  }
+
+  .fig-table__stack tr {
+    display: block;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--c-line-soft);
+  }
+
+  .fig-table__stack tr:last-child {
+    border-bottom: none;
+  }
+
+  .fig-table__stack th {
+    display: block;
+    margin-bottom: 4px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--c-ink);
+  }
+
+  .fig-table__stack td {
+    display: flex;
+    gap: 8px;
+    padding: 2px 0;
+    line-height: 18px;
+    color: var(--c-ink);
+  }
+
+  .fig-table__stack td::before {
+    content: attr(data-label);
+    flex: 0 0 72px;
+    color: var(--c-ink-3);
+  }
+}
+</style>

@@ -241,9 +241,21 @@ E2E 有一条回归（`theme.spec.ts`）直接断言打印态 `body` 是白底�
 > SVG 按设计稿 340 宽撑满，把判据挤成 0 高——必须写成显式 `calc()`；
 > ② `svg` 在 `GuideFigure` 子组件里，scoped 选择器够不着，要 `:deep(svg)`。
 
+### 8.2 窄屏与键盘（2026-10-31 补齐）
+
+| 项 | 实现 |
+|---|---|
+| `<360px` 判据行 | `@media (max-width: 359px)`：`.input-row` 改 `flex-direction: column`，数值框吃满行宽，单位 chip 落到下一行并左对齐（44px 高度不变） |
+| 表格堆叠 | `table` 原语在同一组件里渲两份：`<svg>`（≥360）与 `<table>`（<360）。窄屏时 `<svg>` `display:none`，`<table>` 每行变一块：首列作 `th` 行标题，其余 `td` 用 `data-label` 出「表头：值」。**用真表格而不是 div**，读屏仍按表格播报 |
+| 软键盘顶升 | `lib/viewport.ts` 读 `visualViewport`，差值写入 `--kb-inset`（CSSOM，不用内联 style）；`.run-bar { bottom: var(--kb-inset, 0px) }`。**阈值 120px**：地址栏收起的几十像素不算键盘，否则底栏会乱跳 |
+| 点击放大 | 横屏短高才出现（`display:none` → `inline-flex`），44×44 按钮位于图示右上；打开全屏 `role="dialog" aria-modal="true"`，焦点进「关闭」、Tab 不出层、Esc 关、关完还触发键、`html.is-figure-zoom` 锁滚动。面板 `width: min(92vw, 680px)`、`svg max-height: calc(78vh − 88px)`——竖长图按宽铺满会被切掉半截 |
+
+> 反例记录：第一版放大层只写 `max-width`，面板宽度由内容撑，SVG 还是 340 单位宽，
+> 「放大」等于没放大；第二版按宽铺满，竖长图长到 695px 被面板切掉下半截。
+> 两次都是"看起来做了"，实测尺寸才暴露。
+
 ## 9. 未落地的规格（as-built 差异，写清楚免得文档说谎）
 
 | 规格 | 现状 | 处置 |
 |---|---|---|
-| `<360px` 判据行堆叠 | **未实现**，仍为水平排布 | 现有 390px 机型无溢出；等真机反馈再动 |
 | 令牌命名与设计稿不一致 | 代码用 `--c-ink/-line`，设计稿用 `--c-text/-border` | 以代码为准；改名只增加 diff，不增加可读性 |
