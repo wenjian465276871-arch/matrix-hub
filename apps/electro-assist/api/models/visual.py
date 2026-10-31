@@ -262,3 +262,13 @@ class VisualSpec(BaseModel):
             ) not in _STROKE_SLOTS:
                 names = sorted(f"{p.value}.{s}" for p, s in _STROKE_SLOTS)
                 raise ValueError(f"{track.anim.value} 只能用于描边槽位：{names}")
+
+        # meter 的两个槽位都是「有读数才画」的元素：没有 value 时 Meter 只画量程条，
+        # 指针和读数根本不存在。允许这种轨道等于允许一条静默失效的强调——
+        # 生产实测就是这样：hvac 那份样例给"要求 1.4-1.8 MPa"（无 value）挂了 needle，
+        # 页面上一帧动画都没有，而校验、发布、刷新三道关全放行。
+        if self.primitive is Primitive.meter and self.params.get("value") is None:
+            raise ValueError(
+                "meter 没有 value 时不渲染指针与读数，无法承载 motion；"
+                "请给 params.value 或在有读数的仪表上加动效"
+            )

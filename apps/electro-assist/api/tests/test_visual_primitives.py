@@ -182,3 +182,53 @@ def test_prompt_lists_motion_slots():
     prompt = system_prompt()
     for primitive, slots in motion_slots().items():
         assert f"- {primitive}：target 取 {', '.join(slots)}" in prompt
+
+
+def test_meter_motion_requires_value():
+    """没有 value 的仪表只画量程条，指针与读数都不存在。
+
+    生产实测踩过：hvac 样例给"要求 1.4-1.8 MPa"（无 value）挂了 needle/draw，
+    校验、发布、刷新三道关全放行，页面上一帧动画都没有——静默失效最坏。
+    """
+    visual = moving(
+        "meter",
+        {"min": 1.4, "max": 1.8, "unit": "MPa"},
+        [{"target": "needle", "anim": "draw"}],
+    )
+    with pytest.raises(ValueError, match="没有 value"):
+        visual.validate_against_primitive()
+
+
+def test_meter_motion_ok_when_value_present():
+    visual = moving(
+        "meter",
+        {"min": 6, "max": 12, "unit": "℃", "value": 9},
+        [{"target": "needle", "anim": "draw"}],
+    )
+    visual.validate_against_primitive()
+    assert visual.motion[0].target == "needle"
+
+
+def test_meter_motion_requires_value():
+    """没有 value 的仪表只画量程条，指针与读数都不存在。
+
+    生产实测踩过：hvac 样例给"要求 1.4-1.8 MPa"（无 value）挂了 needle/draw，
+    校验、发布、刷新三道关全放行，页面上一帧动画都没有——静默失效最坏。
+    """
+    visual = moving(
+        "meter",
+        {"min": 1.4, "max": 1.8, "unit": "MPa"},
+        [{"target": "needle", "anim": "draw"}],
+    )
+    with pytest.raises(ValueError, match="没有 value"):
+        visual.validate_against_primitive()
+
+
+def test_meter_motion_ok_when_value_present():
+    visual = moving(
+        "meter",
+        {"min": 6, "max": 12, "unit": "℃", "value": 9},
+        [{"target": "needle", "anim": "draw"}],
+    )
+    visual.validate_against_primitive()
+    assert visual.motion[0].target == "needle"

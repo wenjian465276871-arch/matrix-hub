@@ -188,10 +188,12 @@
             "label": "送回风温差",
             "min": 6,
             "max": 12,
-            "unit": "℃"
+            "unit": "℃",
+            "value": 9
           },
           "caption": "制冷稳定运行 10 分钟后测量",
-          "fallback_text": "制冷模式稳定运行 10 分钟后测送风温度，应比回风温度低 6-12℃。"
+          "fallback_text": "制冷模式稳定运行 10 分钟后测送风温度，应比回风温度低 6-12℃。",
+          "motion": [{ "target": "needle", "anim": "draw", "duration": 1200 }]
         }
       ],
       "duration_s": 600
@@ -249,8 +251,7 @@
             "unit": "MPa"
           },
           "caption": "要求 1.4-1.8 MPa",
-          "fallback_text": "制冷剂高压侧压力要求 1.4-1.8 MPa。",
-          "motion": [{ "target": "needle", "anim": "draw", "duration": 1200 }]
+          "fallback_text": "制冷剂高压侧压力要求 1.4-1.8 MPa。"
         },
         {
           "primitive": "status_light",
