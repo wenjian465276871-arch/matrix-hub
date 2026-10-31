@@ -1,9 +1,10 @@
 # A2 图片输入方案
 
-> 版本 v0.3 · 2026-10-29 · 状态：**单通道已实现（P4 口径）**
+> 版本 v0.4 · 2026-11-01 · 状态：**单通道已实现（P4 口径），生产真实调用已验证**
 > 已落地：上传 / 切图 / 切块采纳（`POST /uploads/{id}/slice/{region_id}/adopt`）/ 元信息 / 取图；
 > **素材进指导书**（`Guide.assets`、`Step.assets`、`PUT /guides/{id}/assets`、schema 1.2）；
 > **识别单通道**（`POST /extract`，多模态 + 三层校验 + 确认页），见 `docs/DEVELOPMENT.md §5.3`。
+> 2026-10-31 生产实测：1400×1050 合成工艺卡 → 200 / 2.26s / 3 步 verified / ¥0.003（`ARCHITECTURE.md §1.3`）。
 > 未实现：OCR 文字坐标（当前模型不返回 bbox，故双通道降级为单通道）、按字段点选回溯到原图区域。
 > 位置：`docs/proposals/` 只描述**未实现的部分**；已落地契约见 `docs/API.md` 与 `docs/DEVELOPMENT.md §5.1/§5.3`。
 > 降级口径：`POST /extract` 已按决策 #13 的"做单通道（二选一）"落地，不再等 P4 立项。

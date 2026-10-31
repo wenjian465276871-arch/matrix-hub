@@ -1,6 +1,6 @@
 # 前端实现方案（as-built）
 
-> 版本 v1.1 · 最后更新：2026-10-30 · 代码位置 `apps/electro-assist/web`
+> 版本 v1.2 · 最后更新：2026-11-01 · 代码位置 `apps/electro-assist/web`
 > Vue 3.5 + Vite 6 + TypeScript，静态产物由 Caddy 直服，base `/apps/electro-assist/`。
 > 本文是**代码结构说明**，不是设计稿：写"实际有什么"，以及"为什么比方案简单"。
 > 视觉值见 `UI.md`，交互状态见 `UX.md`。
@@ -27,16 +27,21 @@ apps/electro-assist/web/
 └── src/
     ├── main.ts  App.vue     # 顶部 48px 深色条 + RouterView + 页脚声明
     ├── types.ts             # 与服务端契约对应的类型（含 MotionTrack）
-    ├── router/index.ts      # 7 条路由（含 /privacy）+ 通配回落
+    ├── router/index.ts      # 8 条路由（含 /privacy 与通配回落）+ 焦点归位
     ├── lib/http.ts          # 唯一网络层：15s（上传 60s）超时、错误归一、JSON/multipart；不自动重试
     ├── lib/errors.ts        # 服务端 code → 用户文案映射
     ├── lib/theme.ts         # 皮肤单例：唯一 key electro-theme、唯一写入点、导入即上色
+    ├── lib/viewport.ts      # visualViewport → --kb-inset（软键盘顶升底栏，阈值 120px）
     ├── styles/              # tokens.css（亮/暗两套令牌） / base.css / print.css
     ├── figures/             # registry.ts + svg.ts + motion.ts + GuideFigure.vue + primitives/（13 个）
-    └── views/               # LibraryView / NewGuideView / GuideView / RunView / RecordView / DiagnoseView
+    ├── components/          # ui/（确认弹层 / 抽屉 / 暗色提示条） + diagnose/（快速结果、逐步诊断）
+    ├── composables/         # useDiagnoseRun（B 的逐步诊断状态机）
+    └── views/               # Library / NewGuide / Guide / Run / Record / Diagnose / Privacy
 ```
 
-规模：前端 **8443** 行（vue/ts/css），最大文件 `NewGuideView.vue` 1239 行（下一轮待拆）、`RunView.vue` 826 行。
+规模：前端 **9,580 行 / 43 文件**（vue/ts/css，2026-11-01 实测）。
+最大文件 `NewGuideView.vue` **1,474 行**、`RunView.vue` **1,070 行**——两天内分别 +259 / +247，
+是当前**第一号可维护性风险**（拆分方案见文末 §9）。
 
 ### 1.1 路由
 
@@ -48,6 +53,7 @@ apps/electro-assist/web/
 | `/run/:sid` | `RunView` | 懒加载（判据表单 + 48px 操作条） |
 | `/record/:sid` | `RecordView` | 懒加载（含打印样式） |
 | `/diagnose` | `DiagnoseView` + `useDiagnoseRun` | 懒加载（双模式） |
+| `/privacy` | `PrivacyView` | 懒加载（数据与保留期，页脚常驻入口） |
 | `/:pathMatch(.*)*` | → `/` | —— |
 
 深链：Caddy 对该前缀 `try_files {path} /apps/electro-assist/index.html`，`/api/*` 必须在此之前被 `handle` 拦走。
@@ -139,7 +145,7 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 |---|---|---|
 | 首屏 JS | ≤75KB（硬顶 90KB） | **43.83KB**（抽屉异步化后 +1.3KB；`<Transition>` 会拖入 BaseTransition +1.4KB，已弃用） |
 | 首屏 CSS | ≤14KB | **8.97KB**（暗色令牌、动效类、隐私页、横屏两栏、窄屏堆叠、加载更多） |
-| 路由 chunk | ≤30KB | 最大 7.96KB（`NewGuideView`） |
+| 路由 chunk | ≤30KB | 最大 **9.15KB**（`NewGuideView`，含预检/切图/识别/轮询） |
 | 单个原语 chunk | ≤2KB | 由 `GuideFigure` 共享 chunk 承载 |
 
 `cssCodeSplit:false` 让全站 CSS 合成一个文件（一次 RTT 拿全，代价是后续路由不再请求样式）；
@@ -156,9 +162,9 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 | 单测 | **无**（未引入 Vitest） |
 | E2E | Playwright **20 条**：6 条冒烟 + 抽屉/暗色/打印/取消 4 条 + 续接/倒计时/90s/隐私 4 条 + **横屏两栏 1 条**（844×390 两栏、667×375 回落单列、390×844 竖屏不变）+ **窄屏与超限 1 条**（320 宽表格堆叠/判据堆叠、软键盘顶升 240px、点击放大层焦点与 Esc、超限按钮改文案后由服务端判异常）+ **收尾 4 条**（800ms 转骨架与提交阶段取消、路由焦点归位 h1、列表加载更多 12/页、打印表头 `table-header-group`）；交互类一律 route mock，不花 token；CI 内跑，失败阻断发布 |
 | 打印 | Chromium 打印记录页，A4 三页无截断（真机验收 2026-10-21） |
-| 可访问性 | 人工抽查键盘与 `aria`；**未跑 axe-core 全量扫描**（见根 `README.md` 的验收章节） |
+| 可访问性 | axe-core **0 violation**（4 页 × 2 视口 = 8 次扫描，2026-10-23 线上）；Lighthouse A11y **100**；此后新增暗色/抽屉/放大层只做人工 Tab 走查，**未复跑全量扫描** |
 
-为什么不补前端单测：核心判定全在服务端（276 条测试覆盖），前端只有 6 个视图；
+为什么不补前端单测：核心判定全在服务端（304 条测试覆盖），前端只有 7 个视图；
 E2E 抓的是 DOM 回归，比给 `lib/http.ts` 写 mock 更值钱。真要补，优先补 `errors.ts` 的映射表。
 
 ## 8. 已知坑（都踩过，别再踩）
@@ -173,18 +179,26 @@ E2E 抓的是 DOM 回归，比给 `lib/http.ts` 写 mock 更值钱。真要补�
 | 单位 chip 自适应 | 判据行参差 | chip 固定 44px，>3 字符统一 56px，绝不 `overflow:hidden` 截断 |
 | 全局导入的 CSS 撞类名 | 诊断页的 `.step` 把指导书步骤卡变成 flex 横排，390px 屏横向溢出 300px、标题一行一个字 | 全局 CSS 的类名必须带模块前缀（`.dstep` / `.diag-disclaimer`）；`cssCodeSplit:false` 意味着所有样式同域，撞名会跨页生效 |
 
-## 9. 未实现（方案里有、代码里没有）
+## 9. 未实现与下一轮拆分（方案里有、代码里没有）
 
 | 项 | 现状 | 说明 |
 |---|---|---|
-| `stores/`（job/run/quota） | 不存在 | 状态在视图内；跨页靠服务端重建 |
-| `lib/sse.ts` + 流式解析 | 不存在 | B 一次性 JSON |
-| `lib/poll.ts` | 不存在 | 轮询内联在 `NewGuideView`（`setTimeout` 链 + 2s 退避） |
+| `stores/`（job/run/quota） | 不存在 | 状态在视图内；跨页靠服务端重建。**有意为之**，不是欠账 |
+| `lib/sse.ts` + 流式解析 | 不存在 | B 一次性 JSON；没有可流的内容 |
+| `lib/poll.ts` | 不存在 | 轮询内联在 `NewGuideView`（`setTimeout` 链 + 2s 退避 + 90s 预算） |
 | `lib/idempotency.ts` | 不存在 | `RunView` 内直接拼 `{sid}:s{seq}:a{attempt}` |
-| `composables/`（6 个） | 只有 `useDiagnoseRun` | 无 `useFocusTrap` / `useVisualViewport` |
-| `components/ui/`（13 个） | 不存在 | 样式写在 `base.css` 与视图 `<style scoped>` |
-| `job_id` 刷新续接 | 未做 | 刷新回 `/new` 重新提交 |
+| `composables/` | 只有 `useDiagnoseRun` | 无 `useFocusTrap` / `useVisualViewport`（后者的逻辑在 `lib/viewport.ts`） |
+| `components/ui/` | **已有 3 个**：`ConfirmDialog` / `SiteDrawer` / `ThemeNoticeBar` | 其他按钮、卡片仍是 CSS 类，不建组件库 |
 | 前端单测（Vitest） | 未做 | 见 §7 |
 | `_fe-error` 上报端点 | 未做 | 控制器层没有捕获后上报 |
 
-保留这张表的目的：读代码的人不必猜"是不是我没找到"，而是明确知道"这里就是没做"。
+### 9.1 下一轮：两个大文件怎么拆（已定方案，未执行）
+
+| 文件 | 现规模 | 拆分边界 | 为什么现在不拆 |
+|---|---|---|---|
+| `NewGuideView.vue` | **1,474 行**（脚本 745 / 模板 323 / 样式 400） | `PrecheckPanel`（预检结果）、`ExtractPanel`（识别结果 + 转录折叠）、`SliceSheet`（选区域弹层）、`AssetTray`（上传与移除）；轮询与 90s 预算抽 `composables/useJobPolling.ts` | 五个功能在两天内叠进同一页，状态互相引用（`text` 既是输入又是回填目标）；**拆分必须单独一轮、只搬家不改逻辑**，否则出问题分不清是功能还是结构 |
+| `RunView.vue` | **1,070 行** | `CriterionRow`（判据行 + 超差提示）、`AbortDialog`（复用 `ConfirmDialog`）、`FigureZoom`（放大层） | 同上；放大层的焦点管理刚落地，需要先跑一轮真机再动 |
+
+判断标准不变：**单文件超过 600 行就该拆**；本轮的处置是"记录 + 定量"，不是"顺手改"。
+
+保留这张表的目的：读代码的人不必猜"是不是我没找到"，而是明确知道"这里就是没做、为什么没做"。

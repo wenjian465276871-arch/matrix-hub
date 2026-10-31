@@ -26,17 +26,17 @@
 | `GET` | `/api/electro/diagnose/runs/{run_id}` | 取逐步诊断状态：已填步骤、当前检查、结论 | `—` | `200 · object` |
 | `POST` | `/api/electro/diagnose/runs/{run_id}/abort` | 中止逐步诊断，保留已完成步骤 | `—` | `200 · object` |
 | `POST` | `/api/electro/diagnose/runs/{run_id}/checks/{order}` | 回填一项检查（确认 pass/fail 或实测值），由服务端判定并推进 | `CheckIn` | `200 · object` |
-| `POST` | `/api/electro/extract` | Extract | `ExtractIn` | `200 · object` |
+| `POST` | `/api/electro/extract` | 图片单通道识别：只转录可见文字，结果回填文本、必须人工核对，不落库、不自动生成 | `ExtractIn` | `200 · object` |
 | `POST` | `/api/electro/generate` | 提交生成任务，返回 202 + job_id（单 worker 有界队列） | `GenerateIn` | `202 · object` |
 | `GET` | `/api/electro/guides` | 指导书列表，**只含已发布**（草稿不进列表） | `—` | `200 · object` |
 | `GET` | `/api/electro/guides/{guide_id}` | 指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读 | `—` | `200 · object` |
 | `PUT` | `/api/electro/guides/{guide_id}/assets` | 草稿素材归位：全量重排已有素材到步骤/素材区；已发布 409 | `AttachIn` | `200 · object` |
 | `GET` | `/api/electro/jobs/{job_id}` | 轮询生成任务状态，成功后带 guide_id | `—` | `200 · object` |
 | `POST` | `/api/electro/passcode/verify` | 用访问口令换短期令牌（只豁免每 IP 配额，预算仍生效） | `PasscodeIn` | `200 · object` |
-| `POST` | `/api/electro/processes` | Precheck | `ProcessIn` | `200 · object` |
+| `POST` | `/api/electro/processes` | 工艺文本预检：规则解析工序/工位/工具/安全与判据线索，不调模型、不落库、不扣配额 | `ProcessIn` | `200 · object` |
 | `GET` | `/api/electro/quota` | 查生成配额与全站预算余量 | `—` | `200 · object` |
 | `GET` | `/api/electro/records/{session_id}` | 整份作业记录（按步骤分组、含每次尝试与异常链） | `—` | `200 · object` |
-| `GET` | `/api/electro/records/{session_id}/export.html` | Export Report | `—` | `200 · —` |
+| `GET` | `/api/electro/records/{session_id}/export.html` | 导出作业记录为自包含 HTML（内联样式、无脚本、离线可读） | `—` | `200 · —` |
 | `GET` | `/api/electro/schema/guide` | 取 Guide 的 JSON Schema（schema_version 1.2） | `—` | `200 · object` |
 | `POST` | `/api/electro/schema/validate` | 校验一份 Guide，返回错误列表 | `object` | `200 · object` |
 | `POST` | `/api/electro/schema/validate-visual` | 只校验视觉 DSL 片段 | `object` | `200 · object` |
@@ -48,7 +48,7 @@
 | `POST` | `/api/electro/uploads` | 上传工艺截图（≤5MB，限流 6/时·20/日） | `—` | `200 · object` |
 | `GET` | `/api/electro/uploads/{asset_id}` | 取上传资产的元信息与切片清单 | `—` | `200 · object` |
 | `POST` | `/api/electro/uploads/{asset_id}/slice` | 按模式切图（整图/表格/行带/密集文字） | `—` | `200 · object` |
-| `POST` | `/api/electro/uploads/{asset_id}/slice/{region_id}/adopt` | Adopt Region | `—` | `200 · object` |
+| `POST` | `/api/electro/uploads/{asset_id}/slice/{region_id}/adopt` | 把切块复制成独立素材（记 derived_from，每源图 6 次上限） | `—` | `200 · object` |
 | `GET` | `/api/electro/uploads/{asset_id}/{filename}` | 取原图或某张切片（二进制） | `—` | `200 · —` |
 | `GET` | `/healthz` | 健康检查：进程 + 数据库 + 磁盘余量，供部署脚本与容器探针使用 | `—` | `200 · object` |
 
@@ -65,7 +65,7 @@
 
 ### extract
 
-- `POST /api/electro/extract` — Extract
+- `POST /api/electro/extract` — 图片单通道识别：只转录可见文字，结果回填文本、必须人工核对，不落库、不自动生成
 
 ### generate
 
@@ -88,7 +88,7 @@
 
 ### processes
 
-- `POST /api/electro/processes` — Precheck
+- `POST /api/electro/processes` — 工艺文本预检：规则解析工序/工位/工具/安全与判据线索，不调模型、不落库、不扣配额
 
 ### quota
 
@@ -97,7 +97,7 @@
 ### records
 
 - `GET /api/electro/records/{session_id}` — 整份作业记录（按步骤分组、含每次尝试与异常链）
-- `GET /api/electro/records/{session_id}/export.html` — Export Report
+- `GET /api/electro/records/{session_id}/export.html` — 导出作业记录为自包含 HTML（内联样式、无脚本、离线可读）
 
 ### schema
 
@@ -118,7 +118,7 @@
 - `POST /api/electro/uploads` — 上传工艺截图（≤5MB，限流 6/时·20/日）
 - `GET /api/electro/uploads/{asset_id}` — 取上传资产的元信息与切片清单
 - `POST /api/electro/uploads/{asset_id}/slice` — 按模式切图（整图/表格/行带/密集文字）
-- `POST /api/electro/uploads/{asset_id}/slice/{region_id}/adopt` — Adopt Region
+- `POST /api/electro/uploads/{asset_id}/slice/{region_id}/adopt` — 把切块复制成独立素材（记 derived_from，每源图 6 次上限）
 - `GET /api/electro/uploads/{asset_id}/{filename}` — 取原图或某张切片（二进制）
 
 ## 4. 数据模型

@@ -6,8 +6,9 @@
 访客不会重试，只会关掉页面。
 
 用法：
-    python scripts/eval_generate.py --env-file ../../../../AI2Work/.env \
+    python scripts/eval_generate.py --env-file /path/to/.env \
         --out-dir eval-results --report eval-results/report.md
+    （`--env-file` 缺省依次找 `api/.env`、仓库根 `.env`，见 `scripts/_bootstrap.py`）
 
     python scripts/eval_generate.py --dry-run          # 只列用例，不调模型
     python scripts/eval_generate.py --only hvac        # 只跑某一份
@@ -19,7 +20,6 @@ from __future__ import annotations
 import argparse
 import json
 import math
-import os
 import sys
 import time
 from dataclasses import dataclass, field
@@ -30,19 +30,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from llm import LLMError, generate_guide, get_provider  # noqa: E402
 from models.visual import Primitive  # noqa: E402
+from scripts._bootstrap import find_env_file, load_env_file  # noqa: E402
 
 CORPUS_DIR = Path(__file__).resolve().parent.parent / "data" / "corpus"
-
-
-def load_env_file(path: Path) -> None:
-    if not path.is_file():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
 def percentile(values: list[float], p: float) -> float:
@@ -197,7 +187,10 @@ def render_report(results: list[CaseResult], meta: dict) -> str:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="批量生成评测")
-    parser.add_argument("--env-file", default="../../../../AI2Work/.env")
+    parser.add_argument(
+        "--env-file",
+        help="含 DEEPSEEK_API_KEY 的 .env；缺省依次找 api/.env、仓库根 .env",
+    )
     parser.add_argument("--only", help="文件名包含该子串的用例")
     parser.add_argument("--limit", type=int)
     parser.add_argument("--budget", type=float, default=90.0)
@@ -217,7 +210,11 @@ def main() -> int:
             print(f"{name}  {len(text)} 字符")
         return 0
 
-    load_env_file(Path(args.env_file).expanduser().resolve())
+    env_path = find_env_file(args.env_file)
+    if env_path is None and args.env_file:
+        print(f"[配置错误] --env-file 指向的文件不存在：{args.env_file}", file=sys.stderr)
+        return 2
+    load_env_file(env_path)
     try:
         provider = get_provider()
     except LLMError as exc:

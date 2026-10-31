@@ -54,6 +54,10 @@ CURATED = {
     "POST /api/electro/diagnose/runs/{run_id}/checks/{order}":
         "回填一项检查（确认 pass/fail 或实测值），由服务端判定并推进",
     "POST /api/electro/diagnose/runs/{run_id}/abort": "中止逐步诊断，保留已完成步骤",
+    "POST /api/electro/extract": "图片单通道识别：只转录可见文字，结果回填文本、必须人工核对，不落库、不自动生成",
+    "POST /api/electro/processes": "工艺文本预检：规则解析工序/工位/工具/安全与判据线索，不调模型、不落库、不扣配额",
+    "GET /api/electro/records/{session_id}/export.html": "导出作业记录为自包含 HTML（内联样式、无脚本、离线可读）",
+    "POST /api/electro/uploads/{asset_id}/slice/{region_id}/adopt": "把切块复制成独立素材（记 derived_from，每源图 6 次上限）",
 }
 
 

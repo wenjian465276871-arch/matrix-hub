@@ -2,7 +2,7 @@
 
 把一段工艺文本变成**能照着做、做错会拦、做完有记录**的可视化作业指导书，并在作业异常时就地给出排查顺序。
 
-> 状态：**A2 / A1 / B 三个模块已上线**（2026-10-30，功能基线 `2e7cabf`）。演示站：<https://www.superplayer007.cn/apps/electro-assist/>
+> 状态：**A2 / A1 / B 三个模块已上线**（2026-11-01，功能基线 `c026149`）。演示站：<https://www.superplayer007.cn/apps/electro-assist/>
 > 站点内所有内容为**公开资料改写 + 虚构参数**的演示数据，页脚常驻「演示数据 · 非实际作业依据」。
 
 ---
@@ -59,12 +59,12 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **301 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **304 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 错误可追溯 | 500 返回统一 JSON + 8 位 `ref`，响应头带 `X-Request-Id` | 任意错误请求观察响应 |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
-| B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.8ms** / P95 **4.6ms** | `python scripts/eval_diagnose.py` |
+| B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.8ms** / P95 **5.3ms** | `python scripts/eval_diagnose.py`（2026-11-01 本机复跑，441 采样；10-30 为 2.6/4.4，差异来自机器负载） |
 | 前端首屏 | **43.83 KB** gzip（预算 75KB），CSS **8.97 KB**（预算 14KB） | `npm run build` |
 | 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 100** / LCP **1.31s** / CLS **0** / TBT **70ms**；指导书页 **99** / **1.29s** / **0** / **124.5ms** | Lighthouse 13.5 + `scripts/lighthouse.mjs`（2026-10-23 线上） |
 | 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
@@ -101,7 +101,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 - **5 分钟演示脚本**：[`docs/DEMO.md`](docs/DEMO.md)（含旁白、兜底方案、不要说的话）
 - **85 秒录屏**：[`docs/assets/demo.webm`](docs/assets/demo.webm)
-- **正式案例**：`g_door_switch_formal_001`，8 步 / 14 图，含接插件针脚与端子线色；来源登记在 [`docs/SOURCES.md`](docs/SOURCES.md)
+- **正式案例**：`g_door_switch_formal_001`，8 步 / 20 图 / 13 原语（2026-10-31 原地刷新，会话与记录未断），含接插件针脚与端子线色；来源登记在 [`docs/SOURCES.md`](docs/SOURCES.md)
 - **迁移案例（两个子系统）**：`g_hvac_cooling_check`（5 步，客室空调制冷功能检查）与
   `g_pantograph_raise_check`（5 步 / 6 图，受电弓升弓功能检查，含气路压力与升弓时间判据）——
   用来证明同一套契约/渲染/引导能换子系统，不是只为车门写的；两个案例才能排除"恰好空调和车门相似"
@@ -114,11 +114,13 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 不做 | 原因 |
 |---|---|
-| **不引入 embedding 服务与向量库** | 18 条知识库用**进程内** n-gram/IDF 稀疏向量 + 人工关键词就够：Top-3 21/21、P95 4.2ms、零外部依赖。条目上万再上 embedding 与向量库——`KnowledgeProvider` 已是替换点，路由与返回结构不用动 |
+| **不引入 embedding 服务与向量库** | 18 条知识库用**进程内** n-gram/IDF 稀疏向量 + 人工关键词就够：Top-3 21/21、P95 5.3ms、零外部依赖。条目上万再上 embedding 与向量库——`KnowledgeProvider` 已是替换点，路由与返回结构不用动 |
 | **不做运行时 Agent 代码生成** | 图元是构建期固定的 13 个原语，模型只输出参数。现场要的是**可预期**：同一份输入渲染结果稳定，出问题能定位到哪一行规格 |
 | **不上多容器 / 消息队列** | 2C2G 上 broker 的运维成本大于收益。单 worker 有界队列，队满直接 503——比无限堆线程诚实。代价写在 `OPERATIONS.md` 的"待补"里 |
 
-另外明确不做：多轮对话式排查（决策记录在案）、后台管理页（没有鉴权就不做后台，发布走 CLI）、暗色皮肤（皮肤不是能力）。
+另外明确不做：多轮对话式排查（决策记录在案）、后台管理页（没有鉴权就不做后台，发布走 CLI）。
+暗色皮肤已于 2026-10-30 落地（抽屉里手动切、`localStorage` 持久化、打印强制亮色），
+但**不跟随系统**——现场要的是可预期的纸面输出，不是"看我适配了深色模式"。
 
 **写入治理**：公开浏览；生成入口每 IP 2 次/时、10 次/日 + 全站日预算 ¥3；上传与切图各自限流；有口令可换 12 小时令牌，**只豁免每 IP 配额，不豁免全站预算**。口令只存服务器 `.env`，不进仓库、不进日志。
 
@@ -161,8 +163,8 @@ python -m scripts.cleanup --apply                    # 清理 30/180/90/365 天�
 ## 8. 目录
 
 ```
-apps/electro-assist/api   FastAPI：models / routers / services / store / llm / knowledge / scripts / tests
-apps/electro-assist/web   Vue 3 + TS：views / figures（13 原语）/ lib/http.ts / styles
+apps/electro-assist/api   FastAPI：core / models / routers / services / store / llm / data / scripts / tests
+apps/electro-assist/web   Vue 3 + TS：views / figures（13 原语）/ components / composables / lib / styles
 apps/portal/public        门户首页（自包含，零外链）
 archive/                  不构建、不服务的历史代码（particle-system-legacy / portal-legacy，ADR-0003）
 docker/                   Dockerfile（多阶段）/ Caddyfile / compose.yml / supervisord.conf
@@ -171,6 +173,8 @@ docs/                     文档索引、架构、运维、接口、演示、开
 ```
 
 `apps/news-insight/` 已于 P0 下架（ADR-0002），不再保留目录；`services/gateway/` 空占位已删除，出现第二个业务模块时再建。
+`apps/portal/public` 这个名字是刻意保留的：它是 Caddy 的静态根（`/srv/static/portal`），
+不是 Vite 的 `public/`；改名会让 ADR-0003 与迁移记录里的路径失真，收益只有语义。
 
 ---
 

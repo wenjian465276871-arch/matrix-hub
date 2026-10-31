@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import time
 from pathlib import Path
@@ -21,18 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from llm import LLMError, generate_guide, get_provider  # noqa: E402
-
-
-def load_env_file(path: Path) -> None:
-    """极简 .env 读取：只处理 KEY=VALUE，不覆盖已存在的环境变量。"""
-    if not path.is_file():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
+from scripts._bootstrap import find_env_file, load_env_file  # noqa: E402
 
 
 def main() -> int:
@@ -41,13 +29,17 @@ def main() -> int:
     group.add_argument("--text", help="工艺文本")
     group.add_argument("--text-file", help="工艺文本文件路径")
     parser.add_argument("--out", help="输出 JSON 路径（缺省打印摘要）")
-    parser.add_argument("--env-file", default="../.env", help=".env 路径")
+    parser.add_argument("--env-file", help="含 DEEPSEEK_API_KEY 的 .env；缺省依次找 api/.env、仓库根 .env")
     parser.add_argument("--budget", type=float, default=90.0)
     parser.add_argument("--timeout", type=float, default=40.0)
     parser.add_argument("--debug", action="store_true", help="失败时打印模型原始输出")
     args = parser.parse_args()
 
-    load_env_file(Path(args.env_file).expanduser().resolve())
+    env_path = find_env_file(args.env_file)
+    if env_path is None and args.env_file:
+        print(f"[配置错误] --env-file 指向的文件不存在：{args.env_file}", file=sys.stderr)
+        return 2
+    load_env_file(env_path)
 
     text = args.text if args.text else Path(args.text_file).read_text(encoding="utf-8")
 

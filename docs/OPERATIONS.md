@@ -1,12 +1,14 @@
 # 运维手册
 
-> 版本 v1.5 · 状态：已确认 · 最后更新：2026-10-21
+> 版本 v1.6 · 状态：已确认 · 最后更新：2026-11-01
 > 本文不含服务器地址、凭证与私有路径。补全信息的操作记录留在私有仓。
 > v0.2 → v1.0（2026-10-20）：修正 §1「两个卷」与实际三条挂载不符；补 §11 待补项的现状；接口清单改指 `docs/API.md`。
 > v1.0 → v1.1（2026-10-20）：新增 §12 发布草稿 CLI（`scripts/publish.py`），补上决策 #16 承诺的发布路径。
 > v1.1 → v1.2（2026-10-21）：发布 CLI 已实测；Caddy 移除粒子死路由（显式 404）；记录页时间兼容修复已部署（详见私有仓验收记录）。
 > v1.2 → v1.3（2026-10-21）：新增 §13 口令通道、§14 清理任务；`/healthz` 增加磁盘检查；切图独立限流；Caddy 移除无效 SSE 配置。
-> v1.3 → v1.4（2026-10-21）：口令通道已在生产启用（值只在服务器 `.env`）；清理任务以**空跑 cron** 安装，日志落 `/opt/matrix-hub/cleanup.log`；两周无异常后再改 `--apply`。
+> v1.3 → v1.4（2026-10-21）：口令通道已在生产启用（值只在服务器 `.env`）；清理任务以**空跑 cron** 安装，日志落 `/opt/matrix-hub/cleanup.log`。
+> v1.4 → v1.5（2026-10-31）：补 §16 样例刷新与 `[SAME]` 口径；新增 §17 密钥轮换演练；清理任务在生产真跑一次 `--apply`，cron 改每日 03:40。
+> v1.5 → v1.6（2026-11-01）：新增 §18 当日上线与新接口；修正 §1 表数量（7 张业务表，迁移 v6）与 §2 备份份数口径（7+7=14 个文件）。
 
 ## 1. 运行形态
 
@@ -29,7 +31,7 @@
 
 | 路径 | 内容 |
 |---|---|
-| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records），WAL 模式 |
+| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records/diagnose_runs/diagnose_steps，7 张 + 迁移表 v6），WAL 模式 |
 | `/srv/app_data/uploads/` | 上传资产，每份一个目录（原图 + 切片 + meta.json） |
 | `/srv/app_data/caddy/` | 证书与 ACME 账户状态 |
 
@@ -53,7 +55,7 @@ deploy.sh       由仓库同步
 backup.sh       由仓库同步（每日备份脚本）
 .env            600，含 IMAGE / TAG / SITE_DOMAIN / ACME_EMAIL / DEEPSEEK_API_KEY，不入库
 deploy.log      deploy.sh 追加写入的部署记录
-backups/        SQLite 备份（卷外，保留最近 7 份）
+backups/        SQLite + uploads 备份（卷外，各保留 7 份 ⇒ 14 个文件）
 ```
 
 ## 3. 部署
@@ -326,8 +328,8 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 不推进 `current_seq`。迁移 3 重建了 `records` 表以去掉旧的
 `UNIQUE(session_id, step_id)`——那条约束会把复测当重复丢弃。
 
-**写入增长**：每次作业约 4–8 条记录，单条 < 2KB。当前无清理任务；
-`records/sessions` 的 30 天清理与 `uploads` 同期做（见 §11）。
+**写入增长**：每次作业约 4–8 条记录，单条 < 2KB。清理任务已上线（§14）：会话/记录/诊断 180 天、
+任务与用量 90 天、访客草稿 30 天，每日 03:40 `--apply`。
 
 **权限**：会话与记录凭随机 id 访问，无登录。不要往记录里写个人信息。
 
@@ -336,7 +338,8 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - 备份恢复演练常态化（每季度一次，脚本见 §7.4）
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
 - 监控告警：**GitHub Actions 定时探活已加**（`.github/workflows/uptime.yml`，查 `/healthz`、页面与 guides；失败会以 workflow 失败通知）。**注意实际频次**：cron 写每 10 分钟，但 GitHub 调度实测日均约 2–8 次（10-22～10-30），最坏间隔可达数小时；它只是低成本兜底，需要分钟级告警请外接 UptimeRobot 一类服务
-- 清理任务**已实现并安装空跑 cron**（§14，2026-10-21）；两周报告正常后评估改 `--apply`
+- 清理任务**已从空跑转真删**（§14，2026-10-31；cron 每日 03:40，先备份后删）
+- 异地备份：当前只有服务器本地 `/opt/matrix-hub/backups` 与本机 `pull_backup.py` 拉取，**无异地副本**
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯；已加次数上限与限流）
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`core/ratelimit.py`、`services/sessions.py` 均假设单 worker）
 
@@ -583,3 +586,28 @@ docker inspect matrix-hub --format '{{range .Config.Env}}{{println .}}{{end}}' |
   我没有绕过它，也没有把 Key 打印出来。所以"发新 Key → 替换 → 重启 → 验活 → 吊销旧 Key"这四步
   需要你在控制台操作时执行一次；上面的失败模式与回滚路径已经演练过。
 - 演练证明的是**失败侧**：Key 错时站点不挂、错误可读、不计费、不泄露。
+
+## 18. 2026-11-01 上线与新增运维口径
+
+**上线**：`c026149`（CI 五作业全绿，部署约 2 分钟）。本次**无迁移、无 schema 变更、无新依赖**，
+回滚到上一 TAG 即可，数据不受影响。
+
+| 变更 | 运维影响 |
+|---|---|
+| `GET /guides` 支持 `limit`（默认 12，上限 50）/`offset`，返回 `total`/`has_more` | 旧客户端不带参数仍工作；`limit=0` 或 `>50` 返回 422 |
+| 发布 CLI 增加判据闸门 | 缺验收判据的草稿**拒绝发布**，退出码 **2**（区别于失败 1）。cron/脚本若判 `!=0` 需区分这两种 |
+| 生成等待 800ms 后才转骨架 | 纯前端，无接口变化 |
+| 打印表头 `table-header-group` | 纯样式；记录页编号/时间仍只出现在首页页眉（已知限制，UI.md §7） |
+
+**线上取证（2026-11-01 01:45–02:00）**：
+
+```bash
+curl -s https://<域名>/healthz          # status ok，budget.level ok
+curl -s 'https://<域名>/api/electro/guides?limit=2&offset=2'   # total 5 / has_more true
+curl -s 'https://<域名>/api/electro/guides?limit=0'            # 422
+```
+
+容器 `Up (healthy)`，镜像 tag `c026149…`；库 7 份指导书（published 5 + draft 2）、
+sessions 16 / records 62 / diagnose_runs 15；磁盘 7.9G/40G（22%），容器 82MiB。
+
+**日常检查顺序不变**：`/healthz` → `docker ps` → `deploy.log` 末三行 → `cleanup.log` 末三行。

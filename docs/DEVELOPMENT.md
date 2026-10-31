@@ -1,8 +1,8 @@
 # 开发指南
 
-> 版本 v1.0 · 2026-10-21 · 面向第一次接手代码的人。
+> 版本 v1.1 · 2026-11-01 · 面向第一次接手代码的人。
 > 目标：**30 分钟内本地起站、跑通测试、知道改哪里不会踩坑。**
-> 部署与回滚见 [`OPERATIONS.md`](OPERATIONS.md)；接口见 [`API.md`](API.md)。
+> 部署与回滚见 [`OPERATIONS.md`](OPERATIONS.md)；接口见 [`API.md`](API.md)；脚本清单见 [`../apps/electro-assist/api/scripts/README.md`](../apps/electro-assist/api/scripts/README.md)。
 
 ## 1. 前置
 
@@ -80,7 +80,8 @@ api/
 │   ├── knowledge/     door 11 / hvac 4 / pantograph 3 条 + eval_queries.json
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
-└── tests/             301 条契约测试
+│                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
+└── tests/             304 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -109,7 +110,7 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 301 passed（约 26s）
+pytest tests -q          # 304 passed（约 34s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web
@@ -312,6 +313,8 @@ python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 | CSP 内联 script/style | 页面空白、控制台 CSP 报错 | 产物检查在 Dockerfile；不要加内联样式/脚本 |
 | 在微信里打印 | 无法调起系统打印 | 先"在浏览器中打开" |
 | 本地 `curl` 走了系统代理 | 连不上/证书错误 | `curl --noproxy '*'` |
+| 清理函数顺手清多了 | `stopTimers()` 把慢提示定时器一起清掉，骨架永远不出现，只剩一个转圈的按钮 | 按生命周期分组命名：慢提示用 `clearSlowTimer()`，只在取消/卸载时清（2026-11-01 自造 bug） |
+| 判"内容有没有变"用计数 | 刷新样例时"动效从 A 图挪到 B 图"不改图数/原语数/动效数，被判 `[SAME]` 跳过 | 比**规范化后的内容**（`sort_keys` JSON），计数只作摘要（2026-10-31） |
 
 ## 8. 不要做的事
 

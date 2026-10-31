@@ -1,6 +1,6 @@
 # 文档索引
 
-> 版本 v1.2 · 2026-10-30 · 维护规则：**每份文档只回答一类问题；数字必须附命令与日期；历史结论进 `archive/`，未实现方案进 `proposals/`。**
+> 版本 v1.3 · 2026-11-01 · 维护规则：**每份文档只回答一类问题；数字必须附命令与日期；历史结论进 `archive/`，未实现方案进 `proposals/`。**
 
 ## 1. 先看哪份
 
@@ -37,7 +37,8 @@
 | `docs/DEVELOPMENT.md` | 指南 | 当前 | 本地运行、测试、约定、常见坑 |
 | `docs/OPERATIONS.md` | 运维 | 当前 | 部署/回滚/证书/备份/事故/发布 CLI |
 | `docs/DEMO.md` | 演示 | 当前 | 5 分钟闭环 + 兜底 |
-| `docs/SOURCES.md` | 合规 | 当前 | 案例与知识库来源登记（D-01～D-07、K-01～K-03） |
+| `docs/SOURCES.md` | 合规 | 当前 | 案例与知识库来源登记（D-01～D-08、K-01～K-03） |
+| `apps/electro-assist/api/scripts/README.md` | 清单 | 当前 | 9 个脚本的用途、读写面与"会不会碰生产数据" |
 | `docs/proposals/A2-IMAGE-INPUT.md` | 提案 | **部分实现** | 单通道识别已上线；双通道待模型提供文字坐标 |
 | `docs/adr/0001` | ADR | 已接受 | 单仓单镜像 + Caddy |
 | `docs/adr/0002` | ADR | 已接受 | P0 下架 news-insight |
@@ -47,18 +48,19 @@
 | `archive/particle-system-legacy/README.md` | 归档 | 历史 | 手势粒子实验，不构建、不服务 |
 | `archive/portal-legacy/` | 归档 | 历史 | 旧门户，不构建、不服务 |
 
-## 3. 当前基线（2026-10-30 本机实测）
+## 3. 当前基线（2026-11-01 本机与线上实测）
 
 | 项 | 值 | 采集 |
 |---|---|---|
-| 代码基线 | `2e7cabf`（功能与依赖基线；含 `9c4c33a` 目录重组、`c0344c6` uptime 修复、`vue-tsc` 3.3.13；纯文档提交不改基线） | `git log --oneline -1` |
-| 契约测试 | **301 passed** | `pytest tests -q`（约 23s） |
+| 代码基线 | `c026149`（线上同名镜像；含 `bdf6937` 窄屏、`c026149` 发布闸门/分页/800ms/焦点/打印表头） | `git log --oneline -1` |
+| 契约测试 | **304 passed** | `pytest tests -q`（约 34s） |
 | 业务端点 | 30 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
 | 首屏 | **43.83 KB gzip / CSS 8.97 KB** | `npm run build`（vue-tsc + vite） |
-| 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23） |
-| 线上数据 | 已发布指导书 5 / KB 18 条 / 3 子系统 | `GET /guides` 与 `GET /diagnose/kb` |
+| 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23 线上；此后只增 UI 元素，未复测） |
+| B 检索 | Top-3 **21/21**、未覆盖 **2/2**、P50 **2.8ms** / P95 **5.3ms**（441 采样） | `scripts/eval_diagnose.py`（2026-11-01） |
+| 线上数据 | 已发布指导书 **5** / 草稿 2 / KB **18 条 / 3 子系统** / sessions 16 / records 62 / diagnose_runs 15 | `GET /guides`、容器内 SQLite（2026-11-01） |
 | 真机验收 | 通过（Honor/5G，8 步 + 超差复测 + 3 页打印） | 私有仓 `reports/真机验收记录-2026-10-21.md` |
-| 已知边界 | 前端无单测；axe/Lighthouse 全量扫描未做；备份同盘无异地 | 私有仓 `reports/项目审查与开发计划-2026-10-22.md` |
+| 已知边界 | 前端无单测；axe/Lighthouse 未在本轮复测；备份同盘无异地；`NewGuideView` 1,474 行 | 私有仓 `reports/开发情况报告-2026-11-01.md` |
 
 ## 4. 维护规则
 
