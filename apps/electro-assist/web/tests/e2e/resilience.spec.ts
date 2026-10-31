@@ -95,6 +95,8 @@ test('90 秒预算：超时后停止等待并给出去重说法', async ({ page 
   )
 
   await fillAndSubmit(page)
+  // 假时钟是冻结的：800ms 的「转骨架」定时器不会自己跑，必须手动推进
+  await page.clock.runFor(1_000)
   await expect(page.getByRole('button', { name: '停止等待' })).toBeVisible()
 
   // 把时钟推到 96 秒（90s 预算 + 5s 容差之后再留 1s）

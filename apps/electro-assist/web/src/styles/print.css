@@ -70,6 +70,24 @@
     border-top: 1px solid var(--c-line-soft);
   }
 
+  /* 表头每页重复（计划 §12.6 / §12.7 裁决 2）：`table-header-group` 是浏览器
+     唯一"跨页自动重复"的机制——`@page` 页脚只在 Chrome ≥131 可靠，
+     `position: fixed` 会盖住正文首行。凡是真表格（隐私页保留期表、
+     图示里的对照表）都吃这条。 */
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+
+  /* 一行被劈两半，现场读到的就是错的标准：宁可整行挪到下一页 */
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   .step__seq,
   .criterion__value {
     color: #000;

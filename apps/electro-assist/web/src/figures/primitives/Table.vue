@@ -148,6 +148,15 @@ const model = computed(() => {
          用真表格而不是 div：读屏仍按表格播报，视觉上再拆成「表头: 值」。
          首列当行标题（th），其余 td 用 data-label 出标签。 -->
     <table class="fig-table__stack">
+      <!-- 打印时这张表的 thead 会在每页顶部重复（计划 §12.6）。
+           屏幕上的窄屏堆叠模式把它藏起来：那时每行自带 data-label，再顶一行表头是重复信息。 -->
+      <thead>
+        <tr>
+          <th v-for="(header, index) in model.headers" :key="index" scope="col">
+            {{ header }}
+          </th>
+        </tr>
+      </thead>
       <tbody>
         <tr v-for="(row, rowIndex) in model.grid" :key="rowIndex">
           <th scope="row">{{ row[0] }}</th>
@@ -175,6 +184,11 @@ const model = computed(() => {
 
 @media (max-width: 359px) {
   .fig-table__svg {
+    display: none;
+  }
+
+  /* 堆叠模式每行自带「表头: 值」，表头组是重复信息 */
+  .fig-table__stack thead {
     display: none;
   }
 
@@ -212,6 +226,51 @@ const model = computed(() => {
     content: attr(data-label);
     flex: 0 0 72px;
     color: var(--c-ink-3);
+  }
+}
+
+@media print {
+  /* 打印必须换真表格：SVG 是一张整图，跨页时被从中间切断，而且没有任何
+     机制能让"表头"在下一页再出现一次。真表格的 thead 由浏览器自动重复。 */
+  .fig-table__svg {
+    display: none;
+  }
+
+  .fig-table__stack {
+    display: table;
+    font-size: 10pt;
+  }
+
+  .fig-table__stack thead {
+    display: table-header-group;
+  }
+
+  .fig-table__stack tr {
+    display: table-row;
+    padding: 0;
+    border-bottom: none;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .fig-table__stack th,
+  .fig-table__stack td {
+    display: table-cell;
+    padding: 4px 6px;
+    border: 1px solid var(--c-line);
+    font-size: 10pt;
+    line-height: 1.4;
+    vertical-align: top;
+  }
+
+  .fig-table__stack td::before {
+    content: none;
+  }
+
+  .fig-table__stack thead th {
+    margin: 0;
+    background: #f2f4f5;
+    font-weight: 600;
   }
 }
 </style>

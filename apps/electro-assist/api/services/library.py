@@ -18,6 +18,11 @@ from models.guide import SCHEMA_VERSION, Guide
 
 log = logging.getLogger("electro.library")
 
+# 计划 §12.6：列表不做虚拟滚动（上界确定、保打印与读屏顺序），
+# 「加载更多」每页 12。分页口径是唯一出处，前端不再自己写一个数。
+PAGE_SIZE = 12
+MAX_PAGE_SIZE = 50
+
 # 每个数据库路径只做一次增量 seed。key 用路径而不是布尔开关，
 # 否则同一进程里换库的测试会互相影响。
 _seeded_paths: set[str] = set()
@@ -69,6 +74,12 @@ def ensure_seeded() -> int:
     seeded = 0
     for guide in load_fixtures(directory):
         if store.get_guide(guide.id) is not None:
+            continue
+        # 样例进库即为 published，因此它必须过同一条发布闸门（§12.4）。
+        # 缺判据的样例宁可不上架——上了就是"已发布但现场没有验收依据"。
+        blockers = guide.publish_blockers()
+        if blockers:
+            log.error("样例 %s 发布前未补齐，已跳过：%s", guide.id, "；".join(blockers))
             continue
         store.save_guide(guide, status="published")
         seeded += 1
@@ -129,9 +140,18 @@ def _card(row: dict) -> dict:
     }
 
 
-def list_published(limit: int = 50) -> list[dict]:
+def list_published(limit: int = PAGE_SIZE, offset: int = 0) -> list[dict]:
     ensure_seeded()
-    return [_card(row) for row in store.list_guides(status="published", limit=limit)]
+    return [
+        _card(row)
+        for row in store.list_guides(status="published", limit=limit, offset=offset)
+    ]
+
+
+def count_published() -> int:
+    """已发布总数：`has_more` 与「还有 N 份」都靠它，不能拿当前页长度推。"""
+    ensure_seeded()
+    return store.count_guides(status="published")
 
 
 def get_detail(guide_id: str) -> tuple[dict, str] | None:

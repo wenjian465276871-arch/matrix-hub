@@ -20,6 +20,10 @@ const MAX_CHARS = 20_000
 const SERVER_BUDGET_MS = 90_000
 const CLIENT_GRACE_MS = 5_000
 const HARD_TIMEOUT_MS = SERVER_BUDGET_MS + CLIENT_GRACE_MS
+/** 计划 §12.4：0–800ms 只在按钮里转圈（不切页），超过才整页换骨架。
+ *  800ms 是个取舍点：多数生成 8–15 秒，但让 1 秒内失败的请求也整页闪一次骨架，
+ *  比"什么都没发生"更像卡死。 */
+const SLOW_HINT_MS = 800
 
 const SAMPLE_TEXT = `工序：客室侧门开关门功能试验（演示文本，参数为示例值）
 
@@ -59,6 +63,29 @@ let pollingStartedAt = 0
    代价要如实说：任务仍在后台跑，结果会落进草稿箱。 */
 const cancelledJobId = ref('')
 const resumed = ref(false)
+
+/* 慢任务提示：按钮内 spinner → 骨架的分界点。 */
+const slowHint = ref(false)
+let slowTimer: number | undefined
+
+/* 提交请求还没回来时点了「停止等待」：请求没法真正中断（LLM 调用不能被打断，
+   也不该假装中断），所以记一个标记，等它回来时丢弃结果，不进入轮询。 */
+let cancelRequested = false
+
+const skeletonVisible = computed(
+  () => slowHint.value && (phase.value === 'submitting' || phase.value === 'polling'),
+)
+
+/* 只清定时器，不翻转 slowHint：取消/失败由 phase 变化把骨架收走，
+   下一次提交开头统一复位。这里如果顺手把 slowHint 置 false，
+   提交成功后那次 stopTimers 会把 800ms 的判据抹掉，骨架永远不出现。 */
+function armSlowHint(): void {
+  if (slowTimer !== undefined) window.clearTimeout(slowTimer)
+  slowTimer = window.setTimeout(() => {
+    slowHint.value = true
+    slowTimer = undefined
+  }, SLOW_HINT_MS)
+}
 
 /* 刷新续接：job_id 与 startedAt 存 sessionStorage（关标签页即失效）。
    startedAt 是 90s 预算的唯一基准，**不能因为刷新而重置**——
@@ -123,8 +150,11 @@ function startCooldown(seconds: number | undefined): void {
 }
 
 function cancelWait(): void {
-  if (phase.value !== 'polling') return
+  if (phase.value !== 'polling' && phase.value !== 'submitting') return
+  // 提交请求还在路上时取消：不能中断请求，但可以不再等它
+  cancelRequested = phase.value === 'submitting'
   stopTimers()
+  clearSlowTimer()
   clearStoredJob()
   resumed.value = false
   cancelledJobId.value = jobId.value
@@ -168,6 +198,22 @@ function stopTimers(): void {
   if (tickTimer !== undefined) window.clearInterval(tickTimer)
   pollTimer = undefined
   tickTimer = undefined
+}
+
+/* 慢提示定时器单独清：submit 在 phase 切到 polling 之后会调一次 stopTimers，
+   如果那里顺手把 800ms 的定时器也清了，骨架就永远不会出现（第一版就是这么错的）。 */
+function clearSlowTimer(): void {
+  if (slowTimer !== undefined) window.clearTimeout(slowTimer)
+  slowTimer = undefined
+}
+
+/* 秒表从**点提交**开始走，而不是等 POST 回来。
+   否则提交请求慢的那几秒里骨架显示"已等待 0 秒"——最需要时间感的阶段反而没有数字。 */
+function startTick(): void {
+  if (tickTimer !== undefined) window.clearInterval(tickTimer)
+  tickTimer = window.setInterval(() => {
+    elapsed.value += 1
+  }, 1000)
 }
 
 function fillSample(): void {
@@ -615,6 +661,13 @@ async function submit(retryOf?: string): Promise<void> {
   lastJobFailed.value = false
   job.value = null
   cancelledJobId.value = ''
+  slowHint.value = false
+  cancelRequested = false
+  elapsed.value = 0
+  // 90 秒总预算从点提交算起：POST 卡住的那几秒也是用户在等
+  pollingStartedAt = Date.now()
+  startTick()
+  armSlowHint()
 
   try {
     const res = await postJson<GenerateAccepted>(
@@ -633,17 +686,19 @@ async function submit(retryOf?: string): Promise<void> {
           : undefined,
       },
     )
+    if (cancelRequested) {
+      // 用户在等 POST 时点了停止：任务已经受理，但不再进入轮询
+      cancelRequested = false
+      cancelledJobId.value = res.job_id
+      return
+    }
     jobId.value = res.job_id
     phase.value = 'polling'
-    elapsed.value = 0
     pollFailures = 0
-    pollingStartedAt = Date.now()
     writeStoredJob(res.job_id, pollingStartedAt)
     resumed.value = false
     stopTimers()
-    tickTimer = window.setInterval(() => {
-      elapsed.value += 1
-    }, 1000)
+    startTick()
     pollTimer = window.setTimeout(poll, Math.max(300, res.poll_after_ms || 1000))
     void loadQuota()
   } catch (err) {
@@ -675,15 +730,16 @@ onMounted(() => {
   pollingStartedAt = stored.startedAt
   elapsed.value = Math.floor(age / 1000)
   resumed.value = true
+  // 刷新前已经等过（至少跨了一次加载），没必要再演一遍 800ms 的转圈
+  slowHint.value = true
   phase.value = 'polling'
-  tickTimer = window.setInterval(() => {
-    elapsed.value += 1
-  }, 1000)
+  startTick()
   pollTimer = window.setTimeout(poll, 300)
 })
 
 onBeforeUnmount(() => {
   stopTimers()
+  clearSlowTimer()
   if (cooldownTimer !== undefined) window.clearInterval(cooldownTimer)
 })
 </script>
@@ -697,7 +753,7 @@ onBeforeUnmount(() => {
     </p>
   </div>
 
-  <div class="card">
+  <div v-if="!skeletonVisible" class="card">
     <label class="field-label" for="process-text">工艺文本</label>
     <textarea
       id="process-text"
@@ -906,6 +962,7 @@ onBeforeUnmount(() => {
     </div>
 
     <button class="btn btn--primary submit" type="button" :disabled="!canSubmit" @click="submit()">
+      <span v-if="busy" class="btn__spin" aria-hidden="true" />
       {{
         cooldownLeft > 0
           ? `额度恢复后可生成 · ${cooldownLeft}s`
@@ -921,12 +978,19 @@ onBeforeUnmount(() => {
     </p>
   </div>
 
-  <div v-if="phase === 'polling'" class="card state" aria-live="polite">
-    <p>正在生成… 已等待 {{ elapsed }} 秒</p>
+  <!-- 慢任务骨架：800ms 后才出现（计划 §12.4）。前 800ms 只有按钮里的 spinner、
+       页面不切走——1 秒内完成的生成如果也闪一次骨架，看起来比"没反应"更像卡死。 -->
+  <div v-if="skeletonVisible" class="card state" aria-busy="true">
+    <p aria-live="polite">正在生成… 已等待 {{ elapsed }} 秒</p>
     <p v-if="resumed" class="state__hint">
       已续接刷新前的任务：90 秒预算不因刷新重置，超时后会提示重试。
     </p>
-    <p class="state__hint">任务 {{ jobId }}</p>
+    <div class="gen-skeleton" aria-hidden="true">
+      <div class="skeleton" />
+      <div class="skeleton skeleton--tall" />
+      <div class="skeleton" />
+    </div>
+    <p v-if="jobId" class="state__hint">任务 {{ jobId }}</p>
     <button class="btn" type="button" @click="cancelWait">停止等待</button>
   </div>
 
@@ -1004,6 +1068,45 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* 按钮内 spinner：0–800ms 阶段唯一的"系统在动"的信号。
+   12px 是能看清的最小尺寸，再小转起来像抖动的噪点。 */
+.btn__spin {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-right: 6px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -2px;
+  animation: btn-spin 0.7s linear infinite;
+}
+
+@keyframes btn-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gen-skeleton {
+  display: grid;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+/* 高度按"一张步骤卡 + 判据行"的视觉重量递进，不是随手取的数 */
+.skeleton--tall {
+  height: 168px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn__spin {
+    animation: none;
+    border-right-color: currentColor;
+    opacity: 0.6;
+  }
+}
+
 .field-label {
   display: block;
   margin-bottom: 8px;

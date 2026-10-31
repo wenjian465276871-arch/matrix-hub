@@ -115,7 +115,13 @@ export interface GuideSummary {
 
 export interface GuideList {
   schema_version: string
+  /** 本页条数 */
   count: number
+  /** 已发布总数：`has_more` 与「还有 N 份」都以它为准 */
+  total: number
+  has_more: boolean
+  limit: number
+  offset: number
   items: GuideSummary[]
 }
 

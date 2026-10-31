@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 import re
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from core import ratelimit
@@ -61,10 +61,27 @@ class AttachIn(BaseModel):
 
 
 @router.get("")
-def list_guides() -> dict:
-    """列表只返回卡片字段，不返回全文——列表页不该拉几十 KB 的 steps。"""
-    items = library.list_published(limit=50)
-    return {"schema_version": SCHEMA_VERSION, "count": len(items), "items": items}
+def list_guides(
+    limit: int = Query(library.PAGE_SIZE, ge=1, le=library.MAX_PAGE_SIZE),
+    offset: int = Query(0, ge=0),
+) -> dict:
+    """列表只返回卡片字段，不返回全文——列表页不该拉几十 KB 的 steps。
+
+    分页口径（计划 §12.6）：每页 12、`offset` 翻页、`has_more` 由总数决定。
+    不用「下一页游标」：指导书是只增不改的展示内容，跳过一两条的代价远小于
+    多维护一套游标签名。
+    """
+    items = library.list_published(limit=limit, offset=offset)
+    total = library.count_published()
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "count": len(items),
+        "total": total,
+        "has_more": offset + len(items) < total,
+        "limit": limit,
+        "offset": offset,
+        "items": items,
+    }
 
 
 @router.get("/{guide_id}")

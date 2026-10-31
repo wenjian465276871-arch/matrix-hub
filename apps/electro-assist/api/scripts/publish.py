@@ -58,10 +58,20 @@ def publish_one(guide_id: str) -> int:
     # 发布前再校验一次：库里可能是旧 schema 或被手工改坏的数据。
     # 已发布内容不可覆盖，所以"发布"这一步是最后一道闸门。
     try:
-        Guide.model_validate(row["guide"])
+        guide = Guide.model_validate(row["guide"])
     except Exception as exc:  # noqa: BLE001 - CLI 要把原因打给人看
         print(f"[FAIL] 数据未通过 Guide 校验，拒绝发布：{exc}", file=sys.stderr)
         return 1
+
+    # 结构合法 ≠ 能发布：草稿允许把判据留空（原文没写就不编），
+    # 但发布后现场看到的每一步都必须有可核对的验收判据。
+    blockers = guide.publish_blockers()
+    if blockers:
+        print(f"[FAIL] 发布前必须补齐（{len(blockers)} 项）：{guide_id}", file=sys.stderr)
+        for item in blockers:
+            print(f"       - {item}", file=sys.stderr)
+        print("       草稿可以留空；补齐判据后再发布，否则现场没有验收依据。", file=sys.stderr)
+        return 2
 
     if row["status"] == "published":
         print(f"[SKIP] 已是发布状态：{guide_id}（{row['title']}）")

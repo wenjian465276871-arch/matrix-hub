@@ -114,7 +114,10 @@ def test_empty_dir_returns_empty_list(tmp_path, monkeypatch):
     store.init_db()
 
     body = client.get("/api/electro/guides").json()
-    assert body == {"schema_version": SCHEMA_VERSION, "count": 0, "items": []}
+    assert body["count"] == 0
+    assert body["total"] == 0
+    assert body["has_more"] is False
+    assert body["items"] == []
 
 
 def test_every_primitive_has_sample_coverage():
@@ -251,3 +254,89 @@ def test_normalize_schema_versions_only_touches_stamp(tmp_path, monkeypatch):
     assert store.get_guide("g_broken_0001")["schema_version"] == "1.0"
     # 幂等：第二次没有可改的
     assert library.normalize_schema_versions() == 0
+
+
+# ---------- 分页（计划 §12.6：不做虚拟滚动，「加载更多」每页 12） ----------
+
+
+def _extra_published(count: int) -> None:
+    base = library.load_fixtures(SAMPLES)[0]
+    for index in range(count):
+        guide = base.model_copy(deep=True)
+        guide.id = f"g_page_{index:03d}_001"
+        guide.title = f"分页样例 {index}"
+        store.save_guide(guide, status="published")
+
+
+def test_list_pages_twelve_at_a_time(fresh_library):
+    _extra_published(14)  # 5 份样例 + 14 份 = 19
+
+    first = client.get("/api/electro/guides").json()
+    assert first["limit"] == 12
+    assert first["count"] == 12
+    assert first["total"] == 19
+    assert first["has_more"] is True
+
+    second = client.get("/api/electro/guides?limit=12&offset=12").json()
+    assert second["count"] == 7
+    assert second["has_more"] is False
+    assert second["total"] == 19
+
+    # 两页不能有重叠：排序键不稳定时这里会挂
+    ids = [item["id"] for item in first["items"] + second["items"]]
+    assert len(ids) == len(set(ids)) == 19
+
+
+def test_offset_past_the_end_returns_empty_page(fresh_library):
+    body = client.get("/api/electro/guides?offset=999").json()
+    assert body["items"] == []
+    assert body["has_more"] is False
+    assert body["total"] >= 1
+
+
+@pytest.mark.parametrize("query", ["limit=0", "limit=51", "offset=-1"])
+def test_bad_page_params_are_422(fresh_library, query):
+    assert client.get(f"/api/electro/guides?{query}").status_code == 422
+
+
+# ---------- 分页（计划 §12.6：不做虚拟滚动，「加载更多」每页 12） ----------
+
+
+def _extra_published(count: int) -> None:
+    base = library.load_fixtures(SAMPLES)[0]
+    for index in range(count):
+        guide = base.model_copy(deep=True)
+        guide.id = f"g_page_{index:03d}_001"
+        guide.title = f"分页样例 {index}"
+        store.save_guide(guide, status="published")
+
+
+def test_list_pages_twelve_at_a_time(fresh_library):
+    _extra_published(14)  # 5 份样例 + 14 份 = 19
+
+    first = client.get("/api/electro/guides").json()
+    assert first["limit"] == 12
+    assert first["count"] == 12
+    assert first["total"] == 19
+    assert first["has_more"] is True
+
+    second = client.get("/api/electro/guides?limit=12&offset=12").json()
+    assert second["count"] == 7
+    assert second["has_more"] is False
+    assert second["total"] == 19
+
+    # 两页不能有重叠：排序键不稳定时这里会挂
+    ids = [item["id"] for item in first["items"] + second["items"]]
+    assert len(ids) == len(set(ids)) == 19
+
+
+def test_offset_past_the_end_returns_empty_page(fresh_library):
+    body = client.get("/api/electro/guides?offset=999").json()
+    assert body["items"] == []
+    assert body["has_more"] is False
+    assert body["total"] >= 1
+
+
+@pytest.mark.parametrize("query", ["limit=0", "limit=51", "offset=-1"])
+def test_bad_page_params_are_422(fresh_library, query):
+    assert client.get(f"/api/electro/guides?{query}").status_code == 422

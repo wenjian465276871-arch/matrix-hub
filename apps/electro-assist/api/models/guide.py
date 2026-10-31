@@ -174,3 +174,19 @@ class Guide(BaseModel):
         if len(set(used)) != len(used):
             raise ValueError("同一素材在步骤与素材区之间不能重复引用")
         return self
+
+    def publish_blockers(self) -> list[str]:
+        """发布前必须补齐的项；空列表 = 可以发布（计划 §12.4）。
+
+        草稿允许留空：原文没写判据时，生成端宁可留白也不替你编；草稿是给人改的。
+        但**发布是最后一道闸门**——一条没有验收判据的步骤上线后，现场照着做却
+        没有"做到什么程度算对"的依据，等于把判断责任推回给操作者。
+
+        所以这条检查不放在模型校验里（那会把草稿也一起判死），而是单列一个方法，
+        由 publish CLI、seed 与样例刷新三处共同调用。
+        """
+        return [
+            f"{step.id}「{step.title}」没有验收判据"
+            for step in self.steps
+            if not step.criteria
+        ]

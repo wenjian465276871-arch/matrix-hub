@@ -21,17 +21,19 @@ function open(): void {
   drawerOpen.value = true
 }
 
-function close(): void {
+function close(restoreFocus = true): void {
   if (!drawerOpen.value) return
   drawerOpen.value = false
-  // 触发键常驻在导航条上，直接还焦点；不上 body 会丢掉键盘位置
-  trigger.value?.focus()
+  // 触发键常驻在导航条上，直接还焦点；不上 body 会丢掉键盘位置。
+  // 但**路由跳转时不能还**：焦点要交给新页的 h1（router/index.ts），
+  // 这里抢回来再被抢走，键盘用户会听到两次位置播报。
+  if (restoreFocus) trigger.value?.focus()
 }
 
 // 点链接跳走后必须关层：不关的话新页面被抽屉盖住，看起来像"点了没反应"
 watch(
   () => route.fullPath,
-  () => close(),
+  () => close(false),
 )
 </script>
 

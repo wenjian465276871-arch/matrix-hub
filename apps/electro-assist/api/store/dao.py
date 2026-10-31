@@ -143,6 +143,12 @@ def refresh_sample_guide(guide: Guide) -> dict[str, Any]:
         if row["status"] != "published":
             raise ValueError(f"只刷新已发布样例，{guide.id} 当前是 {row['status']}")
 
+        # 第三条前置：新内容也要过发布闸门。刷新等于重新发布一次内容，
+        # 如果新样例缺判据却照写，线上就会出现"已发布但没有验收依据"的步骤。
+        blockers = guide.publish_blockers()
+        if blockers:
+            raise ValueError(f"{guide.id} 发布前未补齐：" + "；".join(blockers))
+
         old_payload = json.loads(row["json"])
         old_ids = [step.get("id") for step in old_payload.get("steps", [])]
         if old_ids != new_ids:
@@ -209,8 +215,15 @@ def get_guide(guide_id: str) -> dict[str, Any] | None:
     return data
 
 
-def list_guides(*, status: GuideStatus | None = None, limit: int = 50) -> list[dict[str, Any]]:
-    """列表不返回全文——与 `/api/electro/guides` 的口径保持一致。"""
+def list_guides(
+    *, status: GuideStatus | None = None, limit: int = 50, offset: int = 0
+) -> list[dict[str, Any]]:
+    """列表不返回全文——与 `/api/electro/guides` 的口径保持一致。
+
+    分页用 `LIMIT/OFFSET`（计划 §12.6：列表不做虚拟滚动，只做「加载更多」每页 12）。
+    排序键必须**唯一且稳定**：只按 `updated_at` 排会在同秒写入的几条之间出现
+    顺序漂移，翻页时同一条可能重复出现或被跳过。所以补 `id` 作次级键。
+    """
     sql = """
         SELECT id, schema_version, title, summary, system, status, job_id, step_count,
                duration_s, source_note, generated_at, created_at, updated_at, published_at
@@ -220,8 +233,9 @@ def list_guides(*, status: GuideStatus | None = None, limit: int = 50) -> list[d
     if status:
         sql += " WHERE status = ?"
         params.append(status)
-    sql += " ORDER BY updated_at DESC LIMIT ?"
+    sql += " ORDER BY updated_at DESC, id ASC LIMIT ? OFFSET ?"
     params.append(max(1, min(limit, 200)))
+    params.append(max(0, offset))
 
     with connect() as conn:
         return [dict(r) for r in conn.execute(sql, params)]
