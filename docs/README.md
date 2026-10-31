@@ -52,7 +52,7 @@
 | 项 | 值 | 采集 |
 |---|---|---|
 | 代码基线 | `2e7cabf`（功能与依赖基线；含 `9c4c33a` 目录重组、`c0344c6` uptime 修复、`vue-tsc` 3.3.13；纯文档提交不改基线） | `git log --oneline -1` |
-| 契约测试 | **287 passed** | `pytest tests -q`（约 23s） |
+| 契约测试 | **290 passed** | `pytest tests -q`（约 23s） |
 | 业务端点 | 30 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
 | 首屏 | **43.23 KB gzip / CSS 8.27 KB** | `npm run build`（vue-tsc + vite） |
 | 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23） |

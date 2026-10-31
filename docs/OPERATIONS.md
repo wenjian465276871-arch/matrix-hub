@@ -510,6 +510,7 @@ docker exec -w /opt/electro matrix-hub python -m scripts.refresh_sample --yes
 ```
 
 口径：**只换内容，保留 id / status / created_at / published_at**。
+`[SAME]` 指**规范化后的内容完全一致**。旧版只比图数/原语数/动效数，于是「把动效从一张图挪到另一张」「给仪表补 value」这类改动会被误判成无变化而跳过——2026-10-31 生产上真漏过一次（hvac 的 value 修补）。
 因此 `sessions.guide_id` 与 `records.step_id` 继续有效，现场会话与历史记录不会断。
 两条前置条件不满足就整份拒绝（不做半套更新）：记录必须是 `published`；
 步骤 id 序列必须与文件完全一致（变了意味着老记录找不到对应步骤）。

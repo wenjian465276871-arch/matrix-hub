@@ -87,3 +87,77 @@ def test_refresh_keeps_session_and_record_alive():
     assert session is not None
     assert session["guide_id"] == guide.id
     assert store.get_record(record_id) is not None
+
+
+# ---------- SAME/DIFF 判定：只比计数会漏掉内容变化 ----------
+
+
+def test_diff_kind_none_when_identical():
+    from scripts.refresh_sample import diff_kind
+
+    guide = make_guide("g_diff_same")
+    payload = guide.model_dump(mode="json")
+    assert diff_kind(payload, payload) is None
+
+
+def test_diff_kind_detects_content_change_without_count_change():
+    """把动效从一张图挪到另一张、给仪表补 value——计数全不变，必须仍判 DIFF。
+
+    生产上真漏过一次：hvac 的 value 修补因为 8/4/2 三个计数都一样被标 `[SAME]` 跳过。
+    """
+    from scripts.refresh_sample import diff_kind
+
+    guide = make_guide("g_diff_content")
+    stored = guide.model_dump(mode="json")
+    fresh = guide.model_dump(mode="json")
+    # 只改一个参数值，不动任何计数
+    fresh["steps"][0]["figures"][0]["params"]["label"] = "改写后的标签"
+    assert diff_kind(stored, fresh) == "content"
+
+
+def test_diff_kind_reports_stats_when_counts_change():
+    from scripts.refresh_sample import diff_kind
+
+    guide = make_guide("g_diff_stats")
+    stored = guide.model_dump(mode="json")
+    fresh = guide.model_dump(mode="json")
+    fig = dict(fresh["steps"][0]["figures"][0])
+    fresh["steps"][0]["figures"].append(fig)
+    assert diff_kind(stored, fresh) == "stats"
+
+
+# ---------- SAME/DIFF 判定：只比计数会漏掉内容变化 ----------
+
+
+def test_diff_kind_none_when_identical():
+    from scripts.refresh_sample import diff_kind
+
+    guide = make_guide("g_diff_same")
+    payload = guide.model_dump(mode="json")
+    assert diff_kind(payload, payload) is None
+
+
+def test_diff_kind_detects_content_change_without_count_change():
+    """把动效从一张图挪到另一张、给仪表补 value——计数全不变，必须仍判 DIFF。
+
+    生产上真漏过一次：hvac 的 value 修补因为 8/4/2 三个计数都一样被标 `[SAME]` 跳过。
+    """
+    from scripts.refresh_sample import diff_kind
+
+    guide = make_guide("g_diff_content")
+    stored = guide.model_dump(mode="json")
+    fresh = guide.model_dump(mode="json")
+    # 只改一个参数值，不动任何计数
+    fresh["steps"][0]["figures"][0]["params"]["label"] = "改写后的标签"
+    assert diff_kind(stored, fresh) == "content"
+
+
+def test_diff_kind_reports_stats_when_counts_change():
+    from scripts.refresh_sample import diff_kind
+
+    guide = make_guide("g_diff_stats")
+    stored = guide.model_dump(mode="json")
+    fresh = guide.model_dump(mode="json")
+    fig = dict(fresh["steps"][0]["figures"][0])
+    fresh["steps"][0]["figures"].append(fig)
+    assert diff_kind(stored, fresh) == "stats"

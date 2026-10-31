@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -52,6 +53,23 @@ def _stats(payload: dict) -> dict[str, int]:
 
 def _fmt(stats: dict[str, int]) -> str:
     return " / ".join(f"{key} {stats[key]}" for key in _STAT_KEYS)
+
+
+def _canonical(payload: dict) -> str:
+    """规范化后的内容指纹：键序与空白不参与比较。"""
+    return json.dumps(payload, ensure_ascii=False, sort_keys=True)
+
+
+def diff_kind(stored: dict, fresh: dict) -> str | None:
+    """判断该不该重写：`None` 相同 / `"stats"` 计数变了 / `"content"` 只是内容变了。
+
+    只比计数是错的：把动效从一张图挪到另一张、给仪表补 `value`、改一句判据文案，
+    计数全都不变——旧版会打 `[SAME]` 跳过，于是"刷新了"其实没刷新。
+    生产上就是这么漏掉的一次（hvac 的 value 修补被跳过）。
+    """
+    if _canonical(stored) == _canonical(fresh):
+        return None
+    return "stats" if _stats(stored) != _stats(fresh) else "content"
 
 
 def main() -> int:
@@ -90,14 +108,20 @@ def main() -> int:
             print(f"[SKIP] {guide.id}：状态 {row['status']}，样例不覆盖草稿")
             continue
 
+        fresh = guide.model_dump(mode="json")
         before = _stats(row["guide"])
-        after = _stats(guide.model_dump(mode="json"))
-        if before == after:
+        after = _stats(fresh)
+        kind = diff_kind(row["guide"], fresh)
+        if kind is None:
             print(f"[SAME] {guide.id}：{_fmt(before)}")
             continue
 
         pending += 1
-        print(f"[DIFF] {guide.id}：{_fmt(before)} → {_fmt(after)}")
+        if kind == "stats":
+            print(f"[DIFF] {guide.id}：{_fmt(before)} → {_fmt(after)}")
+        else:
+            # 计数不变也要打 DIFF：内容变了（参数/文案/动效落点），必须重写
+            print(f"[DIFF] {guide.id}：内容有变化（计数不变 {_fmt(before)}）")
         if not args.yes:
             continue
 
