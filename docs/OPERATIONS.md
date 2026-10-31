@@ -592,6 +592,9 @@ docker inspect matrix-hub --format '{{range .Config.Env}}{{println .}}{{end}}' |
 **上线**：`c026149`（CI 五作业全绿，部署约 2 分钟）。本次**无迁移、无 schema 变更、无新依赖**，
 回滚到上一 TAG 即可，数据不受影响。
 
+> 2026-11-01 02:26 追记：随后一次**纯结构/文档**提交 `6d070fa` 也已部署（CI run `41229091583`，五作业全绿），
+> 功能等价于 `c026149`；容器内可见 `/opt/electro/scripts/_bootstrap.py` 与 `scripts/README.md`。
+
 | 变更 | 运维影响 |
 |---|---|
 | `GET /guides` 支持 `limit`（默认 12，上限 50）/`offset`，返回 `total`/`has_more` | 旧客户端不带参数仍工作；`limit=0` 或 `>50` 返回 422 |
