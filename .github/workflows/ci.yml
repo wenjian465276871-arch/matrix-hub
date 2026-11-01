@@ -138,6 +138,8 @@ jobs:
       # smoke / landscape / mobile 各建 1 个会话，正好撞上生产配额（2 次/小时）。
       # 这只影响 CI 的临时库，生产配额不受影响。
       - name: 起服务并跑冒烟
+        env:
+          E2E_REVISE: "1"
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/e2e/uploads"
@@ -176,23 +178,15 @@ jobs:
 
           # 修正/发布用例需要一份草稿：E2E 不调模型，造不出真草稿，
           # 把一份样例截短后直接写进**临时库**（DB_PATH 指向 RUNNER_TEMP）。
+          # 这里必须写成**单行**：多行 heredoc 在 `run: |` 里缩进一旦掉到块外，
+          # YAML 解析直接失败，表现为「0 个作业的立即失败」。
           (
             cd apps/electro-assist/api
-            DB_PATH="$RUNNER_TEMP/e2e/e2e.db" python -c "
-import store
-from services import library
-
-store.init_db()
-guide = library.load_fixtures()[0]
-guide.id = 'g_e2e_draft_001'
-guide.steps = guide.steps[:3]
-store.save_guide(guide, status='draft')
-print('seeded draft', guide.id)
-"
+            DB_PATH="$RUNNER_TEMP/e2e/e2e.db" python -c "import store; from services import library; store.init_db(); g = library.load_fixtures()[0]; g.id = 'g_e2e_draft_001'; g.steps = g.steps[:3]; print(store.save_guide(g, status='draft'))"
           )
 
           cd apps/electro-assist/web
-          E2E_REVISE=1 npx playwright test
+          npx playwright test
 
       - name: 失败时打印服务日志
         if: failure()
