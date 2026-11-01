@@ -51,19 +51,58 @@ def _asset() -> str:
 
 
 class StubVision:
+    """模拟两段式（决策 #37）：`vision` 只回转录，`structured` 只回字段。
+
+    真实模型在两个通道里看到的是两套提示词；stub 用 `system` 文本里的
+    特征串区分，因此**同一条用例既能测 dual，也能在
+    `EXTRACT_MODE=single` 下测单通道**——后者 `structured` 不会被调用。
+
+    构造参数仍是一份完整 payload 字符串：解析得出来就拆成两半分别返回，
+    解析不出来（比如故意喂乱码）就原样回传，让解析失败的那条路径照常触发。
+    """
+
     name = "stub-vision"
 
-    def __init__(self, text: str):
+    def __init__(self, text: str, *, structure_text: str | None = None):
         self.text = text
+        self.structure_text = structure_text
         self.calls: list[dict] = []
+        self.structured_calls: list[dict] = []
+        try:
+            self.data = json.loads(text)
+        except (TypeError, ValueError):
+            self.data = None
 
     def vision(self, **kwargs) -> Completion:
         self.calls.append(kwargs)
+        system = kwargs.get("system", "")
+        # 转录通道的提示词以「只做一件事」起头（见 llm/extract.TRANSCRIBE_SYSTEM）。
+        if "只做一件事" in system and isinstance(self.data, dict):
+            body = {"lines": self.data.get("lines", []), "warnings": self.data.get("warnings", [])}
+            text = json.dumps(body, ensure_ascii=False)
+        else:
+            text = self.text
         return Completion(
-            text=self.text,
+            text=text,
             model="stub-vision",
             usage=Usage(prompt_tokens=1200, completion_tokens=300),
             latency_ms=42,
+        )
+
+    def structured(self, **kwargs) -> Completion:
+        self.structured_calls.append(kwargs)
+        if self.structure_text is not None:
+            text = self.structure_text
+        elif isinstance(self.data, dict):
+            body = {"fields": self.data.get("fields", {}), "warnings": []}
+            text = json.dumps(body, ensure_ascii=False)
+        else:
+            text = '{"fields": {"steps": []}}'
+        return Completion(
+            text=text,
+            model="stub-vision",
+            usage=Usage(prompt_tokens=400, completion_tokens=200),
+            latency_ms=35,
         )
 
 
@@ -133,9 +172,72 @@ def test_extract_returns_reviewable_draft(tmp_uploads, monkeypatch):
     assert stub.calls and len(stub.calls[0]["images"]) == 1
     assert stub.calls[0]["images"][0].startswith("data:image/png;base64,")
 
+    # 默认走双通道：A 看图转录（带图），B 只吃文本（不带图）。两次都记账。
+    assert body["channels"]["mode"] == "dual"
+    assert body["channels"]["calls"] == 2
+    assert stub.structured_calls and "images" not in stub.structured_calls[0]
+
     after = store.usage_summary()
-    assert after["calls"] == before["calls"] + 1
+    assert after["calls"] == before["calls"] + 2
     assert after["cost_micros"] > before["cost_micros"]
+
+
+def test_dual_reports_channel_coverage(tmp_uploads, monkeypatch):
+    """覆盖度是"两通道有没有对上"的唯一量化指标，必须出现在返回里。"""
+    asset = _asset()
+    text = _payload(
+        lines=["工序：开关门试验", "工位：3 号门", "1. 开关门各 3 次", "2. 记录时间"],
+        steps=[
+            {"seq": 1, "action": "开关门各 3 次", "source_line": 2},
+            {"seq": 2, "action": "记录时间", "source_line": 3},
+        ],
+    )
+    monkeypatch.setattr(extract_router, "get_provider", lambda: StubVision(text))
+
+    body = client.post("/api/electro/extract", json={"asset_ids": [asset]}).json()
+    assert body["channels"]["mode"] == "dual"
+    assert body["channels"]["transcribe"]["lines"] == 4
+    # 4 行里被结构化阶段引用 2 行 → 0.5
+    assert body["channels"]["structure"]["coverage"] == 0.5
+    assert body["channels"]["fallback"] is None
+
+
+def test_structure_failure_falls_back_to_single(tmp_uploads, monkeypatch):
+    """通道 B 输出不合法时回退单通道，并把原因如实带回去。
+
+    静默回退是这里最危险的失败模式：结果看起来一模一样，
+    但少了一层"字段必须能在原文里找到"的保证，核对强度不同。
+    """
+    asset = _asset()
+    text = _payload(
+        lines=["1. 开关门各 3 次"],
+        steps=[{"seq": 1, "action": "开关门各 3 次"}],
+    )
+    stub = StubVision(text, structure_text="字段大概是这个意思")
+    monkeypatch.setattr(extract_router, "get_provider", lambda: stub)
+
+    body = client.post("/api/electro/extract", json={"asset_ids": [asset]}).json()
+    assert body["channels"]["mode"] == "single"
+    assert body["channels"]["fallback"] == "structure_invalid"
+    # 回退路径仍要给出可用结果，而不是 502
+    assert body["fields"]["steps"][0]["action"] == "开关门各 3 次"
+
+
+def test_single_mode_calls_once(tmp_uploads, monkeypatch):
+    """`EXTRACT_MODE=single` 保留原行为：一次调用、不出通道统计。"""
+    monkeypatch.setenv("EXTRACT_MODE", "single")
+    asset = _asset()
+    text = _payload(
+        lines=["1. 开关门各 3 次"],
+        steps=[{"seq": 1, "action": "开关门各 3 次"}],
+    )
+    stub = StubVision(text)
+    monkeypatch.setattr(extract_router, "get_provider", lambda: stub)
+
+    body = client.post("/api/electro/extract", json={"asset_ids": [asset]}).json()
+    assert body["channels"]["mode"] == "single"
+    assert body["channels"]["calls"] == 1
+    assert not stub.structured_calls
 
 
 def test_fabricated_numbers_are_stripped(tmp_uploads, monkeypatch):

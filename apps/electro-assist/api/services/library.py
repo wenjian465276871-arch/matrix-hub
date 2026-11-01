@@ -140,18 +140,26 @@ def _card(row: dict) -> dict:
     }
 
 
-def list_published(limit: int = PAGE_SIZE, offset: int = 0) -> list[dict]:
+def list_published(
+    limit: int = PAGE_SIZE, offset: int = 0, query: str | None = None
+) -> list[dict]:
     ensure_seeded()
     return [
         _card(row)
-        for row in store.list_guides(status="published", limit=limit, offset=offset)
+        for row in store.list_guides(
+            status="published", limit=limit, offset=offset, query=(query or None)
+        )
     ]
 
 
-def count_published() -> int:
-    """已发布总数：`has_more` 与「还有 N 份」都靠它，不能拿当前页长度推。"""
+def count_published(query: str | None = None) -> int:
+    """已发布总数：`has_more` 与「还有 N 份」都靠它，不能拿当前页长度推。
+
+    `query` 必须与 `list_published` 同步传下去：搜索时「共 5 份」说的是
+    命中数，不是全库已发布数——否则搜出 1 条却写着「共 7 份」。
+    """
     ensure_seeded()
-    return store.count_guides(status="published")
+    return store.count_guides(status="published", query=(query or None))
 
 
 def get_detail(guide_id: str) -> tuple[dict, str] | None:

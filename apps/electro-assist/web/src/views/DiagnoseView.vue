@@ -8,7 +8,7 @@
  *  页面只管"问什么、切哪个模式"；结果渲染与诊断推进分别在
  *  QuickResult / StepRun 里，判定与推进仍然全在服务端。
  */
-import { onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 
 import '../components/diagnose/diagnose.css'
@@ -16,8 +16,10 @@ import QuickResult from '../components/diagnose/QuickResult.vue'
 import ThemeNoticeBar from '../components/ui/ThemeNoticeBar.vue'
 import StepRun from '../components/diagnose/StepRun.vue'
 import { useDiagnoseRun } from '../composables/useDiagnoseRun'
+import { announce } from '../lib/announce'
 import { errorText as describeError } from '../lib/errors'
-import { getJson, postJson } from '../lib/http'
+import { ApiError, getJson, postJson } from '../lib/http'
+import { postStream } from '../lib/sse'
 import type { DiagnoseResponse, KbOverview } from '../types'
 
 const route = useRoute()
@@ -46,6 +48,11 @@ const SYSTEM_LABEL: Record<string, string> = {
   pantograph: '受电弓',
 }
 
+/** 流式的三个阶段。`recall` 之后候选已经能上屏，重排在后台跑。 */
+const stage = ref<'idle' | 'recall' | 'rerank' | 'done'>('idle')
+const candidates = ref<{ id: string; title: string; score: number }[]>([])
+let quickCtrl: AbortController | null = null
+
 async function submitQuick(): Promise<void> {
   const text = symptom.value.trim()
   if (text.length < 4) {
@@ -53,20 +60,74 @@ async function submitQuick(): Promise<void> {
     phase.value = 'error'
     return
   }
+  quickCtrl?.abort()
+  quickCtrl = new AbortController()
+
   phase.value = 'loading'
   errorText.value = ''
-  try {
-    result.value = await postJson<DiagnoseResponse>('/api/electro/diagnose', {
-      symptom: text,
-      system: system.value || null,
-      top_k: 3,
-      context: context.value.guide_id ? context.value : null,
-    })
-    phase.value = 'ready'
-  } catch (err) {
-    errorText.value = describeError(err, '网络异常，排查失败，请稍后再试')
-    phase.value = 'error'
+  stage.value = 'recall'
+  candidates.value = []
+
+  const body = {
+    symptom: text,
+    system: system.value || null,
+    top_k: 3,
+    context: context.value.guide_id ? context.value : null,
   }
+
+  let done = false
+  let frameError = ''
+  try {
+    await postStream('/api/electro/diagnose?stream=1', body, {
+      signal: quickCtrl.signal,
+      onEvent: (event, data) => {
+        if (event === 'recall') {
+          const payload = data as { candidates?: typeof candidates.value }
+          candidates.value = payload.candidates ?? []
+          stage.value = 'rerank'
+        } else if (event === 'done') {
+          result.value = data as DiagnoseResponse
+          stage.value = 'done'
+          done = true
+        } else if (event === 'error') {
+          frameError = (data as { message?: string }).message ?? ''
+        }
+      },
+    })
+  } catch (err) {
+    if (quickCtrl.signal.aborted) return
+    // 老内核或中间代理不支持流：落到下面的一次性请求。多花一次检索是毫秒级的，
+    // 比"整块结果拿不到"划算得多。
+    if (err instanceof ApiError && err.kind === 'timeout') {
+      errorText.value = describeError(err, '排查超时，请稍后再试')
+      phase.value = 'error'
+      return
+    }
+  }
+
+  if (!done) {
+    // 流没给出最终结果（中断、代理吞帧、服务端没有流能力）：走一次性 JSON。
+    try {
+      result.value = await postJson<DiagnoseResponse>('/api/electro/diagnose', body, {
+        signal: quickCtrl.signal,
+      })
+      stage.value = 'done'
+      done = true
+    } catch (err) {
+      if (quickCtrl.signal.aborted) return
+      errorText.value = describeError(err, frameError || '网络异常，排查失败，请稍后再试')
+      phase.value = 'error'
+      return
+    }
+  }
+
+  phase.value = 'ready'
+  const hit = result.value
+  announce(
+    hit?.matched
+      ? `排查完成，找到 ${hit.count} 条候选，建议先查：${hit.suggestion}`
+      : '排查完成，知识库未覆盖这个现象，建议记录后上报',
+  )
 }
 
 async function submit(): Promise<void> {
@@ -135,6 +196,7 @@ onMounted(async () => {
     await submitQuick()
   }
 })
+onBeforeUnmount(() => quickCtrl?.abort())
 </script>
 
 <template>
@@ -219,6 +281,28 @@ onMounted(async () => {
     <section v-if="phase === 'error' && !errorText" class="card state">
       <p>排查失败，请稍后再试。</p>
       <button class="btn" type="button" @click="phase = 'idle'">返回修改</button>
+    </section>
+
+    <section v-else-if="phase === 'loading'" class="card state" aria-busy="true">
+      <p class="stage">
+        <span
+          class="stage__dot"
+          :class="{ 'stage__dot--on': stage === 'recall' }"
+          aria-hidden="true"
+        />
+        {{ stage === 'recall' ? '正在检索知识库…' : '已找到候选，正在按可能性排序…' }}
+      </p>
+      <ol v-if="candidates.length" class="cands">
+        <li v-for="item in candidates" :key="item.id" class="cands__item">
+          {{ item.title }}
+        </li>
+      </ol>
+      <p v-if="candidates.length" class="state__hint">
+        排序结果出来后会替换成完整清单；候选列表已经可以对照着看了。
+      </p>
+      <button v-else class="btn" type="button" @click="quickCtrl?.abort(); phase = 'idle'">
+        停止等待
+      </button>
     </section>
 
     <QuickResult v-else-if="result" :result="result" @run="startRun" @reset="resetQuick" />
@@ -371,5 +455,57 @@ onMounted(async () => {
       flex: none;
 
     }
+}
+
+/* 流式的阶段提示：不是装饰，它告诉用户"还在算"以及"算到哪一步了"。
+   召回阶段随时可能结束（毫秒），所以不做进度条——那是假精确。 */
+.stage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  color: var(--c-ink-2);
+  font-size: 15px;
+}
+
+.stage__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-primary);
+  animation: stage-pulse 1.2s ease-in-out infinite;
+}
+
+.stage__dot--on {
+  animation-duration: 0.9s;
+}
+
+@keyframes stage-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage__dot {
+    animation: none;
+    opacity: 1;
+  }
+}
+
+.cands {
+  margin: 8px 0 0;
+  padding-left: 20px;
+  color: var(--c-ink);
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.cands__item {
+  color: var(--c-ink-2);
 }
 </style>

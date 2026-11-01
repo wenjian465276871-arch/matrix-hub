@@ -388,6 +388,36 @@ def uncovered_message(reason: str) -> str:
     return _UNCOVERED_NO_MATCH
 
 
+def recall(
+    query: str, *, system: str | None = None, top_k: int = DEFAULT_TOP_K
+) -> tuple[list[Hit], str | None]:
+    """只召回，不重排。返回 (命中, 未覆盖原因)。
+
+    拆出来是为了 SSE（2026-11-01）：重排是一次模型调用，秒级；召回是毫秒级。
+    两者捆在一个函数里，前端就只能等最慢的那一步才开始画界面。
+    """
+    text = query.strip()
+    provider = get_provider()
+    guessed = system or infer_system(text)
+    if guessed and guessed not in provider.systems():
+        return [], "system_not_covered"
+    hits = provider.search_detailed(text, system=guessed, top_k=max(top_k, DEFAULT_TOP_K))
+    if not hits:
+        return [], "no_match"
+    return hits, None
+
+
+def apply_rerank(query: str, hits: list[Hit]) -> tuple[list[Hit], dict | None]:
+    """受限重排。失败时原样返回检索顺序——排序可以退化，"找不到"不能。"""
+    if len(hits) <= 1:
+        return hits, None
+    info = rerank_service.rerank(query, [hit.entry for hit in hits])
+    if not info:
+        return hits, None
+    order = {entry_id: index for index, entry_id in enumerate(info["order"])}
+    return sorted(hits, key=lambda hit: order.get(hit.entry.id, len(order))), info
+
+
 def search_entries(
     query: str,
     *,
@@ -395,48 +425,40 @@ def search_entries(
     top_k: int = DEFAULT_TOP_K,
     use_rerank: bool = True,
 ) -> tuple[list[Hit], dict | None, str | None]:
-    """返回 (命中, 重排信息, 未覆盖原因)。"""
-    text = query.strip()
-    provider = get_provider()
-    guessed = system or infer_system(text)
-    if guessed and guessed not in provider.systems():
-        return [], None, "system_not_covered"
-
-    hits = provider.search_detailed(text, system=guessed, top_k=max(top_k, DEFAULT_TOP_K))
-    if not hits:
-        return [], None, "no_match"
-
-    rerank_info = None
-    if use_rerank and len(hits) > 1:
-        rerank_info = rerank_service.rerank(text, [hit.entry for hit in hits])
-        if rerank_info:
-            order = {entry_id: index for index, entry_id in enumerate(rerank_info["order"])}
-            hits.sort(key=lambda hit: order.get(hit.entry.id, len(order)))
-    return hits, rerank_info, None
+    """返回 (命中, 重排信息, 未覆盖原因)。一次性路径，行为与拆分前完全一致。"""
+    hits, reason = recall(query, system=system, top_k=top_k)
+    if reason:
+        return [], None, reason
+    if not use_rerank:
+        return hits, None, None
+    hits, info = apply_rerank(query.strip(), hits)
+    return hits, info, None
 
 
-def diagnose(query: str, *, system: str | None = None, top_k: int = DEFAULT_TOP_K) -> dict:
-    """一次性返回排查建议；重排失败时仍是可用的检索结果。"""
-    started = time.perf_counter()
-    text = query.strip()
-    hits, rerank_info, reason = search_entries(text, system=system, top_k=top_k)
+def _hit_payload(hit: Hit) -> dict:
+    """一条命中的完整字段。SSE 的最终帧与一次性 JSON 共用，避免两份结构。"""
+    return {
+        "id": hit.entry.id,
+        "title": hit.entry.title,
+        "system": hit.entry.system.value,
+        "score": hit.score,
+        "signals": hit.signals(),
+        "likely_causes": hit.entry.likely_causes,
+        "checks": [check.model_dump() for check in hit.entry.checks],
+        "escalation": hit.entry.escalation,
+        "safety": hit.entry.safety,
+        "sources": hit.entry.sources,
+    }
 
-    results = [
-        {
-            "id": hit.entry.id,
-            "title": hit.entry.title,
-            "system": hit.entry.system.value,
-            "score": hit.score,
-            "signals": hit.signals(),
-            "likely_causes": hit.entry.likely_causes,
-            "checks": [check.model_dump() for check in hit.entry.checks],
-            "escalation": hit.entry.escalation,
-            "safety": hit.entry.safety,
-            "sources": hit.entry.sources,
-        }
-        for hit in hits
-    ]
 
+def _build_result(
+    text: str,
+    hits: list[Hit],
+    rerank_info: dict | None,
+    reason: str | None,
+    started: float,
+) -> dict:
+    results = [_hit_payload(hit) for hit in hits]
     if reason:
         message = uncovered_message(reason)
         suggestion = "记录现象与故障码后上报，不要凭经验拆检。"
@@ -458,3 +480,53 @@ def diagnose(query: str, *, system: str | None = None, top_k: int = DEFAULT_TOP_
         "rerank": rerank_info,
         "disclaimer": DISCLAIMER,
     }
+
+
+def diagnose(query: str, *, system: str | None = None, top_k: int = DEFAULT_TOP_K) -> dict:
+    """一次性返回排查建议；重排失败时仍是可用的检索结果。"""
+    started = time.perf_counter()
+    text = query.strip()
+    hits, rerank_info, reason = search_entries(text, system=system, top_k=top_k)
+    return _build_result(text, hits, rerank_info, reason, started)
+
+
+def iter_diagnose(
+    query: str, *, system: str | None = None, top_k: int = DEFAULT_TOP_K
+):
+    """分三阶段产出，给 `POST /diagnose?stream=1` 用。
+
+    `recall` → `rerank` → `done`，每一帧都是**真的完成了一步**，不是把同一份
+    结果切片假装流式：召回帧之后前端就能列出候选，重排帧之后才改顺序。
+
+    未覆盖的情况只有两帧（`recall` 带空列表 + `done`）：没有候选就没有重排，
+    发一个空的 rerank 帧只会让人以为"还在算"。
+    """
+    started = time.perf_counter()
+    text = query.strip()
+
+    hits, reason = recall(text, system=system, top_k=top_k)
+    yield "recall", {
+        "stage": "recall",
+        "matched": reason is None,
+        "uncovered_reason": reason,
+        "candidates": [
+            {"id": hit.entry.id, "title": hit.entry.title, "score": hit.score}
+            for hit in hits
+        ],
+        "count": len(hits),
+        "took_ms": int((time.perf_counter() - started) * 1000),
+    }
+    if reason:
+        yield "done", _build_result(text, [], None, reason, started)
+        return
+
+    hits, info = apply_rerank(text, hits)
+    yield "rerank", {
+        "stage": "rerank",
+        "applied": info is not None,
+        # 重排被关掉、模型没 Key、超时，都属于"没应用"：三者对用户的含义一样，
+        # 都是"顺序按检索分数排"。细节在 done 帧的 rerank 字段里。
+        "order": info["order"] if info else [hit.entry.id for hit in hits],
+        "took_ms": int((time.perf_counter() - started) * 1000),
+    }
+    yield "done", _build_result(text, hits, info, None, started)

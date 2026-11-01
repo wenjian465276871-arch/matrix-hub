@@ -1,6 +1,6 @@
 # 文档索引
 
-> 版本 v1.3 · 2026-11-01 · 维护规则：**每份文档只回答一类问题；数字必须附命令与日期；历史结论进 `archive/`，未实现方案进 `proposals/`。**
+> 版本 v1.4 · 2026-11-01 · 维护规则：**每份文档只回答一类问题；数字必须附命令与日期；历史结论进 `archive/`，未实现方案进 `proposals/`。**
 
 ## 1. 先看哪份
 
@@ -17,7 +17,7 @@
 | 怎么演示、兜底方案 | [`DEMO.md`](DEMO.md) |
 | 案例内容从哪来、合规边界 | [`SOURCES.md`](SOURCES.md) |
 | 某个架构决策的前因后果 | [`adr/`](adr/) |
-| 图片输入做到哪一步 | [`proposals/A2-IMAGE-INPUT.md`](proposals/A2-IMAGE-INPUT.md)（单通道已实现；双通道待模型给 bbox） |
+| 图片输入做到哪一步 | [`proposals/A2-IMAGE-INPUT.md`](proposals/A2-IMAGE-INPUT.md)（双通道已实现：先转录后结构化；仍无文字坐标） |
 | 一次性迁移记录 | [`archive/P0A-MIGRATION.md`](archive/P0A-MIGRATION.md) |
 
 > `UI.md` / `UX.md` / `FRONTEND.md` 是**as-built 版本**：只写代码里真实存在的规格，
@@ -33,7 +33,7 @@
 | `docs/UI.md` | 规范 | 当前 | 视觉 as-built：令牌、组件、SVG 原语、打印 |
 | `docs/UX.md` | 规范 | 当前 | 交互 as-built：信息架构、三条流程、状态与边界 |
 | `docs/FRONTEND.md` | 方案 | 当前 | 前端 as-built：结构、网络层、性能、坑、未实现 |
-| `docs/API.md` | 契约 | 当前 | OpenAPI 导出，31 端点（业务 30 + `/healthz`） |
+| `docs/API.md` | 契约 | 当前 | OpenAPI 导出，34 端点（业务 33 + `/healthz`） |
 | `docs/DEVELOPMENT.md` | 指南 | 当前 | 本地运行、测试、约定、常见坑 |
 | `docs/OPERATIONS.md` | 运维 | 当前 | 部署/回滚/证书/备份/事故/发布 CLI |
 | `docs/DEMO.md` | 演示 | 当前 | 5 分钟闭环 + 兜底 |
@@ -53,8 +53,8 @@
 | 项 | 值 | 采集 |
 |---|---|---|
 | 代码基线 | `6d070fa`（线上同名镜像；功能等价于 `c026149`，差异仅为 `scripts/_bootstrap.py`、脚本清单与文档）；功能面含 `bdf6937` 窄屏、`c026149` 发布闸门/分页/800ms/焦点/打印表头 | `git log --oneline -1` |
-| 契约测试 | **304 passed** | `pytest tests -q`（约 34s） |
-| 业务端点 | 30 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
+| 契约测试 | **335 passed** | `pytest tests -q`（约 36s） |
+| 业务端点 | 33 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
 | 首屏 | **43.83 KB gzip / CSS 8.97 KB** | `npm run build`（vue-tsc + vite） |
 | 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23 线上；此后只增 UI 元素，未复测） |
 | B 检索 | Top-3 **21/21**、未覆盖 **2/2**、P50 **2.8ms** / P95 **5.3ms**（441 采样） | `scripts/eval_diagnose.py`（2026-11-01） |

@@ -70,7 +70,7 @@ api/
 │   ├── ratelimit.py   进程内滑窗限流（单 worker 前提）
 │   └── passcode.py    口令 → 12h 令牌（HMAC）；只豁免每 IP 配额
 ├── models/            Pydantic 契约：guide（schema 1.2）、visual（13 原语）、knowledge
-├── routers/           30 个业务端点；只做参数校验与 HTTP 语义
+├── routers/           33 个业务端点；只做参数校验与 HTTP 语义
 ├── services/          业务规则：generation / quota / jobqueue / criteria / sessions / library
 │                      knowledge（混合召回）/ rerank（只排序）/ diagnosis（故障树推进）/ report_html
 ├── store/             SQLite：db（连接/迁移）、dao（读写，不含业务规则）
@@ -81,7 +81,7 @@ api/
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             304 条契约测试
+└── tests/             335 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -110,7 +110,7 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 304 passed（约 34s）
+pytest tests -q          # 335 passed（约 36s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web

@@ -184,13 +184,19 @@ E2E 抓的是 DOM 回归，比给 `lib/http.ts` 写 mock 更值钱。真要补�
 | 项 | 现状 | 说明 |
 |---|---|---|
 | `stores/`（job/run/quota） | 不存在 | 状态在视图内；跨页靠服务端重建。**有意为之**，不是欠账 |
-| `lib/sse.ts` + 流式解析 | 不存在 | B 一次性 JSON；没有可流的内容 |
 | `lib/poll.ts` | 不存在 | 轮询内联在 `NewGuideView`（`setTimeout` 链 + 2s 退避 + 90s 预算） |
 | `lib/idempotency.ts` | 不存在 | `RunView` 内直接拼 `{sid}:s{seq}:a{attempt}` |
 | `composables/` | 只有 `useDiagnoseRun` | 无 `useFocusTrap` / `useVisualViewport`（后者的逻辑在 `lib/viewport.ts`） |
-| `components/ui/` | **已有 3 个**：`ConfirmDialog` / `SiteDrawer` / `ThemeNoticeBar` | 其他按钮、卡片仍是 CSS 类，不建组件库 |
+| `components/ui/` | **已有 4 个**：`ConfirmDialog` / `SiteDrawer` / `ThemeNoticeBar` / `LiveRegion` | 其他按钮、卡片仍是 CSS 类，不建组件库 |
 | 前端单测（Vitest） | 未做 | 见 §7 |
-| `_fe-error` 上报端点 | 未做 | 控制器层没有捕获后上报 |
+
+**2026-11-01 从这张表里移除的三项**（已实现，留一行记录避免有人以为还在）：
+
+| 原欠账 | 落地位置 |
+|---|---|
+| `lib/sse.ts` + 流式解析 | `lib/sse.ts`（`postStream`，fetch + `getReader` 按帧解析）；`DiagnoseView` 消费 recall→rerank→done |
+| `_fe-error` 上报端点 | 后端 `routers/fe.py`（只写日志、不落库）+ 前端 `lib/report.ts`（每会话 20 条上限、60s 去重） |
+| `aria-live` 双区 | `components/ui/LiveRegion.vue` + `lib/announce.ts`（`polite` / `assertive` 两区，2s 去重） |
 
 ### 9.1 下一轮：两个大文件怎么拆（已定方案，未执行）
 

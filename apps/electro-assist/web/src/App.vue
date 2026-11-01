@@ -10,6 +10,7 @@
  */
 import { defineAsyncComponent, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
+import LiveRegion from './components/ui/LiveRegion.vue'
 
 const SiteDrawer = defineAsyncComponent(() => import('./components/ui/SiteDrawer.vue'))
 
@@ -38,6 +39,10 @@ watch(
 </script>
 
 <template>
+  <!-- 播报区必须在页面加载时就存在（计划 §12.5）：后插入的 aria-live
+       容器，部分读屏不会播报它的第一次内容。 -->
+  <LiveRegion />
+
   <header class="site-nav">
     <div class="nav-inner">
       <RouterLink class="brand" to="/">

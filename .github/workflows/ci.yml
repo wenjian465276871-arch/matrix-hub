@@ -147,6 +147,7 @@ jobs:
             UPLOAD_DIR="$RUNNER_TEMP/e2e/uploads" \
             APP_ENV=dev \
             GENERATE_PER_HOUR=50 \
+            ELECTRO_PASSCODE=e2e-pass \
             python -m uvicorn main:app --host 127.0.0.1 --port 8001 \
               > "$RUNNER_TEMP/api.log" 2>&1 &
             echo $! > "$RUNNER_TEMP/api.pid"
@@ -173,8 +174,25 @@ jobs:
           curl -fsS http://127.0.0.1:8001/healthz
           curl -fsS -o /dev/null http://127.0.0.1:4173/apps/electro-assist/
 
+          # 修正/发布用例需要一份草稿：E2E 不调模型，造不出真草稿，
+          # 把一份样例截短后直接写进**临时库**（DB_PATH 指向 RUNNER_TEMP）。
+          (
+            cd apps/electro-assist/api
+            DB_PATH="$RUNNER_TEMP/e2e/e2e.db" python -c "
+import store
+from services import library
+
+store.init_db()
+guide = library.load_fixtures()[0]
+guide.id = 'g_e2e_draft_001'
+guide.steps = guide.steps[:3]
+store.save_guide(guide, status='draft')
+print('seeded draft', guide.id)
+"
+          )
+
           cd apps/electro-assist/web
-          npx playwright test
+          E2E_REVISE=1 npx playwright test
 
       - name: 失败时打印服务日志
         if: failure()

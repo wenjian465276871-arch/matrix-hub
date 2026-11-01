@@ -215,24 +215,53 @@ def get_guide(guide_id: str) -> dict[str, Any] | None:
     return data
 
 
+def like_pattern(query: str) -> str:
+    """把用户输入变成安全的 LIKE 模式。
+
+    `%` 与 `_` 是 LIKE 的通配符：不转义的话，搜 `%` 会命中全部。
+    反斜杠必须先转，否则 `\\%` 会被当成"转义过的反斜杠 + 通配符"。
+    """
+    escaped = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
 def list_guides(
-    *, status: GuideStatus | None = None, limit: int = 50, offset: int = 0
+    *,
+    status: GuideStatus | None = None,
+    limit: int = 50,
+    offset: int = 0,
+    query: str | None = None,
 ) -> list[dict[str, Any]]:
     """列表不返回全文——与 `/api/electro/guides` 的口径保持一致。
 
     分页用 `LIMIT/OFFSET`（计划 §12.6：列表不做虚拟滚动，只做「加载更多」每页 12）。
     排序键必须**唯一且稳定**：只按 `updated_at` 排会在同秒写入的几条之间出现
     顺序漂移，翻页时同一条可能重复出现或被跳过。所以补 `id` 作次级键。
+
+    `query` 走 SQL LIKE 而不是取回内存过滤：列表有分页，内存过滤会让
+    `total` 与 `has_more` 全部失真——搜索结果只有 2 条却显示「还有 10 份」。
+    只搜卡片上真的展示的字段（标题/摘要/来源说明），不搜步骤正文：
+    搜正文要么把整份 JSON 拉出来扫，要么上 FTS5，5 份案例都不值当。
     """
     sql = """
         SELECT id, schema_version, title, summary, system, status, job_id, step_count,
                duration_s, source_note, generated_at, created_at, updated_at, published_at
         FROM guides
     """
+    where: list[str] = []
     params: list[Any] = []
     if status:
-        sql += " WHERE status = ?"
+        where.append("status = ?")
         params.append(status)
+    if query:
+        where.append(
+            "(title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\'"
+            " OR source_note LIKE ? ESCAPE '\\')"
+        )
+        pattern = like_pattern(query)
+        params.extend([pattern, pattern, pattern])
+    if where:
+        sql += " WHERE " + " AND ".join(where)
     sql += " ORDER BY updated_at DESC, id ASC LIMIT ? OFFSET ?"
     params.append(max(1, min(limit, 200)))
     params.append(max(0, offset))
@@ -280,12 +309,23 @@ def publish_guide(guide_id: str) -> bool:
     return cur.rowcount > 0
 
 
-def count_guides(*, status: GuideStatus | None = None) -> int:
+def count_guides(*, status: GuideStatus | None = None, query: str | None = None) -> int:
+    """与 `list_guides` 用同一套 WHERE 条件——两处口径分叉，`has_more` 就会骗人。"""
     sql = "SELECT COUNT(*) AS n FROM guides"
+    where: list[str] = []
     params: list[Any] = []
     if status:
-        sql += " WHERE status = ?"
+        where.append("status = ?")
         params.append(status)
+    if query:
+        where.append(
+            "(title LIKE ? ESCAPE '\\' OR summary LIKE ? ESCAPE '\\'"
+            " OR source_note LIKE ? ESCAPE '\\')"
+        )
+        pattern = like_pattern(query)
+        params.extend([pattern, pattern, pattern])
+    if where:
+        sql += " WHERE " + " AND ".join(where)
     with connect() as conn:
         return int(conn.execute(sql, params).fetchone()["n"])
 

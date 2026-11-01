@@ -5,6 +5,7 @@ import GuideFigure from '../figures/GuideFigure.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import ThemeNoticeBar from '../components/ui/ThemeNoticeBar.vue'
 import { ApiError, getJson, postJson } from '../lib/http'
+import { announce } from '../lib/announce'
 import { watchKeyboardInset } from '../lib/viewport'
 import type {
   Criterion,
@@ -171,6 +172,19 @@ async function submitStep(): Promise<void> {
     if (!res.duplicate) records.value = [...records.value, res.record]
     results.value = res.results
     phase.value = res.verdict === 'fail' || res.verdict === 'warn' ? 'exception' : 'passed'
+    // 判定结果必须播报：现场戴手套、单手操作，视线不一定在屏幕上。
+    // 通过与不通过用不同礼貌级别——通过不该打断正在听的内容，异常必须打断。
+    const detail = res.messages?.length
+      ? res.messages.join('；')
+      : res.verdict === 'fail'
+        ? '判据不通过'
+        : res.verdict === 'warn'
+          ? '判据超出范围'
+          : '本步通过'
+    announce(
+      `第 ${step.seq} 步${res.verdict === 'pass' ? '通过' : '异常'}：${detail}`,
+      res.verdict === 'pass' ? 'polite' : 'assertive',
+    )
   } catch (err) {
     if (err instanceof ApiError && err.status === 409) {
       // 顺序冲突/会话已结束：以服务端状态为准，重新拉一次

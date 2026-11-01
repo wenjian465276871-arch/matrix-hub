@@ -1,33 +1,42 @@
-"""指导书读取与草稿素材归位。
+"""指导书读取、草稿修正与发布。
 
 列表**只返回已发布**（决策 #16）：访客生成的草稿不进公开列表，但可通过
 `GET /guides/{id}` 凭随机 id 直接访问——不枚举、不公开。
 
-`PUT /{id}/assets` 是唯一一个写草稿的入口，边界刻意收得很窄：
-**只能重排已有素材的位置，不能改文字、判据、步骤**。
-理由：判据是红线（改一个字就能把超差变合格），而图片归位是排版问题——
-模型没看图，位置只能由人给。没有这个入口，上传的图永远只能躺在末尾。
+写入口有三个，边界各自不同：
+
+- `PUT /{id}/assets`：**只改图放哪**，不改文字与判据（判据改一个字就能把超差变合格）；
+- `PATCH /{id}`：改文字与判据**值**，不能增删步骤、不能换判据类型（决策 #35）；
+- `POST /{id}/publish`：用口令令牌换发布，闸门与 CLI 同一个 `publish_blockers()`。
+
+后两个是 2026-11-01 补的：此前「补齐必填字段后对外」只存在于计划文本里，
+线上要发布只能 SSH 进容器敲 CLI。
 """
 from __future__ import annotations
 
+import logging
 import os
 import re
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
-from core import ratelimit
+from core import passcode, ratelimit
 import store
 from core.assets import ASSET_RE
 from models.guide import SCHEMA_VERSION, AssetRef, Guide
-from services import library
+from services import library, revision
 
 router = APIRouter(prefix="/api/electro/guides", tags=["guides"])
+
+log = logging.getLogger("electro.guides")
 
 GUIDE_ID_RE = re.compile(r"^g_[a-z0-9_]{5,31}$")
 STEP_ID_RE = re.compile(r"^s[0-9]{2}$")
 
 MAX_ATTACH_ASSETS = 6
+# 搜索词上限：列表页的输入框，没人会输入 200 字；给个上限避免超长 LIKE 扫全表。
+MAX_QUERY_CHARS = 40
 _attach_limiter: ratelimit.Limiter | None = None
 
 
@@ -49,6 +58,31 @@ def reset_attach_limiter() -> None:
     _attach_limiter = None
 
 
+_write_limiter: ratelimit.Limiter | None = None
+
+
+def get_write_limiter() -> ratelimit.Limiter:
+    """修正与发布共用一把闸。
+
+    发布天然幂等（第二次是 409），限流防的不是重复发布，而是**令牌泄露后
+    批量改草稿**：改一份草稿就是改一份别人分享出去的页面。
+    """
+    global _write_limiter
+    if _write_limiter is None:
+        _write_limiter = ratelimit.Limiter(
+            per_hour=int(os.getenv("REVISE_PER_HOUR", "20")),
+            per_day=int(os.getenv("REVISE_PER_DAY", "60")),
+            site_per_day=int(os.getenv("REVISE_SITE_PER_DAY", "300")),
+        )
+    return _write_limiter
+
+
+def reset_write_limiter() -> None:
+    """仅供测试。"""
+    global _write_limiter
+    _write_limiter = None
+
+
 class AttachItem(BaseModel):
     asset_id: str = Field(pattern=ASSET_RE.pattern)
     caption: str = Field(min_length=2, max_length=60)
@@ -64,15 +98,20 @@ class AttachIn(BaseModel):
 def list_guides(
     limit: int = Query(library.PAGE_SIZE, ge=1, le=library.MAX_PAGE_SIZE),
     offset: int = Query(0, ge=0),
+    q: str = Query("", max_length=MAX_QUERY_CHARS),
 ) -> dict:
     """列表只返回卡片字段，不返回全文——列表页不该拉几十 KB 的 steps。
 
     分页口径（计划 §12.6）：每页 12、`offset` 翻页、`has_more` 由总数决定。
     不用「下一页游标」：指导书是只增不改的展示内容，跳过一两条的代价远小于
     多维护一套游标签名。
+
+    `q` 是卡片字段的子串搜索（UX §8 登记的欠账）。空串等于不过滤；
+    搜索命中数就是 `total`，前端「共 N 份」直接可用。
     """
-    items = library.list_published(limit=limit, offset=offset)
-    total = library.count_published()
+    term = q.strip()
+    items = library.list_published(limit=limit, offset=offset, query=term or None)
+    total = library.count_published(query=term or None)
     return {
         "schema_version": SCHEMA_VERSION,
         "count": len(items),
@@ -80,6 +119,7 @@ def list_guides(
         "has_more": offset + len(items) < total,
         "limit": limit,
         "offset": offset,
+        "query": term,
         "items": items,
     }
 
@@ -195,3 +235,103 @@ def put_assets(guide_id: str, body: AttachIn, request: Request) -> dict:
         "attached": sum(len(step.assets) for step in guide.steps),
         "loose": len(guide.assets),
     }
+
+
+# ---------------------------------------------------------------- 修正与发布（决策 #35）
+
+
+def _guard_write(request: Request) -> None:
+    """写草稿前的统一闸门：限流 + 口令令牌。顺序不能反——
+    先限流再验令牌，否则任何人都能拿"令牌错误"当探测信号刷接口。"""
+    allowed, retry_after = get_write_limiter().hit(ratelimit.client_ip(request))
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "code": "rate_limited",
+                "message": f"修改过于频繁，请在 {retry_after} 秒后重试",
+                "retry_after": retry_after,
+            },
+            headers={"Retry-After": str(retry_after)},
+        )
+
+
+def _guard_passcode(token: str | None) -> None:
+    if not passcode.enabled():
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "passcode_disabled",
+                "message": "本站未启用修正通道（未配置口令）",
+            },
+        )
+    if not passcode.verify_token(token):
+        # 不区分"没带令牌"与"令牌错误/过期"：少一个可探测的信号。
+        # 文案要告诉人下一步做什么，否则只会以为页面坏了。
+        raise HTTPException(
+            status_code=401,
+            detail={
+                "code": "passcode_required",
+                "message": "需要口令：先验证口令，再用返回的令牌操作",
+            },
+        )
+
+
+@router.patch("/{guide_id}")
+def patch_guide(
+    guide_id: str,
+    body: revision.GuidePatch,
+    request: Request,
+    x_passcode_token: str | None = Header(default=None, alias="X-Passcode-Token"),
+) -> dict:
+    """修正草稿的文字与判据值（不改结构、不改已发布内容）。
+
+    为什么不用 `PUT` 整体替换：整份替换意味着前端必须回传 `figures`（视觉 DSL）
+    与 `assets`，而前端并没有完整重建它们的能力——一次序列化差异就能把图示
+    静默抹掉。这里只接受"人真的改了什么"，其余字段服务端原样保留。
+    """
+    if not GUIDE_ID_RE.match(guide_id):
+        raise HTTPException(status_code=404, detail={"code": "not_found"})
+    _guard_write(request)
+    _guard_passcode(x_passcode_token)
+
+    try:
+        revised = revision.apply_patch(guide_id, body)
+    except revision.RevisionRejected as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail={"code": exc.code, "message": exc.message, **exc.extra},
+        ) from exc
+
+    log.info("草稿已修正 guide=%s steps=%d", guide_id, len(revised.steps))
+    return {
+        "status": "draft",
+        "guide_id": guide_id,
+        "guide": revised.model_dump(mode="json"),
+        # 前端拿它直接告诉用户「还差什么才能发布」，省一次往返。
+        "blockers": revised.publish_blockers(),
+    }
+
+
+@router.post("/{guide_id}/publish")
+def publish_guide(
+    guide_id: str,
+    request: Request,
+    x_passcode_token: str | None = Header(default=None, alias="X-Passcode-Token"),
+) -> dict:
+    """发布草稿：口令令牌 + `publish_blockers()` 闸门，与 CLI 同一套判据。"""
+    if not GUIDE_ID_RE.match(guide_id):
+        raise HTTPException(status_code=404, detail={"code": "not_found"})
+    _guard_write(request)
+    _guard_passcode(x_passcode_token)
+
+    try:
+        result = revision.publish(guide_id)
+    except revision.RevisionRejected as exc:
+        raise HTTPException(
+            status_code=exc.status,
+            detail={"code": exc.code, "message": exc.message, **exc.extra},
+        ) from exc
+
+    log.info("草稿已发布 guide=%s ip=%s", guide_id, ratelimit.client_ip(request))
+    return result

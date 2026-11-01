@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 import store
 from routers import diagnose as diagnose_router
 from routers import extract as extract_router
+from routers import fe as fe_router
 from routers import guides as guides_router
 from routers import jobs as jobs_router
 from routers import passcode as passcode_router
@@ -124,6 +125,7 @@ app.include_router(quota_router.router)
 app.include_router(sessions_router.router)
 app.include_router(records_router.router)
 app.include_router(diagnose_router.router)
+app.include_router(fe_router.router)
 
 
 @app.get("/healthz", tags=["ops"])

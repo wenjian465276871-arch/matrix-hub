@@ -117,11 +117,13 @@ export interface GuideList {
   schema_version: string
   /** 本页条数 */
   count: number
-  /** 已发布总数：`has_more` 与「还有 N 份」都以它为准 */
+  /** 已发布总数：命中搜索时是命中数，`has_more` 与「还有 N 份」都以它为准 */
   total: number
   has_more: boolean
   limit: number
   offset: number
+  /** 实际生效的搜索词（后端 trim 后回显），空串等于不过滤 */
+  query?: string
   items: GuideSummary[]
 }
 
@@ -214,10 +216,20 @@ export interface ExtractResult {
     steps: number
     verified_steps: number
   }
+  /** 通道统计：dual = 转录 + 结构化两次调用；fallback 非空说明退回单通道 */
+  channels: {
+    mode: 'dual' | 'single'
+    fallback: string | null
+    calls: number
+    model: string
+    latency_ms: number
+    transcribe?: { lines: number; latency_ms: number }
+    structure?: { steps: number; coverage: number; latency_ms: number }
+  }
   disclaimer: string
-  model: string
-  latency_ms: number
-  cost_micros: number
+  model?: string
+  latency_ms?: number
+  cost_micros?: number
 }
 
 /* ---------- 现场素材 ---------- */
@@ -247,6 +259,41 @@ export interface AttachResult {
   guide_id: string
   attached: number
   loose: number
+}
+
+/* ---------- 草稿修正与发布（PATCH / publish） ---------- */
+
+/** 修正请求体：只带改过的字段，后端按 id 合并。 */
+export interface GuidePatch {
+  title?: string
+  summary?: string
+  steps?: {
+    id: string
+    title?: string
+    action?: string
+    criteria?: {
+      id: string
+      label?: string
+      unit?: string
+      min?: number
+      max?: number
+      options?: string[]
+    }[]
+  }[]
+}
+
+export interface GuidePatchResult {
+  status: 'draft'
+  guide_id: string
+  guide: Guide
+  /** 还差什么才能发布。非空就说明这份草稿现在发不出去 */
+  blockers: string[]
+}
+
+export interface PublishResult {
+  status: 'published'
+  guide_id: string
+  published_at: string | null
 }
 
 export interface QuotaBucket {

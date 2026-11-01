@@ -35,8 +35,12 @@ CURATED = {
     "POST /api/electro/uploads/{asset_id}/slice": "按模式切图（整图/表格/行带/密集文字）",
     "GET /api/electro/uploads/{asset_id}": "取上传资产的元信息与切片清单",
     "GET /api/electro/uploads/{asset_id}/{filename}": "取原图或某张切片（二进制）",
-    "GET /api/electro/guides": "指导书列表，**只含已发布**（草稿不进列表）",
+    "GET /api/electro/guides": "指导书列表，**只含已发布**（草稿不进列表）；`q` 按标题/摘要/来源说明子串搜索",
     "GET /api/electro/guides/{guide_id}": "指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读",
+    "PATCH /api/electro/guides/{guide_id}":
+        "修正草稿文字与判据值（需口令令牌）：不能增删步骤、不能换判据类型；已发布 409",
+    "POST /api/electro/guides/{guide_id}/publish":
+        "发布草稿（需口令令牌）：每步必须有验收判据，缺一项即 409 并列出缺口",
     "PUT /api/electro/guides/{guide_id}/assets": "草稿素材归位：全量重排已有素材到步骤/素材区；已发布 409",
     "POST /api/electro/generate": "提交生成任务，返回 202 + job_id（单 worker 有界队列）",
     "GET /api/electro/jobs/{job_id}": "轮询生成任务状态，成功后带 guide_id",
@@ -47,15 +51,16 @@ CURATED = {
     "POST /api/electro/sessions/{session_id}/steps/{seq}": "提交一步实测值；**必须带 Idempotency-Key**，判定在服务端",
     "POST /api/electro/sessions/{session_id}/finish": "结束会话（done 需全部通过 / aborted 可随时）",
     "GET /api/electro/records/{session_id}": "整份作业记录（按步骤分组、含每次尝试与异常链）",
-    "POST /api/electro/diagnose": "按现象检索故障知识库；查不到返回 uncovered_reason",
+    "POST /api/electro/diagnose": "按现象检索故障知识库；查不到返回 uncovered_reason；`stream=1` 时按 recall→rerank→done 三帧 SSE 推送",
     "GET /api/electro/diagnose/kb": "知识库覆盖范围（子系统、条目数、版本）",
     "POST /api/electro/diagnose/runs": "开始逐步诊断（故障树）：返回条目、首个检查项与候选",
     "GET /api/electro/diagnose/runs/{run_id}": "取逐步诊断状态：已填步骤、当前检查、结论",
     "POST /api/electro/diagnose/runs/{run_id}/checks/{order}":
         "回填一项检查（确认 pass/fail 或实测值），由服务端判定并推进",
     "POST /api/electro/diagnose/runs/{run_id}/abort": "中止逐步诊断，保留已完成步骤",
-    "POST /api/electro/extract": "图片单通道识别：只转录可见文字，结果回填文本、必须人工核对，不落库、不自动生成",
+    "POST /api/electro/extract": "图片识别：默认双通道（先转录后结构化），失败回退单通道并标注；不落库、不自动生成",
     "POST /api/electro/processes": "工艺文本预检：规则解析工序/工位/工具/安全与判据线索，不调模型、不落库、不扣配额",
+    "POST /api/electro/fe-error": "前端错误上报：只写日志、不落库；字段白名单 + 单 IP 30/时限流",
     "GET /api/electro/records/{session_id}/export.html": "导出作业记录为自包含 HTML（内联样式、无脚本、离线可读）",
     "POST /api/electro/uploads/{asset_id}/slice/{region_id}/adopt": "把切块复制成独立素材（记 derived_from，每源图 6 次上限）",
 }

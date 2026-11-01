@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { ApiError, getJson, postForm, postJson } from '../lib/http'
+import { announce } from '../lib/announce'
 import type {
   ExtractResult,
   GenerateAccepted,
@@ -523,6 +524,8 @@ function handleError(err: unknown): void {
   }
   phase.value = 'error'
   lastJobFailed.value = false
+  // 失败必须打断朗读：轮询出错时用户可能已经转身走开，只靠红字没人看得到。
+  announce(errorText.value, 'assertive')
   void loadQuota()
 }
 
@@ -618,6 +621,7 @@ async function poll(): Promise<void> {
       stopTimers()
       clearStoredJob()
       resumed.value = false
+      announce('生成完成，正在打开草稿')
       await router.push({ name: 'guide', params: { id: snap.guide_id }, query: { draft: '1' } })
       return
     }
@@ -629,6 +633,7 @@ async function poll(): Promise<void> {
       errorCode.value = snap.error_code ?? ''
       errorText.value = humanError(snap.error_code, snap.error_message)
       phase.value = 'error'
+      announce(errorText.value, 'assertive')
       void loadQuota()
       return
     }
@@ -888,6 +893,17 @@ onBeforeUnmount(() => {
           <p class="hint">
             转录 {{ extractResult.stats.lines }} 行，识别 {{ extractResult.stats.steps }} 步，其中
             {{ extractResult.stats.verified_steps }} 步逐字匹配原文。
+          </p>
+          <p class="hint">
+            <template v-if="extractResult.channels.mode === 'dual'">
+              双通道：转录 {{ extractResult.channels.transcribe?.lines ?? 0 }} 行 →
+              结构化 {{ extractResult.channels.structure?.steps ?? 0 }} 步，
+              引用 {{ Math.round((extractResult.channels.structure?.coverage ?? 0) * 100) }}% 的转录行
+            </template>
+            <template v-else>单通道识别（一次调用出结果）</template>
+          </p>
+          <p v-if="extractResult.channels.fallback" class="asset-error">
+            · 已降级到单通道（{{ extractResult.channels.fallback }}）：少了一层"字段必须能在原文里找到"的校验，请逐条核对。
           </p>
           <p
             v-for="(item, index) in extractResult.unverified.slice(0, 6)"

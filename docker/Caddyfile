@@ -32,8 +32,20 @@ http://{$SITE_DOMAIN:localhost}, http://www.{$SITE_DOMAIN:localhost} {
 	}
 
 	# ---- API：仅 electro（news 已下架，见 ADR-0002）----
-	# B 排查自 2026-10-20 起是一次性 JSON（决策 #19），不再需要 SSE 的
-	# flush_interval -1 / 300s 读超时；这里走通用反代，避免长连接占着资源。
+	# B 排查支持流式（决策 #36）：`stream=1` 时按 recall → rerank → done 三帧推送。
+	# SSE 必须关掉响应缓冲（`flush_interval -1`），否则三帧会堆到最后一起吐，
+	# 前端看到的仍然是"等 3 秒然后全部出现"；`read_timeout` 给到 300s 是因为
+	# 重排那一步是模型调用，默认超时会把它掐断。
+	# 非流式请求走同一个后端，只是多了一次不缓冲——对一次性 JSON 无影响。
+	handle /api/electro/diagnose* {
+		reverse_proxy 127.0.0.1:8001 {
+			flush_interval -1
+			transport http {
+				read_timeout 300s
+			}
+		}
+	}
+
 	handle /api/electro/uploads* {
 		request_body {
 			max_size 6MB

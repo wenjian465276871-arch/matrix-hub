@@ -59,6 +59,29 @@ function parseRetryAfter(header: string | null, bodyValue: number | undefined): 
   return seconds > 0 ? seconds : undefined
 }
 
+/** 把错误响应的 body 翻成 `ApiError`。SSE 与普通请求共用——
+ *  两处各写一份的话，"429 该显示什么"会慢慢分叉。 */
+export async function parseErrorResponse(res: Response): Promise<ApiError> {
+  let code: string | undefined
+  let message: string | undefined
+  let ref: string | undefined
+  let retryAfterBody: number | undefined
+  try {
+    const body = (await res.json()) as ErrorBody
+    code = body.detail?.code
+    message = body.detail?.message
+    retryAfterBody = body.detail?.retry_after
+    // 服务端 500 会带 ref：显示出来，用户报障时能对上日志。
+    ref = body.detail?.ref || res.headers.get('X-Request-Id') || undefined
+  } catch {
+    ref = res.headers.get('X-Request-Id') || undefined
+  }
+  const kind: ApiErrorKind = res.status === 429 ? 'ratelimit' : 'server'
+  const shown = message ? (ref ? `${message}（错误号 ${ref}）` : message) : undefined
+  const retryAfter = parseRetryAfter(res.headers.get('Retry-After'), retryAfterBody)
+  return new ApiError(kind, res.status, code, shown, ref, retryAfter)
+}
+
 async function request<T>(
   path: string,
   init: RequestInit,
@@ -86,26 +109,7 @@ async function request<T>(
   }
 
   if (res.status === 404) throw new ApiError('notfound', 404)
-  if (!res.ok) {
-    let code: string | undefined
-    let message: string | undefined
-    let ref: string | undefined
-    let retryAfterBody: number | undefined
-    try {
-      const body = (await res.json()) as ErrorBody
-      code = body.detail?.code
-      message = body.detail?.message
-      retryAfterBody = body.detail?.retry_after
-      // 服务端 500 会带 ref：显示出来，用户报障时能对上日志。
-      ref = body.detail?.ref || res.headers.get('X-Request-Id') || undefined
-    } catch {
-      ref = res.headers.get('X-Request-Id') || undefined
-    }
-    const kind: ApiErrorKind = res.status === 429 ? 'ratelimit' : 'server'
-    const shown = message ? (ref ? `${message}（错误号 ${ref}）` : message) : undefined
-    const retryAfter = parseRetryAfter(res.headers.get('Retry-After'), retryAfterBody)
-    throw new ApiError(kind, res.status, code, shown, ref, retryAfter)
-  }
+  if (!res.ok) throw await parseErrorResponse(res)
 
   return (await res.json()) as T
 }
@@ -151,6 +155,29 @@ export function putJson<T>(
     path,
     {
       method: 'PUT',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+      body: JSON.stringify(body),
+    },
+    options.signal,
+    options.timeoutMs,
+  )
+}
+
+/** `PATCH`：只发改动过的字段。语义与 PUT 不同——
+ *  PUT 是"整份换成这个"，PATCH 是"把这几处改掉"，后端的合并逻辑依赖这个区别。 */
+export function patchJson<T>(
+  path: string,
+  body: unknown,
+  options: PostOptions = {},
+): Promise<T> {
+  return request<T>(
+    path,
+    {
+      method: 'PATCH',
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/json',
