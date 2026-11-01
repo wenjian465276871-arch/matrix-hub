@@ -19,7 +19,7 @@ RUN npm run build
 RUN node -e "const fs=require('fs');const s=fs.readFileSync('dist/index.html','utf8');if(/<script(?![^>]*\bsrc=)|<style[\s>]/.test(s)){console.error('CSP 违规：产物含内联 script/style');process.exit(1)}"
 
 # ---- 运行镜像 ----
-FROM python:3.12-slim
+FROM python:3.15-slim
 
 ARG APP_UID=10001
 ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
