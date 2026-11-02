@@ -69,15 +69,26 @@ http://{$SITE_DOMAIN:localhost}, http://www.{$SITE_DOMAIN:localhost} {
 
 	# ---- 静态：电气调试助手（Vue SPA）----
 	handle_path /apps/electro-assist/* {
-		root * /srv/static/electro
+		# 带内容 hash 的产物：一年缓存，且**缺文件必须 404**。
+		# 不能走下面的 SPA 回退：2026-11-02 线上真实故障——页面停在发版前的旧 bundle，
+		# 任务成功要跳详情页时请求已删除的 `GuideView-<旧hash>.js`，回退返回 index.html(200)，
+		# 浏览器拿 HTML 当 JS 解析必然失败，`router.push` 抛错被轮询的 catch 吞掉，
+		# 前端表现成"一直转圈到 90 秒超时"，而服务端 29 秒就生成完了。
+		handle /assets/* {
+			root * /srv/static/electro
+			header Cache-Control "public, max-age=31536000, immutable"
+			file_server
+		}
 
-		# 带内容 hash 的产物长缓存；index.html 每次回源，避免发版后看到旧页面。
-		@hashed path /assets/*
-		header @hashed Cache-Control "public, max-age=31536000, immutable"
-		header /index.html Cache-Control "no-cache"
-
-		try_files {path} /index.html
-		file_server
+		# 其余（HTML 与 SPA 路由）：每次回源。`no-cache` 允许 304，省流量但不给旧页面。
+		# 之前把 `header /index.html` 写在 try_files 外面是无效的：直接访问 `/`
+		# 时请求路径不是 `/index.html`，`try_files` 只是内部改写，匹配不到。
+		handle {
+			root * /srv/static/electro
+			header Cache-Control "no-cache"
+			try_files {path} /index.html
+			file_server
+		}
 	}
 
 	# ---- 门户 ----

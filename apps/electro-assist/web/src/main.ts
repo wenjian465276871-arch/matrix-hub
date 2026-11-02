@@ -49,4 +49,19 @@ window.addEventListener('unhandledrejection', (event) => {
   })
 })
 
+/** 发版后旧页面引用已删除的 chunk 时，Vite 会派发 `vite:preloadError`。
+ *
+ *  不接这个事件，表现就是"点导航没反应"：动态 import 失败，路由停在原地。
+ *  2026-11-02 线上真实故障就是这个——旧 bundle 的 `GuideView-<旧hash>.js` 已被新镜像删掉，
+ *  而 Caddy 的 SPA 回退还给它返回了 index.html(200)，浏览器把 HTML 当 JS 解析直接报错。
+ *  处理方式只有一种：硬刷新，换上新 index.html 引用的新产物。10 秒内只刷一次，防死循环。
+ */
+window.addEventListener('vite:preloadError', () => {
+  const last = Number(sessionStorage.getItem('electro:chunk-reload-at') || 0)
+  if (Date.now() - last > 10_000) {
+    sessionStorage.setItem('electro:chunk-reload-at', String(Date.now()))
+    window.location.reload()
+  }
+})
+
 app.use(router).mount('#app')

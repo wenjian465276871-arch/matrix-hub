@@ -161,7 +161,7 @@ pip install --dry-run --require-hashes -r requirements.lock
 升级需要同步抬 FastAPI 并回归 301 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
 
 
-**前端 E2E（2026-10-21 进 CI，现 20 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）；`tests/e2e/polish.spec.ts` 四条收尾——800ms 转骨架、路由焦点归位、列表加载更多、打印表头重复。
+**前端 E2E（2026-10-21 进 CI，现 24 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）；`tests/e2e/polish.spec.ts` 四条收尾——800ms 转骨架、路由焦点归位、列表加载更多、打印表头重复。
 
 ```bash
 # 本地：先起 API（临时库）与 preview，再跑
@@ -342,6 +342,7 @@ POST /api/electro/guides/{id}/publish    X-Passcode-Token: <token>
 | 在微信里打印 | 无法调起系统打印 | 先"在浏览器中打开" |
 | 本地 `curl` 走了系统代理 | 连不上/证书错误 | `curl --noproxy '*'` |
 | 清理函数顺手清多了 | `stopTimers()` 把慢提示定时器一起清掉，骨架永远不出现，只剩一个转圈的按钮 | 按生命周期分组命名：慢提示用 `clearSlowTimer()`，只在取消/卸载时清（2026-11-01 自造 bug） |
+| SPA 回退把缺失的 chunk 当页面返回 | 发版后旧页面点开详情没反应/空转到超时：请求已删除的 `GuideView-<旧hash>.js`，Caddy `try_files` 回退返回 index.html(200)，浏览器把 HTML 当 JS 解析必然失败。而且这个异常落在轮询的 `catch` 里，被当成网络抖动重新拉起轮询（2026-11-02 线上，服务端 29 秒已成功） | 带 hash 的 `/assets/*` 单独 `file_server`、**缺文件就 404**，只有非资源路径才回退 index.html；`index.html` 显式 `Cache-Control: no-cache`（写在 `try_files` 外面匹配不到，因为请求路径是 `/`）；前端跳转失败单独兜住并硬刷新自愈（`main.ts` 的 `vite:preloadError` + `NewGuideView` 的 `stale_page`） |
 | 判"内容有没有变"用计数 | 刷新样例时"动效从 A 图挪到 B 图"不改图数/原语数/动效数，被判 `[SAME]` 跳过 | 比**规范化后的内容**（`sort_keys` JSON），计数只作摘要（2026-10-31） |
 
 ## 8. 不要做的事

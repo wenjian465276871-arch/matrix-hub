@@ -69,7 +69,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 100** / LCP **1.31s** / CLS **0** / TBT **70ms**；指导书页 **99** / **1.29s** / **0** / **124.5ms** | Lighthouse 13.5 + `scripts/lighthouse.mjs`（2026-10-23 线上） |
 | 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
 | 契约面 | **33 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
-| 前端 E2E | **20 条**：6 条冒烟 + 抽屉/暗色/打印/取消 4 条 + 续接/倒计时/90s/隐私 4 条 + 横屏两栏 1 条 + 窄屏/键盘/表格堆叠/放大/仍要提交 1 条 + **800ms 转骨架 / 路由焦点 / 加载更多 / 打印表头 4 条** | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
+| 前端 E2E | **24 条**：6 条冒烟 + 抽屉/暗色/打印/取消 4 条 + 续接/倒计时/时间预算/隐私/成功即跳转 5 条 + 横屏两栏 1 条 + 窄屏/键盘/表格堆叠/放大/仍要提交 1 条 + **800ms 转骨架 / 路由焦点 / 加载更多 / 打印表头 4 条** + 修正与搜索 2 条 + 上一轮增量 1 条 | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
 
 ### 4.1 这组数字是怎么来的，以及它抓到了什么
 

@@ -115,3 +115,38 @@ test('隐私与数据：页脚入口可达，保留期写清楚', async ({ page 
   await expect(page.getByText('30 天').first()).toBeVisible()
   await expect(page.getByText('180 天').first()).toBeVisible()
 })
+
+test('拿到 succeeded 立刻进草稿页，不空转到超时', async ({ page }) => {
+  // 2026-11-02 线上：服务端 29 秒就成功，前端却一路转圈到 95 秒报 client_timeout。
+  // 根因是跳转失败（旧 bundle 的懒加载 chunk 已被发版删除）被外层 catch 当成网络抖动，
+  // 轮询被重新拉起。这条用例锁住"成功即跳转"这个最基本的契约。
+  await mockGenerate(page)
+
+  let hits = 0
+  await page.route('**/api/electro/jobs/**', (route) => {
+    hits += 1
+    const body =
+      hits < 2
+        ? running()
+        : running({
+            status: 'succeeded',
+            guide_id: 'g_0123456789abcdef',
+            finished_at: '2026-11-02T08:16:27+00:00',
+            duration_ms: 29000,
+            poll_after_ms: 0,
+          })
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    })
+  })
+
+  // 草稿页自己会拉详情；这里给 404 就够——断言的是"有没有跳过去"，不是详情内容
+  await page.route('**/api/electro/guides/**', (route) =>
+    route.fulfill({ status: 404, contentType: 'application/json', body: '{"detail":{"code":"not_found"}}' }),
+  )
+
+  await fillAndSubmit(page)
+  await expect(page).toHaveURL(/\/guide\/g_0123456789abcdef/, { timeout: 15_000 })
+})

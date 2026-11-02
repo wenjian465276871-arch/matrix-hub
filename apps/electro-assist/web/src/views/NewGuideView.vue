@@ -27,6 +27,8 @@ const HARD_TIMEOUT_MS = SERVER_BUDGET_MS + CLIENT_GRACE_MS
  *  800ms 是个取舍点：多数生成 8–15 秒，但让 1 秒内失败的请求也整页闪一次骨架，
  *  比"什么都没发生"更像卡死。 */
 const SLOW_HINT_MS = 800
+/** 跳详情页时懒加载 chunk 已从服务器删除 → 硬刷新自愈；10 秒内只自愈一次，防死循环。 */
+const CHUNK_RELOAD_KEY = 'electro:chunk-reload-at'
 
 const SAMPLE_TEXT = `工序：客室侧门开关门功能试验（演示文本，参数为示例值）
 
@@ -639,10 +641,26 @@ async function poll(): Promise<void> {
 
     if (snap.status === 'succeeded' && snap.guide_id) {
       stopTimers()
-      clearStoredJob()
       resumed.value = false
       announce('生成完成，正在打开草稿')
-      await router.push({ name: 'guide', params: { id: snap.guide_id }, query: { draft: '1' } })
+      try {
+        await router.push({ name: 'guide', params: { id: snap.guide_id }, query: { draft: '1' } })
+        clearStoredJob()
+      } catch {
+        // 发版后旧页面的懒加载 chunk 已从服务器删除，push 会因模块加载失败而拒绝。
+        // 必须在这里兜住：以前它落进外层 catch 被当成"网络抖动"，轮询被重新拉起，
+        // 任务明明成功却一路空转到超时（2026-11-02 线上真实故障）。
+        // 刷新后拿到新 bundle，sessionStorage 里的 job 会让页面续接并自动打开草稿。
+        const last = Number(sessionStorage.getItem(CHUNK_RELOAD_KEY) || 0)
+        if (Date.now() - last > 10_000) {
+          sessionStorage.setItem(CHUNK_RELOAD_KEY, String(Date.now()))
+          window.location.reload()
+        } else {
+          errorText.value = '页面资源已更新，请刷新后重试；任务已完成，刷新即可打开草稿。'
+          errorCode.value = 'stale_page'
+          phase.value = 'error'
+        }
+      }
       return
     }
     if (snap.status === 'failed' || snap.status === 'timeout') {
