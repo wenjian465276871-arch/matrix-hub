@@ -49,10 +49,15 @@ router = APIRouter(prefix="/api/electro", tags=["extract"])
 log = logging.getLogger("electro.extract")
 
 MAX_IMAGES = 3
-# 通道 A 要处理图片，给 60s；通道 B 只吃文本，40s 足够。
+# 通道 A 要处理图片，给 60s；通道 B 只吃文本，45s 足够。
 VISION_TIMEOUT_S = 60.0
-TEXT_TIMEOUT_S = 40.0
-MAX_TOKENS = 3000
+TEXT_TIMEOUT_S = 45.0
+# **不要按"输出多长"来估这个值**。deepseek-flash 默认走思考模式，reasoning
+# 也计入 completion：2026-11-02 实测一张中文密集表格，reasoning 一个人吃掉
+# 3000 tokens，正文一个字没输出就撞上上限（truncated）。
+# 3000 是原来的值，就是那次失败的直接原因。给到 8192 才够「想清楚 + 说完」。
+VISION_MAX_TOKENS = 8192
+TEXT_MAX_TOKENS = 8192
 
 # 单通道模式仍要能跑：老部署的环境变量里没有这个键时默认 dual。
 DEFAULT_MODE = "dual"
@@ -148,10 +153,19 @@ def extract(payload: ExtractIn, request: Request) -> dict:
             },
         ) from exc
 
-    if mode() == "single":
-        result, channels = _run_single(provider, images)
-    else:
-        result, channels = _run_dual(provider, images)
+    # LLMError 必须在这里拦住。`_vision` 会重新抛出原始异常（它自己只负责记账），
+    # 漏了这一层就会被 main.py 的兜底处理器接成 500「服务内部错误」，
+    # 前端拿不到 504、用户看不到「超时」这两个字，日志里还多一份无用的堆栈。
+    try:
+        if mode() == "single":
+            result, channels = _run_single(provider, images)
+        else:
+            result, channels = _run_dual(provider, images)
+    except LLMError as exc:
+        raise HTTPException(
+            status_code=_status_for(exc.kind),
+            detail={"code": f"extract_{exc.kind}", "message": str(exc)},
+        ) from exc
 
     return {
         **result,
@@ -213,7 +227,9 @@ def _run_dual(provider, images: list[str]) -> tuple[dict, dict]:
                 "properties": {"fields": {"type": "object"}, "warnings": {"type": "array"}},
             },
             timeout_s=TEXT_TIMEOUT_S,
-            max_tokens=MAX_TOKENS,
+            max_tokens=TEXT_MAX_TOKENS,
+            # 结构化阶段只做排版，不需要推理链；关掉思考省一半延迟和四分之三成本。
+            thinking=False,
         )
         _record(b)
         struct = StructurePayload.model_validate_json(extract_json(b.text))
@@ -273,7 +289,7 @@ def _vision(provider, system: str, user: str, images: list[str]):
             user=user,
             images=images,
             timeout_s=VISION_TIMEOUT_S,
-            max_tokens=MAX_TOKENS,
+            max_tokens=VISION_MAX_TOKENS,
         )
     except LLMError as exc:
         _record_error(exc)

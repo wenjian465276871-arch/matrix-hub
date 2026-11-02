@@ -80,6 +80,7 @@ class DeepSeekProvider:
         schema: dict[str, Any],
         timeout_s: float,
         max_tokens: int = 4096,
+        thinking: bool = True,
     ) -> Completion:
         # DeepSeek 的 json_object 模式不接受 schema 参数，schema 是通过 system prompt
         # 注入的（见 prompts.py）。这里保留参数是为了接口与"支持 json_schema 的厂商"对齐。
@@ -94,6 +95,9 @@ class DeepSeekProvider:
             "response_format": {"type": "json_object"},
             "max_tokens": max_tokens,
             "temperature": 0.2,
+            # 生成指导书要思考（判断该拆几步、判据放哪）；识别链路的结构化不需要，
+            # 它只是把已经抄好的文本排版成 JSON。默认开，由调用方按场景关。
+            "thinking": {"type": "enabled" if thinking else "disabled"},
             "stream": False,
         }
 
@@ -151,6 +155,12 @@ class DeepSeekProvider:
             ],
             "max_tokens": max_tokens,
             "temperature": 0.0,
+            # 转录是**抄字**，不是推理。deepseek-flash 默认 reasoning_effort=high，
+            # 2026-11-02 实测一张中文表格：reasoning 一个人吃掉 3000 tokens、
+            # 正文一个字没输出，整次调用 30 秒还撞上限失败。
+            # 关掉思考后同一类图 5–8 秒出结果，成本降到约 1/4，
+            # 也不会因为"想多了"而改写原文——这对"不许补写"的约束反而更有利。
+            "thinking": {"type": "disabled"},
             "stream": False,
         }
 

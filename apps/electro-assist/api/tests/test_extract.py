@@ -63,9 +63,16 @@ class StubVision:
 
     name = "stub-vision"
 
-    def __init__(self, text: str, *, structure_text: str | None = None):
+    def __init__(
+        self,
+        text: str,
+        *,
+        structure_text: str | None = None,
+        error: LLMError | None = None,
+    ):
         self.text = text
         self.structure_text = structure_text
+        self.error = error
         self.calls: list[dict] = []
         self.structured_calls: list[dict] = []
         try:
@@ -75,6 +82,8 @@ class StubVision:
 
     def vision(self, **kwargs) -> Completion:
         self.calls.append(kwargs)
+        if self.error is not None:
+            raise self.error
         system = kwargs.get("system", "")
         # 转录通道的提示词以「只做一件事」起头（见 llm/extract.TRANSCRIBE_SYSTEM）。
         if "只做一件事" in system and isinstance(self.data, dict):
@@ -276,6 +285,52 @@ def test_invalid_json_returns_502(tmp_uploads, monkeypatch):
     r = client.post("/api/electro/extract", json={"asset_ids": [asset]})
     assert r.status_code == 502
     assert r.json()["detail"]["code"] == "extract_invalid"
+
+
+def test_vision_timeout_returns_504(tmp_uploads, monkeypatch):
+    """模型超时必须映射成 504，而不是被兜底处理器接成 500。
+
+    这条是 2026-11-02 线上事故的回归测试：重写双通道时把 `extract()` 里
+    那层 `except LLMError` 弄丢了，超时冒泡到 `main.py` 的兜底处理器，
+    前端拿到「服务内部错误」，日志里还多一份无意义的堆栈。
+    """
+    asset = _asset()
+    error = LLMError("timeout", "图片识别超过 60s")
+    monkeypatch.setattr(extract_router, "get_provider", lambda: StubVision("", error=error))
+
+    r = client.post("/api/electro/extract", json={"asset_ids": [asset]})
+    assert r.status_code == 504
+    assert r.json()["detail"]["code"] == "extract_timeout"
+
+
+def test_vision_truncated_returns_502(tmp_uploads, monkeypatch):
+    """输出被 max_tokens 截断：要说「内容太多」，不能只说"失败"。
+
+    实测教训：`deepseek-flash` 的 reasoning 也计入 completion，
+    3000 的上限被思考吃满，正文一个字都没输出。
+    """
+    asset = _asset()
+    error = LLMError("truncated", "输出被截断")
+    monkeypatch.setattr(extract_router, "get_provider", lambda: StubVision("", error=error))
+
+    r = client.post("/api/electro/extract", json={"asset_ids": [asset]})
+    assert r.status_code == 502
+    assert r.json()["detail"]["code"] == "extract_truncated"
+
+
+def test_vision_budget_is_8192_tokens(tmp_uploads, monkeypatch):
+    """识别链路的 max_tokens 必须留够"想 + 说"的空间。
+
+    3000 是事故值；这条断言防的是有人顺手把它调回去。
+    """
+    asset = _asset()
+    text = _payload(lines=["1. 检查门机"], steps=[{"seq": 1, "action": "检查门机"}])
+    stub = StubVision(text)
+    monkeypatch.setattr(extract_router, "get_provider", lambda: stub)
+
+    assert client.post("/api/electro/extract", json={"asset_ids": [asset]}).status_code == 200
+    assert stub.calls[0]["max_tokens"] >= 8192
+    assert stub.structured_calls[0]["max_tokens"] >= 8192
 
 
 def test_rate_limited(tmp_uploads, monkeypatch):

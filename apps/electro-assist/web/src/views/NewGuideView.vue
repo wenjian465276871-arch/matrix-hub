@@ -422,14 +422,26 @@ const extractBusy = ref(false)
 const extractResult = ref<ExtractResult | null>(null)
 const extractError = ref('')
 
+/** 识别是**两次模型调用**（先转录、再结构化），且图片越密越慢。
+ *  实测一张中文表格 40 行的图要 30 秒；用默认的 15 秒会在后端还在跑时
+ *  就把连接掐掉，用户只看到 "timeout"，服务端白跑一次还照扣成本。
+ *  这里给到 120 秒，比后端 60+45 秒的上限留出传输余量。 */
+const EXTRACT_TIMEOUT_MS = 120_000
+
 async function runExtract(): Promise<void> {
   if (extractBusy.value || !staged.value.length) return
   extractBusy.value = true
   extractError.value = ''
   try {
-    extractResult.value = await postJson<ExtractResult>('/api/electro/extract', {
-      asset_ids: staged.value.slice(0, 3).map((item) => item.asset_id),
-    })
+    extractResult.value = await postJson<ExtractResult>(
+      '/api/electro/extract',
+      { asset_ids: staged.value.slice(0, 3).map((item) => item.asset_id) },
+      { timeoutMs: EXTRACT_TIMEOUT_MS },
+    )
+    announce(
+      `识别完成：转录 ${extractResult.value.stats.lines} 行，识别 ${extractResult.value.stats.steps} 步，` +
+        '请对着原图核对后再填入',
+    )
   } catch (err) {
     extractResult.value = null
     if (err instanceof ApiError && err.code === 'vision_not_configured') {
@@ -438,6 +450,12 @@ async function runExtract(): Promise<void> {
       extractError.value = err.message || '识别过于频繁，请稍后再试。'
     } else if (err instanceof ApiError && err.code === 'extract_invalid') {
       extractError.value = '这张图没读出可用的结构，换一张更清晰的截图试试。'
+    } else if (err instanceof ApiError && err.code === 'extract_truncated') {
+      extractError.value =
+        '图里内容太多，模型没写完就到上限了。分两张拍（比如上半页 / 下半页）再识别。'
+    } else if (err instanceof ApiError && (err.code === 'extract_timeout' || err.kind === 'timeout')) {
+      extractError.value =
+        '识别超时（等了 120 秒）。这张图内容偏多，换一张只拍关键区域的图再试；配额不因失败丢失。'
     } else {
       extractError.value = err instanceof ApiError ? err.message : '识别失败，请稍后再试。'
     }
@@ -846,6 +864,11 @@ onBeforeUnmount(() => {
       <p class="hint">
         图片可用于排版（挂到哪一步由你在草稿页决定），也可以点「识别图中内容」转成文本草稿；
         识别会把图片发送到模型服务，结果必须对着原图核对。请勿上传含企业名称、工号、图纸编号等敏感信息的截图。
+      </p>
+      <!-- 识别要跑两次模型调用，密集中文表格实测约 30 秒。没有这条提示，
+           用户会以为页面卡死然后刷新——白等一次还照扣成本。 -->
+      <p v-if="extractBusy" class="hint hint--busy" role="status">
+        正在识别：先逐行转录、再整理结构，共两次模型调用。内容多的图约 20–40 秒，请勿关闭页面。
       </p>
       <p v-if="assetError" class="asset-error" role="alert">{{ assetError }}</p>
 
@@ -1355,6 +1378,12 @@ onBeforeUnmount(() => {
   margin: 8px 0 0;
   color: var(--c-ink-3);
   font-size: 13px;
+}
+
+/* 等待提示要比普通提示显眼：它是这一屏唯一在动的信息 */
+.hint--busy {
+  color: var(--c-primary-ink);
+  font-weight: 600;
 }
 
 .passcode {

@@ -134,6 +134,11 @@ class LLMProvider(Protocol):
         schema: dict[str, Any],
         timeout_s: float,
         max_tokens: int = 4096,
+        thinking: bool = True,
     ) -> Completion:
-        """要求模型输出符合 `schema` 的 JSON，返回原始文本（校验在调用方做）。"""
+        """要求模型输出符合 `schema` 的 JSON，返回原始文本（校验在调用方做）。
+
+        `thinking` 默认开：生成指导书需要判断"该拆几步、判据放哪"。
+        识别链路的结构化只是排版，传 `False` 能把延迟与 reasoning token 一起压下来。
+        """
         ...
