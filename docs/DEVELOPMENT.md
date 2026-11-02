@@ -272,6 +272,14 @@ POST /api/electro/guides/{id}/publish    X-Passcode-Token: <token>
 是"看起来合理"的补数——`1.0–2.0s` 和 `2.0–3.5s` 在页面上一样整齐，
 现场照着做才知道错。校验逻辑宁可多标 `unverified`，也不放行一个没出处的数。
 
+**结构容忍性（2026-11-02 补）**：识别结果的三层校验只该判"内容对不对"，不该判"位置偏没偏"。
+`fields.warnings` 被模型写进 `fields` 里、多给一个 `table` 键、`source_line` 越界，
+这三类都会让一份**转录完全正确**的结果整份作废（线上真实故障：宽表截图，20 行转录无误，
+只因 warnings 多嵌了一层就返回 `extract_invalid`）。现在的口径是：
+`warnings` 上提到顶层并合并、未知键丢弃、越界行号置空。
+唯一保留 `extra="forbid"` 的是 `TranscribePayload`——它是通道 A 的降级触发器，不是同一类问题。
+502 之前必须把校验细节写进日志，否则线上只有一句泛化文案，排查只能重跑模型。
+
 未配置 `DEEPSEEK_API_KEY` 时返回 503 `vision_not_configured`，不是 500——
 这是配置缺失，不是服务故障，前端要能据此提示"手工录入"。
 
