@@ -122,6 +122,23 @@ def motion_slots() -> dict[str, list[str]]:
     return {p.value: sorted(slots) for p, slots in _MOTION_SLOTS.items()}
 
 
+def stroke_slots() -> dict[str, list[str]]:
+    """描边槽位：`flow` / `draw` 只对这些槽位有效。
+
+    单独导出是因为这条规则**只在代码里存在过**：prompt 只列了「每个原语能取哪些
+    target」，没说 anim 与 target 的组合限制。2026-11-02 线上实测，模型给非描边
+    槽位挂了 `draw`，两次调用全部作废（62s / ¥0.10）。
+    """
+    grouped: dict[str, list[str]] = {}
+    for primitive, slot in _STROKE_SLOTS:
+        grouped.setdefault(primitive.value, []).append(slot)
+    return {name: sorted(slots) for name, slots in grouped.items()}
+
+
+def stroke_only_anims() -> list[str]:
+    return sorted(anim.value for anim in _STROKE_ONLY_ANIMS)
+
+
 class MotionTrack(BaseModel):
     """一条动效轨道，对应计划 §2.1 的 `tracks[{target, anim, duration}]`。
 

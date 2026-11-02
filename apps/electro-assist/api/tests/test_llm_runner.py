@@ -200,6 +200,17 @@ def test_system_prompt_lists_all_primitives():
     assert "演示数据 · 非实际作业依据" in text
 
 
+def test_system_prompt_states_stroke_only_rule():
+    """描边动效的组合限制必须写进提示词。
+
+    2026-11-02 线上：模型给非描边槽位挂了 draw，两次调用全部作废。
+    这条规则当时只存在于校验代码里，模型没有任何机会知道。
+    """
+    text = system_prompt()
+    assert "flow_arrow.arrow" in text and "meter.needle" in text
+    assert "只能用在" in text
+
+
 def test_cost_uses_peak_or_idle_by_time():
     provider = FakeProvider([VALID])
     peak = generate_guide(
@@ -242,3 +253,60 @@ def test_is_demo_forced_true_by_server():
 
     assert draft.attempts == 1  # 覆盖发生在校验前，不触发自纠
     assert draft.guide.meta.is_demo is True
+
+
+def _payload_with_bad_motion() -> str:
+    """把样例里 status_light 的 pulse 换成 draw：draw 只允许描边槽位。"""
+    data = json.loads(VALID)
+    for step in data["steps"]:
+        for figure in step.get("figures", []):
+            if figure["primitive"] == "status_light":
+                figure["motion"] = [{"target": "lamp", "anim": "draw", "duration": 900}]
+    return json.dumps(data, ensure_ascii=False)
+
+
+def test_bad_motion_is_degraded_without_retry():
+    """只错一条动效时，不该整份作废，更不该为它再烧一次模型调用。"""
+    provider = FakeProvider([_payload_with_bad_motion()])
+
+    draft = generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=Clock())
+
+    assert draft.attempts == 1
+    assert len(provider.calls) == 1  # 没走第二次调用
+    assert draft.repaired is False
+    assert any("描边" in note for note in draft.repairs)
+    # 图还在，只是那条非法动效被去掉
+    figures = [fig for step in draft.guide.steps for fig in step.figures]
+    light = next(fig for fig in figures if fig.primitive.value == "status_light")
+    assert light.motion == []
+    assert any(fig.primitive.value == "meter" for fig in figures)
+
+
+def test_broken_figure_falls_back_to_text_only():
+    """图示本身不合法 → 去掉图示，正文与判据一字不动。"""
+    data = json.loads(VALID)
+    data["steps"][0]["figures"] = [
+        {"primitive": "hologram", "params": {}, "fallback_text": "不存在的原语"}
+    ]
+    provider = FakeProvider([json.dumps(data, ensure_ascii=False)])
+
+    draft = generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=Clock())
+
+    assert draft.attempts == 1
+    assert len(provider.calls) == 1
+    assert any("图示不合法" in note for note in draft.repairs)
+    # 只丢出错的那一步，其余图必须保住
+    assert not draft.guide.steps[0].figures
+    assert all(step.figures for step in draft.guide.steps[1:])
+    # 降级不能碰正文：步骤数与第一段 action 原样保留
+    assert len(draft.guide.steps) == len(json.loads(VALID)["steps"])
+    assert draft.guide.steps[0].action == json.loads(VALID)["steps"][0]["action"]
+
+
+def test_content_error_is_not_masked_by_degradation():
+    """正文缺字段属于内容问题，降级救不了，必须照旧重跑再报错。"""
+    provider = FakeProvider(['{"id": "g_no_steps"}', '{"id": "g_no_steps_2"}'])
+    with pytest.raises(LLMError) as info:
+        generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=Clock())
+    assert info.value.kind == "validation"
+    assert len(provider.calls) == 2

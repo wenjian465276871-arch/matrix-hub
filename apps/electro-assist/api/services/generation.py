@@ -164,12 +164,14 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
             cost_micros=draft.cost_micros,
         )
         log.info(
-            "生成成功 job=%s guide=%s attempts=%d %.1fs ¥%.4f",
+            "生成成功 job=%s guide=%s attempts=%d %.1fs ¥%.4f%s",
             job_id,
             saved["id"],
             draft.attempts,
             draft.latency_ms / 1000,
             draft.cost_micros / 1_000_000,
+            # 降级与自纠都要留痕：界面上看不出来，日志里必须能查"这份图少了一条动效是为什么"
+            f" repairs={'；'.join(draft.repairs)}" if draft.repairs else "",
         )
     except LLMError as exc:
         _record_usage(job_id, getattr(provider, "name", "unknown"), exc.usage, exc.cost_micros)

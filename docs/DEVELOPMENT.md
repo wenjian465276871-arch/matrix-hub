@@ -81,7 +81,7 @@ api/
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             338 条契约测试
+└── tests/             342 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -110,7 +110,7 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 338 passed（约 30s）
+pytest tests -q          # 342 passed（约 37s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web
@@ -195,14 +195,23 @@ A11y **100**，axe **0 violation**。改动 UI 后请重跑——CLS 与对比�
 
 ## 5. 发布草稿
 
-生成结果是草稿，不进公开列表。发布只走 CLI：
+生成结果是草稿，不进公开列表。发布有两条等价入口，闸门是同一个 `Guide.publish_blockers()`：
 
 ```bash
+# 1) CLI（运维/批量）
 python -m scripts.publish --list
 python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 ```
 
-发布前会做一次 `Guide.model_validate`；已发布内容不会被再次生成覆盖。详细语义见 `OPERATIONS.md` §12。
+```http
+# 2) 接口（草稿页上的「发布到列表」），口令换的 12 小时令牌
+POST /api/electro/passcode/verify   {"code": "..."}
+POST /api/electro/guides/{id}/publish    X-Passcode-Token: <token>
+```
+
+接口入口的存在不改变「没有鉴权就没有后台」这条决策：它只做两个动作（改文字与判据值、发布），
+没有列表管理、没有删除、没有角色。发布前会做一次 `Guide.model_validate`；已发布内容不会被再次生成覆盖。
+详细语义见 `OPERATIONS.md` §12。
 
 ## 5.1 现场素材（图片）
 
@@ -284,6 +293,25 @@ python -m scripts.publish --publish g_xxxxxxxxxxxxxxxx
 - 所有用户输入走 `html.escape`——备注里写 `<script>` 时，导出文件不能执行它；
 - 报告含"关联排查结论"：`report()` 按 `session_id` 关联 `diagnose_runs`，不复制结论内容；
 - 前端另有 `window.print()`，两者并存：打印给现场，HTML 给归档与转发。
+
+### 5.6 生成失败时先降级，再重跑
+
+一次生成 = 至多两次模型调用（`llm/runner.py`）。第一次输出没过校验时，**先做确定性降级**，
+降级能过就不花第二次钱：
+
+| 档 | 动作 | 代价 |
+|---|---|---|
+| 1 | 剔掉违规的动效轨道（槽位不存在 / `flow`·`draw` 落在非描边槽位 / 同槽位重复 / 无读数的 meter） | 0 次调用 |
+| 2 | 去掉全部动效，图还在，只是静态 | 0 次调用 |
+| 3 | 逐步丢图：只丢不合法那一步的图示，其余图保住 | 0 次调用 |
+| 4 | 以上都过不了，才带错误详情重跑一次模型 | 约 30s / ¥0.05 |
+
+正文、判据、图示参数在任何一档里都**一个字不动**——降级只删表达层。
+做过什么都写进 `repairs` 并落日志（`生成成功 … repairs=…`），界面上看不出来，但事后能查。
+
+起因见 `docs/reports`（私有仓）：2026-11-02 一次生成失败在「某一步的 `draw` 挂错槽位」，
+整份 8 步指导书被判死，两次调用 62s、¥0.10 全废。同时补了根因——描边动效的组合限制
+原先只写在 `models/visual.py` 的校验里，prompt 从未提过，模型没有任何机会知道。
 
 ## 6. 改文档的规矩
 

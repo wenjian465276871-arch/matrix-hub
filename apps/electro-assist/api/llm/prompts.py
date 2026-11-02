@@ -19,6 +19,8 @@ from models.visual import (
     MotionAnim,
     allowed_params,
     motion_slots,
+    stroke_only_anims,
+    stroke_slots,
 )
 
 DOC_OPEN = "<document>"
@@ -46,9 +48,25 @@ def _primitive_table() -> str:
 
 
 def _motion_table() -> str:
-    """动效槽位表：也由代码生成，避免 prompt 里写"手势"代码里不认。"""
+    """动效槽位表：也由代码生成，避免 prompt 里写"手势"代码里不认。
+
+    anim 与 target 的**组合**限制必须显式写出来：只列"每个原语能取哪些 target"，
+    模型会以为 anim 可以随便配。2026-11-02 线上就是给非描边槽位挂了 `draw`，
+    两次调用全部作废——这条约束当时只存在于校验代码里。
+    """
     anims = " / ".join(a.value for a in MotionAnim)
-    lines = [f"   - anim 只能取 {anims}；duration 取 400–2400（毫秒）。"]
+    stroke = stroke_slots()
+    stroke_names = " / ".join(
+        f"{name}.{slot}" for name, slots in sorted(stroke.items()) for slot in slots
+    )
+    free_anims = " / ".join(
+        anim.value for anim in MotionAnim if anim.value not in set(stroke_only_anims())
+    )
+    lines = [
+        f"   - anim 只能取 {anims}；duration 取 400–2400（毫秒）。",
+        f"   - {' / '.join(stroke_only_anims())} 是描边动画，只能用在 {stroke_names}；"
+        f"其余原语只能用 {free_anims}。配错整份输出会被拒绝。",
+    ]
     for primitive, slots in motion_slots().items():
         lines.append(f"   - {primitive}：target 取 {', '.join(slots)}")
     return "\n".join(lines)

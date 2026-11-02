@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -19,6 +20,7 @@ from typing import Callable
 from pydantic import ValidationError
 
 from models.guide import Guide
+from models.visual import motion_slots, stroke_only_anims, stroke_slots
 
 from .base import Completion, LLMError, LLMProvider, Usage
 from .pricing import cost_micros
@@ -32,6 +34,8 @@ from .prompts import (
 
 MAX_INPUT_CHARS = 20_000
 MIN_INPUT_CHARS = 10
+
+log = logging.getLogger(__name__)
 
 
 @dataclass
@@ -87,6 +91,116 @@ def _format_validation_error(exc: ValidationError) -> str:
         loc = ".".join(str(p) for p in err["loc"])
         lines.append(f"- {loc or '<root>'}：{err['msg']}")
     return "\n".join(lines)
+
+
+def _steps(payload: dict) -> list[dict]:
+    steps = payload.get("steps")
+    return [s for s in steps if isinstance(s, dict)] if isinstance(steps, list) else []
+
+
+def _figures(payload: dict) -> list[tuple[int, dict]]:
+    pairs: list[tuple[int, dict]] = []
+    for index, step in enumerate(_steps(payload)):
+        figures = step.get("figures")
+        if not isinstance(figures, list):
+            continue
+        pairs.extend((index, fig) for fig in figures if isinstance(fig, dict))
+    return pairs
+
+
+def _strip_invalid_motion(payload: dict) -> list[str]:
+    """剔掉不合法的动效轨道，返回做了什么（供日志追溯）。
+
+    只动 `motion`：正文、判据、图示参数一个字都不碰——动效是强调手段，
+    现场看不懂"要不要做"才是红线，而"这一格有没有呼吸效果"不是。
+    """
+    slots_by_primitive = motion_slots()
+    stroke_by_primitive = stroke_slots()
+    notes: list[str] = []
+
+    for index, figure in _figures(payload):
+        tracks = figure.get("motion")
+        if not isinstance(tracks, list) or not tracks:
+            continue
+        primitive = figure.get("primitive")
+        # meter 没读数时指针和读数都不渲染，任何轨道都是静默失效（见 models/visual）
+        if primitive == "meter" and (figure.get("params") or {}).get("value") is None:
+            notes.append(f"steps.{index} 仪表无 value，动效会静默失效，已去掉")
+            figure["motion"] = []
+            continue
+
+        allowed = set(slots_by_primitive.get(primitive, []))
+        stroke = set(stroke_by_primitive.get(primitive, []))
+        kept: list[dict] = []
+        seen: set[str] = set()
+        for track in tracks:
+            if not isinstance(track, dict):
+                continue
+            target = track.get("target")
+            anim = track.get("anim")
+            if target not in allowed:
+                notes.append(f"steps.{index} {primitive}.{target} 不是可动槽位，已去掉")
+                continue
+            if anim in set(stroke_only_anims()) and target not in stroke:
+                notes.append(f"steps.{index} {anim} 只能用于描边槽位，已去掉")
+                continue
+            if target in seen:
+                notes.append(f"steps.{index} {target} 重复动效，已去重")
+                continue
+            seen.add(target)
+            kept.append(track)
+        figure["motion"] = kept
+
+    return notes
+
+
+def _salvage(payload: dict) -> tuple[Guide | None, list[str]]:
+    """校验失败后的**确定性降级**：三级递进，全部失败才交给模型重跑。
+
+    起因是 2026-11-02 的线上失败：模型只错了「一条动效挂错槽位」，
+    整份 8 步指导书被判死，两次调用 62s、¥0.10 全废。装饰层的问题
+    不该有这种代价，所以先降级、后重跑：
+
+    1. 剔掉违规的动效轨道（保留图，只去掉那一格效果）；
+    2. 仍不合法 → 去掉全部动效（图还在，只是静态）；
+    3. 仍不合法 → 去掉全部图示（正文与判据一字不动，回到纯文字指导书）。
+
+    任何一档通过校验就接受，并把做过什么写进 `repairs`。
+    """
+    notes = _strip_invalid_motion(payload)
+    if notes:
+        try:
+            return Guide.model_validate(payload), notes
+        except ValidationError:
+            pass
+
+    moved = False
+    for _, figure in _figures(payload):
+        if figure.get("motion"):
+            figure["motion"] = []
+            moved = True
+    if moved:
+        notes.append("动效整体去掉（剔除后仍不合法）")
+        try:
+            return Guide.model_validate(payload), notes
+        except ValidationError:
+            pass
+
+    # 第 3 档：逐步丢图——只丢出错那一步，别让一处坏图带走七张好图
+    for step in _steps(payload):
+        figures = step.get("figures")
+        if not figures:
+            continue
+        step["figures"] = []
+        try:
+            guide = Guide.model_validate(payload)
+        except ValidationError:
+            step["figures"] = figures  # 不是这步的问题，放回去再试下一步
+            continue
+        notes.append(f"{step.get('id')} 的图示不合法，已去掉")
+        return guide, notes
+
+    return None, notes
 
 
 def generate_guide(
@@ -164,6 +278,7 @@ def generate_guide(
         usage = usage + completion.usage
         latency_ms += completion.latency_ms
 
+        payload: dict | None = None
         try:
             payload = json.loads(extract_json(completion.text))
             # assets 不在给模型看的 schema 里，但模型可能凭"见过类似任务"硬塞。
@@ -183,18 +298,28 @@ def generate_guide(
                 if isinstance(exc, ValidationError)
                 else f"- 无法解析 JSON：{exc}"
             )
-            last_error = _with_usage(
-                LLMError("validation", f"模型输出未通过校验：\n{detail}"),
-                attempt,
-                usage,
-                at,
-                raw=completion.text,
-            )
-            if attempt == max_attempts:
-                raise last_error from exc
-            repairs.append(detail)
-            prompt = repair_prompt(cleaned, completion.text, detail)
-            continue
+            # 先试确定性降级：图示/动效是表达层，不值得为它重跑整份。
+            # 降级后能过校验就直接用，省下一次模型调用（线上实测约 30s、¥0.05）。
+            salvaged, notes = _salvage(payload) if isinstance(payload, dict) else (None, [])
+            if salvaged is not None:
+                guide = salvaged
+                repairs.extend(notes)
+                log.warning(
+                    "图示降级后通过校验 job 第 %d 次调用：%s", attempt, "；".join(notes)
+                )
+            else:
+                last_error = _with_usage(
+                    LLMError("validation", f"模型输出未通过校验：\n{detail}"),
+                    attempt,
+                    usage,
+                    at,
+                    raw=completion.text,
+                )
+                if attempt == max_attempts:
+                    raise last_error from exc
+                repairs.append(detail)
+                prompt = repair_prompt(cleaned, completion.text, detail)
+                continue
 
         # 溯源字段必须由服务端写死。实测中模型会编造"依据公开资料整理"这种来源声明——
         # 它没有检索能力，这句话是凭空生成的，留着就是合规风险。
