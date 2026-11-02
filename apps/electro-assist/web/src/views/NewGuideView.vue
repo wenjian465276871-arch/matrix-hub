@@ -16,9 +16,11 @@ const router = useRouter()
 
 const MIN_CHARS = 10
 const MAX_CHARS = 20_000
-/** 服务端总预算 90s（单次 40s、最多 2 次）。客户端只负责"不再等了"：
- *  多给 5s 容差，否则第 90 秒服务端刚写库、前端先掐断，配额白扣一次。 */
-const SERVER_BUDGET_MS = 90_000
+/** 服务端总预算 170s（单次 75s、最多 2 次；思考型模型单次可写 15K token）。
+ *  客户端只负责"不再等了"：多给 5s 容差，否则服务端刚写库、前端先掐断，配额白扣一次。 */
+const SERVER_BUDGET_MS = 175_000
+/** 文案里的秒数从常量派生：硬编码过一次 90，改预算时差点漏掉。 */
+const SERVER_BUDGET_S = Math.round(SERVER_BUDGET_MS / 1000)
 const CLIENT_GRACE_MS = 5_000
 const HARD_TIMEOUT_MS = SERVER_BUDGET_MS + CLIENT_GRACE_MS
 /** 计划 §12.4：0–800ms 只在按钮里转圈（不切页），超过才整页换骨架。
@@ -624,7 +626,7 @@ async function poll(): Promise<void> {
     clearStoredJob()
     resumed.value = false
     errorText.value =
-      '等待超过 90 秒仍未完成（服务端总预算也是 90 秒）。任务可能仍在后台跑，稍后重试不扣配额。'
+      `等待超过 ${SERVER_BUDGET_S} 秒仍未完成（服务端总预算也是 ${SERVER_BUDGET_S} 秒）。任务可能仍在后台跑，稍后重试不扣配额。`
     errorCode.value = 'client_timeout'
     phase.value = 'error'
     return
@@ -1013,7 +1015,7 @@ onBeforeUnmount(() => {
       }}
     </button>
     <p class="hint">
-      通常 8–15 秒。每 IP 每小时 2 次、每日 10 次；失败与超时不计入次数。有口令可豁免每 IP 限制。
+      通常 20–60 秒（文本越长越慢）。每 IP 每小时 2 次、每日 10 次；失败与超时不计入次数。有口令可豁免每 IP 限制。
     </p>
   </div>
 

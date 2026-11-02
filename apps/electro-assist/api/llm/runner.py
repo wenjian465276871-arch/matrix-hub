@@ -34,6 +34,10 @@ from .prompts import (
 
 MAX_INPUT_CHARS = 20_000
 MIN_INPUT_CHARS = 10
+# 截断重试的上限。必须**远高于**初始值：旧代码写死 8192，而初始值是 6144，
+# 名义上"加倍"，实际只多了 2048，遇到思考型模型（reasoning 就吃 8–10K）等于没加。
+# 官方文档：thinking 模式 max_tokens 上限 384K，这里取 32768 足够且不失控。
+MAX_TOKENS_CEILING = 32_768
 
 log = logging.getLogger(__name__)
 
@@ -207,10 +211,13 @@ def generate_guide(
     provider: LLMProvider,
     text: str,
     *,
-    budget_s: float = 90.0,
-    call_timeout_s: float = 40.0,
+    # 2026-11-02 调整：思考模式下单次输出可达 15K token（reasoning 计入完成量），
+    # 按实测约 200 token/s 推算单次需 ~75s。旧的 40s/90s 会在"预算放大"之后
+    # 把截断变成超时——那只是换一种失败方式。
+    budget_s: float = 170.0,
+    call_timeout_s: float = 75.0,
     max_attempts: int = 2,
-    max_tokens: int = 6144,
+    max_tokens: int = 16384,
     max_chars: int = MAX_INPUT_CHARS,
     clock: Callable[[], float] = time.monotonic,
     at: datetime | None = None,
@@ -271,7 +278,7 @@ def generate_guide(
             if exc.kind == "truncated":
                 # 与校验失败不同：模型不是写错，是写太多。加倍预算并要求精简，
                 # 否则同样的输入会再次撞上同一个上限。
-                max_tokens = min(max_tokens * 2, 8192)
+                max_tokens = min(max_tokens * 2, MAX_TOKENS_CEILING)
                 prompt = truncation_prompt(cleaned)
             continue
 

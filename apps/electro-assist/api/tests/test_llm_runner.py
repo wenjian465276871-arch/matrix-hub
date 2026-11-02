@@ -45,8 +45,16 @@ class FakeProvider:
         self.clock = clock
         self.advance = advance
 
-    def structured(self, *, system, user, schema, timeout_s, max_tokens=4096):
-        self.calls.append({"system": system, "user": user, "timeout_s": timeout_s})
+    def structured(self, *, system, user, schema, timeout_s, max_tokens=4096, thinking=True):
+        self.calls.append(
+            {
+                "system": system,
+                "user": user,
+                "timeout_s": timeout_s,
+                "max_tokens": max_tokens,
+                "thinking": thinking,
+            }
+        )
         if self.clock:
             self.clock.advance(self.advance)
         item = self.outputs.pop(0)
@@ -310,3 +318,23 @@ def test_content_error_is_not_masked_by_degradation():
         generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=Clock())
     assert info.value.kind == "validation"
     assert len(provider.calls) == 2
+
+
+def test_truncation_retry_raises_budget_above_initial():
+    """截断重试必须真的放大预算。
+
+    旧实现写死 `min(max_tokens * 2, 8192)`：初始 6144 时只涨到 8192，
+    而思考型模型 reasoning 一次吃掉 8–10K（也计入 max_tokens），等于没加。
+    2026-11-02 线上 job j_c2c9ae88 两次调用分别顶在 6144 / 8192，正文没写完就截断。
+    """
+    clock = Clock()
+    provider = FakeProvider([LLMError("truncated", "截断"), VALID], clock=clock, advance=20)
+
+    draft = generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=clock)
+
+    first = provider.calls[0]["max_tokens"]
+    second = provider.calls[1]["max_tokens"]
+    assert first >= 16384, "初始预算必须能装下「思考 + 8 步正文」"
+    assert second > first, "重试不能把预算调小或原地不动"
+    assert second >= first * 2
+    assert draft.attempts == 2

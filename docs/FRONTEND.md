@@ -184,7 +184,7 @@ E2E 抓的是 DOM 回归，比给 `lib/http.ts` 写 mock 更值钱。真要补�
 | 项 | 现状 | 说明 |
 |---|---|---|
 | `stores/`（job/run/quota） | 不存在 | 状态在视图内；跨页靠服务端重建。**有意为之**，不是欠账 |
-| `lib/poll.ts` | 不存在 | 轮询内联在 `NewGuideView`（`setTimeout` 链 + 2s 退避 + 90s 预算） |
+| `lib/poll.ts` | 不存在 | 轮询内联在 `NewGuideView`（`setTimeout` 链 + 2s 退避 + 175s 预算） |
 | `lib/idempotency.ts` | 不存在 | `RunView` 内直接拼 `{sid}:s{seq}:a{attempt}` |
 | `composables/` | 只有 `useDiagnoseRun` | 无 `useFocusTrap` / `useVisualViewport`（后者的逻辑在 `lib/viewport.ts`） |
 | `components/ui/` | **已有 4 个**：`ConfirmDialog` / `SiteDrawer` / `ThemeNoticeBar` / `LiveRegion` | 其他按钮、卡片仍是 CSS 类，不建组件库 |

@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * 刷新续接 / 429 倒计时 / 90 秒超时：三条都跟"等待"有关，靠肉眼看不出对错。
+ * 刷新续接 / 429 倒计时 / 时间预算超时：三条都跟"等待"有关，靠肉眼看不出对错。
  * 生成接口一律 route mock：真跑一次要 Key、要钱，而这里验的是**前端怎么等**。
  */
 
@@ -87,7 +87,7 @@ test('429：按 Retry-After 倒计时并禁用提交，到时自动解禁', asyn
   await expect(page.getByText(/秒后可以再生成/)).toHaveCount(0)
 })
 
-test('90 秒预算：超时后停止等待并给出去重说法', async ({ page }) => {
+test('时间预算：超时后停止等待并给出去重说法', async ({ page }) => {
   await page.clock.install()
   await mockGenerate(page)
   await page.route('**/api/electro/jobs/**', (route) =>
@@ -99,10 +99,10 @@ test('90 秒预算：超时后停止等待并给出去重说法', async ({ page 
   await page.clock.runFor(1_000)
   await expect(page.getByRole('button', { name: '停止等待' })).toBeVisible()
 
-  // 把时钟推到 96 秒（90s 预算 + 5s 容差之后再留 1s）
-  await page.clock.fastForward(96_000)
+  // 把时钟推到 176 秒（175s 预算 + 5s 容差之后再留 1s）
+  await page.clock.fastForward(176_000)
 
-  await expect(page.getByText(/等待超过 90 秒仍未完成/)).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText(/等待超过 175 秒仍未完成/)).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('button', { name: '停止等待' })).toHaveCount(0)
 })
 

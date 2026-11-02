@@ -39,7 +39,7 @@ llm/
 ├── base.py     Provider 协议 + 九类错误（timeout/network/rate_limit/auth/server/
 │               bad_request/validation/truncated/budget）
 ├── deepseek.py httpx 直连 OpenAI 兼容接口，JSON Output
-├── runner.py   单次 40s / 最多 2 次 / 总预算 90s；校验失败回喂；截断则加倍预算并要求精简
+├── runner.py   单次 75s / 最多 2 次 / 总预算 170s；校验失败先降级再生重跑；截断则加倍预算并要求精简
 ├── prompts.py  schema 由代码生成；文档用 <document> 包裹并转义闭合标签
 ├── pricing.py  元/百万 token → 微元整数；高峰/空闲、缓存命中分开计价
 └── factory.py  按 LLM_PROVIDER 选择实现，缺 Key 在调用点报错（不影响只读页面）
@@ -161,7 +161,7 @@ sequenceDiagram
   Q->>D: running
   Q->>M: 结构化生成（JSON Schema 约束）
   M-->>Q: JSON
-  Q->>Q: 校验 / 重试（40s×2，总预算 90s）
+  Q->>Q: 降级 / 重试（75s×2，总预算 170s）
   Q->>D: 分配随机 guide.id → 存草稿 → 记 usage → succeeded
   B->>C: GET /api/electro/jobs/{id}
   C->>A: 查询

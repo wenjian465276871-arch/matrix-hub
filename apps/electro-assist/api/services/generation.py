@@ -28,7 +28,12 @@ log = logging.getLogger("electro.generate")
 
 MIN_INPUT_CHARS = 10
 MAX_INPUT_CHARS = 20_000
-MAX_TOKENS = 6144
+# 6144 是 2026-10 按"非思考模式默认 8K"估的，2026-11-02 线上被证伪：
+# 思考模式下 reasoning 一次吃掉 8–10K，而 max_tokens 把 reasoning 也算进完成量，
+# 于是 JSON 正文还没写完就撞上限（job j_c2c9ae88：两次调用 6144/8192 全部顶满，
+# 可见正文不足 600 token）。官方文档：thinking 模式 max_tokens 默认 64K、上限 384K，
+# 8K 是**非思考**模式的默认值。给 16384：8 步 × 1–3 图的正常输出 3–5K + 思考 ≤10K 装得下。
+MAX_TOKENS = 16384
 
 # 配额是"先查后写"的两步操作：并发下两个请求可能都通过检查再各建一个 job。
 # 单 worker 是这套架构的前提（计划 §4），所以一把进程内锁就够；
