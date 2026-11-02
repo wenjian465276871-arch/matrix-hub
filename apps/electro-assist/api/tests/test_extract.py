@@ -343,3 +343,65 @@ def test_rate_limited(tmp_uploads, monkeypatch):
     r = client.post("/api/electro/extract", json={"asset_ids": [asset]})
     assert r.status_code == 429
     assert r.json()["detail"]["code"] == "rate_limited"
+
+
+# ---------------------------------------------------------------- 结构容忍性
+# 2026-11-02 线上：宽表截图，通道 A 转录 20 行完全正确，但模型把 warnings 放进了
+# fields 里，`extra="forbid"` 判死整份结果；回退单通道又死在同一处。
+# 下面三条锁住"位置放错 ≠ 内容错误"。
+
+
+def test_structure_payload_hoists_field_warnings():
+    from llm.extract import StructurePayload
+
+    payload = StructurePayload.model_validate(
+        {
+            "fields": {
+                "name": "关门保安",
+                "steps": [{"seq": 1, "action": "确认关门安全 NFB ON"}],
+                "warnings": ["未提供工位信息", "含 1）至 5）分组"],
+            }
+        }
+    )
+    assert payload.fields.name == "关门保安"
+    assert "未提供工位信息" in payload.warnings
+    assert len(payload.warnings) == 2
+
+
+def test_unknown_keys_are_dropped_not_fatal():
+    from llm.extract import StructurePayload
+
+    payload = StructurePayload.model_validate(
+        {
+            "fields": {
+                "name": "关门保安",
+                "station": None,
+                "table": {"columns": ["A", "B"]},  # 模型自己加的
+                "steps": [
+                    {
+                        "seq": 1,
+                        "action": "确认关门安全 NFB ON",
+                        "note": "多给的键",
+                    }
+                ],
+            },
+            "extra": "顶层多给的键也不该判死",
+        }
+    )
+    assert payload.fields.name == "关门保安"
+    assert payload.fields.steps[0].seq == 1
+
+
+def test_out_of_range_source_line_is_cleared():
+    from llm.extract import StructurePayload
+
+    payload = StructurePayload.model_validate(
+        {
+            "fields": {
+                "name": "关门保安",
+                "steps": [{"seq": 1, "action": "确认关门安全 NFB ON", "source_line": 999}],
+            }
+        }
+    )
+    # 越界行号指不回原图，置空而不是报错——确认页不会并排显示错行
+    assert payload.fields.steps[0].source_line is None

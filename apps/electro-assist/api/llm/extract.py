@@ -146,6 +146,35 @@ def structure_prompt(lines: list[str]) -> str:
     return f"以下是转录文本（格式为「行号: 原文」）：\n\n{body}\n\n请整理成结构化字段，只输出 JSON。"
 
 
+def _only_known(data: dict, model: type[BaseModel]) -> dict:
+    """丢掉模型多给的键，而不是让整个结果作废。
+
+    这些键本来就没有下游消费者，留着不用、拒了整个结果才是有代价的选择。
+    """
+    return {k: v for k, v in data.items() if k in model.model_fields}
+
+
+def _hoist_field_warnings(data: dict) -> dict:
+    """把被塞进 `fields` 里的 `warnings` 提到顶层。
+
+    2026-11-02 线上：一张宽表截图，通道 A 转录 20 行**完全正确**，
+    但模型把 `fields.warnings` 写成数组，`extra="forbid"` 直接判死整份结果；
+    回退单通道后又死在同一处，用户只看到"没读出可用的结构"。
+    位置放错不等于内容错误——这类字段只是提示语，挪一层就能用。
+    """
+    if not isinstance(data, dict):
+        return data
+    fields = data.get("fields")
+    if isinstance(fields, dict):
+        moved = fields.pop("warnings", None)
+        if moved is not None:
+            top = data.get("warnings")
+            merged = list(top) if isinstance(top, list) else []
+            merged.extend(moved if isinstance(moved, list) else [moved])
+            data["warnings"] = merged
+    return data
+
+
 class ExtractedStep(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -153,6 +182,18 @@ class ExtractedStep(BaseModel):
     action: str = Field(min_length=2, max_length=200)
     criterion: str | None = Field(default=None, max_length=80)
     source_line: int | None = Field(default=None, ge=0, le=MAX_LINES)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _tolerate(cls, data):
+        if not isinstance(data, dict):
+            return data
+        data = _only_known(data, cls)
+        line = data.get("source_line")
+        if isinstance(line, int) and not 0 <= line <= MAX_LINES:
+            # 越界的行号指不回原图，留着比置空更糟：确认页会并排显示错行
+            data["source_line"] = None
+        return data
 
     @field_validator("action", "criterion")
     @classmethod
@@ -167,6 +208,11 @@ class ExtractedStep(BaseModel):
 
 class ExtractFields(BaseModel):
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _tolerate(cls, data):
+        return _only_known(data, cls) if isinstance(data, dict) else data
 
     name: str | None = Field(default=None, max_length=80)
     station: str | None = Field(default=None, max_length=80)
@@ -201,6 +247,13 @@ class ExtractPayload(BaseModel):
     """单通道输出：一次调用同时给 lines 与 fields。"""
 
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _tolerate(cls, data):
+        if not isinstance(data, dict):
+            return data
+        return _only_known(_hoist_field_warnings(data), cls)
 
     lines: list[str] = Field(default_factory=list)
     fields: ExtractFields
@@ -237,6 +290,13 @@ class StructurePayload(BaseModel):
     """通道 B 输出：只有结构化字段，`lines` 用通道 A 的。"""
 
     model_config = ConfigDict(extra="forbid")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _tolerate(cls, data):
+        if not isinstance(data, dict):
+            return data
+        return _only_known(_hoist_field_warnings(data), cls)
 
     fields: ExtractFields
     warnings: list[str] = Field(default_factory=list)

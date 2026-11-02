@@ -184,6 +184,10 @@ def _run_single(provider, images: list[str]) -> tuple[dict, dict]:
     try:
         parsed = ExtractPayload.model_validate_json(extract_json(completion.text))
     except (ValueError, ValidationError) as exc:
+        # 校验细节必须落日志：2026-11-02 排查一张宽表时，接口只回一句
+        # "没读出可用的结构"，日志里什么都没有，只能把模型重跑一遍才定位到
+        # 是 `fields.warnings` 多了一层嵌套。
+        log.warning("识别结果校验失败：%s", exc)
         raise HTTPException(
             status_code=502,
             detail={
