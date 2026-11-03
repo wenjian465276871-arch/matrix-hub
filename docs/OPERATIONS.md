@@ -685,6 +685,12 @@ tail -5  /opt/matrix-hub/deploy.log     # 回滚记录（reason=postdeploy_5xx |
 调参（一般不用改）：`WATCH_WINDOW_MIN` / `WATCH_INTERVAL_S` / `WATCH_MIN_ERRORS` /
 `WATCH_5XX_PCT` / `WATCH_PROBE_FAIL_LIMIT`。
 
+**连续部署（2026-11-03 实测补充）**：看门狗**不设互斥锁**。原先的 `.watch.lock`
+在"10 分钟内发两版"时会让第二版一启动就撞锁退出——最该盯的那次反而没人看。
+现在多实例共存是安全的：每轮回滚前都核对线上 tag，旧实例发现 tag 已变就自行退出。
+另外，观察器脚本由 CI 用「暂存目录 + `mv`」原子替换：`scp` 直接覆盖同名文件会让
+正在运行的实例读到半截内容，实测报 `unexpected EOF` 当场死掉。
+
 **边界（如实记录）**：窗口在进程内，容器重启即清空，只覆盖"部署后 10 分钟"，不是长期监控；
 窗口内没有真实请求时不做统计判定（探针仍在看）。长期可用性靠 `uptime.yml` 的外部探活，
 但它受 GitHub 调度限制（实测日均 2–8 次，不是每 10 分钟）。

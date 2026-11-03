@@ -85,13 +85,10 @@ fi
 set -a; . ./.env; set +a
 : "${IMAGE:?}" "${SITE_DOMAIN:?}"
 
-# 同一时间只允许一个看门狗：两轮叠在一起会互相回滚到不同的 tag。
-LOCK=".watch.lock"
-if ! mkdir "$LOCK" 2>/dev/null; then
-  log "[watch] 已有看门狗在运行，退出"
-  exit 0
-fi
-trap 'rmdir "$LOCK" 2>/dev/null || true' EXIT
+# 不设互斥锁（2026-11-03 改）。原先用 .watch.lock 保证单实例，实际后果是
+# **连续两次部署时，第二次的观察器一启动就撞锁退出**——恰恰是"刚发了一版、最需要盯"
+# 的那次没有观察。多实例本身不危险：每次回滚前都核对线上 tag，旧实例发现线上已不是
+# 自己的 NEW_TAG 就直接退出（见循环开头的检查），不可能把新版本回滚成更旧的版本。
 
 fetch_health() {
   curl -fsSk --max-time 5 --resolve "${SITE_DOMAIN}:443:127.0.0.1" \
@@ -155,6 +152,12 @@ last_requests=0
 last_errors=0
 while [ "$(date +%s)" -lt "$deadline" ]; do
   sleep "$INTERVAL_S"
+
+  # 线上已经换成别的 tag（又部署了一版）：继续观察没有意义，回滚也不该由我决定。
+  if [ "$(current_tag || true)" != "$NEW_TAG" ]; then
+    log "[watch] 线上已不是 ${NEW_TAG}（已被更新的部署取代），退出"
+    exit 0
+  fi
 
   body=$(fetch_health)
   if [ -z "$body" ]; then

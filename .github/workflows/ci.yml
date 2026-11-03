@@ -334,13 +334,20 @@ jobs:
       - name: 同步部署产物（deploy.sh / probe.sh / postdeploy_watch.sh / backup.sh / compose.yml）
         if: steps.scope.outputs.deploy == 'true'
         run: |
+          # 先落暂存目录、再原子 mv 到位。看门狗是"边读边执行"的脚本：
+          # scp 直接覆盖同名文件会让正在运行的实例读到半截内容，
+          # 实测报 `unexpected EOF while looking for matching` 并当场死掉（2026-11-03）。
+          # mv/rename 不改变已打开文件的 inode，运行中的实例不受影响。
+          ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            'mkdir -p /opt/matrix-hub/.incoming'
           scp -i ~/.ssh/id_ed25519 -o BatchMode=yes \
             deploy/deploy.sh deploy/probe.sh deploy/postdeploy_watch.sh \
             deploy/backup.sh docker/compose.yml \
-            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/matrix-hub/"
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/matrix-hub/.incoming/"
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "chmod 755 /opt/matrix-hub/deploy.sh /opt/matrix-hub/probe.sh /opt/matrix-hub/postdeploy_watch.sh /opt/matrix-hub/backup.sh"
+            'cd /opt/matrix-hub && for f in deploy.sh probe.sh postdeploy_watch.sh backup.sh compose.yml; do mv -f ".incoming/$f" "./$f"; done && chmod 755 deploy.sh probe.sh postdeploy_watch.sh backup.sh'
 
       - name: 执行部署（健康检查失败自动回滚）
         if: steps.scope.outputs.deploy == 'true'
