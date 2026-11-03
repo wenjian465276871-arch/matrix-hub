@@ -38,30 +38,12 @@ record_state() {
   } >> deploy.log
 }
 
-# 注意：8001 只在容器内监听，宿主机不可访问。
-# 必须经 Caddy 的 443 访问，并用 --resolve 固定到回环地址，避免走到公网 DNS。
-# 所有健康探测（部署后、回滚后）统一走这里——2026-10-18 修复：回滚复查原先探
-# http://127.0.0.1:8001，该端口未发布到宿主机，导致成功回滚也报"仍不健康"。
-probe_health() {
-  curl -fsSk --max-time 5 --resolve "${SITE_DOMAIN}:443:127.0.0.1" \
-       "https://${SITE_DOMAIN}/healthz" 2>/dev/null | grep -q '"status":"ok"'
-}
+# 探针（健康 + 业务只读）单独成文件：本地/CI 可直接 source 后验证，
+# 不必真发一版才能测。见 deploy/probe.sh。
+[ -f ./probe.sh ] || { echo "[FAIL] 缺少 probe.sh"; exit 1; }
+# shellcheck source=probe.sh
+. ./probe.sh
 
-health_check() {
-  local streak=0 i
-  for i in $(seq 1 8); do
-    sleep 5
-    if probe_health; then
-      streak=$((streak + 1))
-      echo "    探测通过 ${streak}/3（第 ${i} 次）"
-      [ "$streak" -ge 3 ] && return 0
-    else
-      streak=0
-      echo "    第 ${i} 次探测失败"
-    fi
-  done
-  return 1
-}
 
 echo "==> 拉取镜像"
 TAG="$NEW_TAG" docker compose pull web
@@ -70,17 +52,41 @@ echo "==> 启动"
 TAG="$NEW_TAG" docker compose up -d web
 
 echo "==> 健康检查（3 次全过才算成功）"
+deploy_ok=0
+failure_reason="健康检查未通过"
 if health_check; then
+  # 健康检查只证明"进程活着"，业务探针证明"接口能用"。两条都过才算部署成功：
+  # 一个 200 的 /healthz + 一个 500 的 /guides，对用户来说就是坏版本。
+  echo "==> 业务只读探针（列表 / 详情 / 知识库）"
+  if probe_business; then
+    deploy_ok=1
+  else
+    failure_reason="业务探针失败（接口非 200 或响应结构不符）"
+    echo "[FAIL] ${failure_reason}" >&2
+  fi
+fi
+
+if [ "$deploy_ok" -eq 1 ]; then
   echo "==> 部署成功: ${NEW_TAG}"
   sed -i "s/^TAG=.*/TAG=${NEW_TAG}/" "$ENV_FILE" || true
   record_state
+  # 部署后 10 分钟 5xx 看门狗（计划 §9.4 #11）：健康检查与业务探针都是"这一瞬间"的判定，
+  # 看不出"部署后第 3 分钟开始每个请求都 502"。后台跑，不阻塞 CI。
+  if [ -x ./postdeploy_watch.sh ]; then
+    if command -v setsid >/dev/null 2>&1; then
+      setsid ./postdeploy_watch.sh "$NEW_TAG" "${PREV_TAG:-}" >>watch.log 2>&1 </dev/null &
+    else
+      ./postdeploy_watch.sh "$NEW_TAG" "${PREV_TAG:-}" >>watch.log 2>&1 </dev/null &
+    fi
+    echo "==> 已启动 10 分钟 5xx 看门狗（日志 watch.log）"
+  fi
   # -a 是必须的：不带 -a 只清 dangling（无 tag）镜像，而 CI 每个部署都打 tag，
   # 结果就是每个 commit 留一个 318MB 的镜像，永不回收（10-19 实测已堆积 15 个）。
   docker image prune -af --filter "until=168h" >/dev/null 2>&1 || true
   exit 0
 fi
 
-echo "[FAIL] 健康检查未通过，开始回滚" >&2
+echo "[FAIL] ${failure_reason}，开始回滚" >&2
 if [ -n "${PREV_TAG:-}" ]; then
   TAG="$PREV_TAG" docker compose up -d web
   rolled_back=0

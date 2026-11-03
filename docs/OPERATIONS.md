@@ -1,6 +1,6 @@
 # 运维手册
 
-> 版本 v1.6 · 状态：已确认 · 最后更新：2026-11-01
+> 版本 v1.8 · 状态：已确认 · 最后更新：2026-11-03
 > 本文不含服务器地址、凭证与私有路径。补全信息的操作记录留在私有仓。
 > v0.2 → v1.0（2026-10-20）：修正 §1「两个卷」与实际三条挂载不符；补 §11 待补项的现状；接口清单改指 `docs/API.md`。
 > v1.0 → v1.1（2026-10-20）：新增 §12 发布草稿 CLI（`scripts/publish.py`），补上决策 #16 承诺的发布路径。
@@ -9,6 +9,8 @@
 > v1.3 → v1.4（2026-10-21）：口令通道已在生产启用（值只在服务器 `.env`）；清理任务以**空跑 cron** 安装，日志落 `/opt/matrix-hub/cleanup.log`。
 > v1.4 → v1.5（2026-10-31）：补 §16 样例刷新与 `[SAME]` 口径；新增 §17 密钥轮换演练；清理任务在生产真跑一次 `--apply`，cron 改每日 03:40。
 > v1.5 → v1.6（2026-11-01）：新增 §18 当日上线与新接口；修正 §1 表数量（7 张业务表，迁移 v6）与 §2 备份份数口径（7+7=14 个文件）。
+> v1.6 → v1.7（2026-11-03）：新增 §19 部署后 5xx 看门狗与工艺表；`/healthz` 增加 `http` 段（10 分钟滚动 5xx）；表数量 7 → 8，迁移 v6 → v7。
+> v1.7 → v1.8（2026-11-03）：§19.3 改写为三道闸门——业务只读探针、`5xx ≥3 且 >1%`（取代"样本 ≥30"）、探针连续失败也回滚（零流量盲区）；探针抽到 `deploy/probe.sh` 以便本地验证。
 
 ## 1. 运行形态
 
@@ -31,7 +33,7 @@
 
 | 路径 | 内容 |
 |---|---|
-| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records/diagnose_runs/diagnose_steps，7 张 + 迁移表 v6），WAL 模式 |
+| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records/diagnose_runs/diagnose_steps/processes，8 张 + 迁移表 v7），WAL 模式 |
 | `/srv/app_data/uploads/` | 上传资产，每份一个目录（原图 + 切片 + meta.json） |
 | `/srv/app_data/caddy/` | 证书与 ACME 账户状态 |
 
@@ -614,3 +616,88 @@ curl -s 'https://<域名>/api/electro/guides?limit=0'            # 422
 sessions 16 / records 62 / diagnose_runs 15；磁盘 7.9G/40G（22%），容器 82MiB。
 
 **日常检查顺序不变**：`/healthz` → `docker ps` → `deploy.log` 末三行 → `cleanup.log` 末三行。
+
+## 19. 部署后 5xx 看门狗与工艺表（2026-11-03）
+
+### 19.1 为什么健康检查不够
+
+`deploy.sh` 的 3 次探测只回答"进程起没起来、库能不能打开"。一个起来了但每个业务请求都 502 的
+版本（上游 Key 失效、迁移写坏、依赖缺包）能满分通过，用户看到的是整站不可用。计划 §9.4 #11
+要求"10 分钟内 5xx >1% 即回滚"，此前只有前半句（探测）没有后半句（错误率）。
+
+### 19.2 数据从哪来
+
+应用进程内维护一个 10 分钟滚动窗口（`api/core/httpwindow.py`，每分钟一个桶）：
+
+```bash
+curl -s https://<域名>/healthz | python3 -m json.tool   # 或在容器内 curl 127.0.0.1:8001
+# "http": {"window_s": 600, "requests": 42, "errors_5xx": 0, "ratio": 0.0}
+```
+
+口径三条：**4xx 不算错误**（参数写错不是服务坏了）；**`/healthz` 不计入**（探针会把真实
+比例稀释一个数量级）；**进程重启清零**（只看"这一版跑起来之后"）。窗口不落库，不做历史趋势。
+
+### 19.3 三道闸门：业务探针 → 5xx 统计 → 探针失效
+
+**第一道：部署时的业务只读探针**（`deploy/probe.sh`，2026-11-03 新增）。
+`healthz` 只证明"进程活着、库能开、磁盘没满"；迁移写坏、router 没注册、
+SPA 回退吃掉接口路径，都能满分通过。所以健康检查之后立刻打三条真实用户路径：
+
+| 探测 | 判据 |
+|---|---|
+| `GET /api/electro/guides?limit=1` | 响应以 `{` 开头且含 `"items": [` |
+| `GET /api/electro/guides/{列表第一条 id}` | 响应以 `{` 开头且含 `"guide": {`（列表为空时跳过） |
+| `GET /api/electro/diagnose/kb` | 响应以 `{` 开头且 `"count" >= 1` |
+
+任一失败 → **立即回滚**，不等 10 分钟。不花配额、不调模型、不写库。
+必须校验响应结构而不是只看状态码：Caddy 的 SPA 回退会把不存在的路径变成 200 HTML。
+
+本地可直接验证（不需要发版）：
+
+```bash
+cd /opt/matrix-hub
+SITE_DOMAIN=localhost PROBE_BASE_URL=http://127.0.0.1:8001 bash -c '. ./probe.sh; probe_business && echo PASS'
+```
+
+**第二道：10 分钟 5xx 统计**（`postdeploy_watch.sh`，健康检查通过后 `setsid` 后台跑，不阻塞 CI）。
+判据是 **`5xx >= 3 条 且 比例 > 1%`**：
+
+- 绝对数做主判据：演示站 10 分钟常常只有 3–5 个请求，`1/5 = 20%` 只是**一次**故障，
+  不足以证明这一版更坏；`3/20` 才是模式。
+- 比例做上限保护：`3/5000`（0.06%）不回滚，避免大流量下被零星错误触发。
+- 依据：Google SRE Workbook 第 5 章低流量服务的处理，以及低流量告警实践里
+  "比率必须配一个绝对下限"的共识。
+
+**第三道：探针失效**（零流量盲区）。容器或 Caddy 挂了就没有请求，错误率恒为 0%，
+统计永远绿。所以 `healthz` 连续 2 次不通（`WATCH_PROBE_FAIL_LIMIT`）也回滚，
+`reason=probe_failed`。
+
+统计触发与探针触发共用同一份 `do_rollback`：核对线上 tag（防止拿旧结论回滚新版本）→
+`TAG=<prev> docker compose up -d web` → 6 次探测 → 探通则把 `.env` 的 `TAG` 一并改回
+（否则下次手工 `up -d` 又会把坏版本拉起来）→ 往 `deploy.log` 写一条。
+
+```bash
+tail -50 /opt/matrix-hub/watch.log      # 观察过程（日志如实区分"无请求/少量 5xx/正常"）
+tail -5  /opt/matrix-hub/deploy.log     # 回滚记录（reason=postdeploy_5xx | probe_failed）
+./postdeploy_watch.sh --self-test       # 只验判定逻辑，不碰容器（8 个用例）
+```
+
+调参（一般不用改）：`WATCH_WINDOW_MIN` / `WATCH_INTERVAL_S` / `WATCH_MIN_ERRORS` /
+`WATCH_5XX_PCT` / `WATCH_PROBE_FAIL_LIMIT`。
+
+**边界（如实记录）**：窗口在进程内，容器重启即清空，只覆盖"部署后 10 分钟"，不是长期监控；
+窗口内没有真实请求时不做统计判定（探针仍在看）。长期可用性靠 `uptime.yml` 的外部探活，
+但它受 GitHub 调度限制（实测日均 2–8 次，不是每 10 分钟）。
+
+### 19.4 工艺表（迁移 v7）
+
+`processes` 存生成输入的原文与派生标题，供详情页「再生成一份草稿」使用。
+`jobs.process_id` / `guides.process_id` 记录来源，DB 索引 `idx_guides_process` 供清理判引用。
+
+- 保留期 30 天（与访客草稿一致），**写时顺带清理**：`create_process` 在同一事务里删除
+  过期且没有指导书引用的行。没有新增 cron——一个必须记得配的定时任务是运维负债。
+- `POST /processes` 默认仍是纯预检（`save=false`），行为不变；`save=true` 才落库。
+- `POST /processes/{id}/generate` 与 `/generate` 共用配额、预算与队列：换入口不是换额度。
+
+**回滚影响**：迁移只加表加列，旧版本代码不认识新列也能跑（SQLite 的 `SELECT *` 多列无害），
+但**回滚到 v6 之前的镜像不会删除 `processes` 表**；数据保留，属预期。

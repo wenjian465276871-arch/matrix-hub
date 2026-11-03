@@ -15,6 +15,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 import store
+from core.httpwindow import HttpWindow
 from routers import diagnose as diagnose_router
 from routers import extract as extract_router
 from routers import fe as fe_router
@@ -79,16 +80,34 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# 进程级滚动窗口：部署后看门狗读 `/healthz` 的 http 段决定是否回滚。
+# 进程重启即清零，这正是想要的口径——只看"这一版跑起来之后"的表现。
+http_window = HttpWindow()
+
 
 @app.middleware("http")
 async def attach_request_ref(request: Request, call_next):
     """给每个请求一个 8 位 ref，同时回写到响应头。
 
     没有它，线上 500 只能靠时间对齐日志；用户报障也说不出可检索的编号。
+
+    顺带记一笔滚动 5xx 比例（`core.httpwindow`）：部署后的看门狗靠它判断
+    "起来了但每个请求都 502"这种健康检查看不出来的故障。排除 `/healthz`
+    的理由写在 HttpWindow 的模块注释里——探针会把真实比例稀释一个数量级。
     """
     ref = (request.headers.get("X-Request-Id") or secrets.token_hex(4))[:16]
     request.state.ref = ref
-    response = await call_next(request)
+    counted = request.url.path != "/healthz"
+    try:
+        response = await call_next(request)
+    except Exception:
+        # 未处理异常由 ServerErrorMiddleware 变成 500，但它在这层之外生成响应：
+        # 不在这里补记，"每个请求都 500"在窗口里就是零错误——最该回滚的故障反而看不见。
+        if counted:
+            http_window.record(500)
+        raise
+    if counted:
+        http_window.record(response.status_code)
     response.headers["X-Request-Id"] = ref
     return response
 
@@ -178,4 +197,4 @@ def healthz() -> dict:
     except Exception as exc:  # noqa: BLE001 - 读不到用量不该让健康检查 500
         log.warning("healthz 预算检查失败：%s", exc)
 
-    return {"status": status, "checks": checks, "budget": budget}
+    return {"status": status, "checks": checks, "budget": budget, "http": http_window.snapshot()}
