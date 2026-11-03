@@ -34,7 +34,11 @@ THRESHOLD_PCT="${WATCH_5XX_PCT:-1}"
 PROBE_FAIL_LIMIT="${WATCH_PROBE_FAIL_LIMIT:-2}"
 
 log() {
-  printf '%s %s\n' "$(date -Is)" "$*" | tee -a watch.log >&2
+  # 只写 stderr：调用方（deploy.sh）已经把 stdout+stderr 重定向进 watch.log。
+  # 2026-11-03 实测踩坑：这里再用 `tee -a watch.log`，同一行会被写两遍
+  # （tee 写一次 + stdout 被重定向再写一次），日志翻倍且时间线看起来像重复执行。
+  # 手动前台跑想看文件就 `./postdeploy_watch.sh ... 2>&1 | tee -a watch.log`。
+  printf '%s %s\n' "$(date -Is)" "$*" >&2
 }
 
 # 纯判定：返回 0 = 该回滚，1 = 继续观察。抽成函数才能被 --self-test 覆盖。
