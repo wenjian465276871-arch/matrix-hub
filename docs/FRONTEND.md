@@ -31,6 +31,7 @@ apps/electro-assist/web/
     ├── lib/http.ts          # 唯一网络层：15s（上传 60s）超时、错误归一、JSON/multipart；不自动重试
     ├── lib/errors.ts        # 服务端 code → 用户文案映射
     ├── lib/theme.ts         # 皮肤单例：唯一 key electro-theme、唯一写入点、导入即上色
+    ├── lib/jobhandoff.ts    # job_id + startedAt 的跨页交接（生成页续接、详情页「再生成」共用一份键名）
     ├── lib/viewport.ts      # visualViewport → --kb-inset（软键盘顶升底栏，阈值 120px）
     ├── styles/              # tokens.css（亮/暗两套令牌） / base.css / print.css
     ├── figures/             # registry.ts + svg.ts + motion.ts + GuideFigure.vue + primitives/（13 个）
@@ -39,8 +40,8 @@ apps/electro-assist/web/
     └── views/               # Library / NewGuide / Guide / Run / Record / Diagnose / Privacy
 ```
 
-规模：前端 **9,580 行 / 43 文件**（vue/ts/css，2026-11-01 实测）。
-最大文件 `NewGuideView.vue` **1,474 行**、`RunView.vue` **1,070 行**——两天内分别 +259 / +247，
+规模：前端 **11,264 行 / 48 文件**（vue/ts/css，2026-11-03 实测）。
+最大文件 `NewGuideView.vue` **1,505 行**、`GuideView.vue` **1,310 行**、`RunView.vue` **1,084 行**，
 是当前**第一号可维护性风险**（拆分方案见文末 §9）。
 
 ### 1.1 路由
@@ -202,8 +203,8 @@ E2E 抓的是 DOM 回归，比给 `lib/http.ts` 写 mock 更值钱。真要补�
 
 | 文件 | 现规模 | 拆分边界 | 为什么现在不拆 |
 |---|---|---|---|
-| `NewGuideView.vue` | **1,474 行**（脚本 745 / 模板 323 / 样式 400） | `PrecheckPanel`（预检结果）、`ExtractPanel`（识别结果 + 转录折叠）、`SliceSheet`（选区域弹层）、`AssetTray`（上传与移除）；轮询与 90s 预算抽 `composables/useJobPolling.ts` | 五个功能在两天内叠进同一页，状态互相引用（`text` 既是输入又是回填目标）；**拆分必须单独一轮、只搬家不改逻辑**，否则出问题分不清是功能还是结构 |
-| `RunView.vue` | **1,070 行** | `CriterionRow`（判据行 + 超差提示）、`AbortDialog`（复用 `ConfirmDialog`）、`FigureZoom`（放大层） | 同上；放大层的焦点管理刚落地，需要先跑一轮真机再动 |
+| `NewGuideView.vue` | **1,505 行**（脚本 745 / 模板 323 / 样式 400） | `PrecheckPanel`（预检结果）、`ExtractPanel`（识别结果 + 转录折叠）、`SliceSheet`（选区域弹层）、`AssetTray`（上传与移除）；轮询与 90s 预算抽 `composables/useJobPolling.ts` | 五个功能在两天内叠进同一页，状态互相引用（`text` 既是输入又是回填目标）；**拆分必须单独一轮、只搬家不改逻辑**，否则出问题分不清是功能还是结构 |
+| `RunView.vue` | **1,084 行** | `CriterionRow`（判据行 + 超差提示）、`AbortDialog`（复用 `ConfirmDialog`）、`FigureZoom`（放大层） | 同上；放大层的焦点管理刚落地，需要先跑一轮真机再动 |
 
 判断标准不变：**单文件超过 600 行就该拆**；本轮的处置是"记录 + 定量"，不是"顺手改"。
 

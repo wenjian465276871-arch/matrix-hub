@@ -59,7 +59,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **346 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **359 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 错误可追溯 | 500 返回统一 JSON + 8 位 `ref`，响应头带 `X-Request-Id` | 任意错误请求观察响应 |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
@@ -68,7 +68,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 前端首屏 | **43.83 KB** gzip（预算 75KB），CSS **8.97 KB**（预算 14KB） | `npm run build` |
 | 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 100** / LCP **1.31s** / CLS **0** / TBT **70ms**；指导书页 **99** / **1.29s** / **0** / **124.5ms** | Lighthouse 13.5 + `scripts/lighthouse.mjs`（2026-10-23 线上） |
 | 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
-| 契约面 | **33 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
+| 契约面 | **35 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
 | 前端 E2E | **24 条**：6 条冒烟 + 抽屉/暗色/打印/取消 4 条 + 续接/倒计时/时间预算/隐私/成功即跳转 5 条 + 横屏两栏 1 条 + 窄屏/键盘/表格堆叠/放大/仍要提交 1 条 + **800ms 转骨架 / 路由焦点 / 加载更多 / 打印表头 4 条** + 修正与搜索 2 条 + 上一轮增量 1 条 | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
 
 ### 4.1 这组数字是怎么来的，以及它抓到了什么
@@ -188,7 +188,7 @@ docs/                     文档索引、架构、运维、接口、演示、开
 | [交互规范](docs/UX.md) | 页面与路由、三条流程、状态与边界（as-built） |
 | [前端实现](docs/FRONTEND.md) | 工程结构、网络层、性能预算、已知坑（as-built） |
 | [部署与回滚](docs/OPERATIONS.md) | 部署/回滚/证书/备份/事故处置/发布 CLI |
-| [API 参考](docs/API.md) | 34 个端点（业务 33 + 健康检查），由 OpenAPI 导出 |
+| [API 参考](docs/API.md) | 36 个端点（业务 35 + 健康检查），由 OpenAPI 导出 |
 | [开发指南](docs/DEVELOPMENT.md) | 本地起站、测试、构建、约定与常见坑 |
 | [演示脚本](docs/DEMO.md) | 5 分钟闭环演示 |
 | [案例来源](docs/SOURCES.md) | 合规清单与登记规则 |
