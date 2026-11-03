@@ -404,6 +404,22 @@ html.theme-dark .btn--warn:hover {
   letter-spacing: 0.04em;
 }
 
+/* 无图示占位（计划 §2.1 三级降级第三级）。虚线框是"这里本该有东西"的
+   视觉信号，但不能做得像错误提示——缺图不等于这份指导书不可用。 */
+.step__empty {
+  padding: 10px 12px;
+  border: 1px dashed var(--c-line);
+  border-radius: 6px;
+  background: var(--c-line-soft);
+}
+
+.step__empty-text {
+  margin: 0;
+  color: var(--c-ink-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .safety {
   margin: 0;
   padding: 0;

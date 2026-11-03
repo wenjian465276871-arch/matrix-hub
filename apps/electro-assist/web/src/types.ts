@@ -133,6 +133,8 @@ export type GuideStatus = 'draft' | 'published'
 export interface GuideDetail {
   status: GuideStatus
   guide: Guide
+  /** 由哪份工艺生成；样例/历史数据没有来源，为 null */
+  process_id: string | null
 }
 
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout'
@@ -141,6 +143,8 @@ export interface JobSnapshot {
   id: string
   status: JobStatus
   guide_id: string | null
+  /** 这次生成用的工艺 id；任务成功后仍可据此「再生成一份草稿」 */
+  process_id?: string | null
   error_code: string | null
   error_message: string | null
   created_at: string
@@ -186,6 +190,8 @@ export interface ProcessPrecheck {
     steps: number
     steps_with_criterion: number
   }
+  /** `save: true` 时返回落库后的工艺 id，否则为 null */
+  process_id: string | null
   next: string
 }
 

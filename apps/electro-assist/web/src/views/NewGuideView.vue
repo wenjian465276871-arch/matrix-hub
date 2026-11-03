@@ -3,6 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { ApiError, getJson, postForm, postJson } from '../lib/http'
 import { announce } from '../lib/announce'
+import { clearStoredJob, readStoredJob, writeStoredJob } from '../lib/jobhandoff'
 import type {
   ExtractResult,
   GenerateAccepted,
@@ -92,44 +93,9 @@ function armSlowHint(): void {
   }, SLOW_HINT_MS)
 }
 
-/* 刷新续接：job_id 与 startedAt 存 sessionStorage（关标签页即失效）。
-   startedAt 是 90s 预算的唯一基准，**不能因为刷新而重置**——
-   否则每刷一次就能重新等 90 秒，把"超时"变成"无限等"。 */
-const JOB_KEY = 'electro:job'
-
-interface StoredJob {
-  jobId: string
-  startedAt: number
-}
-
-function readStoredJob(): StoredJob | null {
-  try {
-    const raw = sessionStorage.getItem(JOB_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<StoredJob>
-    if (typeof parsed.jobId !== 'string' || typeof parsed.startedAt !== 'number') return null
-    if (!/^j_[0-9a-f]{16}$/.test(parsed.jobId)) return null
-    return { jobId: parsed.jobId, startedAt: parsed.startedAt }
-  } catch {
-    return null
-  }
-}
-
-function writeStoredJob(id: string, startedAt: number): void {
-  try {
-    sessionStorage.setItem(JOB_KEY, JSON.stringify({ jobId: id, startedAt }))
-  } catch {
-    // 隐私模式写不进：只影响"刷新续接"，不影响本次生成
-  }
-}
-
-function clearStoredJob(): void {
-  try {
-    sessionStorage.removeItem(JOB_KEY)
-  } catch {
-    /* 同上 */
-  }
-}
+/* 刷新续接：job_id 与 startedAt 存 sessionStorage（关标签页即失效），
+   读写逻辑收在 `lib/jobhandoff.ts`——详情页的「重新生成」也要往里写同一个键，
+   两处各拼一份字符串迟早会漂。 */
 
 /* 429 倒计时：服务端给 Retry-After，这里只做展示与禁点。
    不自动重试——额度是钱，什么时候再花必须由人决定。 */

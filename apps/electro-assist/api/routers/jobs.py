@@ -40,7 +40,7 @@ class GenerateIn(BaseModel):
     assets: list[AssetIn] = Field(default_factory=list, max_length=MAX_ASSETS_PER_JOB)
 
 
-def _normalize_assets(items: list[AssetIn]) -> list[dict[str, str]]:
+def normalize_assets(items: list[AssetIn]) -> list[dict[str, str]]:
     """把请求里的素材收紧成「确定存在」的 (id, 说明) 列表。
 
     没有这一步，用户传错 id 也能提交成功，等到详情页才发现图裂开——
@@ -88,7 +88,7 @@ def generate(
             ratelimit.client_ip(request),
             body.retry_of,
             privileged=bool(x_passcode_token),
-            assets=_normalize_assets(body.assets),
+            assets=normalize_assets(body.assets),
         )
     except generation.GenerateRejected as exc:
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None

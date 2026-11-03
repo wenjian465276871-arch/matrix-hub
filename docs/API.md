@@ -2,7 +2,7 @@
 
 > 由 `apps/electro-assist/api/scripts/export_openapi.py` 从 `app.openapi()` 生成，**不要手改**。
 > 接口变更后重跑脚本并提交本文件：`cd apps/electro-assist/api && ./.venv/Scripts/python.exe scripts/export_openapi.py`
-> 服务版本：`0.6.0` ｜ 端点 **34** 个（业务 **33** + `/healthz`）
+> 服务版本：`0.6.0` ｜ 端点 **36** 个（业务 **35** + `/healthz`）
 
 ## 1. 约定
 
@@ -30,13 +30,15 @@
 | `POST` | `/api/electro/fe-error` | 前端错误上报：只写日志、不落库；字段白名单 + 单 IP 30/时限流 | `FeErrorIn` | `—` |
 | `POST` | `/api/electro/generate` | 提交生成任务，返回 202 + job_id（单 worker 有界队列） | `GenerateIn` | `202 · object` |
 | `GET` | `/api/electro/guides` | 指导书列表，**只含已发布**（草稿不进列表）；`q` 按标题/摘要/来源说明子串搜索 | `—` | `200 · object` |
-| `GET` | `/api/electro/guides/{guide_id}` | 指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读 | `—` | `200 · object` |
+| `GET` | `/api/electro/guides/{guide_id}` | 指导书详情；返回 `{status, guide, process_id}` 信封，草稿凭 id 可读 | `—` | `200 · object` |
 | `PATCH` | `/api/electro/guides/{guide_id}` | 修正草稿文字与判据值（需口令令牌）：不能增删步骤、不能换判据类型；已发布 409 | `GuidePatch` | `200 · object` |
 | `PUT` | `/api/electro/guides/{guide_id}/assets` | 草稿素材归位：全量重排已有素材到步骤/素材区；已发布 409 | `AttachIn` | `200 · object` |
 | `POST` | `/api/electro/guides/{guide_id}/publish` | 发布草稿（需口令令牌）：每步必须有验收判据，缺一项即 409 并列出缺口 | `—` | `200 · object` |
 | `GET` | `/api/electro/jobs/{job_id}` | 轮询生成任务状态，成功后带 guide_id | `—` | `200 · object` |
 | `POST` | `/api/electro/passcode/verify` | 用访问口令换短期令牌（只豁免每 IP 配额，预算仍生效） | `PasscodeIn` | `200 · object` |
-| `POST` | `/api/electro/processes` | 工艺文本预检：规则解析工序/工位/工具/安全与判据线索，不调模型、不落库、不扣配额 | `ProcessIn` | `200 · object` |
+| `POST` | `/api/electro/processes` | 工艺文本预检：规则解析工序/工位/工具/安全与判据线索；`save=true` 时把原文落库并返回 `process_id`（默认不落库、不扣配额） | `ProcessIn` | `200 · object` |
+| `GET` | `/api/electro/processes/{process_id}` | 取已保存的工艺原文（随机 id，不枚举；保留 30 天） | `—` | `200 · object` |
+| `POST` | `/api/electro/processes/{process_id}/generate` | 用已保存的工艺重新生成（与 `/generate` 共用配额、预算与队列） | `ProcessGenerateIn` | `202 · object` |
 | `GET` | `/api/electro/quota` | 查生成配额与全站预算余量 | `—` | `200 · object` |
 | `GET` | `/api/electro/records/{session_id}` | 整份作业记录（按步骤分组、含每次尝试与异常链） | `—` | `200 · object` |
 | `GET` | `/api/electro/records/{session_id}/export.html` | 导出作业记录为自包含 HTML（内联样式、无脚本、离线可读） | `—` | `200 · —` |
@@ -78,7 +80,7 @@
 ### guides
 
 - `GET /api/electro/guides` — 指导书列表，**只含已发布**（草稿不进列表）；`q` 按标题/摘要/来源说明子串搜索
-- `GET /api/electro/guides/{guide_id}` — 指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读
+- `GET /api/electro/guides/{guide_id}` — 指导书详情；返回 `{status, guide, process_id}` 信封，草稿凭 id 可读
 - `PATCH /api/electro/guides/{guide_id}` — 修正草稿文字与判据值（需口令令牌）：不能增删步骤、不能换判据类型；已发布 409
 - `PUT /api/electro/guides/{guide_id}/assets` — 草稿素材归位：全量重排已有素材到步骤/素材区；已发布 409
 - `POST /api/electro/guides/{guide_id}/publish` — 发布草稿（需口令令牌）：每步必须有验收判据，缺一项即 409 并列出缺口
@@ -94,7 +96,9 @@
 
 ### processes
 
-- `POST /api/electro/processes` — 工艺文本预检：规则解析工序/工位/工具/安全与判据线索，不调模型、不落库、不扣配额
+- `POST /api/electro/processes` — 工艺文本预检：规则解析工序/工位/工具/安全与判据线索；`save=true` 时把原文落库并返回 `process_id`（默认不落库、不扣配额）
+- `GET /api/electro/processes/{process_id}` — 取已保存的工艺原文（随机 id，不枚举；保留 30 天）
+- `POST /api/electro/processes/{process_id}/generate` — 用已保存的工艺重新生成（与 `/generate` 共用配额、预算与队列）
 
 ### quota
 
@@ -246,12 +250,21 @@
 |---|---|---|
 | `code` | `string` | 是 |
 
+### ProcessGenerateIn
+
+| 字段 | 类型 | 必填 |
+|---|---|---|
+| `retry_of` | `—` | 否 |
+| `assets` | `AssetIn[]` | 否 |
+
 ### ProcessIn
 
 | 字段 | 类型 | 必填 |
 |---|---|---|
 | `text` | `string` | 是 |
 | `system` | `—` | 否 |
+| `save` | `boolean` | 否 |
+| `title` | `—` | 否 |
 
 ### RunIn
 

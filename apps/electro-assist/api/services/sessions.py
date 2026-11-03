@@ -76,7 +76,7 @@ def _load(session_id: str) -> tuple[dict, Guide, dict]:
     if found is None:
         raise SessionError("guide_missing", "会话关联的指导书已不存在", status=409)
 
-    guide_dict, _status = found
+    guide_dict, _status, _process_id = found
     try:
         guide = Guide.model_validate(guide_dict)
     except Exception as exc:  # noqa: BLE001 - 库里的数据坏了是服务端问题，但要可读

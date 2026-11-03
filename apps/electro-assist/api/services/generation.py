@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import secrets
 import threading
 from datetime import datetime, timedelta, timezone
@@ -57,12 +58,29 @@ def new_guide_id() -> str:
     return "g_" + secrets.token_hex(8)
 
 
+_TITLE_PREFIX = re.compile(r"^\s*(?:工序|工序名称|作业名称)\s*[:：]\s*")
+
+
+def derive_process_title(text: str) -> str:
+    """从原文里取一个能当标题的行。
+
+    取第一个非空行，去掉「工序：」这类前缀。**不做摘要**：标题是索引，
+    摘要要让模型写就是一次额外调用，且会和正文不一致。
+    """
+    for line in text.splitlines():
+        clean = _TITLE_PREFIX.sub("", line.strip()).strip()
+        if clean:
+            return clean[:80]
+    return "未命名工艺"
+
+
 def submit(
     text: str,
     client_ip: str,
     retry_of: str | None = None,
     privileged: bool = False,
     assets: list[dict[str, str]] | None = None,
+    process_id: str | None = None,
 ) -> str:
     cleaned = text.strip()
     if len(cleaned) < MIN_INPUT_CHARS:
@@ -84,12 +102,23 @@ def submit(
         if job_queue.capacity_left() <= 0:
             raise GenerateRejected("busy", "生成队列已满，请稍后再试", status=503, retry_after=10)
 
+        # 工艺原文随任务落库：详情页的「重新生成」要靠它，否则用户只能回生成页重粘。
+        # 配额检查在落库之前——被拒的请求不该产生一条工艺记录。
+        if process_id is None and retry_of:
+            # 重试是"同一份工艺再来一次"，不该为它复制一份原文
+            process_id = (store.get_job(retry_of) or {}).get("process_id")
+        if process_id is None:
+            process_id = store.create_process(
+                text=cleaned, title=derive_process_title(cleaned)
+            )["id"]
+
         job_id = store.create_job(
             kind="generate",
             client_ip=client_ip,
             input_text=cleaned,
             retry_of=retry_of,
             assets=assets,
+            process_id=process_id,
         )
     if not job_queue.submit(job_id, cleaned):
         store.finish_job(job_id, "failed", error_code="busy", error_detail="队列已满")
@@ -112,7 +141,7 @@ def _record_usage(job_id: str, model: str, usage, cost_micros: int) -> None:
     )
 
 
-def _attach_assets(guide, job_id: str) -> None:
+def _attach_assets(guide, job: dict) -> None:
     """把本次提交的素材挂到草稿上（**不放进模型**）。
 
     为什么不让模型分配：它没看过图，只能凭说明猜位置——猜错就是"把 A 门的
@@ -121,8 +150,8 @@ def _attach_assets(guide, job_id: str) -> None:
 
     归位（挂到某一步）由人在草稿页完成，见 `PUT /guides/{id}/assets`。
     """
-    row = store.get_job(job_id) or {}
-    raw = row.get("assets_json") or "[]"
+    job_id = job.get("id", "")
+    raw = job.get("assets_json") or "[]"
     try:
         items = json.loads(raw)
     except (TypeError, ValueError):
@@ -155,8 +184,12 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
         # 素材同理：模型即使照 schema 编了 asset_id 也一律丢弃，只认提交时传过的。
         for step in draft.guide.steps:
             step.assets = []
-        _attach_assets(draft.guide, job_id)
-        saved = store.save_guide(draft.guide, status="draft", job_id=job_id)
+        job = store.get_job(job_id) or {}
+        _attach_assets(draft.guide, job)
+        # 来源工艺随指导书落库：详情页据此提供「重新生成」，不用回生成页重粘。
+        saved = store.save_guide(
+            draft.guide, status="draft", job_id=job_id, process_id=job.get("process_id")
+        )
 
         _record_usage(job_id, draft.model, draft.usage, draft.cost_micros)
         store.finish_job(
@@ -211,6 +244,8 @@ def snapshot(job_id: str) -> dict | None:
         "id": row["id"],
         "status": status,
         "guide_id": row["guide_id"],
+        # 前端凭它在任务成功后仍能提供「用同一份工艺重新生成」
+        "process_id": row["process_id"],
         "error_code": row["error_code"],
         # 只回可读的一句话；模型原始输出可能很长，也可能含用户文本
         "error_message": row["error_detail"],

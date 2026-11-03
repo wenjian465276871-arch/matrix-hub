@@ -131,8 +131,8 @@ def get_guide(guide_id: str) -> dict:
     found = library.get_detail(guide_id)
     if found is None:
         raise HTTPException(status_code=404, detail={"code": "not_found"})
-    guide, status = found
-    return {"status": status, "guide": guide}
+    guide, status, process_id = found
+    return {"status": status, "guide": guide, "process_id": process_id}
 
 
 @router.put("/{guide_id}/assets")

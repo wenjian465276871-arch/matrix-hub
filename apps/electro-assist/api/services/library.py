@@ -162,14 +162,18 @@ def count_published(query: str | None = None) -> int:
     return store.count_guides(status="published", query=(query or None))
 
 
-def get_detail(guide_id: str) -> tuple[dict, str] | None:
-    """返回 (guide, status)。DB 没有时回落到 fixture（兼容未 seed 的环境）。"""
+def get_detail(guide_id: str) -> tuple[dict, str, str | None] | None:
+    """返回 (guide, status, process_id)。DB 没有时回落到 fixture（兼容未 seed 的环境）。
+
+    `process_id` 是"这份指导书由哪份工艺生成"：详情页拿它提供「重新生成」。
+    fixture 里的样例没有工艺来源，回 None——不编一个不存在的 id。
+    """
     ensure_seeded()
     row = store.get_guide(guide_id)
     if row is not None:
-        return row["guide"], row["status"]
+        return row["guide"], row["status"], row.get("process_id")
 
     for guide in _iter_fixtures(guide_dir()):
         if guide.id == guide_id:
-            return guide.model_dump(mode="json"), "published"
+            return guide.model_dump(mode="json"), "published", None
     return None

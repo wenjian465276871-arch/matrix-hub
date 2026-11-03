@@ -14,7 +14,7 @@ import hashlib
 import json
 import sqlite3
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
 
 from models.guide import Guide
@@ -43,6 +43,7 @@ def save_guide(
     *,
     status: GuideStatus = "draft",
     job_id: str | None = None,
+    process_id: str | None = None,
 ) -> dict[str, Any]:
     """写入或更新一份指导书。
 
@@ -63,8 +64,8 @@ def save_guide(
                 """
                 INSERT INTO guides (id, schema_version, title, system, status, json, job_id,
                                     step_count, duration_s, summary, source_note, generated_at,
-                                    created_at, updated_at, published_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                    process_id, created_at, updated_at, published_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(id) DO UPDATE SET
                   schema_version = excluded.schema_version,
                   title          = excluded.title,
@@ -76,6 +77,8 @@ def save_guide(
                   summary        = excluded.summary,
                   source_note    = excluded.source_note,
                   generated_at   = excluded.generated_at,
+                  -- 没传就保留原值：样例刷新、素材归位这类"非生成"路径不该把来源抹掉
+                  process_id     = COALESCE(excluded.process_id, guides.process_id),
                   updated_at     = excluded.updated_at,
                   status         = CASE
                                      WHEN guides.status = 'published' THEN 'published'
@@ -97,6 +100,7 @@ def save_guide(
                     guide.summary,
                     guide.meta.source_note,
                     guide.meta.generated_at.isoformat(),
+                    process_id,
                     now,
                     now,
                     now if status == "published" else None,
@@ -330,6 +334,80 @@ def count_guides(*, status: GuideStatus | None = None, query: str | None = None)
         return int(conn.execute(sql, params).fetchone()["n"])
 
 
+# ---------------------------------------------------------------- processes
+
+# 工艺原文的保留期与访客草稿一致（计划 §11.3.3：访客草稿与作业数据 30 天）。
+# 不引 cron 的第二套入口：工艺表只有几十行，写时顺带清理成本可忽略；
+# 新增一个"必须记得配"的定时任务，才是真正的运维负债。
+PROCESS_TTL_DAYS = 30
+
+
+def create_process(
+    *,
+    text: str,
+    title: str,
+    system: str = "",
+) -> dict[str, Any]:
+    """落一份工艺原文。返回可回给前端的元信息（不含正文字段以外的推导）。"""
+    process_id = _new_id("p")
+    now = now_iso()
+    with connect() as conn:
+        with tx(conn):
+            conn.execute(
+                """
+                INSERT INTO processes (id, title, system, text, chars, input_sha256,
+                                       created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    process_id,
+                    title[:80],
+                    system,
+                    text,
+                    len(text),
+                    hashlib.sha256(text.encode("utf-8")).hexdigest(),
+                    now,
+                    now,
+                ),
+            )
+            purge_expired_processes(conn)
+    return {
+        "id": process_id,
+        "title": title[:80],
+        "system": system,
+        "chars": len(text),
+        "created_at": now,
+    }
+
+
+def purge_expired_processes(conn: sqlite3.Connection | None = None) -> int:
+    """删掉超过保留期、且没有指导书再引用的工艺。
+
+    "被引用"不等于"还能重新生成"：草稿本身也会在 30 天后被清掉，
+    届时工艺在下一次写入时自然出局，不需要两处各写一套过期判断。
+
+    传入连接时复用调用方的事务；不传则自己开一个（供脚本/测试单独调用）。
+    """
+    cutoff = (
+        datetime.now(timezone.utc) - timedelta(days=PROCESS_TTL_DAYS)
+    ).isoformat(timespec="seconds")
+    sql = (
+        "DELETE FROM processes WHERE created_at < ?"
+        " AND id NOT IN (SELECT process_id FROM guides WHERE process_id IS NOT NULL)"
+    )
+    if conn is not None:
+        return conn.execute(sql, (cutoff,)).rowcount
+    with connect() as own:
+        with tx(own):
+            return own.execute(sql, (cutoff,)).rowcount
+
+
+def get_process(process_id: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM processes WHERE id = ?", (process_id,)).fetchone()
+    return _row(row)
+
+
 # ---------------------------------------------------------------- jobs
 
 
@@ -340,6 +418,7 @@ def create_job(
     input_text: str,
     retry_of: str | None = None,
     assets: list[dict[str, str]] | None = None,
+    process_id: str | None = None,
 ) -> str:
     job_id = _new_id("j")
     payload = json.dumps(assets or [], ensure_ascii=False)
@@ -348,8 +427,8 @@ def create_job(
             conn.execute(
                 """
                 INSERT INTO jobs (id, kind, status, client_ip, input_sha256, input_chars,
-                                  retry_of, assets_json, created_at)
-                VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, ?)
+                                  retry_of, assets_json, process_id, created_at)
+                VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job_id,
@@ -359,6 +438,7 @@ def create_job(
                     len(input_text),
                     retry_of,
                     payload,
+                    process_id,
                     now_iso(),
                 ),
             )

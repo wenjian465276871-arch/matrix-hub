@@ -5,6 +5,7 @@ import GuideFigure from '../figures/GuideFigure.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import { announce } from '../lib/announce'
 import { ApiError, getJson, patchJson, postJson, putJson } from '../lib/http'
+import { writeStoredJob } from '../lib/jobhandoff'
 import type {
   AssetRef,
   AttachResult,
@@ -133,6 +134,7 @@ async function load(): Promise<void> {
     const detail = await getJson<GuideDetail>(`/api/electro/guides/${props.id}`, ctrl.signal)
     guide.value = detail.guide
     guideStatus.value = detail.status
+    processId.value = detail.process_id ?? null
     // 归位面板的初值来自服务端：本地只保存"用户改了什么"，不猜默认位置。
     const place: Record<string, string> = {}
     const labels: Record<string, string> = {}
@@ -397,6 +399,39 @@ const pending = ref<'edit' | 'publish' | null>(null)
 
 const canPublish = computed(() => guideStatus.value === 'draft' && blockers.value.length === 0)
 
+/* ---------- 重新生成 ----------
+ * 工艺原文已随生成落库（`processes` 表），所以不必回生成页重粘一段一模一样的文字。
+ *
+ * 代价要说清：这不是"重试"，是一次**新的生成**——花同一份额度、出另一份草稿。
+ * 所以按钮文案写"再生成一份草稿"，不写"重试"。
+ */
+const processId = ref<string | null>(null)
+const regenerating = ref(false)
+const regenError = ref('')
+
+async function regenerate(): Promise<void> {
+  if (!processId.value || regenerating.value) return
+  regenerating.value = true
+  regenError.value = ''
+  try {
+    const res = await postJson<{ job_id: string }>(
+      `/api/electro/processes/${processId.value}/generate`,
+      { retry_of: null },
+      token.value ? { headers: { 'X-Passcode-Token': token.value } } : undefined,
+    )
+    // 交给生成页的轮询：它按 job_id 续接，超时预算从这一刻算起
+    writeStoredJob(res.job_id, Date.now())
+    await router.push({ name: 'new' })
+  } catch (err) {
+    regenError.value =
+      err instanceof ApiError
+        ? err.message || '无法重新生成'
+        : '无法重新生成，请稍后重试'
+  } finally {
+    regenerating.value = false
+  }
+}
+
 function describeReviseError(err: unknown): string {
   if (!(err instanceof ApiError)) {
     return err instanceof Error ? err.message : '保存失败，请稍后重试'
@@ -547,8 +582,19 @@ restoreToken()
           {{ starting ? '正在创建会话…' : '开始引导作业' }}
         </button>
         <button class="btn" type="button" @click="printGuide">打印 / 导出 PDF</button>
+        <button
+          v-if="processId"
+          class="btn"
+          type="button"
+          :disabled="regenerating"
+          title="用同一份工艺文本再生成一份草稿；与首次生成共用配额"
+          @click="regenerate"
+        >
+          {{ regenerating ? '正在提交…' : '再生成一份草稿' }}
+        </button>
       </div>
       <p v-if="startError" class="start-error no-print">{{ startError }}</p>
+      <p v-if="regenError" class="start-error no-print">{{ regenError }}</p>
     </header>
 
     <!-- 草稿控制条：修正 / 发布。已发布的内容不显示，避免"看起来能改"。 -->
@@ -810,6 +856,20 @@ restoreToken()
       <div v-if="step.figures.length" class="step__block">
         <p class="block-label">图示</p>
         <GuideFigure v-for="(fig, i) in step.figures" :key="`${step.id}-fig-${i}`" :spec="fig" />
+      </div>
+
+      <!-- 三级降级的第三级（计划 §2.1）：既没有原语图示、也没有现场素材时，
+           必须**显式**说明原因并给出补救动作，不能靠"这块不渲染"静默跳过。
+           现场照着文字做完一步、才发现本该有张接线图，是这套系统最不该出现的失败。 -->
+      <div v-else-if="!step.assets?.length" class="step__block step__empty">
+        <p class="block-label">图示</p>
+        <p class="step__empty-text">
+          本步暂无可视化图示，也未附现场素材。
+          <template v-if="guideStatus === 'draft'">
+            可上传照片或截图后在草稿页补到本步；补齐前请以下方文字与验收判据为准。
+          </template>
+          <template v-else>请以下方文字与验收判据为准；如需配图，请对照现场资料。</template>
+        </p>
       </div>
 
       <div v-if="step.assets?.length" class="step__block">

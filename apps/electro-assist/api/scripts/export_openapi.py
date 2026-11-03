@@ -36,7 +36,7 @@ CURATED = {
     "GET /api/electro/uploads/{asset_id}": "取上传资产的元信息与切片清单",
     "GET /api/electro/uploads/{asset_id}/{filename}": "取原图或某张切片（二进制）",
     "GET /api/electro/guides": "指导书列表，**只含已发布**（草稿不进列表）；`q` 按标题/摘要/来源说明子串搜索",
-    "GET /api/electro/guides/{guide_id}": "指导书详情；返回 `{status, guide}` 信封，草稿凭 id 可读",
+    "GET /api/electro/guides/{guide_id}": "指导书详情；返回 `{status, guide, process_id}` 信封，草稿凭 id 可读",
     "PATCH /api/electro/guides/{guide_id}":
         "修正草稿文字与判据值（需口令令牌）：不能增删步骤、不能换判据类型；已发布 409",
     "POST /api/electro/guides/{guide_id}/publish":
@@ -59,7 +59,10 @@ CURATED = {
         "回填一项检查（确认 pass/fail 或实测值），由服务端判定并推进",
     "POST /api/electro/diagnose/runs/{run_id}/abort": "中止逐步诊断，保留已完成步骤",
     "POST /api/electro/extract": "图片识别：默认双通道（先转录后结构化），失败回退单通道并标注；不落库、不自动生成",
-    "POST /api/electro/processes": "工艺文本预检：规则解析工序/工位/工具/安全与判据线索，不调模型、不落库、不扣配额",
+    "POST /api/electro/processes": "工艺文本预检：规则解析工序/工位/工具/安全与判据线索；`save=true` 时把原文落库并返回 `process_id`（默认不落库、不扣配额）",
+    "GET /api/electro/processes/{process_id}": "取已保存的工艺原文（随机 id，不枚举；保留 30 天）",
+    "POST /api/electro/processes/{process_id}/generate":
+        "用已保存的工艺重新生成（与 `/generate` 共用配额、预算与队列）",
     "POST /api/electro/fe-error": "前端错误上报：只写日志、不落库；字段白名单 + 单 IP 30/时限流",
     "GET /api/electro/records/{session_id}/export.html": "导出作业记录为自包含 HTML（内联样式、无脚本、离线可读）",
     "POST /api/electro/uploads/{asset_id}/slice/{region_id}/adopt": "把切块复制成独立素材（记 derived_from，每源图 6 次上限）",

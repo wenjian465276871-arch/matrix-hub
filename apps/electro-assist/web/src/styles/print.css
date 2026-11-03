@@ -93,6 +93,14 @@
     color: #000;
   }
 
+  /* 占位文字要留在纸上：打印稿悄悄少一张图，比多一行说明危险得多。
+     只去掉虚线框与底色（省墨，且虚线框在灰度打印里像"待办标记"）。 */
+  .step__empty {
+    padding: 0;
+    border: none;
+    background: none;
+  }
+
   .disclaimer {
     border: 1px solid #999;
     background: #fff;

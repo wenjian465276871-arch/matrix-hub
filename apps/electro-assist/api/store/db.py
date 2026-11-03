@@ -222,6 +222,37 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "ALTER TABLE jobs ADD COLUMN assets_json TEXT NOT NULL DEFAULT '[]'",
         ],
     ),
+    (
+        7,
+        [
+            # 工艺落地（计划 §3.5 的 `POST /processes` / `GET /processes/{id}` /
+            # `POST /processes/{id}/generate`）。决策 #22 当时不建实体，理由是
+            # "没有消费者"；2026-11-03 补上消费者——详情页可以拿同一份文本重新生成，
+            # 不用回生成页重新粘贴。
+            #
+            # 只存原文与派生标题，不存预检结果：预检是规则计算的确定性输出，
+            # 存下来就会与解析规则漂移（改了正则，旧行还是旧结论）。
+            """
+            CREATE TABLE processes (
+              id           TEXT PRIMARY KEY,
+              title        TEXT NOT NULL,
+              system       TEXT NOT NULL DEFAULT '',
+              text         TEXT NOT NULL,
+              chars        INTEGER NOT NULL DEFAULT 0,
+              input_sha256 TEXT NOT NULL DEFAULT '',
+              created_at   TEXT NOT NULL,
+              updated_at   TEXT NOT NULL
+            )
+            """,
+            "CREATE INDEX idx_processes_created ON processes(created_at)",
+            # 生成任务是"某份工艺的一次尝试"，两个 id 都要能查回去：
+            # jobs.process_id 用于审计，guides.process_id 用于"重新生成"入口。
+            "ALTER TABLE jobs ADD COLUMN process_id TEXT",
+            "ALTER TABLE guides ADD COLUMN process_id TEXT",
+            # 清理工艺时要排除"仍被指导书引用"的行，这个子查询得走索引。
+            "CREATE INDEX idx_guides_process ON guides(process_id)",
+        ],
+    ),
 ]
 
 
