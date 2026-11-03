@@ -311,16 +311,21 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       # 2026-10-18 补：此前只跑服务器上的旧 deploy.sh，仓库改了也不生效，
-      # 等于"部署脚本不在版本控制里"。部署前先同步这两个文件。
-      - name: 同步部署产物（deploy.sh / backup.sh / compose.yml）
+      # 等于"部署脚本不在版本控制里"。部署前先同步这些文件。
+      #
+      # 2026-11-03 教训：`deploy.sh` 新增了 `source ./probe.sh`，但这份清单没跟着改，
+      # 于是线上找不到 probe.sh → 部署在第 1 行就失败（CI 全绿到「部署」才红）。
+      # **部署期新增的任何脚本都必须加进这个 scp 清单**，否则服务器上是"有引用无文件"。
+      - name: 同步部署产物（deploy.sh / probe.sh / postdeploy_watch.sh / backup.sh / compose.yml）
         if: steps.scope.outputs.deploy == 'true'
         run: |
           scp -i ~/.ssh/id_ed25519 -o BatchMode=yes \
-            deploy/deploy.sh deploy/backup.sh docker/compose.yml \
+            deploy/deploy.sh deploy/probe.sh deploy/postdeploy_watch.sh \
+            deploy/backup.sh docker/compose.yml \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/matrix-hub/"
           ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
             "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "chmod 755 /opt/matrix-hub/deploy.sh /opt/matrix-hub/backup.sh"
+            "chmod 755 /opt/matrix-hub/deploy.sh /opt/matrix-hub/probe.sh /opt/matrix-hub/postdeploy_watch.sh /opt/matrix-hub/backup.sh"
 
       - name: 执行部署（健康检查失败自动回滚）
         if: steps.scope.outputs.deploy == 'true'
