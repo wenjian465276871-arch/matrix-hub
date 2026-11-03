@@ -1,6 +1,6 @@
 # 文档索引
 
-> 版本 v1.4 · 2026-11-01 · 维护规则：**每份文档只回答一类问题；数字必须附命令与日期；历史结论进 `archive/`，未实现方案进 `proposals/`。**
+> 版本 v1.5 · 2026-11-03 · 维护规则：**每份文档只回答一类问题；数字必须附命令与日期；历史结论进 `archive/`，未实现方案进 `proposals/`。**
 
 ## 1. 先看哪份
 
@@ -17,7 +17,7 @@
 | 怎么演示、兜底方案 | [`DEMO.md`](DEMO.md) |
 | 案例内容从哪来、合规边界 | [`SOURCES.md`](SOURCES.md) |
 | 某个架构决策的前因后果 | [`adr/`](adr/) |
-| 图片输入做到哪一步 | [`proposals/A2-IMAGE-INPUT.md`](proposals/A2-IMAGE-INPUT.md)（双通道已实现：先转录后结构化；仍无文字坐标） |
+| 图片输入做到哪一步 | [`archive/A2-IMAGE-INPUT.md`](archive/A2-IMAGE-INPUT.md)（双通道已实现：先转录后结构化；仍无文字坐标） |
 | 一次性迁移记录 | [`archive/P0A-MIGRATION.md`](archive/P0A-MIGRATION.md) |
 
 > `UI.md` / `UX.md` / `FRONTEND.md` 是**as-built 版本**：只写代码里真实存在的规格，
@@ -39,7 +39,8 @@
 | `docs/DEMO.md` | 演示 | 当前 | 5 分钟闭环 + 兜底 |
 | `docs/SOURCES.md` | 合规 | 当前 | 案例与知识库来源登记（D-01～D-08、K-01～K-03） |
 | `apps/electro-assist/api/scripts/README.md` | 清单 | 当前 | 9 个脚本的用途、读写面与"会不会碰生产数据" |
-| `docs/proposals/A2-IMAGE-INPUT.md` | 提案 | **部分实现** | 单通道识别已上线；双通道待模型提供文字坐标 |
+| `docs/adr/0004-process-entity-minimal.md` | ADR | 已接受 | 工艺原文最小落库（30 天），支撑详情页再生成 |
+| `docs/archive/A2-IMAGE-INPUT.md` | 归档 | 已实现 | 图片输入方案；未落地部分只剩 OCR 文字坐标 |
 | `docs/adr/0001` | ADR | 已接受 | 单仓单镜像 + Caddy |
 | `docs/adr/0002` | ADR | 已接受 | P0 下架 news-insight |
 | `docs/adr/0003` | ADR | 已接受 | 旧静态页归档、不入镜像 |
@@ -55,7 +56,7 @@
 | 代码基线 | `6d070fa`（线上同名镜像；功能等价于 `c026149`，差异仅为 `scripts/_bootstrap.py`、脚本清单与文档）；功能面含 `bdf6937` 窄屏、`c026149` 发布闸门/分页/800ms/焦点/打印表头 | `git log --oneline -1` |
 | 契约测试 | **359 passed** | `pytest tests -q`（约 36s） |
 | 业务端点 | 35 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
-| 首屏 | **43.83 KB gzip / CSS 8.97 KB** | `npm run build`（vue-tsc + vite） |
+| 首屏 | **45.70 KB gzip / CSS 9.70 KB** | `npm run build`（vue-tsc + vite） |
 | 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23 线上；此后只增 UI 元素，未复测） |
 | B 检索 | Top-3 **21/21**、未覆盖 **2/2**、P50 **2.8ms** / P95 **5.3ms**（441 采样） | `scripts/eval_diagnose.py`（2026-11-01） |
 | 线上数据 | 已发布指导书 **5** / 草稿 2 / KB **18 条 / 3 子系统** / sessions 16 / records 62 / diagnose_runs 15 | `GET /guides`、容器内 SQLite（2026-11-01） |

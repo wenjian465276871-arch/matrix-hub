@@ -53,12 +53,16 @@ docker exec matrix-hub sh -c "chmod -R go-rwx /srv/app_data/uploads /srv/app_dat
 服务器上 `/opt/matrix-hub/`：
 
 ```
-compose.yml     由仓库同步，不手改
-deploy.sh       由仓库同步
-backup.sh       由仓库同步（每日备份脚本）
+compose.yml            由仓库同步，不手改
+deploy.sh              由仓库同步（部署 + 健康检查 + 业务探针）
+probe.sh               由仓库同步（健康/业务只读探针，被 deploy.sh source）
+postdeploy_watch.sh    由仓库同步（部署后 10 分钟 5xx 观察，可自动回滚）
+backup.sh              由仓库同步（每日备份脚本）
 .env            600，含 IMAGE / TAG / SITE_DOMAIN / ACME_EMAIL / DEEPSEEK_API_KEY，不入库
-deploy.log      deploy.sh 追加写入的部署记录
-backups/        SQLite + uploads 备份（卷外，各保留 7 份 ⇒ 14 个文件）
+deploy.log             deploy.sh / 看门狗追加写入的部署与回滚记录
+watch.log              看门狗观察日志（每轮一行，10 分钟后自结束）
+.incoming/             CI 暂存目录（原子 mv 前落盘，避免覆盖运行中的脚本）
+backups/               SQLite + uploads 备份（卷外，各保留 7 份 ⇒ 14 个文件）
 ```
 
 ## 3. 部署

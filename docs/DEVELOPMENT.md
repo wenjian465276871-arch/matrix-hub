@@ -68,6 +68,7 @@ api/
 │   ├── imaging.py     图片准入（格式/尺寸/EXIF 剥离/重编码）
 │   ├── slicing.py     版面切分（表格线/密集文字）
 │   ├── ratelimit.py   进程内滑窗限流（单 worker 前提）
+│   ├── httpwindow.py  10 分钟滚动 5xx 统计（部署后看门狗的数据源）
 │   └── passcode.py    口令 → 12h 令牌（HMAC）；只豁免每 IP 配额
 ├── models/            Pydantic 契约：guide（schema 1.2）、visual（13 原语）、knowledge
 ├── routers/           35 个业务端点；只做参数校验与 HTTP 语义
@@ -87,8 +88,15 @@ web/
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
 ├── src/components/    ui/（确认弹层）与 diagnose/（快速结果、逐步诊断）
 ├── src/lib/http.ts    唯一网络层：超时、错误归一、JSON / multipart / PUT
+├── src/lib/jobhandoff.ts  job_id + startedAt 跨页交接（生成页续接 / 详情页再生成共用）
 ├── src/styles/        tokens / base / print
 └── src/types.ts       与后端契约对应的 TS 类型
+
+deploy/                服务器侧脚本（由 CI 同步到 /opt/matrix-hub）
+├── deploy.sh          部署：拉镜像 → 起容器 → 健康检查 → 业务探针 → 拉起看门狗
+├── probe.sh           健康 + 业务只读探针（可被本地 source 验证）
+├── postdeploy_watch.sh 10 分钟 5xx 观察；超阈值或探针连续失败即回滚
+└── backup.sh          SQLite 热备 + uploads 打包（卷外，各留 7 份）
 ```
 
 **依赖方向**（重组后强制）：
@@ -161,7 +169,7 @@ pip install --dry-run --require-hashes -r requirements.lock
 升级需要同步抬 FastAPI 并回归 301 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
 
 
-**前端 E2E（2026-10-21 进 CI，现 24 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）；`tests/e2e/polish.spec.ts` 四条收尾——800ms 转骨架、路由焦点归位、列表加载更多、打印表头重复。
+**前端 E2E（2026-10-21 进 CI，现 26 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）；`tests/e2e/polish.spec.ts` 四条收尾——800ms 转骨架、路由焦点归位、列表加载更多、打印表头重复；`tests/e2e/resilience.spec.ts` 五条——刷新续接、429 倒计时、时间预算、隐私页、成功即跳转；`tests/e2e/landscape.spec.ts` / `mobile.spec.ts` 各一条几何回归；`tests/e2e/revise.spec.ts` 三条——搜索两条 + 草稿修正（需设置 E2E_REVISE 环境变量才跑）；`tests/e2e/fallback.spec.ts` 与 `regenerate.spec.ts` 各一条——无图示占位、再生成入口。
 
 ```bash
 # 本地：先起 API（临时库）与 preview，再跑
@@ -330,7 +338,7 @@ POST /api/electro/guides/{id}/publish    X-Passcode-Token: <token>
 | `docs/OPERATIONS.md` | 怎么部署/回滚/备份/发布；不写设计理由 |
 | `docs/DEVELOPMENT.md` | 怎么本地跑、怎么测、有哪些坑 |
 | `docs/API.md` | **只由脚本生成**：`python scripts/export_openapi.py`，不手改 |
-| `docs/proposals/` | 未实现方案；头部必须写状态与降级口径 |
+| `docs/proposals/` | 未实现方案；头部必须写状态与降级口径（已实现的移入 `archive/`） |
 | `docs/archive/` | 历史记录；不再维护，但保留可追溯性 |
 | `docs/adr/` | 一个决策一篇，写背景/决策/理由/后果 |
 
