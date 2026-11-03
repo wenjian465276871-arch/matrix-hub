@@ -284,6 +284,16 @@ jobs:
         with:
           fetch-depth: 2
 
+      # SSH 必须在判定之前准备好：判定要连服务器读线上容器 tag。
+      # 每次 main 推送都建一次密钥没有成本，只多两秒。
+      - name: 准备 SSH
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
       - name: 判断变更是否影响运行时
         id: scope
         run: |
@@ -291,24 +301,29 @@ jobs:
           if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
             echo "deploy=true" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          # 纯文档/CI/模板改动不重启生产
+
+          # 纯文档/CI/模板改动不重启生产。
           if git diff --quiet "$base" "${{ github.sha }}" -- . \
                ':(exclude)docs/**' ':(exclude)*.md' ':(exclude).github/**' \
                ':(exclude)deploy/.env.example'; then
-            echo "deploy=false" >> "$GITHUB_OUTPUT"
-            echo "仅文档变更，跳过部署"
+            # 但"这次改了什么"不等于"线上是哪一版"：上一次部署失败、或整份被跳过时，
+            # 再跟一个纯文档提交就会一路绿灯、线上永远停在旧版。
+            # 2026-11-03 真实踩到两次：deploy 因缺 probe.sh 失败 → 紧接着的 CI 修复只改
+            # workflow → 判定为"仅文档变更"跳过部署 → CI 全绿而线上仍是上一版。
+            # 判据改成"线上容器是不是 base"：是才跳过，不是就补部署。
+            running=$(ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes \
+              "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+              "docker inspect -f '{{.Config.Image}}' matrix-hub" 2>/dev/null | sed 's/.*://') || true
+            if [ "$running" = "$base" ]; then
+              echo "deploy=false" >> "$GITHUB_OUTPUT"
+              echo "仅文档变更，且线上已是 ${base}，跳过部署"
+            else
+              echo "deploy=true" >> "$GITHUB_OUTPUT"
+              echo "仅文档变更，但线上是 ${running:-<none>}、应为 ${base}，补部署"
+            fi
           else
             echo "deploy=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: 准备 SSH
-        if: steps.scope.outputs.deploy == 'true'
-        run: |
-          install -m 700 -d ~/.ssh
-          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
 
       # 2026-10-18 补：此前只跑服务器上的旧 deploy.sh，仓库改了也不生效，
       # 等于"部署脚本不在版本控制里"。部署前先同步这些文件。
