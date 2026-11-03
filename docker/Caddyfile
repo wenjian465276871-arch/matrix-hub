@@ -98,8 +98,21 @@ http://{$SITE_DOMAIN:localhost}, http://www.{$SITE_DOMAIN:localhost} {
 		file_server
 	}
 
+	# 访问日志落文件、按大小滚动，滚出的文件保留 14 天（计划 §11.3.3）。
+	#
+	# 2026-11-03 改：此前 `output stdout` 交给 Docker 的 10MB×3 轮转，保留时长
+	# 由流量决定——低流量能存几个月，流量涨十倍就只剩几天，"14 天"只是碰巧成立。
+	#
+	# 口径（查 Caddy 2.8.4 源码确认）：`roll_keep_for` 是时长字符串，按天向上取整；
+	# `roll_keep_for 336h` = 14 天。时间删除发生在**滚动时**，所以实际磁盘上限是
+	# 10MiB × 21 ≈ 210MiB，而"14 天"只约束已滚动的文件；低流量下单个文件可能更久
+	# 才滚一次，这是 lumberjack 的固有行为，不额外引入 logrotate。
 	log {
-		output stdout
+		output file /srv/app_data/logs/access.log {
+			roll_size 10MiB
+			roll_keep 20
+			roll_keep_for 336h
+		}
 		format console
 	}
 }
