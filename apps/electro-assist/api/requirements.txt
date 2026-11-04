@@ -1,21 +1,21 @@
-fastapi==0.115.6
-uvicorn==0.34.0
-python-multipart==0.0.32
+fastapi==0.162.0
+uvicorn==0.54.0
+python-multipart==0.0.33
 pillow==13.0.0
-numpy==2.2.1
+numpy==2.5.4
 httpx==0.28.1
 
 # 镜像构建用阿里云镜像源，新版本同步比 PyPI 晚数小时；不锁死会出现
 # 「CI 解析到刚发布的补丁版、镜像源还没有」→ 构建失败（2026-10-30 pydantic 2.14.2）。
 # 升级时先确认镜像源已有该版本，再同步改这两行并重生成锁文件。
-pydantic==2.14.1
-pydantic-core==2.50.1
+pydantic==2.14.2
+pydantic-core==2.50.2
 
 # anyio 同样是这个坑（2026-11-01 CI 门禁实测：PyPI 已发布 4.16.0，阿里云镜像
 # 还停在 4.15.1，CI 解析到新版本 → 锁文件比对失败）。它本来是传递依赖，
 # 但锁文件门禁每次都重新解析，所以必须在声明里钉死。
 # 等镜像源同步 4.16.0 之后，连同上面两行一起升级。
-anyio==4.15.1
+anyio==4.16.0
 
 # typing-inspection 第三次踩同一个坑（2026-11-04 23:21 CI：PyPI 21:44–23:00 之间
 # 发布 0.4.5，阿里云镜像仍停在 0.4.4）→ `pip install --require-hashes` 在镜像内
