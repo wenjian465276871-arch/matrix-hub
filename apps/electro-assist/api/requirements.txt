@@ -16,3 +16,9 @@ pydantic-core==2.50.1
 # 但锁文件门禁每次都重新解析，所以必须在声明里钉死。
 # 等镜像源同步 4.16.0 之后，连同上面两行一起升级。
 anyio==4.15.1
+
+# typing-inspection 第三次踩同一个坑（2026-11-04 23:21 CI：PyPI 21:44–23:00 之间
+# 发布 0.4.5，阿里云镜像仍停在 0.4.4）→ `pip install --require-hashes` 在镜像内
+# 找不到该版本，构建步骤失败。它是 pydantic 的传递依赖，同样必须钉死。
+# 升级前先查 https://mirrors.aliyun.com/pypi/simple/typing-inspection/ 有没有目标版本。
+typing-inspection==0.4.4
