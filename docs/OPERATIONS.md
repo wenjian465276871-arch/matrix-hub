@@ -1,6 +1,6 @@
 # 运维手册
 
-> 版本 v2.0 · 状态：已确认 · 最后更新：2026-11-04
+> 版本 v2.1 · 状态：已确认 · 最后更新：2026-11-04
 > 本文不含服务器地址、凭证与私有路径。补全信息的操作记录留在私有仓。
 > v0.2 → v1.0（2026-10-20）：修正 §1「两个卷」与实际三条挂载不符；补 §11 待补项的现状；接口清单改指 `docs/API.md`。
 > v1.0 → v1.1（2026-10-20）：新增 §12 发布草稿 CLI（`scripts/publish.py`），补上决策 #16 承诺的发布路径。
@@ -13,6 +13,7 @@
 > v1.7 → v1.8（2026-11-03）：§19.3 改写为三道闸门——业务只读探针、`5xx ≥3 且 >1%`（取代"样本 ≥30"）、探针连续失败也回滚（零流量盲区）；探针抽到 `deploy/probe.sh` 以便本地验证。
 > v1.8 → v1.9（2026-11-03）：新增 §5.0 访问日志落文件与 14 天保留（`roll_keep_for 336h`）；容器 stdout 只保留启动日志。
 > v1.9 → v2.0（2026-11-04）：`/healthz` 增加 `scope=live|ready|electro|all`（readiness 失败 503，容器探针与部署闸门切到 `scope=ready`）；保留期增加"启动时 + 每日 03:40"应用内执行；备份目录/文件收紧到 700/600；新增 §19.5 迁移 v8（`jobs.source_type` + Guide 溯源字段）。
+> v2.0 → v2.1（2026-11-04）：P2-8~12——工位贯通（迁移 **v9**：`jobs/processes.station` + `Guide.meta.station`）、故障原因权重、结论置信度与依据、全量注入 Provider（`KNOWLEDGE_PROVIDER=full`）、部署后 Top-3 自检闸门（`EVAL_MIN_TOP3`）。
 
 ## 1. 运行形态
 
@@ -35,7 +36,7 @@
 
 | 路径 | 内容 |
 |---|---|
-| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records/diagnose_runs/diagnose_steps/processes，8 张 + 迁移表 v8），WAL 模式 |
+| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records/diagnose_runs/diagnose_steps/processes，8 张 + 迁移表 v9），WAL 模式 |
 | `/srv/app_data/uploads/` | 上传资产，每份一个目录（原图 + 切片 + meta.json） |
 | `/srv/app_data/caddy/` | 证书与 ACME 账户状态 |
 
@@ -99,7 +100,11 @@ cd /opt/matrix-hub
 2. `docker compose pull web`
 3. 用新 TAG 启动
 4. 健康检查：连续 3 次通过（每次间隔 5s，经 Caddy 443 检查 `/healthz?scope=ready`）
-5. 失败 → 自动切回上一 TAG 并按同一口径复查；仍不健康则退出码 1
+5. 业务只读探针：列表 / 详情 / 知识库三个真实 GET（`deploy/probe.sh`）
+6. 知识库自检：`docker exec matrix-hub python -m scripts.eval_diagnose --quick --json`
+   ——只跑检索、不调模型，约 50ms；Top-3 命中率低于 `EVAL_MIN_TOP3`（默认 0.8）
+   或未覆盖识别不全，即判部署失败
+7. 任一步失败 → 自动切回上一 TAG 并按同一口径复查；仍不健康则退出码 1
 
 ## 4. 回滚
 
@@ -765,16 +770,20 @@ tail -5  /opt/matrix-hub/deploy.log     # 回滚记录（reason=postdeploy_5xx |
 **回滚影响**：迁移只加表加列，旧版本代码不认识新列也能跑（SQLite 的 `SELECT *` 多列无害），
 但**回滚到 v6 之前的镜像不会删除 `processes` 表**；数据保留，属预期。
 
-### 19.5 输入形态与溯源（迁移 v8，2026-11-04）
+### 19.5 输入形态、工位与溯源（迁移 v8/v9，2026-11-04）
 
 `jobs.source_type TEXT NOT NULL DEFAULT 'text'`（`text` / `image`）：worker 只拿 job_id，
 输入形态必须随任务落库，否则重启续跑会丢；存量任务与"用工艺重新生成"默认 text。
+
+`jobs.station` / `processes.station`（迁移 v9）：预检解析出的工位此前只回给前端，
+落库即丢；现在随 job 写进 `Guide.meta.station`，"用同一份工艺重新生成"也能复用。
 
 Guide 契约同步增加（均可选，旧数据无需迁移）：
 
 | 字段 | 位置 | 说明 |
 |---|---|---|
 | `meta.source_type` | Guide | `text` / `image`，服务端按 job 写入，模型不得填 |
+| `meta.station` | Guide | 工位，预检/人工给；空值不落盘 |
 | `step.provenance` | Step | `asset_id / bbox / raw_text / confidence / flag` |
 | `criterion.provenance` | Criterion | 同上，精度到判据 |
 
@@ -782,6 +791,19 @@ Guide 契约同步增加（均可选，旧数据无需迁移）：
 让它输出 bbox 就是让它编坐标）。当前图片路径是"识别 → 回填文本 → 生成"，
 字段级回填尚未接入，属已知边界：契约先立住，避免下游再改一次结构。
 
-**回滚影响**：旧镜像不认识 `jobs.source_type` 列，读写不受影响；`meta.source_type` 在 JSON 里，
-但 **text 来源不落该字段**（`exclude_if`），旧镜像仍能读取；只有 **image 来源**的草稿会被
-旧版本的 `extra="forbid"` 拒绝——回滚前确认这批草稿不需要读取。
+**回滚影响**：旧镜像不认识 `jobs.source_type` / `station` 列，读写不受影响；
+`meta.source_type` 与 `meta.station` 在 JSON 里，但 **text 来源与空工位不落这两个字段**
+（`exclude_if`），旧镜像仍能读取；只有 **image 来源或带工位**的草稿会被旧版本的
+`extra="forbid"` 拒绝——回滚前确认这批草稿不需要读取。
+
+### 19.6 检索口径与部署自检（2026-11-04）
+
+- **原因权重**：`likely_causes` 接受 `["原因A", …]` 或 `[{"text":"…","weight":0.8}, …]`。
+  旧知识库无需改：字符串按人工顺序补默认权重（1.0 / 0.75 / 0.5 / 0.25，最低 0.2）。
+- **置信度**：快速检索每条命中带 `confidence`（匹配置信度）；逐步诊断的结论带
+  `confidence`（按证据强度：实测超差 0.85–0.95、人工确认 0.7–0.8、未定位 0.4、中止 0）
+  与 `basis`（检查项、期望、现场值、来源）。
+- **Provider 切换**：`KNOWLEDGE_PROVIDER=hybrid`（默认）/ `keyword` / `full`。
+  `full` 把小知识库全部条目送进重排 prompt，仅用于对比；超过 20 条自动回退 hybrid。
+- **部署自检**：`scripts/eval_diagnose.py --quick --json` 不调模型（约 50ms），
+  Top-3 命中率与未覆盖识别都过才算部署成功；门槛由 `EVAL_MIN_TOP3` 控制。

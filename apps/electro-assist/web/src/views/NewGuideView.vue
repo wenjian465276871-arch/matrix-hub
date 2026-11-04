@@ -197,15 +197,20 @@ function fillSample(): void {
 const precheck = ref<ProcessPrecheck | null>(null)
 const precheckBusy = ref(false)
 const precheckError = ref('')
+/** 工位：预检解析出来可改，提交时随生成一起走。空 = 原文没写，不编。 */
+const station = ref('')
 
 async function runPrecheck(): Promise<void> {
   if (precheckBusy.value || !text.value.trim()) return
   precheckBusy.value = true
   precheckError.value = ''
   try {
-    precheck.value = await postJson<ProcessPrecheck>('/api/electro/processes', {
+    const res = await postJson<ProcessPrecheck>('/api/electro/processes', {
       text: text.value,
     })
+    precheck.value = res
+    // 预检是显式动作：以这次解析为准，避免上一份文本的工位残留到这一份。
+    station.value = res.process.station ?? ''
   } catch (err) {
     precheck.value = null
     precheckError.value =
@@ -690,6 +695,8 @@ async function submit(retryOf?: string): Promise<void> {
         retry_of: retryOf ?? null,
         // 输入形态由前端声明：识别回填过的文本标 image，供溯源与审计区分。
         source_type: usedExtraction.value ? 'image' : 'text',
+        // 工位来自预检（可人工改），服务端写进 meta；不传则不落这个字段。
+        station: station.value.trim() || null,
         assets: staged.value.map((item, index) => ({
           asset_id: item.asset_id,
           caption: item.caption.trim() || `图 ${index + 1}`,
@@ -814,6 +821,17 @@ onBeforeUnmount(() => {
         识别到 {{ precheck.stats.steps }} 步，其中
         {{ precheck.stats.steps_with_criterion }} 步带可核对判据。
       </p>
+      <label class="station-row">
+        <span class="hint">工位</span>
+        <input
+          v-model="station"
+          class="station-input"
+          type="text"
+          maxlength="60"
+          placeholder="预检没找到时可手填，例如：门区 3 号位"
+          aria-label="工位"
+        />
+      </label>
       <ol v-if="precheck.process.steps.length" class="precheck__steps">
         <li v-for="step in precheck.process.steps" :key="step.seq">
           <span>{{ step.action }}</span>
@@ -1216,6 +1234,31 @@ onBeforeUnmount(() => {
   color: var(--c-primary-ink);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
+}
+
+/* 工位：预检给值、人可改；高度与其它输入一致，窄屏自动整行 */
+.station-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 2px;
+}
+
+.station-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+}
+
+.station-input:focus {
+  outline: 2px solid var(--c-primary);
+  outline-offset: 1px;
 }
 
 .quota {

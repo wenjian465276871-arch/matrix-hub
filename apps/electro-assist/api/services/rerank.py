@@ -133,19 +133,25 @@ def _record_spend(cost: int) -> None:
 def _user_prompt(query: str, entries: list[KnowledgeEntry]) -> str:
     lines = [f"现场现象：{query}", "", "候选："]
     for index, entry in enumerate(entries, start=1):
-        causes = "；".join(entry.likely_causes[:3])
+        causes = "；".join(cause.text for cause in entry.likely_causes[:3])
         lines.append(f"{index}. id={entry.id}｜{entry.title}｜可能原因：{causes}")
     lines.append("")
     lines.append("按“最可能解释现场现象”排序，输出 JSON。")
     return "\n".join(lines)
 
 
-def rerank(query: str, entries: list[KnowledgeEntry]) -> dict | None:
-    """返回重排结果；任何异常都返回 None，调用方保持原顺序。"""
+def rerank(
+    query: str, entries: list[KnowledgeEntry], *, max_candidates: int = MAX_CANDIDATES
+) -> dict | None:
+    """返回重排结果；任何异常都返回 None，调用方保持原顺序。
+
+    `max_candidates` 由调用方按 Provider 决定：hybrid 只送 5 条（省 token），
+    full 注入要送整个小知识库（默认 20 条）。
+    """
     if len(entries) < 2 or not enabled():
         return None
-    if len(entries) > MAX_CANDIDATES:
-        entries = entries[:MAX_CANDIDATES]
+    if len(entries) > max_candidates:
+        entries = entries[:max_candidates]
 
     ids = [entry.id for entry in entries]
     key = (query.strip().lower(), tuple(ids))

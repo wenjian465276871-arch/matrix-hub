@@ -91,7 +91,7 @@ data/knowledge/
 ├── hvac_faults.json        4 条空调
 ├── pantograph_faults.json  3 条受电弓
 └── eval_queries.json       21 条覆盖查询 + 2 条未覆盖查询（与知识库同仓，改库必须改题）
-services/knowledge.py   KnowledgeProvider 协议 + KeywordProvider（降级用）+ HybridProvider（现行）
+services/knowledge.py   KnowledgeProvider 协议 + HybridProvider（现行）+ KeywordProvider / FullInjectionProvider（对照）
 services/rerank.py      受限 LLM 重排：模型只对候选 id 排序，不能新增事实
 services/diagnosis.py   故障树推进：回填实测值 → 服务端判超差 → 异常即收敛到结论
 routers/diagnose.py     POST /diagnose + GET /diagnose/kb + /diagnose/runs 四端点
@@ -125,8 +125,15 @@ routers/diagnose.py     POST /diagnose + GET /diagnose/kb + /diagnose/runs 四�
 与 `no_match`（有收录但现象不够接近）。阈值 `DIAGNOSE_MIN_SCORE` 默认 3.0，
 宁可回"没查到"，也不给一条看起来像但其实不对的排查链。
 
-**可替换点**：`KnowledgeProvider` 是协议，当前实现是 `HybridProvider`，`KeywordProvider` 保留用于
-对照与降级。条目上万后可换成 embedding + 向量库，路由与返回结构不变。
+**可替换点**：`KnowledgeProvider` 是协议，当前实现是 `HybridProvider`；`KeywordProvider`
+保留用于降级与对照，`FullInjectionProvider` 把小知识库的全部条目交给重排模型
+（`KNOWLEDGE_PROVIDER=full`，≤20 条，超过自动回退 hybrid）。三者在同一评测集上可对比：
+`scripts/eval_diagnose.py --quick --json --provider full`。条目上万后可换成 embedding + 向量库，
+路由与返回结构不变。
+
+**权重与置信度**：条目的 `likely_causes` 是 `{text, weight}`（旧字符串按序列补默认权重）；
+快速检索回 `confidence`（匹配置信度），逐步诊断的结论回 `confidence + basis`
+（实测超差 > 人工确认 > 未定位 > 中止）。两者都是工程口径，不是概率承诺。
 
 ## 1.3 识别链路：为什么"能跑"要单独取证
 

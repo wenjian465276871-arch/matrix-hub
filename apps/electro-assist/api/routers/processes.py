@@ -207,7 +207,11 @@ def precheck(payload: ProcessIn, request: Request) -> dict:
             )
         title = (payload.title or name or generation.derive_process_title(text)).strip()
         created = store.create_process(
-            text=text, title=title or "未命名工艺", system=payload.system or ""
+            text=text,
+            title=title or "未命名工艺",
+            system=payload.system or "",
+            # 预检解析出的工位随原文一起落库：重新生成时不用再贴一遍「工位：」行。
+            station=station or "",
         )
         process_id = created["id"]
 
@@ -252,6 +256,7 @@ def get_process(process_id: str) -> dict:
         "id": row["id"],
         "title": row["title"],
         "system": row["system"] or None,
+        "station": row.get("station") or None,
         "chars": row["chars"],
         "text": row["text"],
         "created_at": row["created_at"],
@@ -289,6 +294,7 @@ def generate_from_process(
             privileged=bool(x_passcode_token),
             assets=normalize_assets(body.assets),
             process_id=row["id"],
+            station=row.get("station") or "",
         )
     except generation.GenerateRejected as exc:
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None

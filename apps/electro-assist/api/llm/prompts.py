@@ -83,7 +83,7 @@ def output_schema() -> dict:
     做法是"代码生成的 schema 再删几个键"，而不是手写第二份 schema：
     手写的那份迟早和模型定义漂移。
     """
-    hidden = ("assets", "provenance", "source_type")
+    hidden = ("assets", "provenance", "source_type", "station")
     schema = Guide.model_json_schema()
     # 字段删掉后定义还在，会在 prompt 里留下一个没人引用的 Provenance 块，
     # 模型看到就会试着填。一并移除。

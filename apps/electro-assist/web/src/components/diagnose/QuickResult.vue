@@ -20,7 +20,8 @@ const emit = defineEmits<{ run: [entryId: string]; reset: [] }>()
 
   <section v-else class="results">
     <p class="results__meta">
-      匹配 {{ result.count }} 条 · 用时 {{ result.took_ms }}ms · 知识库 v{{ result.kb_version }}
+      匹配 {{ result.count }} 条 · 置信度 {{ Math.round((result.confidence ?? 0) * 100) }}% ·
+      用时 {{ result.took_ms }}ms · 知识库 v{{ result.kb_version }}
     </p>
 
     <p v-if="result.rerank" class="rerank-note">
@@ -43,7 +44,12 @@ const emit = defineEmits<{ run: [entryId: string]; reset: [] }>()
       <div class="hit__block">
         <p class="hit__label">可能原因</p>
         <ul class="hit__list">
-          <li v-for="cause in item.likely_causes" :key="cause">{{ cause }}</li>
+          <li v-for="cause in item.likely_causes" :key="cause.text">
+            {{ cause.text }}
+            <span class="cause__weight" :title="`相对可能性 ${Math.round(cause.weight * 100)}%`">
+              {{ Math.round(cause.weight * 100) }}%
+            </span>
+          </li>
         </ul>
       </div>
 

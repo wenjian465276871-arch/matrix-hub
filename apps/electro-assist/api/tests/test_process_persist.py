@@ -227,3 +227,19 @@ def test_expired_process_is_purged_unless_referenced(env):
         con.close()
     assert orphan not in left
     assert referenced in left
+
+
+def test_station_survives_process_and_generation(env):
+    """工位不能只回给前端：落库 -> job -> Guide.meta 三段都要在。"""
+    pid = _save()
+    assert client.get(f"/api/electro/processes/{pid}").json()["station"] == "3 号车门"
+
+    r = client.post(f"/api/electro/processes/{pid}/generate", json={})
+    assert r.status_code == 202, r.text
+    job_id = r.json()["job_id"]
+    assert store.get_job(job_id)["station"] == "3 号车门"
+
+    generation.run(job_id, TEXT, provider_factory=lambda: _FakeProvider(SAMPLE))
+    job = store.get_job(job_id)
+    assert job["status"] == "succeeded", job["error_detail"]
+    assert store.get_guide(job["guide_id"])["guide"]["meta"]["station"] == "3 号车门"

@@ -347,6 +347,7 @@ def create_process(
     text: str,
     title: str,
     system: str = "",
+    station: str = "",
 ) -> dict[str, Any]:
     """落一份工艺原文。返回可回给前端的元信息（不含正文字段以外的推导）。"""
     process_id = _new_id("p")
@@ -355,14 +356,15 @@ def create_process(
         with tx(conn):
             conn.execute(
                 """
-                INSERT INTO processes (id, title, system, text, chars, input_sha256,
+                INSERT INTO processes (id, title, system, station, text, chars, input_sha256,
                                        created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     process_id,
                     title[:80],
                     system,
+                    station[:60],
                     text,
                     len(text),
                     hashlib.sha256(text.encode("utf-8")).hexdigest(),
@@ -375,6 +377,7 @@ def create_process(
         "id": process_id,
         "title": title[:80],
         "system": system,
+        "station": station[:60],
         "chars": len(text),
         "created_at": now,
     }
@@ -420,6 +423,7 @@ def create_job(
     assets: list[dict[str, str]] | None = None,
     process_id: str | None = None,
     source_type: str = "text",
+    station: str = "",
 ) -> str:
     job_id = _new_id("j")
     payload = json.dumps(assets or [], ensure_ascii=False)
@@ -428,8 +432,8 @@ def create_job(
             conn.execute(
                 """
                 INSERT INTO jobs (id, kind, status, client_ip, input_sha256, input_chars,
-                                  retry_of, assets_json, process_id, source_type, created_at)
-                VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?)
+                                  retry_of, assets_json, process_id, source_type, station, created_at)
+                VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job_id,
@@ -441,6 +445,7 @@ def create_job(
                     payload,
                     process_id,
                     source_type,
+                    station[:60],
                     now_iso(),
                 ),
             )

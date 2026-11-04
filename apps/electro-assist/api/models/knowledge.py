@@ -53,6 +53,20 @@ class Check(BaseModel):
         return self
 
 
+class Cause(BaseModel):
+    """一条可能原因及其权重（计划 §2.3）。
+
+    权重是**人工整理时的相对可能性**，不是统计概率；0–1，越大越可能。
+    兼容旧知识库：条目里仍可写纯字符串数组，加载时按顺序补默认权重
+    （1.0 / 0.75 / 0.5 / …，最低 0.2）——顺序本来就是人工排的优先级。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    text: str = Field(min_length=4, max_length=80)
+    weight: float = Field(default=0.5, ge=0, le=1)
+
+
 class KnowledgeEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -61,11 +75,30 @@ class KnowledgeEntry(BaseModel):
     title: str = Field(min_length=4, max_length=60)
     symptoms: list[str] = Field(min_length=2, max_length=8)
     keywords: list[str] = Field(min_length=2, max_length=12)
-    likely_causes: list[str] = Field(min_length=2, max_length=6)
+    likely_causes: list[Cause] = Field(min_length=2, max_length=6)
     checks: list[Check] = Field(min_length=2, max_length=8)
     escalation: str = Field(min_length=10, max_length=200)
     safety: str = Field(min_length=4, max_length=200)
     sources: list[str] = Field(default_factory=list, max_length=5)
+
+    @field_validator("likely_causes", mode="before")
+    @classmethod
+    def _normalize_causes(cls, value):
+        """把 `["原因A","原因B"]` 升成带权重的对象；显式权重优先。"""
+        if not isinstance(value, list):
+            return value
+        normalized = []
+        for index, item in enumerate(value):
+            default = round(max(0.2, 1.0 - 0.25 * index), 2)
+            if isinstance(item, str):
+                normalized.append({"text": item, "weight": default})
+            elif isinstance(item, dict):
+                data = dict(item)
+                data.setdefault("weight", default)
+                normalized.append(data)
+            else:
+                normalized.append(item)
+        return normalized
 
     @field_validator("symptoms")
     @classmethod
@@ -81,14 +114,6 @@ class KnowledgeEntry(BaseModel):
         for item in v:
             if not 2 <= len(item) <= 20:
                 raise ValueError("关键词请控制在 2–20 字")
-        return v
-
-    @field_validator("likely_causes")
-    @classmethod
-    def _check_causes(cls, v: list[str]) -> list[str]:
-        for item in v:
-            if not 4 <= len(item) <= 80:
-                raise ValueError("可能原因请控制在 4–80 字")
         return v
 
     @model_validator(mode="after")

@@ -59,7 +59,23 @@ if health_check; then
   # 一个 200 的 /healthz + 一个 500 的 /guides，对用户来说就是坏版本。
   echo "==> 业务只读探针（列表 / 详情 / 知识库）"
   if probe_business; then
-    deploy_ok=1
+    # 知识库自检（计划 §2.3）：quick 模式只跑检索、不调模型，约 50ms。
+    # 用镜像里的真实知识库算 Top-3 与未覆盖识别，低于 80% 就回滚——
+    # 迁移写坏或知识库文件漏打，都会在这里现形。
+    echo "==> 知识库 Top-3 自检（quick，不调模型）"
+    if eval_json=$(docker exec matrix-hub python -m scripts.eval_diagnose --quick --json 2>/dev/null); then
+      echo "$eval_json"
+      if printf '%s' "$eval_json" | grep -Eq '"passed":[[:space:]]*true'; then
+        deploy_ok=1
+      else
+        failure_reason="知识库 Top-3 自检未达标"
+        echo "[FAIL] ${failure_reason}" >&2
+      fi
+    else
+      failure_reason="知识库自检执行失败（脚本退出码非 0）"
+      echo "$eval_json" >&2
+      echo "[FAIL] ${failure_reason}" >&2
+    fi
   else
     failure_reason="业务探针失败（接口非 200 或响应结构不符）"
     echo "[FAIL] ${failure_reason}" >&2

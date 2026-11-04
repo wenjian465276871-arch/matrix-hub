@@ -100,6 +100,20 @@
   margin-bottom: 4px;
 }
 
+/* 原因权重：右对齐的小 chip，不抢正文；读屏靠 title 补充说明 */
+.cause__weight {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--c-surface-2);
+  color: var(--c-ink-3);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  vertical-align: 1px;
+}
+
 .check-list {
   margin: 0;
   padding: 0;
@@ -328,6 +342,21 @@
   margin: 0 0 8px;
   font-weight: 600;
   color: var(--c-primary-ink);
+}
+
+.conclusion__confidence {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--c-ink-3);
+}
+
+.conclusion__basis {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--c-ink-2);
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .conclusion--fail .conclusion__kind {

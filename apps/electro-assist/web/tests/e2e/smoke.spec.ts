@@ -45,6 +45,9 @@ test('B 命中：给出按顺序检查', async ({ page }) => {
 
   await expect(page.getByText('按顺序检查').first()).toBeVisible()
   await expect(page.getByText('可能原因').first()).toBeVisible()
+  // 计划 §2.3：原因带权重、结果带置信度
+  await expect(page.locator('.results__meta')).toContainText('置信度')
+  await expect(page.locator('.cause__weight').first()).toBeVisible()
 })
 
 test('B 未覆盖：明确说未覆盖', async ({ page }) => {
@@ -75,6 +78,9 @@ test('B 逐步诊断：判据推进并收敛到结论', async ({ page }) => {
 
   await expect(page.locator('.conclusion')).toBeVisible()
   await expect(page.getByText('已定位到异常点')).toBeVisible()
+  // 结论必须显示置信度与依据，而不是只给一句原因
+  await expect(page.locator('.conclusion__confidence')).toContainText('置信度')
+  await expect(page.getByText('结论依据')).toBeVisible()
   await expect(page.locator('.dstep').first()).toBeVisible()
 })
 
@@ -103,4 +109,6 @@ test('结构化预检：不调模型也能看出缺什么', async ({ page }) => 
   await expect(page.locator('.precheck')).toBeVisible()
   await expect(page.locator('.precheck')).toContainText('识别到 2 步')
   await expect(page.locator('.precheck')).toContainText('字段齐全')
+  // 工位不再只回给前端：预检解析后要能带进生成请求
+  await expect(page.getByLabel('工位')).toHaveValue('3 号车门')
 })

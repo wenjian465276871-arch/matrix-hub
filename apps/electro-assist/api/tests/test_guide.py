@@ -325,3 +325,20 @@ def test_llm_schema_hides_server_owned_fields():
     assert "provenance" not in dumped
     assert "source_type" not in dumped
     assert "Provenance" not in dumped
+
+
+# ---------------------------------------------------------------- 工位（计划 §2.1）
+
+def test_station_is_optional_and_omitted_when_none():
+    guide = Guide.model_validate(SAMPLE)
+    assert guide.meta.station is None
+    # None 不落盘：旧镜像的 extra="forbid" 不该被一个空字段判死
+    assert "station" not in guide.model_dump(mode="json")["meta"]
+
+
+def test_station_round_trips():
+    data = deepcopy(SAMPLE)
+    data["meta"]["station"] = "3 号车门"
+    guide = Guide.model_validate(data)
+    assert guide.meta.station == "3 号车门"
+    assert guide.model_dump(mode="json")["meta"]["station"] == "3 号车门"

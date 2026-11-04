@@ -230,6 +230,7 @@
 | `retry_of` | `—` | 否 |
 | `assets` | `AssetIn[]` | 否 |
 | `source_type` | `enum(text / image)` | 否 |
+| `station` | `—` | 否 |
 
 ### GuidePatch
 

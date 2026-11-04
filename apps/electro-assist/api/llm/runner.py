@@ -223,6 +223,7 @@ def generate_guide(
     at: datetime | None = None,
     source_note: str = "由用户输入的工艺文本生成（演示用途）",
     source_type: str = "text",
+    station: str = "",
 ) -> GuideDraft:
     """工艺文本 → 已通过 schema 校验的 Guide。
 
@@ -305,6 +306,8 @@ def generate_guide(
             if isinstance(payload.get("meta"), dict):
                 payload["meta"]["is_demo"] = True
                 payload["meta"].pop("source_type", None)
+                # 工位来自预检/人工输入，模型没有依据填它。
+                payload["meta"].pop("station", None)
             guide = Guide.model_validate(payload)
         except (ValueError, ValidationError) as exc:
             detail = (
@@ -342,6 +345,7 @@ def generate_guide(
         guide.meta.source_note = source_note
         guide.meta.is_demo = True
         guide.meta.source_type = "image" if source_type == "image" else "text"
+        guide.meta.station = (station or "").strip()[:60] or None
 
         return GuideDraft(
             guide=guide,

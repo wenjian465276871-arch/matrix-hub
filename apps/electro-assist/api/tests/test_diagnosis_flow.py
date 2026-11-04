@@ -288,3 +288,24 @@ def test_run_started_from_session_is_written_back_to_record():
     assert diagnoses[0]["id"] == run_id
     assert diagnoses[0]["conclusion"]["kind"] == "fail"
     assert diagnoses[0]["checks"] == 1
+
+
+def test_conclusion_carries_confidence_and_basis():
+    data = _start(symptom="门到关闭位不锁闭", entry_id="kb_door_air_pressure")
+    run_id = data["run"]["id"]
+
+    body = client.post(f"{BASE}/{run_id}/checks/1", json={"value": 0.2}).json()
+    conclusion = body["conclusion"]
+    # 实测值超差：有数值证据，置信度高于人工确认
+    assert conclusion["confidence"] >= 0.85
+    assert conclusion["confidence"] <= 0.95
+    assert any("现场：0.2" in item for item in conclusion["basis"])
+    assert any("依据：" in item for item in conclusion["basis"])
+
+
+def test_confirm_fail_confidence_is_lower_than_measure():
+    data = _start(symptom="门关到一半又弹开", entry_id="kb_door_anti_pinch")
+    run_id = data["run"]["id"]
+    body = client.post(f"{BASE}/{run_id}/checks/1", json={"result": "fail"}).json()
+    # 人工确认没有数值证据：应低于实测超差那一档
+    assert 0.7 <= body["conclusion"]["confidence"] < 0.85

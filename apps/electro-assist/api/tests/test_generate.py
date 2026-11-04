@@ -254,3 +254,19 @@ def test_generate_rejects_unknown_source_type(env):
     assert r.status_code == 422
     assert r.json()["detail"]["code"] == "invalid_request"
     assert r.json()["detail"]["errors"][0]["field"] == "source_type"
+
+
+def test_station_is_recorded_on_guide(env):
+    job_id = store.create_job(
+        kind="generate", client_ip=IP, input_text=TEXT, station="3 号车门"
+    )
+    generation.run(job_id, TEXT, provider_factory=lambda: FakeProvider(body=_payload()))
+    row = store.get_guide(store.get_job(job_id)["guide_id"])
+    assert row["guide"]["meta"]["station"] == "3 号车门"
+
+
+def test_station_is_absent_when_not_provided(env):
+    job_id = store.create_job(kind="generate", client_ip=IP, input_text=TEXT)
+    generation.run(job_id, TEXT, provider_factory=lambda: FakeProvider(body=_payload()))
+    row = store.get_guide(store.get_job(job_id)["guide_id"])
+    assert "station" not in row["guide"]["meta"]

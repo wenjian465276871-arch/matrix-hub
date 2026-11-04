@@ -168,8 +168,19 @@ function submit(verdict: 'pass' | 'fail'): void {
       class="card conclusion"
       :class="`conclusion--${runData.conclusion.kind}`"
     >
-      <p class="conclusion__kind">{{ CONCLUSION_LABEL[runData.conclusion.kind] }}</p>
+      <p class="conclusion__kind">
+        {{ CONCLUSION_LABEL[runData.conclusion.kind] }}
+        <span v-if="runData.conclusion.confidence !== undefined" class="conclusion__confidence">
+          置信度 {{ Math.round(runData.conclusion.confidence * 100) }}%
+        </span>
+      </p>
       <p class="conclusion__cause">{{ runData.conclusion.cause }}</p>
+      <div v-if="runData.conclusion.basis?.length" class="conclusion__block">
+        <p class="hit__label">结论依据</p>
+        <ul class="conclusion__basis">
+          <li v-for="item in runData.conclusion.basis" :key="item">{{ item }}</li>
+        </ul>
+      </div>
       <div class="conclusion__block">
         <p class="hit__label">处置与升级</p>
         <p class="conclusion__text">{{ runData.conclusion.action }}</p>

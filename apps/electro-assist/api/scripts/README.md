@@ -11,7 +11,7 @@
 | `refresh_sample.py` | 用 `data/samples/*.json` 原地刷新已发布样例（保留 id/时间戳） | 写库 | **会**（只换内容） | `python -m scripts.refresh_sample [--yes]`（默认 dry-run） |
 | `export_openapi.py` | 由 `app.openapi()` 生成 `docs/API.md`；`--check` 只比对 | 只写文档 | 否 | `python scripts/export_openapi.py [--check]` |
 | `check_metrics.py` | 校验 README/DEVELOPMENT 里的测试数与端点数是否与代码一致 | 只读 | 否 | `python scripts/check_metrics.py` |
-| `eval_diagnose.py` | B 检索的命中率与 P50/P95 | 只读 | 否 | `python scripts/eval_diagnose.py` |
+| `eval_diagnose.py` | B 检索命中率与 P50/P95；`--quick --json` 供部署闸门（不调模型，约 50ms）；`--provider hybrid\|keyword\|full` 做实现对比 | 只读 | 否 | `python scripts/eval_diagnose.py [--quick --json] [--provider full]` |
 | `eval_generate.py` | 8 份语料的批量生成评测（真实调模型，约 ¥0.1） | 只写本地文件 | 否 | `python scripts/eval_generate.py [--dry-run]` |
 | `demo_flow.py` | 全流程自检：建会话 → 提交 → 记录 → 排查 | 写库 | 否（用临时会话） | `python scripts/demo_flow.py --base http://127.0.0.1:8001` |
 | `smoke_llm.py` | 单次生成冒烟，打印耗时与费用 | 只写本地文件 | 否 | `python scripts/smoke_llm.py --text "…"` |

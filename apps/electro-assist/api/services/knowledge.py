@@ -129,7 +129,12 @@ def score(query: str, entry: KnowledgeEntry) -> float:
 
     # 2) 正文覆盖：标题 + 现象 + 原因 + 检查动作。
     body = "".join(
-        [entry.title, *entry.symptoms, *entry.likely_causes, *(c.action for c in entry.checks)]
+        [
+            entry.title,
+            *entry.symptoms,
+            *(cause.text for cause in entry.likely_causes),
+            *(c.action for c in entry.checks),
+        ]
     )
     bn = _norm(body)
     total += 3.0 * _cos(qb, _bigrams(bn))
@@ -148,7 +153,7 @@ def _entry_text(entry: KnowledgeEntry) -> str:
             entry.title,
             *entry.symptoms,
             *entry.keywords,
-            *entry.likely_causes,
+            *(cause.text for cause in entry.likely_causes),
             *(c.action for c in entry.checks),
             *(c.expect for c in entry.checks),
             entry.escalation,
@@ -272,16 +277,28 @@ class KeywordProvider:
     def systems(self) -> set[str]:
         return {entry.system.value for entry in self._entries}
 
-    def search(
-        self, query: str, *, system: str | None = None, top_k: int = DEFAULT_TOP_K
-    ) -> list[tuple[KnowledgeEntry, float]]:
+    def search_detailed(
+        self, query: str, *, system: str | None = None, top_k: int | None = DEFAULT_TOP_K
+    ) -> list[Hit]:
         candidates = [
             entry for entry in self._entries if system is None or entry.system.value == system
         ]
-        scored = [(entry, score(query, entry)) for entry in candidates]
-        scored = [(entry, value) for entry, value in scored if value >= MIN_SCORE]
-        scored.sort(key=lambda pair: (-pair[1], pair[0].id))
-        return scored[: max(1, min(top_k, MAX_TOP_K))]
+        hits = []
+        for entry in candidates:
+            keyword = score(query, entry)
+            if keyword >= MIN_SCORE:
+                hits.append(Hit(entry, keyword, keyword, 0.0))
+        hits.sort(key=lambda hit: (-hit.score, hit.entry.id))
+        return hits[:top_k] if top_k is not None else hits
+
+    def search(
+        self, query: str, *, system: str | None = None, top_k: int = DEFAULT_TOP_K
+    ) -> list[tuple[KnowledgeEntry, float]]:
+        capped = max(1, min(top_k, MAX_TOP_K))
+        return [
+            (hit.entry, hit.score)
+            for hit in self.search_detailed(query, system=system, top_k=capped)
+        ]
 
 
 class HybridProvider:
@@ -339,29 +356,122 @@ class HybridProvider:
         return [(hit.entry, hit.score) for hit in self.search_detailed(query, system=system, top_k=top_k)]
 
 
+# 全量注入的上限：18 条知识库约 1.5K token，20 条留余量。
+# 超过这个规模就该走检索，否则 prompt 成本与延迟都不可控。
+FULL_INJECT_MAX = 20
+
+
+class FullInjectionProvider:
+    """全量注入：不做阈值过滤，把所有条目交给重排模型（计划 §2.3 的对照实现）。
+
+    与 HybridProvider 的区别只有一个：**召回阶段不淘汰**。它适合"知识库很小、
+    宁可由模型排序也不要漏掉"的场景，代价是每次排查都会把全部条目的标题与原因
+    塞进 prompt。默认关闭，用 `KNOWLEDGE_PROVIDER=full` 切换，评测脚本可对比。
+
+    排序仍先用关键词分算一遍：模型失败/超预算时要有一个确定的回退顺序，
+    不能因为"全量注入"就把未过滤的条目按文件顺序返回。
+    """
+
+    name = "full"
+
+    def __init__(self, directory: Path | None = None) -> None:
+        self._keyword = KeywordProvider(directory)
+        entries = self._keyword.entries()
+        if len(entries) > FULL_INJECT_MAX:
+            raise ValueError(
+                f"全量注入只适用于 ≤{FULL_INJECT_MAX} 条的知识库，当前 {len(entries)} 条"
+            )
+        self._index = _VectorIndex(entries)
+
+    def reload(self) -> None:
+        self._keyword.reload()
+        self._index = _VectorIndex(self._keyword.entries())
+
+    @property
+    def version(self) -> str:
+        return self._keyword.version
+
+    def entries(self) -> list[KnowledgeEntry]:
+        return self._keyword.entries()
+
+    def get(self, entry_id: str) -> KnowledgeEntry | None:
+        return self._keyword.get(entry_id)
+
+    def systems(self) -> set[str]:
+        return self._keyword.systems()
+
+    def search_detailed(
+        self, query: str, *, system: str | None = None, top_k: int | None = None
+    ) -> list[Hit]:
+        candidates = [
+            entry
+            for entry in self._keyword.entries()
+            if system is None or entry.system.value == system
+        ]
+        hits: list[Hit] = []
+        for entry in candidates:
+            keyword = score(query, entry)
+            vector = self._index.score(query, entry.id)
+            combined = 0.65 * min(1.0, keyword / 12.0) + 0.35 * vector
+            hits.append(Hit(entry, round(combined * 10, 3), keyword, vector))
+        hits.sort(key=lambda hit: (-hit.score, -hit.keyword, hit.entry.id))
+        return hits[:top_k] if top_k is not None else hits
+
+    def search(
+        self, query: str, *, system: str | None = None, top_k: int = DEFAULT_TOP_K
+    ) -> list[tuple[KnowledgeEntry, float]]:
+        hits = self.search_detailed(query, system=system, top_k=top_k)
+        return [(hit.entry, hit.score) for hit in hits]
+
+
 def load_eval_set(path: Path | None = None) -> EvalSet:
     target = path or (kb_dir() / "eval_queries.json")
     return EvalSet.model_validate(json.loads(target.read_text(encoding="utf-8")))
 
 
-_provider: HybridProvider | None = None
+_provider: HybridProvider | KeywordProvider | FullInjectionProvider | None = None
+_provider_name = ""
 _provider_lock = threading.Lock()
 
 
-def get_provider() -> HybridProvider:
-    global _provider
-    if _provider is None:
-        with _provider_lock:
-            if _provider is None:
-                _provider = HybridProvider()
+def _build_provider(name: str):
+    if name == "full":
+        try:
+            return FullInjectionProvider()
+        except ValueError as exc:
+            # 知识库超出全量注入上限：不要因此让整个 B 模块起不来，回退混合召回。
+            log.warning("全量注入不可用，回退 hybrid：%s", exc)
+            return HybridProvider()
+    if name == "keyword":
+        return KeywordProvider()
+    if name != "hybrid":
+        log.warning("未知 KNOWLEDGE_PROVIDER=%r，回退 hybrid", name)
+    return HybridProvider()
+
+
+def get_provider(name: str | None = None):
+    """按 `KNOWLEDGE_PROVIDER`（或显式参数）选择实现，默认 hybrid。
+
+    缓存按名字区分：评测脚本可以在同一进程里切 full/hybrid 做对比，
+    不必重启，也不会让线上请求拿到评测用的实例。
+    """
+    global _provider, _provider_name
+    wanted = (name or os.getenv("KNOWLEDGE_PROVIDER", "hybrid") or "hybrid").strip().lower()
+    if _provider is not None and _provider_name == wanted:
+        return _provider
+    with _provider_lock:
+        if _provider is None or _provider_name != wanted:
+            _provider = _build_provider(wanted)
+            _provider_name = _provider.name
     return _provider
 
 
 def reset_provider() -> None:
-    """仅测试使用：换知识库目录或改分数阈值后重新加载。"""
-    global _provider
+    """仅测试使用：换知识库目录、改分数阈值或切 Provider 后重新加载。"""
+    global _provider, _provider_name
     with _provider_lock:
         _provider = None
+        _provider_name = ""
 
 
 def get_entry(entry_id: str) -> KnowledgeEntry | None:
@@ -401,17 +511,33 @@ def recall(
     guessed = system or infer_system(text)
     if guessed and guessed not in provider.systems():
         return [], "system_not_covered"
-    hits = provider.search_detailed(text, system=guessed, top_k=max(top_k, DEFAULT_TOP_K))
+    hits = provider.search_detailed(
+        text,
+        system=guessed,
+        # full 模式不截断：所有条目都进重排 prompt，这才叫"全量注入"。
+        top_k=None if provider.name == "full" else max(top_k, DEFAULT_TOP_K),
+    )
     if not hits:
         return [], "no_match"
     return hits, None
+
+
+def _cap(hits: list[Hit], top_k: int) -> list[Hit]:
+    return hits[: max(1, min(top_k, MAX_TOP_K))]
 
 
 def apply_rerank(query: str, hits: list[Hit]) -> tuple[list[Hit], dict | None]:
     """受限重排。失败时原样返回检索顺序——排序可以退化，"找不到"不能。"""
     if len(hits) <= 1:
         return hits, None
-    info = rerank_service.rerank(query, [hit.entry for hit in hits])
+    limit = (
+        FULL_INJECT_MAX
+        if get_provider().name == "full"
+        else rerank_service.MAX_CANDIDATES
+    )
+    info = rerank_service.rerank(
+        query, [hit.entry for hit in hits], max_candidates=limit
+    )
     if not info:
         return hits, None
     order = {entry_id: index for index, entry_id in enumerate(info["order"])}
@@ -430,9 +556,10 @@ def search_entries(
     if reason:
         return [], None, reason
     if not use_rerank:
-        return hits, None, None
+        return _cap(hits, top_k), None, None
     hits, info = apply_rerank(query.strip(), hits)
-    return hits, info, None
+    # full 模式的召回不截断，这里统一收口到 top_k；hybrid 的命中本来就更少。
+    return _cap(hits, top_k), info, None
 
 
 def _hit_payload(hit: Hit) -> dict:
@@ -442,8 +569,11 @@ def _hit_payload(hit: Hit) -> dict:
         "title": hit.entry.title,
         "system": hit.entry.system.value,
         "score": hit.score,
+        # 匹配置信度：combined 的满分是 10，归一化后落到 0–1。
+        # 这是"这条条目有多贴近现场描述"，不是"结论一定对"——两者别混。
+        "confidence": round(min(1.0, hit.score / 10.0), 2),
         "signals": hit.signals(),
-        "likely_causes": hit.entry.likely_causes,
+        "likely_causes": [cause.model_dump() for cause in hit.entry.likely_causes],
         "checks": [check.model_dump() for check in hit.entry.checks],
         "escalation": hit.entry.escalation,
         "safety": hit.entry.safety,
@@ -474,6 +604,8 @@ def _build_result(
         "suggestion": suggestion,
         "results": results,
         "count": len(results),
+        # 最可能那条的匹配置信度。未覆盖时没有结论，给 0 而不是编一个数。
+        "confidence": results[0]["confidence"] if results else 0.0,
         "took_ms": int((time.perf_counter() - started) * 1000),
         "kb_version": get_provider().version,
         "provider": get_provider().name,
@@ -529,4 +661,4 @@ def iter_diagnose(
         "order": info["order"] if info else [hit.entry.id for hit in hits],
         "took_ms": int((time.perf_counter() - started) * 1000),
     }
-    yield "done", _build_result(text, hits, info, None, started)
+    yield "done", _build_result(text, _cap(hits, top_k), info, None, started)

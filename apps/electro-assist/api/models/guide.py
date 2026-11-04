@@ -162,6 +162,11 @@ class GuideMeta(BaseModel):
 
     system: System
     source_note: str = Field(min_length=4, max_length=200, description="公开资料来源说明")
+    # 工位：计划 §2.1 输入模板的字段。预检能解析、人工可改，模型不填。
+    # 与 source_type 同理：None 时不落盘，旧镜像仍能读取文本来源的草稿。
+    station: str | None = Field(
+        default=None, max_length=60, exclude_if=lambda value: value is None
+    )
     # 输入形态：文本粘贴 or 图片识别后回填。由服务端写入，模型不得决定。
     # text 时**不落盘**：旧版本（迁移 v8 之前）的 GuideMeta 是 extra="forbid"，
     # 多一个键就读不出草稿。默认值仍是 text，省略即等价。

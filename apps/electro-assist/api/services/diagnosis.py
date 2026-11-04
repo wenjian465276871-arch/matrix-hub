@@ -38,7 +38,7 @@ def _entry_payload(entry: KnowledgeEntry) -> dict:
         "title": entry.title,
         "system": entry.system.value,
         "symptoms": entry.symptoms,
-        "likely_causes": entry.likely_causes,
+        "likely_causes": [cause.model_dump() for cause in entry.likely_causes],
         "checks": [check.model_dump() for check in entry.checks],
         "escalation": entry.escalation,
         "safety": entry.safety,
@@ -92,8 +92,33 @@ def _next_order(entry: KnowledgeEntry, current: Check) -> int | None:
     return later[0] if later else None
 
 
-def _conclusion_fail(entry: KnowledgeEntry, check: Check) -> dict:
+def _confidence(kind: str, check: Check | None = None, entry: KnowledgeEntry | None = None) -> float:
+    """结论置信度：按"证据强度"给分，不做模型自评。
+
+    - 实测值超差：有数值证据，高于人工确认；
+    - 人工判异常：依赖人的判断，低一档；
+    - 全部通过仍未复现：只能说"未定位"，0.4；
+    - 中止：0。
+    这是可解释的工程口径，不是概率——文案里必须写清"置信度"而非"成功率"。
+    """
+    if kind == "fail":
+        base = 0.85 if check is not None and check.kind == "measure" else 0.7
+        if check is not None and check.on_fail:
+            base += 0.05
+        if entry is not None and entry.sources:
+            base += 0.05
+        return round(min(base, 0.95), 2)
+    if kind == "exhausted":
+        return 0.4
+    return 0.0
+
+
+def _conclusion_fail(entry: KnowledgeEntry, check: Check, evidence: str = "") -> dict:
     cause = check.on_fail or f"检查项「{check.action}」异常，期望：{check.expect}"
+    basis = [f"检查项 {check.order}：{check.action}", f"期望：{check.expect}"]
+    if evidence:
+        basis.append(f"现场：{evidence}")
+    basis.extend(f"依据：{source}" for source in entry.sources)
     return {
         "kind": "fail",
         "check_order": check.order,
@@ -101,6 +126,8 @@ def _conclusion_fail(entry: KnowledgeEntry, check: Check) -> dict:
         "action": entry.escalation,
         "safety": entry.safety,
         "sources": entry.sources,
+        "confidence": _confidence("fail", check, entry),
+        "basis": basis,
     }
 
 
@@ -112,6 +139,8 @@ def _conclusion_exhausted(entry: KnowledgeEntry) -> dict:
         "action": entry.escalation,
         "safety": entry.safety,
         "sources": entry.sources,
+        "confidence": _confidence("exhausted"),
+        "basis": ["全部检查项均通过，现象未复现", *[f"依据：{s}" for s in entry.sources]],
     }
 
 
@@ -123,6 +152,8 @@ def _conclusion_aborted(entry: KnowledgeEntry) -> dict:
         "action": entry.escalation,
         "safety": entry.safety,
         "sources": entry.sources,
+        "confidence": _confidence("aborted"),
+        "basis": ["诊断在得出结论前中止"],
     }
 
 
@@ -255,11 +286,16 @@ def submit(
         ) from exc
 
     if verdict == "fail":
+        evidence = (
+            f"{stored_value} {check.unit}".strip()
+            if check.kind == "measure"
+            else "人工确认异常"
+        )
         store.update_diagnose_run(
             run_id,
             status="concluded",
             current_order=None,
-            conclusion=_conclusion_fail(entry, check),
+            conclusion=_conclusion_fail(entry, check, evidence),
         )
     else:
         nxt = _next_order(entry, check)

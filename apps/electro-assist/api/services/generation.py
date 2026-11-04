@@ -82,6 +82,7 @@ def submit(
     assets: list[dict[str, str]] | None = None,
     process_id: str | None = None,
     source_type: str = "text",
+    station: str = "",
 ) -> str:
     cleaned = text.strip()
     if len(cleaned) < MIN_INPUT_CHARS:
@@ -106,8 +107,10 @@ def submit(
         # 工艺原文随任务落库：详情页的「重新生成」要靠它，否则用户只能回生成页重粘。
         # 配额检查在落库之前——被拒的请求不该产生一条工艺记录。
         if process_id is None and retry_of:
-            # 重试是"同一份工艺再来一次"，不该为它复制一份原文
-            process_id = (store.get_job(retry_of) or {}).get("process_id")
+            # 重试是"同一份工艺再来一次"，不该为它复制一份原文；工位同理继承。
+            original = store.get_job(retry_of) or {}
+            process_id = original.get("process_id")
+            station = station or (original.get("station") or "")
         if process_id is None:
             process_id = store.create_process(
                 text=cleaned, title=derive_process_title(cleaned)
@@ -121,6 +124,7 @@ def submit(
             assets=assets,
             process_id=process_id,
             source_type="image" if source_type == "image" else "text",
+            station=(station or "").strip()[:60],
         )
     if not job_queue.submit(job_id, cleaned):
         store.finish_job(job_id, "failed", error_code="busy", error_detail="队列已满")
@@ -185,6 +189,7 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
             max_tokens=MAX_TOKENS,
             # 输入形态随 job 走：重启后续跑也拿得到，不依赖队列参数。
             source_type=job.get("source_type") or "text",
+            station=job.get("station") or "",
         )
         # 服务端接管 ID：模型给的 id 只对"它自己"有意义，不能当主键
         draft.guide.id = new_guide_id()

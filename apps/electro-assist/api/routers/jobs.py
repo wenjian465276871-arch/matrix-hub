@@ -42,6 +42,8 @@ class GenerateIn(BaseModel):
     # 输入形态（决策 #11）：图片识别后回填的文本标 image，供溯源与审计区分。
     # 由客户端声明而不是服务端推断：同一段文本可能来自复制粘贴，不是所有带图的任务都算图片输入。
     source_type: Literal["text", "image"] = "text"
+    # 工位（计划 §2.1 输入模板）：预检能解析，人工可改。模型不填，服务端写入 meta。
+    station: str | None = Field(default=None, max_length=60)
 
 
 def normalize_assets(items: list[AssetIn]) -> list[dict[str, str]]:
@@ -94,6 +96,7 @@ def generate(
             privileged=bool(x_passcode_token),
             assets=normalize_assets(body.assets),
             source_type=body.source_type,
+            station=(body.station or "").strip(),
         )
     except generation.GenerateRejected as exc:
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None

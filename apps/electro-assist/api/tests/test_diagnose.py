@@ -123,3 +123,49 @@ def test_measure_check_is_declared_in_quick_result():
     assert measure, "气压类条目的首项应为实测值检查"
     assert measure[0]["unit"] == "MPa"
     assert measure[0]["min"] < measure[0]["max"]
+
+
+def test_result_carries_weights_and_match_confidence():
+    """计划 §2.3：可能原因带权重，结果带置信度。"""
+    result = _post("门关到一半又自己弹开了")
+    top = result["results"][0]
+    assert 0.0 <= result["confidence"] <= 1.0
+    assert 0.0 <= top["confidence"] <= 1.0
+
+    causes = top["likely_causes"]
+    assert causes and all({"text", "weight"} <= set(cause) for cause in causes)
+    weights = [cause["weight"] for cause in causes]
+    # 旧知识库是字符串数组：按人工顺序补默认权重，必须递减
+    assert weights == sorted(weights, reverse=True)
+
+
+def test_uncovered_has_zero_confidence():
+    result = _post("今天天气不错，适合出门散步")
+    assert result["confidence"] == 0.0
+    assert result["results"] == []
+
+
+def test_full_injection_provider_is_switchable(monkeypatch):
+    """计划 §2.3：保留全量注入实现，可与混合召回切换、对比。"""
+    monkeypatch.setenv("KNOWLEDGE_PROVIDER", "full")
+    knowledge.reset_provider()
+    try:
+        provider = knowledge.get_provider()
+        assert provider.name == "full"
+        door_total = len([e for e in provider.entries() if e.system.value == "door"])
+
+        hits, reason = knowledge.recall("门关不上", system="door", top_k=3)
+        assert reason is None
+        # 召回不淘汰：所有车门条目都进重排 prompt
+        assert len(hits) == door_total
+        assert door_total > 3
+
+        # 对外仍只回 top_k，不能把整库倒给页面
+        capped, _, _ = knowledge.search_entries(
+            "门关不上", system="door", top_k=3, use_rerank=False
+        )
+        assert len(capped) == 3
+    finally:
+        monkeypatch.delenv("KNOWLEDGE_PROVIDER", raising=False)
+        knowledge.reset_provider()
+        assert knowledge.get_provider().name == "hybrid"

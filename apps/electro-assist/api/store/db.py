@@ -262,6 +262,15 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "ALTER TABLE jobs ADD COLUMN source_type TEXT NOT NULL DEFAULT 'text'",
         ],
     ),
+    (
+        9,
+        [
+            # 工位（计划 §2.1 输入模板）：预检能解析，但此前只回给前端、落库即丢。
+            # 两处都要存：jobs 供 worker 写进 Guide.meta，processes 供"再生成"复用。
+            "ALTER TABLE jobs ADD COLUMN station TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE processes ADD COLUMN station TEXT NOT NULL DEFAULT ''",
+        ],
+    ),
 ]
 
 

@@ -95,6 +95,8 @@ export interface GuideMeta {
   system: System
   source_note: string
   source_type?: 'text' | 'image'
+  /** 工位：计划 §2.1 输入模板字段；没写时后端不落该字段 */
+  station?: string | null
   model: string
   generated_at: string
   is_demo: boolean
@@ -475,13 +477,21 @@ export interface DiagnoseSignals {
   combined: number
 }
 
+export interface DiagnoseCause {
+  text: string
+  /** 人工整理时的相对可能性，0–1 */
+  weight: number
+}
+
 export interface DiagnoseResult {
   id: string
   title: string
   system: System
   score: number
+  /** 匹配置信度（0–1）：条目与现场描述的贴近程度，不是结论成功率 */
+  confidence?: number
   signals?: DiagnoseSignals
-  likely_causes: string[]
+  likely_causes: DiagnoseCause[]
   checks: DiagnoseCheck[]
   escalation: string
   safety: string
@@ -508,6 +518,8 @@ export interface DiagnoseResponse {
   suggestion: string
   results: DiagnoseResult[]
   count: number
+  /** 最可能那条的匹配置信度；未覆盖为 0 */
+  confidence?: number
   took_ms: number
   kb_version: string
   provider?: string
@@ -551,6 +563,10 @@ export interface DiagnoseConclusion {
   action: string
   safety: string
   sources: string[]
+  /** 结论置信度（0–1），按证据强度给分；旧记录可能没有 */
+  confidence?: number
+  /** 结论依据（检查项、期望、现场值、来源）；旧记录可能没有 */
+  basis?: string[]
 }
 
 export interface DiagnoseStepRecord {

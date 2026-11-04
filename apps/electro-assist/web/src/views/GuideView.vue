@@ -570,6 +570,7 @@ restoreToken()
       <p class="guide-summary">{{ guide.summary }}</p>
       <div class="meta-row">
         <span class="tag">{{ SYSTEM_LABEL[guide.meta.system] ?? guide.meta.system }}</span>
+        <span v-if="guide.meta.station" class="tag tag--plain">工位 {{ guide.meta.station }}</span>
         <span class="tag tag--plain">{{ guide.steps.length }} 步</span>
         <span class="tag tag--plain">{{ guide.meta.model }}</span>
         <span>{{ new Date(guide.meta.generated_at).toLocaleString('zh-CN') }}</span>
