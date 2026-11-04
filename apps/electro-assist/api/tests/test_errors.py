@@ -38,3 +38,27 @@ def test_success_response_carries_request_id():
 def test_request_id_is_echoed_when_client_supplies_one():
     r = client.get("/healthz", headers={"X-Request-Id": "abc12345"})
     assert r.headers["X-Request-Id"] == "abc12345"
+
+
+def test_validation_error_uses_same_envelope():
+    """422 不能是 `detail:[...]`：前端按 `detail.code` 翻译，数组会被当成未知错误。"""
+    r = client.post("/api/electro/diagnose", json={"symptom": "短"})
+    assert r.status_code == 422
+    detail = r.json()["detail"]
+    assert detail["code"] == "invalid_request"
+    assert detail["message"]
+    assert detail["errors"][0]["field"] == "symptom"
+    assert r.headers["X-Request-Id"] == detail["ref"]
+
+
+def test_framework_404_uses_same_envelope():
+    r = client.get("/api/electro/does-not-exist")
+    assert r.status_code == 404
+    assert r.json()["detail"]["code"] == "http_404"
+    assert isinstance(r.json()["detail"]["message"], str)
+
+
+def test_method_not_allowed_uses_same_envelope():
+    r = client.put("/healthz")
+    assert r.status_code == 405
+    assert r.json()["detail"]["code"] == "http_405"

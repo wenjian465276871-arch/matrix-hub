@@ -81,6 +81,7 @@ def submit(
     privileged: bool = False,
     assets: list[dict[str, str]] | None = None,
     process_id: str | None = None,
+    source_type: str = "text",
 ) -> str:
     cleaned = text.strip()
     if len(cleaned) < MIN_INPUT_CHARS:
@@ -119,6 +120,7 @@ def submit(
             retry_of=retry_of,
             assets=assets,
             process_id=process_id,
+            source_type="image" if source_type == "image" else "text",
         )
     if not job_queue.submit(job_id, cleaned):
         store.finish_job(job_id, "failed", error_code="busy", error_detail="队列已满")
@@ -176,7 +178,14 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
     provider = None
     try:
         provider = provider_factory()
-        draft = generate_guide(provider, text, max_tokens=MAX_TOKENS)
+        job = store.get_job(job_id) or {}
+        draft = generate_guide(
+            provider,
+            text,
+            max_tokens=MAX_TOKENS,
+            # 输入形态随 job 走：重启后续跑也拿得到，不依赖队列参数。
+            source_type=job.get("source_type") or "text",
+        )
         # 服务端接管 ID：模型给的 id 只对"它自己"有意义，不能当主键
         draft.guide.id = new_guide_id()
         # 版本号同理：模型抄错一个数字，前端就会按旧结构解析。
@@ -184,7 +193,6 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
         # 素材同理：模型即使照 schema 编了 asset_id 也一律丢弃，只认提交时传过的。
         for step in draft.guide.steps:
             step.assets = []
-        job = store.get_job(job_id) or {}
         _attach_assets(draft.guide, job)
         # 来源工艺随指导书落库：详情页据此提供「重新生成」，不用回生成页重粘。
         saved = store.save_guide(

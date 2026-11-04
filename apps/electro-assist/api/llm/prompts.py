@@ -73,26 +73,30 @@ def _motion_table() -> str:
 
 
 def output_schema() -> dict:
-    """给模型看的 Guide schema：**去掉 assets**。
+    """给模型看的 Guide schema：**去掉服务端所有的字段**。
 
     素材是用户拍的照片，模型看不到；字段留在 schema 里，它就会"顺手填一个"，
     填错还不报错（格式合法、图片不存在），最后表现为详情页图裂开。
-    这不是模型不听话，是契约不该给它这个机会。
+    `provenance` 与 `source_type` 同理：它们描述"内容从哪来"，模型没有读图能力，
+    让它填 bbox 与置信度就是让它编坐标。由识别链路/服务端写入，模型只负责正文。
 
-    做法是"代码生成的 schema 再删两个键"，而不是手写第二份 schema：
+    做法是"代码生成的 schema 再删几个键"，而不是手写第二份 schema：
     手写的那份迟早和模型定义漂移。
     """
+    hidden = ("assets", "provenance", "source_type")
     schema = Guide.model_json_schema()
-    schema.get("properties", {}).pop("assets", None)
-    if "required" in schema:
-        schema["required"] = [name for name in schema["required"] if name != "assets"]
-    for definition in schema.get("$defs", {}).values():
-        properties = definition.get("properties")
+    # 字段删掉后定义还在，会在 prompt 里留下一个没人引用的 Provenance 块，
+    # 模型看到就会试着填。一并移除。
+    schema.get("$defs", {}).pop("Provenance", None)
+    targets = [schema, *schema.get("$defs", {}).values()]
+    for target in targets:
+        properties = target.get("properties")
         if isinstance(properties, dict):
-            properties.pop("assets", None)
-        required = definition.get("required")
+            for name in hidden:
+                properties.pop(name, None)
+        required = target.get("required")
         if isinstance(required, list):
-            definition["required"] = [name for name in required if name != "assets"]
+            target["required"] = [name for name in required if name not in hidden]
     return schema
 
 

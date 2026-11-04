@@ -9,10 +9,13 @@ import logging
 import os
 import secrets
 import shutil
+import socket
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import store
 from core.httpwindow import HttpWindow
@@ -28,7 +31,7 @@ from routers import records as records_router
 from routers import schema as schema_router
 from routers import sessions as sessions_router
 from routers import uploads as uploads_router
-from services import generation, library
+from services import generation, library, retention
 from services import quota as quota_service
 
 APP_ENV = os.getenv("APP_ENV", "dev")
@@ -64,9 +67,13 @@ async def lifespan(_app: FastAPI):
     if bumped:
         log.info("版本戳归一化：%d 份存量指导书", bumped)
     generation.start_worker()
+    # 保留期（计划 §11.3.3）：启动时一次 + 每日一次。默认只在 prod 开，
+    # 开发机与测试库上自动删数据是灾难。cron 仍保留，作为进程没起来时的冗余。
+    retention.start()
     try:
         yield
     finally:
+        retention.stop()
         generation.stop_worker()
 
 
@@ -133,6 +140,72 @@ async def unhandled_error(request: Request, exc: Exception):
     return response
 
 
+@app.exception_handler(RequestValidationError)
+async def invalid_request(request: Request, exc: RequestValidationError):
+    """422 也必须走 `{detail:{code,message}}`。
+
+    此前 FastAPI 的默认处理器返回 `{"detail":[{loc,msg,type}...]}`：前端读不到
+    `code`，只能把"现象描述太短"显示成"未知错误"。`processes.py` 曾为此在每个
+    端点手写长度校验来绕开默认格式——补上这一层，长度约束才能回到 schema 里。
+
+    字段位置去掉 `body.` 前缀：前端要的是"哪个输入框"，不是 Pydantic 的路径语法。
+    只回前 5 条：一次全字段校验失败几十条，用户既读不完也用不上。
+    """
+    ref = getattr(request.state, "ref", "-")
+    errors = []
+    for err in exc.errors()[:5]:
+        parts = [str(part) for part in err.get("loc", ())]
+        # 去掉 Pydantic 的来源前缀（body/query/path/header/cookie）：
+        # 前端要的是"哪个输入框"，不是它在请求里的位置语法。
+        if parts and parts[0] in ("body", "query", "path", "header", "cookie"):
+            parts = parts[1:]
+        location = ".".join(parts)
+        errors.append(
+            {
+                "field": location or "body",
+                "message": str(err.get("msg", "")),
+            }
+        )
+    log.info("请求校验失败 ref=%s path=%s errors=%s", ref, request.url.path, errors)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": {
+                "code": "invalid_request",
+                "message": "请求参数不合法，请检查后重试",
+                "errors": errors,
+                "ref": ref,
+            }
+        },
+        headers={"X-Request-Id": ref},
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error(request: Request, exc: StarletteHTTPException):
+    """`HTTPException` 的字符串 detail 也收进信封。
+
+    路由层多数已经传 dict，但框架自身会抛出字符串 detail（404 无路由、405 方法不允许、
+    Caddy 后面的兜底 404）。不归一的话，前端同一个 `detail` 字段有时是对象有时是字符串，
+    `parseErrorResponse` 只能放弃解析。
+    """
+    ref = getattr(request.state, "ref", "-")
+    if isinstance(exc.detail, dict):
+        detail = dict(exc.detail)
+    else:
+        detail = {"code": f"http_{exc.status_code}", "message": str(exc.detail)}
+    # 5xx 才带 ref：4xx 大多是用户可自行修正的输入问题，塞错误号只会干扰阅读。
+    if exc.status_code >= 500:
+        detail.setdefault("ref", ref)
+    response = JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": detail},
+        headers=exc.headers,
+    )
+    response.headers["X-Request-Id"] = ref
+    return response
+
+
 app.include_router(schema_router.router)
 app.include_router(processes_router.router)
 app.include_router(uploads_router.router)
@@ -147,16 +220,31 @@ app.include_router(diagnose_router.router)
 app.include_router(fe_router.router)
 
 
-@app.get("/healthz", tags=["ops"])
-def healthz() -> dict:
-    """部署脚本与容器探针依赖此端点。
+def _probe_caddy() -> str:
+    """探 Caddy 入口是否还在监听。
 
-    加入 DB 检查的理由：读写数据库是后续所有业务端点的前提，
-    只探进程活着等于把"能起不能干活"判成健康。
-
-    加入磁盘检查的理由：磁盘写满时进程与 DB 都还"活着"，但上传、备份、
-    SQLite 写入会陆续失败；这类故障必须提前暴露，而不是等用户报错。
+    为什么用 TCP 而不是再发一次 HTTP：从容器内请求 `http://127.0.0.1/healthz`
+    会经 Caddy 回到本进程，形成一次自调用；健康检查不该制造业务流量。
+    端口可配是因为本地开发没有 Caddy，测试要能把它指到关闭的端口。
     """
+    try:
+        port = int(os.getenv("HEALTHZ_CADDY_PORT", "80"))
+    except ValueError:
+        port = 80
+    try:
+        timeout = float(os.getenv("HEALTHZ_CADDY_TIMEOUT", "0.3"))
+    except ValueError:
+        timeout = 0.3
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=timeout):
+            return "ok"
+    except OSError as exc:
+        log.warning("healthz Caddy 探测失败（127.0.0.1:%d）：%s", port, exc)
+        return "error"
+
+
+def _electro_checks() -> dict[str, str]:
+    """进程 + 数据库 + 磁盘：现有 `/healthz` 的三项。"""
     checks = {"electro": "ok"}
     try:
         store.ping()
@@ -183,18 +271,58 @@ def healthz() -> dict:
     except Exception as exc:  # noqa: BLE001 - 取不到磁盘信息本身就不算健康
         log.warning("healthz 磁盘检查失败：%s", exc)
         checks["disk"] = "error"
+    return checks
 
-    status = "ok" if all(v == "ok" for v in checks.values()) else "degraded"
 
-    # 预算水位：只报告，不参与 status。
-    # 预算是业务指标，不是存活信号；把它算进 checks 会让"今天花了 85%"
-    # 触发部署健康检查失败、回滚一个完全正常的版本。
-    budget: dict = {"level": "unknown"}
-    try:
-        budget_status = quota_service.budget_status()
-        quota_service.alert_if_needed(budget_status)
-        budget = budget_status.to_dict()
-    except Exception as exc:  # noqa: BLE001 - 读不到用量不该让健康检查 500
-        log.warning("healthz 预算检查失败：%s", exc)
+@app.get("/healthz", tags=["ops"], response_model=dict)
+def healthz(
+    scope: str | None = Query(
+        default=None,
+        description="live=进程；ready/electro=进程+DB+磁盘；all=再加 Caddy。"
+        "显式 scope 时 readiness 失败返回 503。",
+        pattern="^(live|ready|electro|all)$",
+    ),
+):
+    """健康检查。默认口径不变，显式 scope 才启用分级判定。
 
-    return {"status": status, "checks": checks, "budget": budget, "http": http_window.snapshot()}
+    为什么必须分级（计划 §2.4）：容器探针只想要"进程还在吗"，部署脚本要看
+    "这一版能不能接流量"，监控还想知道 Caddy 有没有起来。三者混在一个端点、
+    一个状态码上，就必然出现"healthz 200 但每个请求都 502"。
+    现在：`live` 永远 200；`ready`/`electro` 任一检查失败返回 **503**；
+    `all` 额外探 Caddy。默认（不带 scope）保持 200 + 完整报告，供 uptime 与人工查看。
+
+    预算仍然只报告、不参与判定——预算是业务指标，把"今天花了 85%"判成不健康，
+    会让部署回滚一个完全正常的版本。
+    """
+    if scope == "live":
+        return {"status": "ok", "scope": "live", "checks": {"process": "ok"}}
+
+    checks = _electro_checks()
+    include_caddy = scope == "all"
+    if include_caddy:
+        checks["caddy"] = _probe_caddy()
+
+    status = "ok" if all(value == "ok" for value in checks.values()) else "degraded"
+
+    # 显式 readiness 才带 HTTP 状态码；默认口径必须保持 200，
+    # 否则 uptime 与既有看板会把"磁盘 89%"读成整站宕机。
+    http_status = 200 if scope is None or status == "ok" else 503
+
+    payload: dict = {"status": status, "checks": checks}
+    if scope is not None:
+        payload["scope"] = scope
+
+    # 预算与滚动窗口只给默认报告与 scope=all：
+    # readiness 每 30 秒被探一次，没必要每次都做三次用量统计。
+    if scope is None or include_caddy:
+        budget: dict = {"level": "unknown"}
+        try:
+            budget_status = quota_service.budget_status()
+            quota_service.alert_if_needed(budget_status)
+            budget = budget_status.to_dict()
+        except Exception as exc:  # noqa: BLE001 - 读不到用量不该让健康检查 500
+            log.warning("healthz 预算检查失败：%s", exc)
+        payload["budget"] = budget
+        payload["http"] = http_window.snapshot()
+
+    return JSONResponse(status_code=http_status, content=payload)

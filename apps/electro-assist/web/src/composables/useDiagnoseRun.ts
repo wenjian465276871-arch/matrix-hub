@@ -25,6 +25,7 @@ export function useDiagnoseRun() {
     symptom: string,
     system: string,
     entryId?: string,
+    sessionId?: string,
   ): Promise<boolean> {
     busy.value = true
     error.value = ''
@@ -33,7 +34,9 @@ export function useDiagnoseRun() {
         symptom,
         system: system || null,
         entry_id: entryId ?? null,
-        session_id: null,
+        // 由 A1 转入时挂回作业会话：记录页据此显示本次排查的结论。
+        // 之前写死 null，B 的结论永远留在 B 页面，报告里看不到。
+        session_id: sessionId || null,
       })
       return true
     } catch (err) {

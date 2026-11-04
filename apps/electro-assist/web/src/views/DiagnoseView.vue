@@ -41,6 +41,8 @@ const result = ref<DiagnoseResponse | null>(null)
 const kb = ref<KbOverview | null>(null)
 const errorText = ref('')
 const context = ref<{ guide_id?: string; step_seq?: number }>({})
+/** 由 A1 转入时带上作业 id：逐步诊断挂到该会话，结论才能回写作业记录。 */
+const sessionId = ref('')
 
 const SYSTEM_LABEL: Record<string, string> = {
   door: '客室侧门',
@@ -144,7 +146,7 @@ async function startRun(entryId?: string): Promise<void> {
   }
   phase.value = 'loading'
   errorText.value = ''
-  const ok = await startDiagnosis(text, system.value, entryId)
+  const ok = await startDiagnosis(text, system.value, entryId, sessionId.value)
   phase.value = ok ? 'ready' : 'error'
 }
 
@@ -192,6 +194,9 @@ onMounted(async () => {
     if (typeof query.guide === 'string') context.value.guide_id = query.guide
     if (typeof query.step === 'string' && Number(query.step) > 0) {
       context.value.step_seq = Number(query.step)
+    }
+    if (typeof query.sid === 'string' && /^s_[0-9a-f]{16}$/.test(query.sid)) {
+      sessionId.value = query.sid
     }
     await submitQuick()
   }

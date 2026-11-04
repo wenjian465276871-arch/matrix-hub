@@ -22,7 +22,9 @@ probe_curl() {
 }
 
 probe_health() {
-  probe_curl "${PROBE_BASE}/healthz" 2>/dev/null | grep -q '"status":"ok"'
+  # scope=ready：检查失败返回 503，curl -f 直接失败；不带 scope 的默认口径
+  # 永远 200（只有 status 字段变 degraded），不适合当部署闸门。
+  probe_curl "${PROBE_BASE}/healthz?scope=ready" 2>/dev/null | grep -q '"status":"ok"'
 }
 
 health_check() {

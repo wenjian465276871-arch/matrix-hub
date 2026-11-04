@@ -391,6 +391,9 @@ async function adoptRegion(region: SliceRegion): Promise<void> {
 const extractBusy = ref(false)
 const extractResult = ref<ExtractResult | null>(null)
 const extractError = ref('')
+/** 本次文本是否由图片识别回填：只影响 meta.source_type，不影响生成逻辑。
+ *  不因为用户后续改字就改回 text——那段内容的起点确实是图，溯源要如实。 */
+const usedExtraction = ref(false)
 
 /** 识别是**两次模型调用**（先转录、再结构化），且图片越密越慢。
  *  实测一张中文表格 40 行的图要 30 秒；用默认的 15 秒会在后端还在跑时
@@ -456,6 +459,7 @@ function applyExtraction(): void {
     return
   }
   text.value = text.value.trim() ? `${text.value.trim()}\n\n${block}` : block
+  usedExtraction.value = true
   extractResult.value = null
 }
 
@@ -684,6 +688,8 @@ async function submit(retryOf?: string): Promise<void> {
       {
         text: trimmed,
         retry_of: retryOf ?? null,
+        // 输入形态由前端声明：识别回填过的文本标 image，供溯源与审计区分。
+        source_type: usedExtraction.value ? 'image' : 'text',
         assets: staged.value.map((item, index) => ({
           asset_id: item.asset_id,
           caption: item.caption.trim() || `图 ${index + 1}`,

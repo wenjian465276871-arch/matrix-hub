@@ -19,6 +19,64 @@ def test_healthz_ok_with_normal_disk(monkeypatch):
     assert body["status"] == "ok"
 
 
+# ---------- 分级口径（计划 §2.4） ----------
+
+
+def test_healthz_live_only_checks_process():
+    """liveness 不碰 DB：DB 挂了也要能回答"进程还在"。"""
+    body = client.get("/healthz?scope=live").json()
+    assert body == {"status": "ok", "scope": "live", "checks": {"process": "ok"}}
+
+
+def test_healthz_ready_ok(monkeypatch):
+    monkeypatch.setattr("shutil.disk_usage", lambda _p: Disk(100, 50, 50))
+    r = client.get("/healthz?scope=ready")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+    assert "budget" not in r.json()  # readiness 每次探测都读用量太贵
+
+
+def test_healthz_ready_degraded_returns_503(monkeypatch):
+    """ready 必须用状态码表达失败：探针只看 HTTP，不看 JSON 正文。"""
+    monkeypatch.setattr("shutil.disk_usage", lambda _p: Disk(100, 95, 5))
+    r = client.get("/healthz?scope=ready")
+    assert r.status_code == 503
+    assert r.json()["status"] == "degraded"
+    assert r.json()["checks"]["disk"] == "error"
+
+
+def test_healthz_electro_is_readiness_alias(monkeypatch):
+    monkeypatch.setattr("shutil.disk_usage", lambda _p: Disk(100, 95, 5))
+    assert client.get("/healthz?scope=electro").status_code == 503
+
+
+def test_healthz_all_aggregates_caddy(monkeypatch):
+    monkeypatch.setattr("shutil.disk_usage", lambda _p: Disk(100, 50, 50))
+    monkeypatch.setenv("HEALTHZ_CADDY_PORT", "1")  # 必然连不上
+    r = client.get("/healthz?scope=all")
+    assert r.status_code == 503
+    body = r.json()
+    assert body["checks"]["caddy"] == "error"
+    assert body["checks"]["db"] == "ok"
+    # 默认报告口径的附加信息仍在，scope 只加不减
+    assert "budget" in body and "http" in body
+
+
+def test_healthz_default_keeps_200_even_degraded(monkeypatch):
+    """默认口径不能改状态码：uptime 用它读预算，200→503 会误报整站宕机。"""
+    monkeypatch.setattr("shutil.disk_usage", lambda _p: Disk(100, 95, 5))
+    r = client.get("/healthz")
+    assert r.status_code == 200
+    assert r.json()["status"] == "degraded"
+
+
+def test_healthz_bad_scope_uses_error_envelope():
+    r = client.get("/healthz?scope=bogus")
+    assert r.status_code == 422
+    assert r.json()["detail"]["code"] == "invalid_request"
+    assert r.json()["detail"]["errors"][0]["field"] == "scope"
+
+
 def test_healthz_degraded_when_disk_low(monkeypatch):
     monkeypatch.setattr("shutil.disk_usage", lambda _p: Disk(100, 95, 5))
     body = client.get("/healthz").json()

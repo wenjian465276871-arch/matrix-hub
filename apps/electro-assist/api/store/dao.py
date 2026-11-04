@@ -419,6 +419,7 @@ def create_job(
     retry_of: str | None = None,
     assets: list[dict[str, str]] | None = None,
     process_id: str | None = None,
+    source_type: str = "text",
 ) -> str:
     job_id = _new_id("j")
     payload = json.dumps(assets or [], ensure_ascii=False)
@@ -427,8 +428,8 @@ def create_job(
             conn.execute(
                 """
                 INSERT INTO jobs (id, kind, status, client_ip, input_sha256, input_chars,
-                                  retry_of, assets_json, process_id, created_at)
-                VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?)
+                                  retry_of, assets_json, process_id, source_type, created_at)
+                VALUES (?, ?, 'queued', ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     job_id,
@@ -439,6 +440,7 @@ def create_job(
                     retry_of,
                     payload,
                     process_id,
+                    source_type,
                     now_iso(),
                 ),
             )

@@ -28,7 +28,11 @@ import sqlite3
 
 src = os.environ.get("DB_PATH", "/srv/app_data/electro.db")
 dst = f"/srv/backups/electro-{os.environ['STAMP']}.db"
-os.makedirs("/srv/backups", exist_ok=True)
+os.makedirs("/srv/backups", exist_ok=True, mode=0o700)
+# 备份里是完整业务库（含访客工艺原文与会话记录），目录与文件都只给属主。
+# 计划 §11.3.3：「加密（gpg/age）或至少 root-only 600」——这里取后者：
+# 容器内没有 gpg，引入它要为 30MB 镜像与密钥托管再开一套流程，收益不成比例。
+os.chmod("/srv/backups", 0o700)
 
 s = sqlite3.connect(src)
 d = sqlite3.connect(dst)
@@ -36,6 +40,7 @@ with d:
     s.backup(d)
 s.close()
 d.close()
+os.chmod(dst, 0o600)
 print(f"created {dst}")
 PY
 
@@ -77,6 +82,17 @@ def prune(prefix: str, suffix: str) -> int:
 db_kept = prune("electro-", ".db")
 up_kept = prune("uploads-", ".tar.gz")
 upload_path = os.path.join(root, os.environ["UPLOADS"])
+# 上传包里有访客截图，权限与业务库同级。
+os.chmod(upload_path, 0o600)
+# 历史备份可能是 644：每次备份顺手收紧，不用等人工 chmod。
+for name in os.listdir(root):
+    path = os.path.join(root, name)
+    if os.path.isfile(path) and (name.startswith("electro-") or name.startswith("uploads-")):
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+os.chmod(root, 0o700)
 upload_mb = round(os.path.getsize(upload_path) / 1024 / 1024, 2)
 print(f"integrity=ok db_kept={db_kept} uploads_kept={up_kept} uploads={upload_mb}MB")
 PY

@@ -13,7 +13,7 @@
 ## 0. 演示前 30 秒检查
 
 ```bash
-curl -s <演示站>/healthz                 # {"status":"ok","checks":{"electro":"ok","db":"ok"}}
+curl -s "<演示站>/healthz?scope=ready"   # {"status":"ok","checks":{"electro":"ok","db":"ok","disk":"ok"}}，失败返回 503
 curl -s <演示站>/api/electro/guides      # count >= 5（车门 3 + 空调 1 + 受电弓 1）
 curl -s <演示站>/api/electro/quota       # 至少留 1 次生成额度
 ```

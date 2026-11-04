@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -21,6 +22,37 @@ REQUIRED_DISCLAIMER = "演示数据 · 非实际作业依据"
 # 素材 id 由上传接口分配（`a_` + 16 位十六进制）。这里只做格式校验，
 # "这张图真的存在"必须在服务层查磁盘——模型不认识素材，也不该由它担保。
 ASSET_ID_RE = r"^a_[0-9a-f]{16}$"
+
+
+class Provenance(BaseModel):
+    """一条内容"从哪儿来"的证据（决策 #11，图片输入时才有）。
+
+    为什么必须可选且由服务端/受信生产者填写：模型看不到图，让它输出 bbox 与
+    raw_text 等于让它编坐标。契约先立住，前端与识别链路才能按同一形状传递；
+    文本输入路径不产生该字段，旧数据也无需迁移。
+
+    `flag` 沿用三层校验的结论：ok / suspect（疑似但不阻断）/ unverified（指不回原图）。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    asset_id: str = Field(pattern=ASSET_ID_RE)
+    # 归一化到 0–1 的 [x, y, w, h]：原图尺寸不同，像素坐标没法跨设备复用。
+    bbox: list[float] | None = Field(default=None, min_length=4, max_length=4)
+    raw_text: str | None = Field(default=None, max_length=200)
+    confidence: float | None = Field(default=None, ge=0, le=1)
+    flag: Literal["ok", "suspect", "unverified"] = "ok"
+
+    @field_validator("bbox")
+    @classmethod
+    def _normalized_bbox(cls, value: list[float] | None) -> list[float] | None:
+        if value is None:
+            return value
+        if any(not 0.0 <= number <= 1.0 for number in value):
+            raise ValueError("bbox 必须是归一化到 0–1 的四个数 [x, y, w, h]")
+        if value[0] + value[2] > 1.0001 or value[1] + value[3] > 1.0001:
+            raise ValueError("bbox 超出画布范围")
+        return value
 
 
 class AssetRef(BaseModel):
@@ -69,6 +101,8 @@ class Criterion(BaseModel):
     min: float | None = None
     max: float | None = None
     options: list[str] | None = None
+    # 图片输入时指回原图位置；文本输入与旧数据为 None。
+    provenance: Provenance | None = None
 
     @model_validator(mode="after")
     def _check_by_type(self) -> "Criterion":
@@ -103,6 +137,9 @@ class Step(BaseModel):
     # 服务端在生成后填充；位置由人在草稿页决定。
     assets: list[AssetRef] = Field(default_factory=list, max_length=3)
     duration_s: int | None = Field(default=None, ge=1, le=7200)
+    # 步骤级来源（图片输入时）。判据级 provenance 更精确，这一层用于
+    # "整步都来自同一段原文"的场景，避免每个判据重复记一遍。
+    provenance: Provenance | None = None
 
     @field_validator("safety", "tools")
     @classmethod
@@ -125,6 +162,12 @@ class GuideMeta(BaseModel):
 
     system: System
     source_note: str = Field(min_length=4, max_length=200, description="公开资料来源说明")
+    # 输入形态：文本粘贴 or 图片识别后回填。由服务端写入，模型不得决定。
+    # text 时**不落盘**：旧版本（迁移 v8 之前）的 GuideMeta 是 extra="forbid"，
+    # 多一个键就读不出草稿。默认值仍是 text，省略即等价。
+    source_type: Literal["text", "image"] = Field(
+        default="text", exclude_if=lambda value: value == "text"
+    )
     model: str = Field(min_length=3, max_length=40)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_demo: bool = True

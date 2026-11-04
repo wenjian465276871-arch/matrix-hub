@@ -9,6 +9,15 @@ export type System = 'door' | 'hvac' | 'pantograph'
 
 export type CriterionType = 'range' | 'enum' | 'text' | 'manual'
 
+/** 图片输入的字段级来源（决策 #11）。文本输入没有该字段。 */
+export interface Provenance {
+  asset_id: string
+  bbox?: [number, number, number, number] | null
+  raw_text?: string | null
+  confidence?: number | null
+  flag?: 'ok' | 'suspect' | 'unverified'
+}
+
 export interface Criterion {
   id: string
   label: string
@@ -17,6 +26,7 @@ export interface Criterion {
   min?: number | null
   max?: number | null
   options?: string[] | null
+  provenance?: Provenance | null
 }
 
 export type Primitive =
@@ -78,11 +88,13 @@ export interface Step {
   figures: VisualSpec[]
   assets: AssetRef[]
   duration_s: number | null
+  provenance?: Provenance | null
 }
 
 export interface GuideMeta {
   system: System
   source_note: string
+  source_type?: 'text' | 'image'
   model: string
   generated_at: string
   is_demo: boolean

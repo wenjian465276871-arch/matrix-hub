@@ -74,6 +74,7 @@ api/
 ├── routers/           35 个业务端点；只做参数校验与 HTTP 语义
 ├── services/          业务规则：generation / quota / jobqueue / criteria / sessions / library
 │                      knowledge（混合召回）/ rerank（只排序）/ diagnosis（故障树推进）/ report_html
+│                      retention（启动时 + 每日保留期清理）
 ├── store/             SQLite：db（连接/迁移）、dao（读写，不含业务规则）
 ├── llm/               Provider 协议、DeepSeek 实现、runner（重试/超时/校验）、pricing、prompts、extract
 ├── data/              运行数据（与代码分离，全部随镜像发布）
@@ -82,7 +83,7 @@ api/
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             359 条契约测试
+└── tests/             387 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -118,7 +119,7 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 359 passed（约 29s）
+pytest tests -q          # 387 passed（约 40s）
 ruff check .             # 只开 E9/F63/F7/F82
 
 cd ../web

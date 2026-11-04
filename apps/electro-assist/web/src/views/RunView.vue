@@ -217,6 +217,11 @@ function goDiagnose(): void {
       symptom,
       guide: guide.value?.id ?? '',
       step: String(shownStep.value?.seq ?? ''),
+      // `sid` 让 B 的逐步诊断能挂回本次作业：记录页的「关联排查结论」靠它关联。
+      // 只传 guide/step 时，B 的结论会留在另一个页面，报告里永远是空的。
+      sid: props.sid,
+      // 现场语境标记：暗色下只有带它进入的 B 会话才显示「切回亮色」逃生条。
+      from: 'run',
     },
   })
 }

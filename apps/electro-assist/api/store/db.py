@@ -253,6 +253,15 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "CREATE INDEX idx_guides_process ON guides(process_id)",
         ],
     ),
+    (
+        8,
+        [
+            # 输入形态（决策 #11）：文本粘贴 / 图片识别后回填。worker 只拿 job_id，
+            # 所以必须随 job 落库——不能指望队列参数在重启后续跑时还活着。
+            # 默认 text：存量任务与"用工艺重新生成"都是文本来源。
+            "ALTER TABLE jobs ADD COLUMN source_type TEXT NOT NULL DEFAULT 'text'",
+        ],
+    ),
 ]
 
 

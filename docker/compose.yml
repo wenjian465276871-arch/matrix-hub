@@ -34,7 +34,9 @@ services:
         max-size: "10m"
         max-file: "3"
     healthcheck:
-      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/healthz"]
+      # readiness 失败返回 503，`curl -f` 才会把容器判为 unhealthy。
+      # 不带 scope 的默认口径仍返回 200（供 uptime 读预算），不能拿它做探针。
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8001/healthz?scope=ready"]
       interval: 30s
       timeout: 5s
       retries: 3

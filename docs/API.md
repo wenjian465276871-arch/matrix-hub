@@ -55,7 +55,7 @@
 | `POST` | `/api/electro/uploads/{asset_id}/slice` | 按模式切图（整图/表格/行带/密集文字） | `—` | `200 · object` |
 | `POST` | `/api/electro/uploads/{asset_id}/slice/{region_id}/adopt` | 把切块复制成独立素材（记 derived_from，每源图 6 次上限） | `—` | `200 · object` |
 | `GET` | `/api/electro/uploads/{asset_id}/{filename}` | 取原图或某张切片（二进制） | `—` | `200 · —` |
-| `GET` | `/healthz` | 健康检查：进程 + 数据库 + 磁盘余量，供部署脚本与容器探针使用 | `—` | `200 · object` |
+| `GET` | `/healthz` | 健康检查：进程 + 数据库 + 磁盘余量；`scope=live|ready|electro|all` 分级，readiness 失败返回 503 | `—` | `200 · object` |
 
 ## 3. 按模块
 
@@ -88,7 +88,7 @@
 ### ops
 
 - `POST /api/electro/fe-error` — 前端错误上报：只写日志、不落库；字段白名单 + 单 IP 30/时限流
-- `GET /healthz` — 健康检查：进程 + 数据库 + 磁盘余量，供部署脚本与容器探针使用
+- `GET /healthz` — 健康检查：进程 + 数据库 + 磁盘余量；`scope=live|ready|electro|all` 分级，readiness 失败返回 503
 
 ### passcode
 
@@ -229,6 +229,7 @@
 | `text` | `string` | 是 |
 | `retry_of` | `—` | 否 |
 | `assets` | `AssetIn[]` | 否 |
+| `source_type` | `enum(text / image)` | 否 |
 
 ### GuidePatch
 

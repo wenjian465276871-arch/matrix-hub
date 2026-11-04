@@ -259,3 +259,69 @@ def test_is_demo_defaults_true_when_omitted():
     data = deepcopy(SAMPLE)
     data.setdefault("meta", {}).pop("is_demo", None)
     assert Guide.model_validate(data).meta.is_demo is True
+
+
+# ---------------------------------------------------------------- 溯源契约（决策 #11）
+
+def test_source_type_defaults_to_text():
+    guide = Guide.model_validate(SAMPLE)
+    assert guide.meta.source_type == "text"
+
+
+def test_source_type_accepts_image():
+    data = deepcopy(SAMPLE)
+    data["meta"]["source_type"] = "image"
+    assert Guide.model_validate(data).meta.source_type == "image"
+
+
+def test_source_type_rejects_unknown_value():
+    bad = deepcopy(SAMPLE)
+    bad["meta"]["source_type"] = "ocr"
+    with pytest.raises(ValidationError):
+        Guide.model_validate(bad)
+
+
+def test_provenance_round_trips_on_step_and_criterion():
+    data = deepcopy(SAMPLE)
+    ref = {
+        "asset_id": "a_0123456789abcdef",
+        "bbox": [0.1, 0.2, 0.3, 0.4],
+        "raw_text": "0.8 N·m",
+        "confidence": 0.92,
+        "flag": "suspect",
+    }
+    data["steps"][1]["provenance"] = ref
+    data["steps"][1]["criteria"][0]["provenance"] = ref
+    guide = Guide.model_validate(data)
+    assert guide.steps[1].provenance.flag == "suspect"
+    assert guide.steps[1].criteria[0].provenance.raw_text == "0.8 N·m"
+
+
+def test_provenance_rejects_bbox_out_of_canvas():
+    bad = deepcopy(SAMPLE)
+    bad["steps"][1]["provenance"] = {
+        "asset_id": "a_0123456789abcdef",
+        "bbox": [0.9, 0.1, 0.3, 0.1],
+    }
+    with pytest.raises(ValidationError):
+        Guide.model_validate(bad)
+
+
+def test_provenance_rejects_unknown_flag():
+    bad = deepcopy(SAMPLE)
+    bad["steps"][1]["provenance"] = {
+        "asset_id": "a_0123456789abcdef",
+        "flag": "maybe",
+    }
+    with pytest.raises(ValidationError):
+        Guide.model_validate(bad)
+
+
+def test_llm_schema_hides_server_owned_fields():
+    """模型看得到的 schema 不能含 provenance/source_type：它没有读图能力。"""
+    from llm.prompts import output_schema
+
+    dumped = json.dumps(output_schema(), ensure_ascii=False)
+    assert "provenance" not in dumped
+    assert "source_type" not in dumped
+    assert "Provenance" not in dumped

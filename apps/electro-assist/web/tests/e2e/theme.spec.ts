@@ -45,6 +45,42 @@ test('暗色下 A1 出现逃生条，一键切回亮色', async ({ page }) => {
   await expect(notice).toBeVisible()
   await expect(notice).toContainText('现场作业建议切换亮色')
 
+  // ---------- 转 B：必须带 from=run 与 sid ----------
+  // 第 1 步：勾选人工确认项后提交
+  await page.getByRole('checkbox').first().check()
+  await page.getByRole('button', { name: '提交本步' }).click()
+  await page.getByRole('button', { name: '继续下一步' }).click()
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('第 2 / 8 步')
+
+  // 第 2 步：填超差值，触发异常分支
+  for (const input of await page.locator('.num-input').all()) await input.fill('200')
+  for (const select of await page.locator('.select').all()) {
+    if ((await select.locator('option').count()) > 1) await select.selectOption({ index: 1 })
+  }
+  for (const box of await page.locator('.field input[type=checkbox]').all()) {
+    if (!(await box.isChecked())) await box.check()
+  }
+  for (const area of await page.locator('.field textarea').all()) await area.fill('记录：超差')
+  await page.getByRole('button', { name: /仍要提交/ }).click()
+  await expect(page.locator('.result-box--bad')).toBeVisible()
+
+  await page.getByRole('button', { name: '转故障排查' }).click()
+  await expect(page).toHaveURL(/\/diagnose/)
+  const url = new URL(page.url())
+  expect(url.searchParams.get('from')).toBe('run')
+  expect(url.searchParams.get('sid')).toMatch(/^s_[0-9a-f]{16}$/)
+  // 转入的 B 会话仍属现场语境：暗色逃生条必须还在
+  await expect(notice).toBeVisible()
+
+  // 逐步诊断必须把 sid 带给后端：否则 B 的结论回不到作业记录
+  await page.getByRole('tab', { name: '逐步诊断' }).click()
+  const started = page.waitForRequest(
+    (req) => req.url().includes('/api/electro/diagnose/runs') && req.method() === 'POST',
+  )
+  await page.getByRole('button', { name: '开始逐步诊断' }).click()
+  const runBody = (await started).postDataJSON() as { session_id?: string | null }
+  expect(runBody.session_id).toBe(url.searchParams.get('sid'))
+
   await notice.getByRole('button', { name: '切回亮色' }).click()
   await expect(page.locator('html')).not.toHaveClass(/theme-dark/)
   await expect(notice).toHaveCount(0)

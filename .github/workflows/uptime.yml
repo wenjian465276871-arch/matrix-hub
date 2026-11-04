@@ -21,7 +21,7 @@ jobs:
       - name: 检查健康与页面
         run: |
           set -euo pipefail
-          health=$(curl -fsS --max-time 10 https://www.superplayer007.cn/healthz)
+          health=$(curl -fsS --max-time 10 "https://www.superplayer007.cn/healthz?scope=ready")
           echo "healthz: $health"
           echo "$health" | grep -q '"status":"ok"'
           echo "$health" | grep -q '"db":"ok"'

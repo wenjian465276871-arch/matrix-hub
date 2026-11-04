@@ -249,3 +249,42 @@ def test_duplicate_check_submission_returns_409_not_500():
     # 数据仍然只有一条，没有写坏
     state = client.get(f"{BASE}/{run_id}").json()
     assert len(state["steps"]) == 1
+
+
+# ---- 与 A1 作业记录的关联（决策 #22⑥）-------------------------------------
+
+
+def test_run_started_from_session_is_written_back_to_record():
+    """由 A1 转入的 B 会话，结论必须出现在作业记录里。
+
+    后端早就按 `session_id` 关联，前端却写死 null——这条用例锁住"链路另一端
+    真的传了值"时的行为，防止将来只改前端、后端悄悄丢字段。
+    """
+    from services import sessions as session_service
+
+    session_service.reset_rate_limit()
+    created = client.post(
+        "/api/electro/sessions",
+        json={"guide_id": "g_door_switch_formal_001"},
+    )
+    assert created.status_code == 201, created.text
+    sid = created.json()["session"]["id"]
+
+    data = _start(
+        symptom="门关到一半又弹开",
+        entry_id="kb_door_anti_pinch",
+        session_id=sid,
+    )
+    assert data["run"]["session_id"] == sid
+
+    run_id = data["run"]["id"]
+    body = client.post(f"{BASE}/{run_id}/checks/1", json={"result": "fail"}).json()
+    assert body["run"]["status"] == "concluded"
+
+    record = client.get(f"/api/electro/records/{sid}")
+    assert record.status_code == 200, record.text
+    diagnoses = record.json()["diagnoses"]
+    assert len(diagnoses) == 1
+    assert diagnoses[0]["id"] == run_id
+    assert diagnoses[0]["conclusion"]["kind"] == "fail"
+    assert diagnoses[0]["checks"] == 1

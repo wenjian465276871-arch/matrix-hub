@@ -20,6 +20,7 @@ from fastapi.testclient import TestClient
 import store
 from llm import Completion, LLMError, Usage
 from main import app
+from models.guide import Guide
 from services import generation
 from services.jobqueue import job_queue
 
@@ -220,3 +221,36 @@ def test_quota_endpoint_shape(env):
     assert body["day"]["limit"] == 10
     assert body["site_budget"]["limit_cny"] == 3.0
     assert body["queue"]["limit"] == 5
+
+
+# ---------------------------------------------------------------- 输入形态（决策 #11）
+
+def test_source_type_image_is_recorded_on_guide(env):
+    job_id = store.create_job(
+        kind="generate", client_ip=IP, input_text=TEXT, source_type="image"
+    )
+    generation.run(job_id, TEXT, provider_factory=lambda: FakeProvider(body=_payload()))
+
+    job = store.get_job(job_id)
+    assert job["status"] == "succeeded"
+    row = store.get_guide(job["guide_id"])
+    assert row is not None
+    assert row["guide"]["meta"]["source_type"] == "image"
+
+
+def test_source_type_defaults_to_text(env):
+    job_id = store.create_job(kind="generate", client_ip=IP, input_text=TEXT)
+    generation.run(job_id, TEXT, provider_factory=lambda: FakeProvider(body=_payload()))
+    row = store.get_guide(store.get_job(job_id)["guide_id"])
+    # text 不落盘：旧版本读到未知字段会拒绝整份草稿（extra="forbid"）。
+    assert "source_type" not in row["guide"]["meta"]
+    assert Guide.model_validate(row["guide"]).meta.source_type == "text"
+
+
+def test_generate_rejects_unknown_source_type(env):
+    r = client.post(
+        "/api/electro/generate", json={"text": TEXT, "source_type": "ocr"}
+    )
+    assert r.status_code == 422
+    assert r.json()["detail"]["code"] == "invalid_request"
+    assert r.json()["detail"]["errors"][0]["field"] == "source_type"

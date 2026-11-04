@@ -1,6 +1,6 @@
 # 运维手册
 
-> 版本 v1.9 · 状态：已确认 · 最后更新：2026-11-03
+> 版本 v2.0 · 状态：已确认 · 最后更新：2026-11-04
 > 本文不含服务器地址、凭证与私有路径。补全信息的操作记录留在私有仓。
 > v0.2 → v1.0（2026-10-20）：修正 §1「两个卷」与实际三条挂载不符；补 §11 待补项的现状；接口清单改指 `docs/API.md`。
 > v1.0 → v1.1（2026-10-20）：新增 §12 发布草稿 CLI（`scripts/publish.py`），补上决策 #16 承诺的发布路径。
@@ -12,6 +12,7 @@
 > v1.6 → v1.7（2026-11-03）：新增 §19 部署后 5xx 看门狗与工艺表；`/healthz` 增加 `http` 段（10 分钟滚动 5xx）；表数量 7 → 8，迁移 v6 → v7。
 > v1.7 → v1.8（2026-11-03）：§19.3 改写为三道闸门——业务只读探针、`5xx ≥3 且 >1%`（取代"样本 ≥30"）、探针连续失败也回滚（零流量盲区）；探针抽到 `deploy/probe.sh` 以便本地验证。
 > v1.8 → v1.9（2026-11-03）：新增 §5.0 访问日志落文件与 14 天保留（`roll_keep_for 336h`）；容器 stdout 只保留启动日志。
+> v1.9 → v2.0（2026-11-04）：`/healthz` 增加 `scope=live|ready|electro|all`（readiness 失败 503，容器探针与部署闸门切到 `scope=ready`）；保留期增加"启动时 + 每日 03:40"应用内执行；备份目录/文件收紧到 700/600；新增 §19.5 迁移 v8（`jobs.source_type` + Guide 溯源字段）。
 
 ## 1. 运行形态
 
@@ -34,7 +35,7 @@
 
 | 路径 | 内容 |
 |---|---|
-| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records/diagnose_runs/diagnose_steps/processes，8 张 + 迁移表 v7），WAL 模式 |
+| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records/diagnose_runs/diagnose_steps/processes，8 张 + 迁移表 v8），WAL 模式 |
 | `/srv/app_data/uploads/` | 上传资产，每份一个目录（原图 + 切片 + meta.json） |
 | `/srv/app_data/caddy/` | 证书与 ACME 账户状态 |
 
@@ -47,6 +48,18 @@ docker exec matrix-hub sh -c "chmod -R go-rwx /srv/app_data/uploads /srv/app_dat
 
 **证书与数据库都在 app_data 卷里。** 重建容器不会丢；删卷才会。
 `/healthz` 同时检查进程与数据库，`checks.db` 为 `error` 时返回 `status: degraded`。
+
+**分级口径（2026-11-04 起）**：`/healthz` 支持 `scope`：
+
+| scope | 检查项 | 失败时 |
+|---|---|---|
+| `live` | 仅进程 | 永远 200 |
+| `ready` / `electro` | 进程 + DB + 磁盘 | **503**（容器探针与部署闸门用这个） |
+| `all` | 再加 Caddy 端口 | **503** |
+| 不带 scope | 原三项 + budget + http 窗口 | 永远 200（uptime 读预算用，不能改成 503） |
+
+容器 `HEALTHCHECK`、`compose.yml` 与 `deploy/probe.sh` 已统一到 `?scope=ready`：
+只探状态码，才能把"库挂了但进程还在"判成不健康。
 
 ## 2. 部署目录
 
@@ -85,7 +98,7 @@ cd /opt/matrix-hub
 1. 记录当前 TAG
 2. `docker compose pull web`
 3. 用新 TAG 启动
-4. 健康检查：连续 3 次通过（每次间隔 5s，经 Caddy 443 检查 `/healthz`）
+4. 健康检查：连续 3 次通过（每次间隔 5s，经 Caddy 443 检查 `/healthz?scope=ready`）
 5. 失败 → 自动切回上一 TAG 并按同一口径复查；仍不健康则退出码 1
 
 ## 4. 回滚
@@ -107,7 +120,8 @@ systemctl start nginx      # nginx 仍保留配置与证书，30 秒内可恢复
 ## 5. 健康检查与日志
 
 ```bash
-curl -s https://<域名>/healthz          # {"status":"ok","checks":{"electro":"ok","db":"ok","disk":"ok"}}
+curl -s "https://<域名>/healthz?scope=ready"   # readiness：失败返回 503
+curl -s https://<域名>/healthz                 # 完整报告：checks + budget + http 窗口
 docker compose -f /opt/matrix-hub/compose.yml logs -f --tail 100 web
 docker stats --no-stream
 ```
@@ -190,6 +204,13 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 → 再把 `app_data/uploads` 打成 `uploads-*.tar.gz`（tar 必须在容器内执行，
 宿主机看不到卷内路径）→ 两类各保留最近 7 份。备份在卷外，卷损坏时仍然可用。
 
+**权限**：备份目录为 700，`.db` 与 `.tar.gz` 均为 600（计划 §11.3.3 的
+"加密或至少 root-only 600"，这里取后者）。脚本每次运行会把历史备份一并收紧：
+
+```bash
+docker exec matrix-hub sh -c "chmod 700 /srv/backups && chmod 600 /srv/backups/*.db /srv/backups/*.tar.gz"
+```
+
 > 2026-10-22 起备份包含上传目录。此前只备份 db：恢复后指导书在、图片全丢，
 > 而图片是视觉原语与切图的输入，等于半个产品没了。
 
@@ -267,7 +288,7 @@ curl -s https://<域名>/healthz     # 期望 {"status":"ok","checks":{"electro"
 
 | 变更 | 影响 |
 |---|---|
-| 上传目录 `UPLOAD_DIR=/srv/app_data/uploads` | 上传资产落在 `app_data` 卷，重建容器不丢；30 天清理由 `scripts/cleanup.py --uploads-days 30` 负责（cron 仍空跑，转 `--apply` 前先看日志） |
+| 上传目录 `UPLOAD_DIR=/srv/app_data/uploads` | 上传资产落在 `app_data` 卷，重建容器不丢；30 天清理由 `scripts/cleanup.py` 负责，**应用启动时与每日 03:40 各执行一次**（cron 保留为冗余，不是唯一通道） |
 | 依赖升级 | Pillow 13.0.0 / python-multipart 0.0.32 / numpy 2.2.1；升级前先跑 `pytest`，再验证线上上传与切图 |
 | 部署变更门控 | 仅 `docs/**`、`*.md`、`.github/**` 的改动不重启生产；改代码仍会中断约 15–20 秒 |
 | 镜像标签 | 一律用 commit SHA，禁止 `latest`；单镜像约 318MB（压缩后 80MB 量级），prune 保留 168h |
@@ -300,7 +321,7 @@ IP 取自 `X-Forwarded-For` 的**最右一段**（由容器内 Caddy 追加）�
 
 `deploy.sh` 的回滚复查原先探测 `http://127.0.0.1:8001/healthz`，但 8001 只在容器内监听、
 宿主机不可达——**成功回滚也会打印"仍不健康"**。现统一走 `probe_health()`：
-`curl --resolve ${SITE_DOMAIN}:443:127.0.0.1 https://.../healthz`，与部署后检查同口径。
+`curl --resolve ${SITE_DOMAIN}:443:127.0.0.1 https://.../healthz?scope=ready`，与部署后检查同口径。
 
 ### 10.4 生成配额与预算（2026-10-19 新增）
 
@@ -489,6 +510,15 @@ docker exec matrix-hub python -m scripts.cleanup --apply
 17 3 * * * /opt/matrix-hub/backup.sh >> /var/log/matrix-hub-backup.log 2>&1
 40 3 * * * /usr/bin/docker exec matrix-hub python -m scripts.cleanup --apply >> /opt/matrix-hub/cleanup.log 2>&1
 ```
+
+**2026-11-04 起，应用自己也执行清理**（计划 §11.3.3 的"应用启动时 + 每日"）：
+
+- 启动后 3 秒在后台线程跑一次（`RETENTION_ON_START`，prod 默认开）；
+- 每日 03:40 由 `services/retention.py` 调度（`RETENTION_ENABLED`，prod 默认开）。
+- 时间取 **03:40 而不是计划原文的 03:00**：备份在 03:17，先备份后删不可倒置。
+- cron 保留：进程整个挂掉时，它是最后一道冗余；两条通道都跑同一套 `cleanup` 逻辑，重复执行无害。
+
+关闭某一项：`RETENTION_ENABLED=0` / `RETENTION_ON_START=0`；改时间：`RETENTION_AT=HH:MM`。
 
 日志 `/opt/matrix-hub/cleanup.log`（600）。`--apply` 不可逆：要改窗口先跑一次 dry-run 看条数与样例。
 
@@ -734,3 +764,24 @@ tail -5  /opt/matrix-hub/deploy.log     # 回滚记录（reason=postdeploy_5xx |
 
 **回滚影响**：迁移只加表加列，旧版本代码不认识新列也能跑（SQLite 的 `SELECT *` 多列无害），
 但**回滚到 v6 之前的镜像不会删除 `processes` 表**；数据保留，属预期。
+
+### 19.5 输入形态与溯源（迁移 v8，2026-11-04）
+
+`jobs.source_type TEXT NOT NULL DEFAULT 'text'`（`text` / `image`）：worker 只拿 job_id，
+输入形态必须随任务落库，否则重启续跑会丢；存量任务与"用工艺重新生成"默认 text。
+
+Guide 契约同步增加（均可选，旧数据无需迁移）：
+
+| 字段 | 位置 | 说明 |
+|---|---|---|
+| `meta.source_type` | Guide | `text` / `image`，服务端按 job 写入，模型不得填 |
+| `step.provenance` | Step | `asset_id / bbox / raw_text / confidence / flag` |
+| `criterion.provenance` | Criterion | 同上，精度到判据 |
+
+`provenance` 由识别链路/受信生产者填写，**不在给模型看的 schema 里**（模型没有读图能力，
+让它输出 bbox 就是让它编坐标）。当前图片路径是"识别 → 回填文本 → 生成"，
+字段级回填尚未接入，属已知边界：契约先立住，避免下游再改一次结构。
+
+**回滚影响**：旧镜像不认识 `jobs.source_type` 列，读写不受影响；`meta.source_type` 在 JSON 里，
+但 **text 来源不落该字段**（`exclude_if`），旧镜像仍能读取；只有 **image 来源**的草稿会被
+旧版本的 `extra="forbid"` 拒绝——回滚前确认这批草稿不需要读取。

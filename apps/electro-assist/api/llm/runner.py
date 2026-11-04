@@ -222,6 +222,7 @@ def generate_guide(
     clock: Callable[[], float] = time.monotonic,
     at: datetime | None = None,
     source_note: str = "由用户输入的工艺文本生成（演示用途）",
+    source_type: str = "text",
 ) -> GuideDraft:
     """工艺文本 → 已通过 schema 校验的 Guide。
 
@@ -294,10 +295,16 @@ def generate_guide(
             for step in payload.get("steps", []):
                 if isinstance(step, dict):
                     step.pop("assets", None)
+                    # provenance 由识别链路写，模型没有读图能力；留着就是编坐标。
+                    step.pop("provenance", None)
+                    for criterion in step.get("criteria", []):
+                        if isinstance(criterion, dict):
+                            criterion.pop("provenance", None)
             # is_demo 与 model/source_note 一样属于服务端所有：模型写 false 时
             # 不浪费一次重试去纠正，直接覆盖后再校验（模型层还有一道拒绝，防其他入口）。
             if isinstance(payload.get("meta"), dict):
                 payload["meta"]["is_demo"] = True
+                payload["meta"].pop("source_type", None)
             guide = Guide.model_validate(payload)
         except (ValueError, ValidationError) as exc:
             detail = (
@@ -334,6 +341,7 @@ def generate_guide(
         guide.meta.generated_at = datetime.now(timezone.utc)
         guide.meta.source_note = source_note
         guide.meta.is_demo = True
+        guide.meta.source_type = "image" if source_type == "image" else "text"
 
         return GuideDraft(
             guide=guide,

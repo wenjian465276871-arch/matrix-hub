@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import re
+from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel, Field
@@ -38,6 +39,9 @@ class GenerateIn(BaseModel):
     retry_of: str | None = Field(default=None, max_length=64)
     # 现场素材是可选输入；上限 4 张，够一份工序用，也不至于让草稿变成相册。
     assets: list[AssetIn] = Field(default_factory=list, max_length=MAX_ASSETS_PER_JOB)
+    # 输入形态（决策 #11）：图片识别后回填的文本标 image，供溯源与审计区分。
+    # 由客户端声明而不是服务端推断：同一段文本可能来自复制粘贴，不是所有带图的任务都算图片输入。
+    source_type: Literal["text", "image"] = "text"
 
 
 def normalize_assets(items: list[AssetIn]) -> list[dict[str, str]]:
@@ -89,6 +93,7 @@ def generate(
             body.retry_of,
             privileged=bool(x_passcode_token),
             assets=normalize_assets(body.assets),
+            source_type=body.source_type,
         )
     except generation.GenerateRejected as exc:
         headers = {"Retry-After": str(exc.retry_after)} if exc.retry_after else None
