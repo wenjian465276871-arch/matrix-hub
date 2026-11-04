@@ -126,7 +126,7 @@ def test_measure_check_is_declared_in_quick_result():
 
 
 def test_result_carries_weights_and_match_confidence():
-    """计划 §2.3：可能原因带权重，结果带置信度。"""
+    """计划 §2.3：可能原因带权重，检索结果带匹配度（字段名仍是 confidence）。"""
     result = _post("门关到一半又自己弹开了")
     top = result["results"][0]
     assert 0.0 <= result["confidence"] <= 1.0

@@ -20,7 +20,11 @@ const emit = defineEmits<{ run: [entryId: string]; reset: [] }>()
 
   <section v-else class="results">
     <p class="results__meta">
-      匹配 {{ result.count }} 条 · 置信度 {{ Math.round((result.confidence ?? 0) * 100) }}% ·
+      匹配 {{ result.count }} 条 ·
+      <span
+        class="results__match"
+        title="检索相似度：这条知识库条目与现场描述的贴近程度。它不代表结论一定成立，也不等于故障概率。"
+      >匹配度 {{ Math.round((result.confidence ?? 0) * 100) }}%</span> ·
       用时 {{ result.took_ms }}ms · 知识库 v{{ result.kb_version }}
     </p>
 

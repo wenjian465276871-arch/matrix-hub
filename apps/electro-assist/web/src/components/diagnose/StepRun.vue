@@ -170,7 +170,11 @@ function submit(verdict: 'pass' | 'fail'): void {
     >
       <p class="conclusion__kind">
         {{ CONCLUSION_LABEL[runData.conclusion.kind] }}
-        <span v-if="runData.conclusion.confidence !== undefined" class="conclusion__confidence">
+        <span
+          v-if="runData.conclusion.confidence !== undefined"
+          class="conclusion__confidence"
+          title="按证据强度给分：实测超差 > 人工确认异常 > 走完全部检查未定位 > 中止。不是模型自评，也不是成功率。"
+        >
           置信度 {{ Math.round(runData.conclusion.confidence * 100) }}%
         </span>
       </p>

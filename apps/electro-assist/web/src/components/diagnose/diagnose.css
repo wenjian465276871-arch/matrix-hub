@@ -50,6 +50,13 @@
   font-size: 12px;
 }
 
+/* 匹配度可 hover 看解释：点线下划线是唯一提示，别做成按钮，它不是操作。 */
+.results__match {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
 .hit__head {
   display: flex;
   align-items: baseline;

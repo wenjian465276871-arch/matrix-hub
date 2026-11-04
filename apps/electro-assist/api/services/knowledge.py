@@ -569,8 +569,10 @@ def _hit_payload(hit: Hit) -> dict:
         "title": hit.entry.title,
         "system": hit.entry.system.value,
         "score": hit.score,
-        # 匹配置信度：combined 的满分是 10，归一化后落到 0–1。
-        # 这是"这条条目有多贴近现场描述"，不是"结论一定对"——两者别混。
+        # 匹配度：combined 的满分是 10，归一化后落到 0–1。
+        # 对外必须叫"匹配度"而不是"置信度"——combined 天然落在 4–6，
+        # 直接说置信度会让一条完全正确的 Top-1 命中显示成"47%"，
+        # 现场会误判为不可靠。它是"这条条目有多贴近现场描述"，不是"结论一定对"。
         "confidence": round(min(1.0, hit.score / 10.0), 2),
         "signals": hit.signals(),
         "likely_causes": [cause.model_dump() for cause in hit.entry.likely_causes],
@@ -604,7 +606,7 @@ def _build_result(
         "suggestion": suggestion,
         "results": results,
         "count": len(results),
-        # 最可能那条的匹配置信度。未覆盖时没有结论，给 0 而不是编一个数。
+        # 最可能那条的匹配度。未覆盖时没有结论，给 0 而不是编一个数。
         "confidence": results[0]["confidence"] if results else 0.0,
         "took_ms": int((time.perf_counter() - started) * 1000),
         "kb_version": get_provider().version,

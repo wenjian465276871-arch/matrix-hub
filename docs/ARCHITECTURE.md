@@ -131,9 +131,11 @@ routers/diagnose.py     POST /diagnose + GET /diagnose/kb + /diagnose/runs 四�
 `scripts/eval_diagnose.py --quick --json --provider full`。条目上万后可换成 embedding + 向量库，
 路由与返回结构不变。
 
-**权重与置信度**：条目的 `likely_causes` 是 `{text, weight}`（旧字符串按序列补默认权重）；
-快速检索回 `confidence`（匹配置信度），逐步诊断的结论回 `confidence + basis`
-（实测超差 > 人工确认 > 未定位 > 中止）。两者都是工程口径，不是概率承诺。
+**权重、匹配度与置信度**：条目的 `likely_causes` 是 `{text, weight}`（旧字符串按序列补默认权重）；
+快速检索回 `confidence`，但**对外只叫「匹配度」**——它是 `score/10` 的相似度，combined 分数天然
+落在 4–6，说成"置信度"会让一条完全正确的 Top-1 命中显示为 47%，现场会误判为不可靠。
+真正的「置信度」只留给逐步诊断的结论：`confidence + basis`（实测超差 > 人工确认 > 未定位 > 中止）。
+两者都是工程口径，不是概率承诺。
 
 ## 1.3 识别链路：为什么"能跑"要单独取证
 

@@ -45,8 +45,9 @@ test('B 命中：给出按顺序检查', async ({ page }) => {
 
   await expect(page.getByText('按顺序检查').first()).toBeVisible()
   await expect(page.getByText('可能原因').first()).toBeVisible()
-  // 计划 §2.3：原因带权重、结果带置信度
-  await expect(page.locator('.results__meta')).toContainText('置信度')
+  // 计划 §2.3：原因带权重；检索侧只叫"匹配度"（相似度），"置信度"留给逐步诊断的结论
+  await expect(page.locator('.results__meta')).toContainText('匹配度')
+  await expect(page.locator('.results__meta')).not.toContainText('置信度')
   await expect(page.locator('.cause__weight').first()).toBeVisible()
 })
 

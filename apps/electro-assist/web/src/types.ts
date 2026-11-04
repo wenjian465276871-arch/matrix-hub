@@ -488,7 +488,7 @@ export interface DiagnoseResult {
   title: string
   system: System
   score: number
-  /** 匹配置信度（0–1）：条目与现场描述的贴近程度，不是结论成功率 */
+  /** 匹配度（0–1）：检索相似度，条目与现场描述的贴近程度；对外只叫"匹配度"，不是概率 */
   confidence?: number
   signals?: DiagnoseSignals
   likely_causes: DiagnoseCause[]
@@ -518,7 +518,7 @@ export interface DiagnoseResponse {
   suggestion: string
   results: DiagnoseResult[]
   count: number
-  /** 最可能那条的匹配置信度；未覆盖为 0 */
+  /** 最可能那条的匹配度；未覆盖为 0。字段名沿用 confidence，语义是相似度 */
   confidence?: number
   took_ms: number
   kb_version: string
