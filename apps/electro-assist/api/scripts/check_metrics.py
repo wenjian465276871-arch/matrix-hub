@@ -42,8 +42,18 @@ def endpoint_counts() -> tuple[int, int]:
     sys.path.insert(0, str(API_DIR))
     from main import app  # noqa: PLC0415 - 延迟导入，避免 argparse/help 时建 app
 
-    business = len([r for r in app.routes if getattr(r, "path", "").startswith("/api")])
-    health = len([r for r in app.routes if getattr(r, "path", "") == "/healthz"])
+    # fastapi 0.162 起，include_router 不再把子路由摊平进 app.routes，而是塞一个
+    # 没有 path 属性的 _IncludedRouter 壳子（2026-11-06 实测：13 个 router 全成壳，
+    # 直接遍历会数出「端点 0 个」）。改成读公开契约 openapi()["paths"]，它不受内部
+    # 实现影响；实测 paths 35 / 端点 36 / 业务 35，与升级前基线一致。
+    paths = app.openapi()["paths"]
+    methods = {"get", "post", "put", "patch", "delete"}
+    business = sum(
+        1 for p, ops in paths.items() if p.startswith("/api") for m in ops if m in methods
+    )
+    health = sum(
+        1 for p, ops in paths.items() if p == "/healthz" for m in ops if m in methods
+    )
     return business, business + health
 
 
