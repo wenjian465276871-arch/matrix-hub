@@ -1,15 +1,17 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { ApiError, getJson, postForm, postJson } from '../lib/http'
+import { ApiError, getJson, postJson } from '../lib/http'
 import { announce } from '../lib/announce'
 import { clearStoredJob, readStoredJob, writeStoredJob } from '../lib/jobhandoff'
+import AssetShelf from '../components/newguide/AssetShelf.vue'
 import type {
   ExtractResult,
   GenerateAccepted,
   JobSnapshot,
   ProcessPrecheck,
   QuotaSnapshot,
+  StagedAsset,
   UploadedAsset,
 } from '../types'
 
@@ -135,21 +137,12 @@ function cancelWait(): void {
 }
 
 /* ---------- 现场素材 ----------
- * 图片只做"排版与标注"，不做识别：模型看不到图，也就不会替你判断图里是什么。
- * 上传后进草稿的「素材区」，生成完再决定挂到哪一步。 */
+ * 上传与校验已经拆到 components/newguide/AssetShelf.vue（2026-11-06）。
+ * 这里只保留：素材列表、上传中标志（busy 要算上它），以及切图采纳时要用的张数上限。 */
 const MAX_ASSETS = 4
-const MAX_ASSET_BYTES = 5 * 1024 * 1024
-const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp']
-
-interface StagedAsset {
-  asset_id: string
-  caption: string
-  url: string
-}
 
 const staged = ref<StagedAsset[]>([])
 const uploading = ref(false)
-const assetError = ref('')
 
 const busy = computed(
   () => phase.value === 'submitting' || phase.value === 'polling' || uploading.value,
@@ -222,69 +215,9 @@ async function runPrecheck(): Promise<void> {
   }
 }
 
-function uploadErrorText(err: unknown): string {
-  if (!(err instanceof ApiError)) return '上传失败，请检查网络后重试。'
-  switch (err.code) {
-    case 'too_large':
-      return '单张不能超过 5 MB。'
-    case 'too_small':
-      return '图片分辨率太低，请换一张更清晰的截图。'
-    case 'bad_format':
-      return '只支持 PNG / JPEG / WebP。'
-    case 'unreadable':
-      return '这张图可能已损坏或被截断，无法解析。'
-    case 'rate_limited':
-      return err.message || '上传过于频繁，请稍后再试。'
-    default:
-      return err.message || '上传失败，请稍后再试。'
-  }
-}
-
-async function onPickFiles(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files ?? [])
-  // 立刻清空：不清的话，同一张图删掉后再选一次不会触发 change
-  input.value = ''
-  if (!files.length) return
-
-  assetError.value = ''
-  const room = MAX_ASSETS - staged.value.length
-  if (room <= 0) {
-    assetError.value = `最多 ${MAX_ASSETS} 张素材。`
-    return
-  }
-  const picked = files.slice(0, room)
-  if (files.length > room) {
-    assetError.value = `最多 ${MAX_ASSETS} 张素材，已忽略多余的 ${files.length - room} 张。`
-  }
-
-  uploading.value = true
-  try {
-    for (const file of picked) {
-      if (!ACCEPTED_TYPES.includes(file.type)) {
-        assetError.value = '只支持 PNG / JPEG / WebP。'
-        continue
-      }
-      if (file.size > MAX_ASSET_BYTES) {
-        assetError.value = '单张不能超过 5 MB。'
-        continue
-      }
-      const form = new FormData()
-      form.append('file', file)
-      try {
-        const res = await postForm<UploadedAsset>('/api/electro/uploads', form)
-        staged.value.push({
-          asset_id: res.asset_id,
-          caption: '',
-          url: `/api/electro/uploads/${res.asset_id}/${res.asset_id}.png`,
-        })
-      } catch (err) {
-        assetError.value = uploadErrorText(err)
-      }
-    }
-  } finally {
-    uploading.value = false
-  }
+/** 子组件上传成功后回调：素材数组仍由本组件持有，保证只有一处真相。 */
+function onAssetUploaded(asset: StagedAsset): void {
+  staged.value.push(asset)
 }
 
 function removeAsset(index: number): void {
@@ -845,72 +778,16 @@ onBeforeUnmount(() => {
       </p>
     </section>
 
-    <section class="assets">
-      <div class="assets__head">
-        <span class="field-label field-label--inline">
-          现场素材
-          <span class="field-label__opt">（可选，最多 {{ MAX_ASSETS }} 张）</span>
-        </span>
-        <label class="btn btn--ghost" :aria-disabled="busy || staged.length >= MAX_ASSETS">
-          {{ uploading ? '上传中…' : '添加图片' }}
-          <input
-            class="sr-only"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            multiple
-            :disabled="busy || staged.length >= MAX_ASSETS"
-            @change="onPickFiles"
-          />
-        </label>
-        <button
-          class="btn btn--ghost"
-          type="button"
-          :disabled="busy || extractBusy || !staged.length"
-          @click="runExtract"
-        >
-          {{ extractBusy ? '识别中…' : '识别图中内容' }}
-        </button>
-      </div>
-      <p class="hint">
-        图片可用于排版（挂到哪一步由你在草稿页决定），也可以点「识别图中内容」转成文本草稿；
-        识别会把图片发送到模型服务，结果必须对着原图核对。请勿上传含企业名称、工号、图纸编号等敏感信息的截图。
-      </p>
-      <!-- 识别要跑两次模型调用，密集中文表格实测约 30 秒。没有这条提示，
-           用户会以为页面卡死然后刷新——白等一次还照扣成本。 -->
-      <p v-if="extractBusy" class="hint hint--busy" role="status">
-        正在识别：先逐行转录、再整理结构，共两次模型调用。内容多的图约 20–40 秒，请勿关闭页面。
-      </p>
-      <p v-if="assetError" class="asset-error" role="alert">{{ assetError }}</p>
-
-      <ul v-if="staged.length" class="asset-list">
-        <li v-for="(item, index) in staged" :key="item.asset_id" class="asset-item">
-          <img
-            class="asset-item__img"
-            :src="item.url"
-            :alt="`素材 ${index + 1} 预览`"
-            loading="lazy"
-            decoding="async"
-          />
-          <div class="asset-item__body">
-            <label class="sr-only" :for="`cap-${item.asset_id}`">素材 {{ index + 1 }} 说明</label>
-            <input
-              :id="`cap-${item.asset_id}`"
-              v-model="item.caption"
-              class="asset-item__input"
-              type="text"
-              maxlength="60"
-              :disabled="busy"
-              placeholder="说明：这张图拍的是什么（如 门锁间隙测量位置）"
-            />
-            <button class="linkbtn" type="button" :disabled="busy" @click="removeAsset(index)">
-              移除
-            </button>
-            <button class="linkbtn" type="button" :disabled="busy" @click="openSlice(item)">
-              选择区域
-            </button>
-          </div>
-        </li>
-      </ul>
+    <AssetShelf
+      v-model:uploading="uploading"
+      :assets="staged"
+      :busy="busy"
+      :extract-busy="extractBusy"
+      @uploaded="onAssetUploaded"
+      @remove="removeAsset"
+      @slice="openSlice"
+      @extract="runExtract"
+    >
 
       <section v-if="extractResult || extractError" class="extract" aria-live="polite">
         <div class="extract__head">
@@ -965,7 +842,7 @@ onBeforeUnmount(() => {
           </div>
         </template>
       </section>
-    </section>
+    </AssetShelf>
 
     <div v-if="quota" class="quota">
       <span>本小时剩余 {{ hourLeft }} / {{ quota.hour.limit }}</span>
@@ -1274,21 +1151,9 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
-/* ---------- 现场素材 ---------- */
-
-.assets {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px dashed var(--c-line);
-}
-
-.assets__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
+/* ---------- 现场素材 ----------
+ * 素材区的样式已随组件移到 components/newguide/AssetShelf.vue（2026-11-06）。
+ * 这里只留 .asset-error：识别结果块还在本组件里用它。 */
 
 /* 识别结果：一段带原文的"待确认草稿"，不是成品。视觉上要弱于正文，
    但 unverified 必须显眼——那几行是"模型写了、图里没有"的地方。 */
@@ -1348,58 +1213,6 @@ onBeforeUnmount(() => {
   margin: 8px 0 0;
   color: var(--c-danger);
   font-size: 13px;
-}
-
-.asset-list {
-  display: grid;
-  gap: 10px;
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.asset-item {
-  display: grid;
-  grid-template-columns: 72px 1fr;
-  gap: 12px;
-  align-items: center;
-  padding: 8px;
-  border: 1px solid var(--c-line);
-  border-radius: 6px;
-  background: var(--c-surface);
-}
-
-.asset-item__img {
-  width: 72px;
-  height: 72px;
-  border-radius: 4px;
-  background: var(--c-line-soft);
-  object-fit: cover;
-}
-
-.asset-item__body {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.asset-item__input {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0 10px;
-  border: 1px solid var(--c-line);
-  border-radius: 6px;
-  background: var(--c-surface);
-  color: var(--c-ink);
-  font: inherit;
-  font-size: 14px;
-}
-
-.asset-item__input:focus {
-  outline: 2px solid var(--c-primary);
-  outline-offset: 1px;
 }
 
 .submit {

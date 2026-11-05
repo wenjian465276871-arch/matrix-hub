@@ -254,6 +254,13 @@ export interface ExtractResult {
 
 /* ---------- 现场素材 ---------- */
 
+/** 已上传、还没挂到步骤上的素材（生成页的暂存态）。 */
+export interface StagedAsset {
+  asset_id: string
+  caption: string
+  url: string
+}
+
 export interface UploadedAsset {
   asset_id: string
   source_format: string
