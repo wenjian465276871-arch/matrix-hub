@@ -21,9 +21,19 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('../lib/http', () => ({
+  // 签名要与 lib/http 的真实 ApiError 对齐：组件会读 kind / code / retryAfter，
+  // 少一个字段，429 冷却那条就永远测不到。
   ApiError: class ApiError extends Error {
-    constructor(public kind: string, public status?: number, public code?: string) {
-      super(code ?? kind)
+    constructor(
+      public kind: string,
+      public status?: number,
+      public code?: string,
+      message?: string,
+      public ref?: string,
+      public retryAfter?: number,
+    ) {
+      super(message ?? code ?? kind)
+      this.name = 'ApiError'
     }
   },
   getJson: mocks.getJson,
@@ -37,6 +47,7 @@ vi.mock('vue-router', () => ({
 }))
 
 import NewGuideView from './NewGuideView.vue'
+import { ApiError } from '../lib/http'
 
 const QUOTA = {
   hour: { used: 0, limit: 2, reset_in_s: 3600 },
@@ -121,6 +132,86 @@ describe('NewGuideView 刷新续接', () => {
     const polledJob = mocks.getJson.mock.calls.some((c) => String(c[0]).includes('/jobs/'))
     expect(polledJob).toBe(true)
     expect(mocks.postJson).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+})
+
+/** 造一个只有元数据的假文件：不真的分配 5MB 内存，只让 size 可控。 */
+function fakeFile(name: string, type: string, size: number): File {
+  const file = new File([new Uint8Array(1)], name, { type })
+  Object.defineProperty(file, 'size', { value: size })
+  return file
+}
+
+function fileInput(wrapper: ReturnType<typeof mount>) {
+  const input = wrapper.find('input[type="file"]')
+  if (!input.exists()) throw new Error('没找到文件输入')
+  return input
+}
+
+async function pick(wrapper: ReturnType<typeof mount>, files: File[]) {
+  const input = fileInput(wrapper)
+  Object.defineProperty(input.element, 'files', { value: files, configurable: true })
+  await input.trigger('change')
+  await flushPromises()
+}
+
+describe('NewGuideView 素材限制', () => {
+  beforeEach(() => {
+    mocks.postForm.mockReset()
+    mocks.postForm.mockResolvedValue({ asset_id: 'a_test', width: 800, height: 600 })
+  })
+
+  it('只收 PNG / JPEG / WebP，GIF 直接拒', async () => {
+    const wrapper = mountView()
+    await pick(wrapper, [fakeFile('a.gif', 'image/gif', 1024)])
+    expect(wrapper.text()).toContain('只支持 PNG / JPEG / WebP')
+    expect(mocks.postForm).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('单张超过 5MB 被拒', async () => {
+    const wrapper = mountView()
+    await pick(wrapper, [fakeFile('big.png', 'image/png', 6 * 1024 * 1024)])
+    expect(wrapper.text()).toContain('单张不能超过 5 MB')
+    expect(mocks.postForm).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('一次选 5 张时只传前 4 张，并告知忽略了几张', async () => {
+    const wrapper = mountView()
+    await pick(
+      wrapper,
+      Array.from({ length: 5 }, (_, i) => fakeFile(`p${i}.png`, 'image/png', 1024)),
+    )
+    expect(mocks.postForm).toHaveBeenCalledTimes(4)
+    expect(wrapper.text()).toContain('已忽略多余的 1 张')
+    wrapper.unmount()
+  })
+
+  it('没有素材时「识别图中内容」按钮禁用', () => {
+    const wrapper = mountView()
+    const extractBtn = wrapper.findAll('button').find((b) => b.text().includes('识别图中内容'))
+    expect(extractBtn).toBeTruthy()
+    expect(extractBtn?.attributes('disabled')).toBeDefined()
+    wrapper.unmount()
+  })
+})
+
+describe('NewGuideView 429 冷却', () => {
+  it('返回 429 后按钮禁用、文案切到「额度恢复后」，并停止提交', async () => {
+    mocks.postJson.mockRejectedValue(
+      new ApiError('ratelimit', 429, 'rate_limited', '额度已用完，请稍后再试。', undefined, 30),
+    )
+    const wrapper = mountView()
+    await wrapper.find('textarea').setValue('客室侧门开关门功能试验，检查门锁闭合与指示灯')
+    expect(submitButton(wrapper).attributes('disabled')).toBeUndefined()
+
+    await submitButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(submitButton(wrapper).attributes('disabled')).toBeDefined()
+    expect(submitButton(wrapper).text()).toContain('额度恢复后')
     wrapper.unmount()
   })
 })

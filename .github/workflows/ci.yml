@@ -138,7 +138,7 @@ jobs:
 
       # 组件单测（vitest + happy-dom）。放在构建之前：它比 E2E 快一个数量级，
       # 坏了要第一时间看到，而不是等浏览器装完、服务起完才发现。
-      # 2026-11-06 建立，当前 21 条（ConfirmDialog 8 + jobhandoff 7 + NewGuideView 6）；
+      # 2026-11-06 建立，当前 26 条（ConfirmDialog 8 + jobhandoff 7 + NewGuideView 11）；
       # 目的是给「拆 NewGuideView 等三个千行级文件」提供回归网。
       - name: 前端组件单测
         working-directory: apps/electro-assist/web

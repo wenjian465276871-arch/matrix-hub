@@ -125,7 +125,7 @@ ruff check .                            # 只开 E9/F63/F7/F82
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
 
 cd ../web
-npm run test:unit        # 组件单测（vitest + happy-dom），21 条，约 5s
+npm run test:unit        # 组件单测（vitest + happy-dom），26 条，约 7s
 npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（Dockerfile）
 ```
 
