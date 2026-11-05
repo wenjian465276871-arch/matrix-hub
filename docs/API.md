@@ -308,3 +308,5 @@
 | `loc` | `string | integer[]` | 是 |
 | `msg` | `string` | 是 |
 | `type` | `string` | 是 |
+| `input` | `—` | 否 |
+| `ctx` | `object` | 否 |
