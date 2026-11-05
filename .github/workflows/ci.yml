@@ -57,10 +57,16 @@ jobs:
           grep -v '^[[:space:]]*#' "$RUNNER_TEMP/requirements.lock" > "$RUNNER_TEMP/fresh.txt"
           diff -u "$RUNNER_TEMP/committed.txt" "$RUNNER_TEMP/fresh.txt"
 
-      # 供应链门禁②：漏洞扫描只告警、不阻塞。
-      # 已知漏洞不等于可利用，直接卡发布只会迫使团队集体忽略它。
-      - name: 依赖漏洞扫描（只告警）
-        continue-on-error: true
+      # 供应链门禁②：漏洞扫描，2026-11-06 起改为**阻断**。
+      # 原先是 continue-on-error: true，理由是「已知漏洞不等于可利用，卡发布只会让
+      # 团队集体忽略它」——听着对，实际代价是 starlette 0.41.3 的 7 个 CVE 在里面
+      # 躺了半个多月，门禁等于不存在。现在基线是 0 漏洞（fastapi 0.162.0 /
+      # starlette 1.10.0），把线画在这里才有意义。
+      # 新增漏洞必须显式处理，二选一：
+      #   a) 升级依赖（改 requirements.txt → 重生成 lock）
+      #   b) 在下面加 --ignore-vuln <PYSEC-编号>，并写清为什么这个 CVE 在本项目不可利用
+      # 不接受「先合进去、以后再修」。
+      - name: 依赖漏洞扫描（阻断）
         run: |
           pip install pip-audit
           pip-audit -r apps/electro-assist/api/requirements.lock

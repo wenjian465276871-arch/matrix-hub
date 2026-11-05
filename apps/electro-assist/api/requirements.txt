@@ -1,4 +1,8 @@
-fastapi==0.115.6
+# 2026-11-06 升级：0.115.6 把 starlette 锁在 <0.42.0，而 starlette 0.41.3 带 7 个 CVE
+# （PYSEC-2026-161/248/249/1941/1942/2280/2281，修复版最高需 1.3.1）。
+# 0.162.0 起约束放宽为 starlette>=0.46.0（无上界），实测解析到 1.10.0。
+# 项目只用到 starlette.HTTPException 一个符号（main.py:18），跨大版本风险可控。
+fastapi==0.162.0
 uvicorn==0.34.0
 python-multipart==0.0.32
 pillow==13.0.0
