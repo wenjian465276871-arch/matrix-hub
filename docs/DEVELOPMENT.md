@@ -119,14 +119,21 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q          # 397 passed（约 40s）
-ruff check .             # 只开 E9/F63/F7/F82
+pytest tests -q --basetemp=<临时目录>   # 397 passed（约 92s，starlette 1.10 的 TestClient 偏慢）
+ruff check .                            # 只开 E9/F63/F7/F82
+# 不带 --basetemp 时退出码可能是 1：pytest 清理临时目录时一次删 200+ 文件，
+# 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
 
 cd ../web
+npm run test:unit        # 组件单测（vitest + happy-dom），15 条，约 5s
 npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（Dockerfile）
 ```
 
-CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致性 + 依赖漏洞扫描 + API 文档一致性 + 文档指标一致性 → E2E 冒烟（与构建并行）→ 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 从 GitHub 探活：**cron 写每 10 分钟，但 GitHub 实际日均约 2–8 次（2026-10-22～10-30 实测），只作兜底，不是分钟级告警**。
+> `npm run test:unit` 是 2026-11-06 建立的回归网，目的是**在拆 `NewGuideView` /
+> `GuideView` / `RunView` 这三个千行级文件之前先有行为断言**。删断言、改断言都算改测试，
+> 要单独说明理由——不然这套东西会退化成"跑过但没用"。
+
+CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致性 + 依赖漏洞扫描（**阻断**）+ API 文档一致性 + 文档指标一致性 → E2E 冒烟（含**前端组件单测**，与构建并行）→ 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 从 GitHub 探活：**cron 写每 10 分钟，但 GitHub 实际日均约 2–8 次（2026-10-22～10-30 实测），只作兜底，不是分钟级告警**。
 
 ## 4.1 供应链固定（2026-10-24）
 
