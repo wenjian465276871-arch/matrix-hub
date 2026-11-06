@@ -158,6 +158,99 @@ describe('GuideView 发布缺口（publish_blockers 的前端镜像）', () => {
   })
 })
 
+describe('GuideView 草稿修正（已拆到 EditPanel）', () => {
+  const TOKEN_KEY = 'electro-passcode-token'
+
+  function clickButton(wrapper: ReturnType<typeof mount>, text: string) {
+    const btn = wrapper.findAll('button').find((b) => b.text().includes(text))
+    if (!btn) throw new Error(`没找到按钮：${text}`)
+    return btn
+  }
+
+  it('没有令牌时先要口令，不直接进编辑态', async () => {
+    mocks.getJson.mockResolvedValue(detail())
+    const wrapper = mountView()
+    await flushPromises()
+
+    await clickButton(wrapper, '修正内容').trigger('click')
+    await flushPromises()
+
+    // 提示里本身就含"修正草稿"四个字，所以不能用文本判断，要看编辑面板的特征输入框
+    expect(wrapper.find('#edit-title').exists()).toBe(false)
+    expect(wrapper.text()).toContain('修正草稿需要口令')
+    wrapper.unmount()
+  })
+
+  it('有令牌时进入编辑态，改标题保存只发 title', async () => {
+    sessionStorage.setItem(TOKEN_KEY, 'tok-1')
+    mocks.getJson.mockResolvedValue(detail())
+    mocks.patchJson.mockResolvedValue({
+      status: 'draft',
+      guide_id: 'g_test',
+      guide: detail().guide,
+      blockers: [],
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await clickButton(wrapper, '修正内容').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('#edit-title').exists()).toBe(true)
+
+    await wrapper.find('#edit-title').setValue('客室侧门开关门功能试验（修订）')
+    await clickButton(wrapper, '保存修正').trigger('click')
+    await flushPromises()
+
+    const call = mocks.patchJson.mock.calls[0]
+    expect(String(call[0])).toContain('/api/electro/guides/g_test')
+    // 只发改动字段：steps 整个不出现，否则后端会重写无关步骤
+    expect(call[1]).toEqual({ title: '客室侧门开关门功能试验（修订）' })
+    expect(call[2].headers['X-Passcode-Token']).toBe('tok-1')
+
+    // 保存后退出编辑态，提示挂在控制条上（所以它必须由父组件持有）
+    expect(wrapper.find('#edit-title').exists()).toBe(false)
+    expect(wrapper.text()).toContain('已保存')
+    wrapper.unmount()
+  })
+
+  it('一个字都没改就保存，提示「没有改动」且不发请求', async () => {
+    sessionStorage.setItem(TOKEN_KEY, 'tok-1')
+    mocks.getJson.mockResolvedValue(detail())
+    const wrapper = mountView()
+    await flushPromises()
+
+    await clickButton(wrapper, '修正内容').trigger('click')
+    await flushPromises()
+    await clickButton(wrapper, '保存修正').trigger('click')
+    await flushPromises()
+
+    expect(mocks.patchJson).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('没有改动')
+    expect(wrapper.find('#edit-title').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('保存返回 401 时清掉本地令牌并重新要口令', async () => {
+    sessionStorage.setItem(TOKEN_KEY, 'tok-expired')
+    mocks.getJson.mockResolvedValue(detail())
+    // 真实 http.ts 里 401 归为 server（只有 429 是 ratelimit），按真实形状构造
+    mocks.patchJson.mockRejectedValue(new ApiError('server', 401, 'passcode_required'))
+    const wrapper = mountView()
+    await flushPromises()
+
+    await clickButton(wrapper, '修正内容').trigger('click')
+    await flushPromises()
+    await wrapper.find('#edit-title').setValue('改个标题触发保存')
+    await clickButton(wrapper, '保存修正').trigger('click')
+    await flushPromises()
+
+    // 令牌必须真被丢掉，否则下一次保存还是拿同一个废令牌去撞
+    expect(sessionStorage.getItem(TOKEN_KEY)).toBeNull()
+    expect(wrapper.text()).toContain('令牌已过期')
+    wrapper.unmount()
+  })
+})
+
 describe('GuideView 素材归位（已拆到 AttachPanel）', () => {
   const WITH_ASSET = { assets: [{ asset_id: 'a1', caption: '门锁照片' }] }
 

@@ -138,8 +138,9 @@ jobs:
 
       # 组件单测 + 覆盖率门禁（vitest + happy-dom）。放在构建之前：它比 E2E 快一个数量级，
       # 坏了要第一时间看到，而不是等浏览器装完、服务起完才发现。
-      # 2026-11-06 建立，当前 30 条；覆盖率阈值是防退化线（实测 13.8 行 / 11.52 分支），
-      # 低是因为只有 NewGuideView 与两个 lib 模块有单测，其余靠 E2E 覆盖（E2E 不计入）。
+      # 2026-11-06 建立，当前 55 条；覆盖率阈值是防退化线（实测 25.69 语句 / 20.92 分支），
+      # 偏低是因为 DiagnoseView / RunView / LibraryView / RecordView 与视觉原语
+      # 靠 E2E 覆盖，而 E2E 跑构建产物、不插桩，不计入这份统计。
       - name: 前端组件单测与覆盖率
         working-directory: apps/electro-assist/web
         run: npm run test:cov

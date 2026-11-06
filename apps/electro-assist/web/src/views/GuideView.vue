@@ -4,16 +4,15 @@ import { useRouter } from 'vue-router'
 import GuideFigure from '../figures/GuideFigure.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import AttachPanel from '../components/guide/AttachPanel.vue'
+import EditPanel from '../components/guide/EditPanel.vue'
 import { announce } from '../lib/announce'
-import { ApiError, getJson, patchJson, postJson } from '../lib/http'
+import { ApiError, getJson, postJson } from '../lib/http'
 import { writeStoredJob } from '../lib/jobhandoff'
 import type {
   AssetRef,
   Criterion,
   Guide,
   GuideDetail,
-  GuidePatch,
-  GuidePatchResult,
   GuideStatus,
   PublishResult,
   SessionSnapshot,
@@ -145,55 +144,13 @@ onBeforeUnmount(() => ctrl?.abort())
  * 数值用字符串存：`<input type="number">` 在输入 `-` 或 `1.` 的中间态会返回
  * 空串或 NaN，直接绑 number 会让输入框在打字过程中自己清空。
  */
-interface EditCriterion {
-  id: string
-  type: string
-  label: string
-  unit: string
-  min: string
-  max: string
-  options: string
-}
-
-interface EditStep {
-  id: string
-  title: string
-  action: string
-  criteria: EditCriterion[]
-}
-
 const editing = ref(false)
-const editSteps = ref<EditStep[]>([])
-const editTitle = ref('')
-const editSummary = ref('')
-const reviseBusy = ref(false)
+/** 修正结果提示：挂在草稿控制条里（!editing 时才可见），所以不能放进编辑面板内部 */
 const reviseMsg = ref('')
-const reviseError = ref('')
 
-function numText(value: number | null | undefined): string {
-  return value === null || value === undefined ? '' : String(value)
-}
-
-function enterEdit(): void {
-  if (!guide.value) return
-  editTitle.value = guide.value.title
-  editSummary.value = guide.value.summary
-  editSteps.value = guide.value.steps.map((step) => ({
-    id: step.id,
-    title: step.title,
-    action: step.action,
-    criteria: step.criteria.map((c) => ({
-      id: c.id,
-      type: c.type,
-      label: c.label,
-      unit: c.unit ?? '',
-      min: numText(c.min),
-      max: numText(c.max),
-      options: (c.options ?? []).join(' / '),
-    })),
-  }))
+/** 进入编辑态。口令验证成功后也走这里，保证两条入口的行为一致。 */
+function beginEdit(): void {
   reviseMsg.value = ''
-  reviseError.value = ''
   editing.value = true
   announce('进入修正模式：可以改标题、步骤描述与判据数值')
 }
@@ -207,128 +164,38 @@ function startEdit(): void {
     passcodeError.value = ''
     return
   }
-  enterEdit()
+  beginEdit()
 }
 
-function cancelEdit(): void {
+/* 编辑面板的四个回调。共同点：**状态推进都留在父组件**——
+ * 成功提示要在面板卸载之后仍然可见，401 要牵动令牌与口令弹层，
+ * 这些都不是面板自己的事。 */
+
+function onEditSaved(next: Guide, nextBlockers: string[]): void {
+  guide.value = next
+  blockers.value = nextBlockers
   editing.value = false
-  reviseError.value = ''
+  reviseMsg.value = `已保存${nextBlockers.length ? `，还差 ${nextBlockers.length} 处才能发布` : '，可以发布了'}`
+  announce(reviseMsg.value)
+}
+
+function onEditUnchanged(): void {
+  editing.value = false
+  reviseMsg.value = '没有改动'
+}
+
+function onEditCancel(): void {
+  editing.value = false
   announce('已退出修正模式，改动未保存')
 }
 
-/** 空串 = 不改；非法数字 = 直接报错，不要悄悄发一个 NaN 出去。 */
-function toNumber(raw: string, label: string): number | undefined {
-  const text = raw.trim()
-  if (!text) return undefined
-  const value = Number(text)
-  if (!Number.isFinite(value)) throw new Error(`${label}不是合法数字`)
-  return value
-}
-
-/** 只把**真的改过的**字段放进请求：少传就少一层覆盖，后端也不会重写无关步骤。 */
-function buildPatch(): GuidePatch {
-  if (!guide.value) return {}
-  const patch: GuidePatch = {}
-  if (editTitle.value.trim() !== guide.value.title) patch.title = editTitle.value.trim()
-  if (editSummary.value.trim() !== guide.value.summary) patch.summary = editSummary.value.trim()
-
-  const steps: NonNullable<GuidePatch['steps']> = []
-  guide.value.steps.forEach((original, index) => {
-    const edit = editSteps.value[index]
-    if (!edit) return
-    const change: NonNullable<GuidePatch['steps']>[number] = { id: edit.id }
-    let touched = false
-    if (edit.title.trim() !== original.title) {
-      change.title = edit.title.trim()
-      touched = true
-    }
-    if (edit.action.trim() !== original.action) {
-      change.action = edit.action.trim()
-      touched = true
-    }
-
-    const criteria: NonNullable<typeof change.criteria> = []
-    original.criteria.forEach((orig, ci) => {
-      const row = edit.criteria[ci]
-      if (!row) return
-      const item: NonNullable<typeof criteria>[number] = { id: row.id }
-      let dirty = false
-      if (row.label.trim() !== orig.label) {
-        item.label = row.label.trim()
-        dirty = true
-      }
-      if (row.type === 'range') {
-        if (row.unit.trim() !== (orig.unit ?? '')) {
-          item.unit = row.unit.trim()
-          dirty = true
-        }
-        const min = toNumber(row.min, `${orig.label} 的下限`)
-        const max = toNumber(row.max, `${orig.label} 的上限`)
-        if (min !== undefined && min !== orig.min) {
-          item.min = min
-          dirty = true
-        }
-        if (max !== undefined && max !== orig.max) {
-          item.max = max
-          dirty = true
-        }
-      } else if (row.type === 'enum') {
-        const options = row.options
-          .split('/')
-          .map((part) => part.trim())
-          .filter(Boolean)
-        if (options.join('/') !== (orig.options ?? []).join('/')) {
-          item.options = options
-          dirty = true
-        }
-      }
-      if (dirty) criteria.push(item)
-    })
-    if (criteria.length) {
-      change.criteria = criteria
-      touched = true
-    }
-    if (touched) steps.push(change)
-  })
-
-  if (steps.length) patch.steps = steps
-  return patch
-}
-
-async function saveEdit(): Promise<void> {
-  if (!guide.value || reviseBusy.value) return
-  reviseBusy.value = true
-  reviseMsg.value = ''
-  reviseError.value = ''
-  try {
-    const patch = buildPatch()
-    if (!Object.keys(patch).length) {
-      reviseMsg.value = '没有改动'
-      editing.value = false
-      return
-    }
-    const res = await patchJson<GuidePatchResult>(`/api/electro/guides/${props.id}`, patch, {
-      headers: { 'X-Passcode-Token': token.value ?? '' },
-    })
-    guide.value = res.guide
-    blockers.value = res.blockers
-    editing.value = false
-    reviseMsg.value = `已保存${res.blockers.length ? `，还差 ${res.blockers.length} 处才能发布` : '，可以发布了'}`
-    announce(reviseMsg.value)
-  } catch (err) {
-    reviseError.value = describeReviseError(err)
-    if (err instanceof ApiError && err.status === 401) {
-      token.value = null
-      sessionStorage.removeItem(TOKEN_KEY)
-      pending.value = 'edit'
-      passcodeOpen.value = true
-      passcodeHint.value = '令牌已过期，重新验证后再保存。'
-      passcodeError.value = ''
-    }
-    announce(reviseError.value, 'assertive')
-  } finally {
-    reviseBusy.value = false
-  }
+function onEditAuthExpired(): void {
+  token.value = null
+  sessionStorage.removeItem(TOKEN_KEY)
+  pending.value = 'edit'
+  passcodeOpen.value = true
+  passcodeHint.value = '令牌已过期，重新验证后再保存。'
+  passcodeError.value = ''
 }
 
 /* ---------- 发布 ----------
@@ -390,17 +257,6 @@ async function regenerate(): Promise<void> {
   }
 }
 
-function describeReviseError(err: unknown): string {
-  if (!(err instanceof ApiError)) {
-    return err instanceof Error ? err.message : '保存失败，请稍后重试'
-  }
-  if (err.code === 'passcode_required' || err.status === 401) return '口令已过期，请重新验证口令。'
-  if (err.code === 'passcode_disabled') return '服务端未启用修正通道（未配置口令）。'
-  if (err.code === 'published_locked') return '这份指导书已被发布，不能再修改。'
-  if (err.code === 'rate_limited') return `操作过于频繁，请 ${err.retryAfter ?? 60} 秒后再试。`
-  return err.message || '保存失败，请稍后重试'
-}
-
 async function verifyCode(): Promise<boolean> {
   passcodeError.value = ''
   publishError.value = ''
@@ -421,7 +277,7 @@ async function verifyCode(): Promise<boolean> {
     passcodeHint.value = ''
     const action = pending.value
     pending.value = null
-    if (action === 'edit') enterEdit()
+    if (action === 'edit') beginEdit()
     if (action === 'publish') publishOpen.value = true
     announce('口令已验证，12 小时内有效')
     return true
@@ -581,40 +437,6 @@ restoreToken()
 
       <p v-if="reviseMsg" class="revise__ok">{{ reviseMsg }}</p>
 
-      <!-- 口令面板：修正与发布共用。先验证，再决定接着做什么（pending）。 -->
-      <div v-if="passcodeOpen" class="publish">
-        <p class="publish__warn">{{ passcodeHint }}</p>
-        <p v-if="passcodeError" class="publish__error">{{ passcodeError }}</p>
-
-        <div class="publish__field">
-          <label class="publish__label" for="passcode">口令</label>
-          <input
-            id="passcode"
-            v-model="publishCode"
-            class="publish__input"
-            type="password"
-            autocomplete="current-password"
-            enterkeyhint="go"
-            @keyup.enter="verifyCode"
-          />
-          <p class="publish__hint">口令只用于换 12 小时令牌，不会存进浏览器。</p>
-        </div>
-
-        <div class="publish__actions">
-          <button class="btn btn--primary" type="button" @click="verifyCode">验证口令</button>
-          <button
-            class="btn"
-            type="button"
-            @click="
-              passcodeOpen = false;
-              pending = null
-            "
-          >
-            取消
-          </button>
-        </div>
-      </div>
-
       <div v-if="publishOpen" class="publish">
         <p class="publish__warn">
           发布后不能修改，会立刻出现在公开列表里。确认内容已过专业复核。
@@ -635,96 +457,52 @@ restoreToken()
       </div>
     </section>
 
-    <!-- 修正面板：只改文字与判据值，不能加步骤、不能换判据类型 -->
-    <section v-if="editing" class="edit no-print">
-      <h2 class="edit__title">修正草稿</h2>
-      <p class="edit__hint">
-        只能改文字与判据数值。增删步骤、换判据类型请重新生成——那不是在改一份稿子，是在换一份内容。
-      </p>
+    <!-- 口令面板：修正与发布共用。放在控制条之外，因为 401 可能发生在**编辑态内部**——
+         若把它关在 `!editing` 的控制条里，用户会看到"请重新验证口令"却找不到输入框。 -->
+    <div v-if="passcodeOpen && guideStatus === 'draft'" class="publish no-print">
+      <p class="publish__warn">{{ passcodeHint }}</p>
+      <p v-if="passcodeError" class="publish__error">{{ passcodeError }}</p>
 
-      <label class="edit__label" for="edit-title">标题</label>
-      <input id="edit-title" v-model="editTitle" class="edit__input" maxlength="60" />
-
-      <label class="edit__label" for="edit-summary">摘要</label>
-      <textarea id="edit-summary" v-model="editSummary" class="edit__text" rows="2" maxlength="300" />
-
-      <div v-for="(step, index) in editSteps" :key="step.id" class="edit__step">
-        <h3 class="edit__step-title">第 {{ index + 1 }} 步 · {{ step.id }}</h3>
-
-        <label class="edit__label" :for="`edit-t-${step.id}`">小标题</label>
+      <div class="publish__field">
+        <label class="publish__label" for="passcode">口令</label>
         <input
-          :id="`edit-t-${step.id}`"
-          v-model="step.title"
-          class="edit__input"
-          maxlength="40"
+          id="passcode"
+          v-model="publishCode"
+          class="publish__input"
+          type="password"
+          autocomplete="current-password"
+          enterkeyhint="go"
+          @keyup.enter="verifyCode"
         />
-
-        <label class="edit__label" :for="`edit-a-${step.id}`">动作描述</label>
-        <textarea
-          :id="`edit-a-${step.id}`"
-          v-model="step.action"
-          class="edit__text"
-          rows="3"
-          maxlength="600"
-        />
-
-        <div v-for="c in step.criteria" :key="c.id" class="edit__crit">
-          <label class="edit__label" :for="`edit-c-${step.id}-${c.id}`">
-            判据 · {{ c.type === 'range' ? '数值区间' : c.type === 'enum' ? '枚举' : '文本/人工' }}
-          </label>
-          <input
-            :id="`edit-c-${step.id}-${c.id}`"
-            v-model="c.label"
-            class="edit__input"
-            maxlength="60"
-          />
-
-          <template v-if="c.type === 'range'">
-            <div class="edit__range">
-              <label :for="`edit-min-${step.id}-${c.id}`">下限</label>
-              <input
-                :id="`edit-min-${step.id}-${c.id}`"
-                v-model="c.min"
-                class="edit__input edit__input--num"
-                inputmode="decimal"
-              />
-              <label :for="`edit-max-${step.id}-${c.id}`">上限</label>
-              <input
-                :id="`edit-max-${step.id}-${c.id}`"
-                v-model="c.max"
-                class="edit__input edit__input--num"
-                inputmode="decimal"
-              />
-              <label :for="`edit-unit-${step.id}-${c.id}`">单位</label>
-              <input
-                :id="`edit-unit-${step.id}-${c.id}`"
-                v-model="c.unit"
-                class="edit__input edit__input--unit"
-                maxlength="3"
-              />
-            </div>
-          </template>
-
-          <template v-else-if="c.type === 'enum'">
-            <label class="edit__label" :for="`edit-opt-${step.id}-${c.id}`">选项（用 / 分隔）</label>
-            <input
-              :id="`edit-opt-${step.id}-${c.id}`"
-              v-model="c.options"
-              class="edit__input"
-              maxlength="200"
-            />
-          </template>
-        </div>
+        <p class="publish__hint">口令只用于换 12 小时令牌，不会存进浏览器。</p>
       </div>
 
-      <p v-if="reviseError" class="edit__error">{{ reviseError }}</p>
-      <div class="edit__actions">
-        <button class="btn btn--primary" type="button" :disabled="reviseBusy" @click="saveEdit">
-          {{ reviseBusy ? '保存中…' : '保存修正' }}
+      <div class="publish__actions">
+        <button class="btn btn--primary" type="button" @click="verifyCode">验证口令</button>
+        <button
+          class="btn"
+          type="button"
+          @click="
+            passcodeOpen = false;
+            pending = null
+          "
+        >
+          取消
         </button>
-        <button class="btn" type="button" :disabled="reviseBusy" @click="cancelEdit">取消</button>
       </div>
-    </section>
+    </div>
+
+    <!-- 修正面板：只改文字与判据值，不能加步骤、不能换判据类型 -->
+    <EditPanel
+      v-if="editing"
+      :guide-id="props.id"
+      :guide="guide"
+      :token="token"
+      @saved="onEditSaved"
+      @unchanged="onEditUnchanged"
+      @cancel="onEditCancel"
+      @auth-expired="onEditAuthExpired"
+    />
 
     <AttachPanel
       v-if="guideStatus === 'draft' && flatAssets.length"
@@ -1033,106 +811,4 @@ restoreToken()
   flex-wrap: wrap;
 }
 
-/* ---------- 修正面板 ---------- */
-
-.edit {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--c-line);
-}
-
-.edit__title {
-  margin: 0 0 6px;
-  font-size: 18px;
-}
-
-.edit__hint {
-  margin: 0 0 12px;
-  color: var(--c-ink-3);
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.edit__label {
-  display: block;
-  margin: 10px 0 4px;
-  font-size: 13px;
-  color: var(--c-ink-2);
-}
-
-.edit__input,
-.edit__text {
-  width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--c-line);
-  border-radius: var(--radius-sm);
-  background: var(--c-surface);
-  color: var(--c-ink);
-  font-size: 15px;
-  font-family: inherit;
-}
-
-.edit__input {
-  min-height: var(--tap);
-}
-
-.edit__text {
-  line-height: 1.5;
-  resize: vertical;
-}
-
-.edit__input:focus-visible,
-.edit__text:focus-visible {
-  outline: 2px solid var(--c-primary);
-  outline-offset: 1px;
-}
-
-.edit__step {
-  margin-top: 18px;
-  padding-top: 12px;
-  border-top: 1px dashed var(--c-line);
-}
-
-.edit__step-title {
-  margin: 0;
-  font-size: 15px;
-  color: var(--c-ink-2);
-}
-
-.edit__crit {
-  margin-top: 10px;
-  padding-left: 10px;
-  border-left: 2px solid var(--c-primary-line);
-}
-
-/* 上下限用 flex 而不是网格：窄屏两列网格会让「标签-输入」错位成两行半 */
-.edit__range {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 10px;
-  align-items: center;
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--c-ink-2);
-}
-
-.edit__input--num {
-  width: 96px;
-}
-
-.edit__input--unit {
-  width: 72px;
-}
-
-.edit__error {
-  margin: 12px 0 0;
-  color: var(--c-danger);
-  font-size: 14px;
-}
-
-.edit__actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 16px;
-}
 </style>

@@ -19,17 +19,18 @@ export default mergeConfig(
         include: ['src/**/*.{ts,vue}'],
         exclude: ['src/**/*.spec.ts', 'src/types.ts', 'src/env.d.ts', 'src/main.ts'],
         // 阈值是**防退化线**，不是质量目标。
-        // 2026-11-06 实测：22.64 行 / 16.12 分支 / 14.94 函数 / 21.19 语句。
-        // 比首版（13/12/11/9）高，是因为补了 GuideView 的 7 条测试、并把素材归位
-        // 抽成 AttachPanel 后测到 97%。仍然偏低的原因：DiagnoseView / RunView /
-        // LibraryView / RecordView 与 13 个视觉原语没有单测，靠 26 条 E2E 覆盖，
-        // 而 E2E 跑构建产物、不插桩，不计入这份统计。
-        // 别拿这个数字当"没测过"的证据，也别为了拉高它写只走一遍代码的凑数测试。
+        // 2026-11-06 实测：25.69 语句 / 20.92 分支 / 18.86 函数 / 27.18 行。
+        // 比首版（13/12/11/9）翻倍，靠三件事：GuideView 的 7 条行为测试、
+        // 素材归位抽成 AttachPanel 后测到 97%、以及把修正逻辑抽成 guidepatch 纯函数
+        // （86.56%，纯函数最好测也最该测——它漏一个字段就是静默丢数据）。
+        // 仍然偏低的原因：DiagnoseView / RunView / LibraryView / RecordView 与
+        // 13 个视觉原语没有单测，靠 26 条 E2E 覆盖，而 E2E 跑构建产物、不插桩，
+        // 不计入这份统计。别拿这个数字当"没测过"的证据，也别为了拉高它写凑数测试。
         thresholds: {
-          lines: 21,
-          statements: 20,
-          branches: 15,
-          functions: 14,
+          lines: 25,
+          statements: 23,
+          branches: 18,
+          functions: 16,
         },
       },
     },
