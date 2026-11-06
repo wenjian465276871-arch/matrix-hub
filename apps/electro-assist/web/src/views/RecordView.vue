@@ -2,7 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError, getJson } from '../lib/http'
-import type { CriterionResult, RecordItem, RecordStep, SessionReport, Verdict } from '../types'
+import { formatDuration, formatStepDuration, formatTime } from '../lib/recordfmt'
+import { formatResult, verdictLabel } from '../lib/runeval'
+import type { RecordItem, SessionReport } from '../types'
 
 const props = defineProps<{ sid: string }>()
 const router = useRouter()
@@ -10,14 +12,6 @@ const router = useRouter()
 const report = ref<SessionReport | null>(null)
 const phase = ref<'loading' | 'ready' | 'error'>('loading')
 const errorText = ref('')
-
-const VERDICT_LABEL: Record<Verdict, string> = {
-  pass: '通过',
-  warn: '需复测',
-  fail: '异常',
-  manual: '已记录',
-  skipped: '未执行',
-}
 
 const DIAG_STATUS_LABEL: Record<string, string> = {
   active: '进行中',
@@ -51,43 +45,8 @@ async function load(): Promise<void> {
   }
 }
 
-function verdictLabel(verdict?: Verdict): string {
-  return verdict ? VERDICT_LABEL[verdict] : '未执行'
-}
-
-function formatDuration(seconds: number): string {
-  if (!seconds) return '—'
-  const minutes = Math.floor(seconds / 60)
-  const rest = seconds % 60
-  return minutes ? `${minutes} 分 ${rest} 秒` : `${rest} 秒`
-}
-
-function formatTime(value: string | null): string {
-  if (!value) return '—'
-  // 不用 hour12:false：部分内核（荣耀/旧 WebView 的 ICU）会按 h24 输出
-  // "24:42:45"。显式 hourCycle:'h23' 才能稳定得到 00:42:45。
-  return new Date(value).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  })
-}
-
-/** 单步耗时文案：未执行为 null，秒级以下不显示 "0 秒" 这种假精度。 */
-function stepDuration(step: RecordStep): string {
-  if (step.duration_s === null) return '—'
-  if (step.duration_s < 1) return '不足 1 秒'
-  return formatDuration(step.duration_s)
-}
-
-function resultValue(result: CriterionResult): string {
-  if (typeof result.value === 'boolean') return result.value ? '已确认' : '未确认'
-  return `${String(result.value)}${result.unit ? ` ${result.unit}` : ''}`
-}
+/* verdictLabel / formatResult 与 A1 判定页共用同一套口径，直接从 lib/runeval 取，
+   不要在每处各写一份——两份定义早晚会漂移（"需复测"写成"待复测"这种）。 */
 
 function attemptTitle(record: RecordItem): string {
   return `第 ${record.attempt} 次`
@@ -177,7 +136,7 @@ onMounted(load)
               {{ verdictLabel(step.final_verdict) }}
             </span>
             <span v-if="step.duration_s !== null" class="step-duration mono">
-              耗时 {{ stepDuration(step) }}
+              耗时 {{ formatStepDuration(step.duration_s) }}
             </span>
           </header>
 
@@ -195,7 +154,7 @@ onMounted(load)
             <ul class="result-list">
               <li v-for="result in attempt.payload.results ?? []" :key="result.criterion_id">
                 <span class="result-label">{{ result.label }}</span>
-                <span class="result-value">{{ resultValue(result) }}</span>
+                <span class="result-value">{{ formatResult(result) }}</span>
                 <span class="verdict-chip" :class="`v-${result.verdict}`">
                   {{ verdictLabel(result.verdict) }}
                 </span>

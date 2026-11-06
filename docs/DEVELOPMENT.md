@@ -125,7 +125,7 @@ ruff check .                            # 只开 E9/F63/F7/F82
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
 
 cd ../web
-npm run test:unit        # 组件单测（vitest + happy-dom），79 条，约 10s
+npm run test:unit        # 组件单测（vitest + happy-dom），114 条，约 18s
 npm run test:cov         # 同上 + 覆盖率门禁（低于阈值会以非零退出）
 npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（Dockerfile）
 ```
@@ -196,7 +196,7 @@ E2E_CHANNEL=msedge npm run test:e2e        # 用系统 Edge，免下载浏览器
 
 CI 里跑 `chromium`（`npx playwright install --with-deps chromium`），**部署依赖 E2E 通过**。
 
-**已知缺口**：E2E 只覆盖主路径，不覆盖打印与软键盘（这两项靠真机验收）；`DiagnoseView` / `LibraryView` / `RecordView` 仍无组件单测。
+**已知缺口**：E2E 只覆盖主路径，不覆盖打印与软键盘（这两项靠真机验收）；13 个视觉原语与 `SiteDrawer` 等 ui 组件仍无单测（靠 E2E 兜）。
 
 ### 4.1 性能与可访问性实测
 
