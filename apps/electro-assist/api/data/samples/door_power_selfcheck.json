@@ -1,0 +1,172 @@
+{
+  "schema_version": "1.2",
+  "id": "g_door_power_selfcheck_001",
+  "title": "客室侧门门控器供电与上电自检",
+  "summary": "以门控器（DCU）的供电回路与上电自检为对象：先断电测绝缘，再上电测输入电压，最后核对自检指示与节点地址。全部为演示数据，参数为虚构示例值。",
+  "meta": {
+    "system": "door",
+    "station": "车门调试工位",
+    "source_note": "公开资料改写：仅取“断电测绝缘 → 上电测电压 → 看自检指示 → 核对节点”的检查顺序；绝缘值、电压范围、节点号均为虚构示例，不含任何企业资料",
+    "model": "deepseek-flash",
+    "generated_at": "2026-11-06T14:40:00Z",
+    "is_demo": true
+  },
+  "steps": [
+    {
+      "id": "s01",
+      "seq": 1,
+      "title": "安全确认与隔离",
+      "action": "确认车辆无电、防溜车措施到位，断开蓄电池开关并挂牌。用万用表 DC 档复测门控器进线端，确认无残余电压后方可作业。",
+      "safety": [
+        "作业前必须断开蓄电池开关并挂牌",
+        "禁止带电插拔门控器接插件"
+      ],
+      "tools": ["万用表（DC 档）", "警示牌"],
+      "criteria": [
+        {
+          "id": "safe_confirmed",
+          "label": "安全条件已确认",
+          "type": "manual"
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "step_card",
+          "params": {"index": 1, "action": "断电、挂牌、复测无压", "hint": "先隔离再动手"},
+          "caption": "步骤示意",
+          "fallback_text": "第 1 步：断开蓄电池开关、挂牌，并复测进线端无残余电压。"
+        }
+      ],
+      "duration_s": 180
+    },
+    {
+      "id": "s02",
+      "seq": 2,
+      "title": "测量电源回路绝缘",
+      "action": "在蓄电池断开、门控器接插件拔下的状态下，用 500V 兆欧表测量电源正负极对车体的绝缘电阻，读数稳定后记录。",
+      "safety": ["兆欧表输出高压，测量时不得触碰表笔金属部分"],
+      "tools": ["兆欧表（500V）"],
+      "criteria": [
+        {
+          "id": "insulation",
+          "label": "电源回路绝缘电阻",
+          "type": "range",
+          "unit": "MΩ",
+          "min": 5,
+          "max": 500
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {"value": 100, "unit": "MΩ", "min": 5, "max": 500, "label": "绝缘电阻"},
+          "caption": "读数示例",
+          "fallback_text": "绝缘电阻示例读数 100 MΩ，允许范围 5–500 MΩ。",
+          "motion": [{ "target": "needle", "anim": "draw", "duration": 900 }]
+        }
+      ],
+      "duration_s": 240
+    },
+    {
+      "id": "s03",
+      "seq": 3,
+      "title": "恢复供电并测量输入电压",
+      "action": "恢复蓄电池开关，门控器上电。用万用表 DC 档测量门控器电源输入端的电压，待读数稳定后记录。",
+      "safety": ["上电前确认接插件已完全插到位"],
+      "tools": ["万用表（DC 档）"],
+      "criteria": [
+        {
+          "id": "input_voltage",
+          "label": "门控器输入电压",
+          "type": "range",
+          "unit": "V",
+          "min": 77,
+          "max": 137.5
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "meter",
+          "params": {"value": 110, "unit": "V", "min": 77, "max": 137.5, "label": "输入电压"},
+          "caption": "输入电压示例",
+          "fallback_text": "输入电压示例读数 110 V，允许范围 77–137.5 V。",
+          "motion": [{ "target": "needle", "anim": "draw", "duration": 900 }]
+        }
+      ],
+      "duration_s": 180
+    },
+    {
+      "id": "s04",
+      "seq": 4,
+      "title": "观察上电自检指示",
+      "action": "上电后观察门控器自检指示灯与自检结果：灯常亮或按约定次数闪烁表示自检通过；出现报警指示则记录并停止后续步骤，转入异常处置。",
+      "tools": ["手电"],
+      "criteria": [
+        {
+          "id": "selfcheck",
+          "label": "自检指示状态",
+          "type": "enum",
+          "options": ["通过", "报警"]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "status_light",
+          "params": {"state": "pass", "label": "自检通过"},
+          "caption": "状态指示",
+          "fallback_text": "自检通过时指示灯常亮；出现报警指示即为异常，记录后停止。",
+          "motion": [{ "target": "lamp", "anim": "pulse", "duration": 1200 }]
+        }
+      ],
+      "duration_s": 120
+    },
+    {
+      "id": "s05",
+      "seq": 5,
+      "title": "核对节点地址与软件版本",
+      "action": "用调试终端读取门控器的网络节点地址与软件版本号，与本次作业的配置单逐项核对，记录实际读到的地址与版本。",
+      "safety": ["调试终端接入前确认接口定义，避免误插"],
+      "tools": ["调试终端", "配置单（演示）"],
+      "criteria": [
+        {
+          "id": "node_info",
+          "label": "节点地址与版本记录",
+          "type": "text"
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "wiring",
+          "params": {"terminals": "1-2-3", "wire_color": "棕/蓝/黄绿", "note": "仅示意调试接口端子顺序"},
+          "caption": "调试接口示意",
+          "fallback_text": "调试接口端子顺序为 1、2、3，对应线色棕、蓝、黄绿；接错会读不到节点。"
+        }
+      ],
+      "duration_s": 300
+    },
+    {
+      "id": "s06",
+      "seq": 6,
+      "title": "判定与记录",
+      "action": "绝缘、输入电压均在范围内且自检通过、节点信息核对一致，判为合格；任一项超差或报警则记录实测值，转入异常处置流程。",
+      "criteria": [
+        {
+          "id": "result",
+          "label": "判定结果",
+          "type": "enum",
+          "options": ["合格", "超差", "复测"]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "checklist",
+          "params": {"items": ["绝缘电阻已测且合格", "输入电压在范围内", "自检通过、无报警", "节点地址与版本已核对"]},
+          "caption": "收尾核对清单",
+          "fallback_text": "收尾核对：绝缘、输入电压、自检、节点信息四项全部通过才判合格。"
+        }
+      ],
+      "duration_s": 120
+    }
+  ],
+  "disclaimers": ["演示数据 · 非实际作业依据", "AI 生成内容，需专业人员复核"]
+}

@@ -24,7 +24,7 @@ client = TestClient(app)
 @pytest.fixture()
 def seeded(tmp_path, monkeypatch):
     monkeypatch.setenv("DB_PATH", str(tmp_path / "electro.db"))
-    # 关掉自动 seed：否则 5 份样例会一起进库，搜索命中数就不可断言了。
+    # 关掉自动 seed：否则 6 份样例会一起进库，搜索命中数就不可断言了。
     monkeypatch.setenv("SEED_GUIDES", "0")
     store.init_db()
     base = library.load_fixtures()

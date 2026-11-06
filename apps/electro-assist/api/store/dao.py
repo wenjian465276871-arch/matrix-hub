@@ -245,7 +245,7 @@ def list_guides(
     `query` 走 SQL LIKE 而不是取回内存过滤：列表有分页，内存过滤会让
     `total` 与 `has_more` 全部失真——搜索结果只有 2 条却显示「还有 10 份」。
     只搜卡片上真的展示的字段（标题/摘要/来源说明），不搜步骤正文：
-    搜正文要么把整份 JSON 拉出来扫，要么上 FTS5，5 份案例都不值当。
+    搜正文要么把整份 JSON 拉出来扫，要么上 FTS5，几份案例都不值当。
     """
     sql = """
         SELECT id, schema_version, title, summary, system, status, job_id, step_count,

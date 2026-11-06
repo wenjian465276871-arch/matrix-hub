@@ -78,7 +78,7 @@ api/
 ├── store/             SQLite：db（连接/迁移）、dao（读写，不含业务规则）
 ├── llm/               Provider 协议、DeepSeek 实现、runner（重试/超时/校验）、pricing、prompts、extract
 ├── data/              运行数据（与代码分离，全部随镜像发布）
-│   ├── samples/       5 份 published 样例（车门 3 + 空调 1 + 受电弓 1）
+│   ├── samples/       6 份 published 样例（车门 4 份 / 3 个工序 + 空调 1 + 受电弓 1）
 │   ├── knowledge/     door 11 / hvac 4 / pantograph 3 条 + eval_queries.json
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke

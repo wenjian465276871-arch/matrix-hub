@@ -38,7 +38,7 @@
 | `docs/OPERATIONS.md` | 运维 | 当前 | 部署/回滚/证书/备份/事故/发布 CLI |
 | `docs/DEMO.md` | 演示 | 当前 | 5 分钟闭环 + 兜底 |
 | `docs/SOURCES.md` | 合规 | 当前 | 案例与知识库来源登记（D-01～D-08、K-01～K-03） |
-| `apps/electro-assist/api/scripts/README.md` | 清单 | 当前 | 9 个脚本的用途、读写面与"会不会碰生产数据" |
+| `apps/electro-assist/api/scripts/README.md` | 清单 | 当前 | 10 个脚本的用途、读写面与"会不会碰生产数据" |
 | `docs/adr/0004-process-entity-minimal.md` | ADR | 已接受 | 工艺原文最小落库（30 天），支撑详情页再生成 |
 | `docs/archive/A2-IMAGE-INPUT.md` | 归档 | 已实现 | 图片输入方案；未落地部分只剩 OCR 文字坐标 |
 | `docs/adr/0001` | ADR | 已接受 | 单仓单镜像 + Caddy |
@@ -49,19 +49,19 @@
 | `archive/particle-system-legacy/README.md` | 归档 | 历史 | 手势粒子实验，不构建、不服务 |
 | `archive/portal-legacy/` | 归档 | 历史 | 旧门户，不构建、不服务 |
 
-## 3. 当前基线（2026-11-01 本机与线上实测）
+## 3. 当前基线（2026-11-06 本机实测；线上数据标注采集日）
 
 | 项 | 值 | 采集 |
 |---|---|---|
-| 代码基线 | `6d070fa`（线上同名镜像；功能等价于 `c026149`，差异仅为 `scripts/_bootstrap.py`、脚本清单与文档）；功能面含 `bdf6937` 窄屏、`c026149` 发布闸门/分页/800ms/焦点/打印表头 | `git log --oneline -1` |
+| 代码基线 | `5404382`（本地 HEAD；线上 tag 最后一次人工回读是 `ef7cffe`，2026-11-06 18:20） | `git rev-parse --short HEAD` |
 | 契约测试 | **417 passed** | `pytest tests -q`（约 1 分钟） |
-| 业务端点 | 35 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
-| 首屏 | **45.70 KB gzip / CSS 9.70 KB** | `npm run build`（vue-tsc + vite） |
+| 业务端点 | 35 + `/healthz` | `app.openapi()["paths"]`（`scripts/check_metrics.py`） |
+| 首屏 | **45.96 KB gzip / CSS 10.14 KB** | `npm run build`（2026-11-06，vue-tsc + vite） |
 | 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23 线上；此后只增 UI 元素，未复测） |
 | B 检索 | Top-3 **21/21**、未覆盖 **2/2**、P50 **2.8ms** / P95 **5.3ms**（441 采样） | `scripts/eval_diagnose.py`（2026-11-01） |
-| 线上数据 | 已发布指导书 **5** / 草稿 2 / KB **18 条 / 3 子系统** / sessions 16 / records 62 / diagnose_runs 15 | `GET /guides`、容器内 SQLite（2026-11-01） |
+| 线上数据 | 已发布指导书 **5** / 草稿 2 / KB **18 条 / 3 子系统** / sessions 16 / records 62 / diagnose_runs 15（**2026-11-01 快照**，非当前值） | `GET /guides`、容器内 SQLite |
 | 真机验收 | 通过（Honor/5G，8 步 + 超差复测 + 3 页打印） | 私有仓 `reports/真机验收记录-2026-10-21.md` |
-| 已知边界 | 前端无单测；axe/Lighthouse 未在本轮复测；备份同盘无异地；`NewGuideView` 1,474 行 | 私有仓 `reports/开发情况报告-2026-11-01.md` |
+| 已知边界 | 前端 **136 条**单测（覆盖率 54.63%）；axe/Lighthouse 自 2026-10-23 后未复测；备份同盘无异地；`NewGuideView` **1,154 行** | 私有仓 `reports/阶段评审-2026-11-06-第二轮.md` |
 
 ## 4. 维护规则
 

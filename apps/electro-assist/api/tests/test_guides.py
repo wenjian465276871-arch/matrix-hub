@@ -269,7 +269,7 @@ def _extra_published(count: int) -> None:
 
 
 def test_list_pages_twelve_at_a_time(fresh_library):
-    _extra_published(14)  # 5 份样例 + 14 份 = 19
+    _extra_published(13)  # 6 份样例 + 13 份 = 19
 
     first = client.get("/api/electro/guides").json()
     assert first["limit"] == 12
@@ -312,7 +312,7 @@ def _extra_published(count: int) -> None:
 
 
 def test_list_pages_twelve_at_a_time(fresh_library):
-    _extra_published(14)  # 5 份样例 + 14 份 = 19
+    _extra_published(13)  # 6 份样例 + 13 份 = 19
 
     first = client.get("/api/electro/guides").json()
     assert first["limit"] == 12
