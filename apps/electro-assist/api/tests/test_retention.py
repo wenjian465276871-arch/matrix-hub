@@ -131,9 +131,17 @@ def test_read_state_tolerates_missing_and_corrupt_file(tmp_path, monkeypatch):
     assert retention.read_state() == {}
 
 
-def test_write_state_survives_unwritable_path(monkeypatch):
-    """状态写不进去只该记日志，不该把清理本身搞挂。"""
-    monkeypatch.setenv("RETENTION_STATE_PATH", "Z:/不存在的盘/state.json")
+def test_write_state_survives_unwritable_path(tmp_path, monkeypatch):
+    """状态写不进去只该记日志，不该把清理本身搞挂。
+
+    这里**不能**用 `Z:/不存在/state.json` 这种写法：Windows 上 `Z:` 不存在会失败，
+    但 Linux 上 `Z:不存在` 只是个合法目录名，能建成功——测试就成了"只在 Windows 成立"。
+    改成把目录指到一个普通文件下面：`mkdir` 会 ENOTDIR，两个平台行为一致。
+    """
+    blocker = tmp_path / "blocker"
+    blocker.write_text("我是文件，不是目录", encoding="utf-8")
+    monkeypatch.setenv("RETENTION_STATE_PATH", str(blocker / "state.json"))
+
     retention._record_failure(RuntimeError("boom"))  # 不应抛异常
     assert retention.read_state() == {}
 
