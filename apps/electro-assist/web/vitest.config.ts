@@ -19,16 +19,17 @@ export default mergeConfig(
         include: ['src/**/*.{ts,vue}'],
         exclude: ['src/**/*.spec.ts', 'src/types.ts', 'src/env.d.ts', 'src/main.ts'],
         // 阈值是**防退化线**，不是质量目标。
-        // 2026-11-06 实测：13.8 行 / 11.52 分支 / 9.74 函数 / 12.99 语句。
-        // 之所以这么低，是因为只有 NewGuideView（49.6%）和两个 lib 模块有单测；
-        // 其余视图与 13 个视觉原语靠 26 条 E2E 覆盖，而 E2E 不计入这份统计
-        // （Playwright 跑的是构建产物，不插桩）。别拿这个数字当"没测过"的证据，
-        // 也别为了拉高它去写只走一遍代码的凑数测试。
+        // 2026-11-06 实测：22.64 行 / 16.12 分支 / 14.94 函数 / 21.19 语句。
+        // 比首版（13/12/11/9）高，是因为补了 GuideView 的 7 条测试、并把素材归位
+        // 抽成 AttachPanel 后测到 97%。仍然偏低的原因：DiagnoseView / RunView /
+        // LibraryView / RecordView 与 13 个视觉原语没有单测，靠 26 条 E2E 覆盖，
+        // 而 E2E 跑构建产物、不插桩，不计入这份统计。
+        // 别拿这个数字当"没测过"的证据，也别为了拉高它写只走一遍代码的凑数测试。
         thresholds: {
-          lines: 13,
-          statements: 12,
-          branches: 11,
-          functions: 9,
+          lines: 21,
+          statements: 20,
+          branches: 15,
+          functions: 14,
         },
       },
     },

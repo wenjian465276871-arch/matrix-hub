@@ -3,12 +3,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import GuideFigure from '../figures/GuideFigure.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
+import AttachPanel from '../components/guide/AttachPanel.vue'
 import { announce } from '../lib/announce'
-import { ApiError, getJson, patchJson, postJson, putJson } from '../lib/http'
+import { ApiError, getJson, patchJson, postJson } from '../lib/http'
 import { writeStoredJob } from '../lib/jobhandoff'
 import type {
   AssetRef,
-  AttachResult,
   Criterion,
   Guide,
   GuideDetail,
@@ -32,6 +32,8 @@ const guide = ref<Guide | null>(null)
 const guideStatus = ref<GuideStatus>('published')
 const phase = ref<'loading' | 'ready' | 'notfound' | 'error'>('loading')
 const errorText = ref('')
+/** 归位面板的成功提示必须留在父组件：保存后 load() 会把子树重建，子组件内的提示会被抹掉 */
+const attachMsg = ref('')
 let ctrl: AbortController | null = null
 
 /** 素材按"步骤顺序 + 文末素材区"编号，打印出来和正文对得上。 */
@@ -57,39 +59,8 @@ function assetUrl(asset: AssetRef): string {
   return `/api/electro/uploads/${asset.asset_id}/${asset.asset_id}.png`
 }
 
-/* ---------- 草稿素材归位 ----------
- * 只改"图放哪"，不改步骤文字与判据：判据能被改一个字，超差就能变合格。 */
-const placement = ref<Record<string, string>>({})
-const captions = ref<Record<string, string>>({})
-const attachBusy = ref(false)
-const attachMsg = ref('')
-const attachError = ref('')
-
-async function savePlacement(): Promise<void> {
-  if (!guide.value || attachBusy.value) return
-  attachBusy.value = true
-  attachMsg.value = ''
-  attachError.value = ''
-  try {
-    const assets = flatAssets.value.map(({ asset }) => ({
-      asset_id: asset.asset_id,
-      caption: (captions.value[asset.asset_id] ?? asset.caption).trim() || asset.caption,
-      step_id: placement.value[asset.asset_id] || null,
-    }))
-    const res = await putJson<AttachResult>(`/api/electro/guides/${props.id}/assets`, { assets })
-    attachMsg.value = `已保存：${res.attached} 张挂到步骤，${res.loose} 张留在素材区`
-    await load()
-  } catch (err) {
-    attachError.value =
-      err instanceof ApiError
-        ? err.code === 'published_locked'
-          ? '已发布的指导书不能调整素材。'
-          : err.message || '保存失败，请稍后重试'
-        : '保存失败，请稍后重试'
-  } finally {
-    attachBusy.value = false
-  }
-}
+/* 草稿素材归位已拆到 components/guide/AttachPanel.vue（2026-11-06）。
+ * 那块只改"图放哪"，不改步骤文字与判据——判据能被改一个字，超差就能变合格。 */
 
 function criterionValue(c: Criterion): string {
   if (c.type === 'range') return `${c.min ?? '—'} ~ ${c.max ?? '—'}`
@@ -135,21 +106,8 @@ async function load(): Promise<void> {
     guide.value = detail.guide
     guideStatus.value = detail.status
     processId.value = detail.process_id ?? null
-    // 归位面板的初值来自服务端：本地只保存"用户改了什么"，不猜默认位置。
-    const place: Record<string, string> = {}
-    const labels: Record<string, string> = {}
-    for (const step of detail.guide.steps) {
-      for (const asset of step.assets ?? []) {
-        place[asset.asset_id] = step.id
-        labels[asset.asset_id] = asset.caption
-      }
-    }
-    for (const asset of detail.guide.assets ?? []) {
-      place[asset.asset_id] = ''
-      labels[asset.asset_id] = asset.caption
-    }
-    placement.value = place
-    captions.value = labels
+    // 归位面板的初值（哪张图在哪一步、说明写什么）由 AttachPanel 自己从 rows 推导，
+    // 这里不再各自算一遍——两处各算一次是上一版的重复。
     // 发布缺口在本地先算一遍：规则与后端 `publish_blockers()` 完全一致
     // （每步都要有验收判据）。让"点发布才发现发不了"变成"一开始就看见"。
     blockers.value =
@@ -768,55 +726,15 @@ restoreToken()
       </div>
     </section>
 
-    <section v-if="guideStatus === 'draft' && flatAssets.length" class="attach no-print">
-      <h2 class="attach__title">素材归位</h2>
-      <p class="attach__hint">
-        系统不会识别图片内容，所以位置由你决定：选好步骤后保存。已发布的指导书不能再改。
-      </p>
-      <ul class="attach__list">
-        <li v-for="row in flatAssets" :key="row.asset.asset_id" class="attach__row">
-          <img
-            class="attach__thumb"
-            :src="assetUrl(row.asset)"
-            :alt="`图 ${assetNumbers[row.asset.asset_id]} 预览`"
-            loading="lazy"
-            decoding="async"
-          />
-          <div class="attach__fields">
-            <label class="attach__label" :for="`cap-${row.asset.asset_id}`">
-              图 {{ assetNumbers[row.asset.asset_id] }} 说明
-            </label>
-            <input
-              :id="`cap-${row.asset.asset_id}`"
-              v-model="captions[row.asset.asset_id]"
-              class="attach__input"
-              type="text"
-              maxlength="60"
-              :disabled="attachBusy"
-            />
-            <label class="attach__label" :for="`pos-${row.asset.asset_id}`">放在</label>
-            <select
-              :id="`pos-${row.asset.asset_id}`"
-              v-model="placement[row.asset.asset_id]"
-              class="attach__select"
-              :disabled="attachBusy"
-            >
-              <option value="">素材区（文末）</option>
-              <option v-for="step in guide.steps" :key="step.id" :value="step.id">
-                第 {{ step.seq }} 步 · {{ step.title }}
-              </option>
-            </select>
-          </div>
-        </li>
-      </ul>
-      <div class="attach__actions">
-        <button class="btn" type="button" :disabled="attachBusy" @click="savePlacement">
-          {{ attachBusy ? '保存中…' : '保存归位' }}
-        </button>
-        <span v-if="attachMsg" class="attach__ok">{{ attachMsg }}</span>
-        <span v-if="attachError" class="attach__error">{{ attachError }}</span>
-      </div>
-    </section>
+    <AttachPanel
+      v-if="guideStatus === 'draft' && flatAssets.length"
+      v-model:message="attachMsg"
+      :guide-id="props.id"
+      :rows="flatAssets"
+      :numbers="assetNumbers"
+      :steps="guide.steps"
+      @saved="load"
+    />
 
     <!-- 编辑态隐藏正文：同一份内容在页面上只出现一次，
          否则改完一处、旁边还摆着旧的那份，容易对着旧值核对。 -->
@@ -965,99 +883,8 @@ restoreToken()
   font-size: 13px;
 }
 
-/* ---------- 素材归位（仅草稿、仅屏显） ---------- */
-
-.attach {
-  margin: 0 0 20px;
-  padding: 14px;
-  border: 1px solid var(--c-primary-line);
-  border-radius: 8px;
-  background: var(--c-primary-soft);
-}
-
-.attach__title {
-  margin: 0 0 6px;
-  font-size: 15px;
-}
-
-.attach__hint {
-  margin: 0 0 10px;
-  color: var(--c-ink-2);
-  font-size: 13px;
-}
-
-.attach__list {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.attach__row {
-  display: grid;
-  grid-template-columns: 64px 1fr;
-  gap: 12px;
-  align-items: start;
-  padding: 10px;
-  border-radius: 6px;
-  background: var(--c-surface);
-}
-
-.attach__thumb {
-  width: 64px;
-  height: 64px;
-  border-radius: 4px;
-  background: var(--c-line-soft);
-  object-fit: cover;
-}
-
-.attach__fields {
-  display: grid;
-  gap: 6px;
-}
-
-.attach__label {
-  color: var(--c-ink-3);
-  font-size: 12px;
-}
-
-.attach__input,
-.attach__select {
-  width: 100%;
-  min-height: 44px;
-  padding: 0 10px;
-  border: 1px solid var(--c-line);
-  border-radius: 6px;
-  background: var(--c-surface);
-  color: var(--c-ink);
-  font: inherit;
-  font-size: 14px;
-}
-
-.attach__input:focus,
-.attach__select:focus {
-  outline: 2px solid var(--c-primary);
-  outline-offset: 1px;
-}
-
-.attach__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  margin-top: 12px;
-}
-
-.attach__ok {
-  color: var(--c-success);
-  font-size: 13px;
-}
-
-.attach__error {
-  color: var(--c-danger);
-  font-size: 13px;
-}
+/* ---------- 素材归位 ----------
+ * 样式已随组件移到 components/guide/AttachPanel.vue（2026-11-06）。 */
 
 /* ---------- 素材渲染 ---------- */
 

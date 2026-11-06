@@ -157,3 +157,49 @@ describe('GuideView 发布缺口（publish_blockers 的前端镜像）', () => {
     wrapper.unmount()
   })
 })
+
+describe('GuideView 素材归位（已拆到 AttachPanel）', () => {
+  const WITH_ASSET = { assets: [{ asset_id: 'a1', caption: '门锁照片' }] }
+
+  it('草稿且有素材时渲染归位面板，保存会把 step_id 带上', async () => {
+    mocks.getJson.mockResolvedValue(detail(WITH_ASSET))
+    mocks.putJson.mockResolvedValue({
+      status: 'draft',
+      guide_id: 'g_test',
+      attached: 1,
+      loose: 0,
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('素材归位')
+    expect(wrapper.text()).toContain('门锁照片')
+
+    // 选"第 1 步"，再保存
+    await wrapper.find('select.attach__select').setValue('s1')
+    const saveBtn = wrapper.findAll('button').find((b) => b.text().includes('保存归位'))
+    expect(saveBtn).toBeTruthy()
+    await saveBtn!.trigger('click')
+    await flushPromises()
+
+    const call = mocks.putJson.mock.calls[0]
+    expect(String(call[0])).toContain('/assets')
+    expect(call[1].assets[0]).toMatchObject({ asset_id: 'a1', step_id: 's1' })
+    expect(wrapper.text()).toContain('已保存')
+    wrapper.unmount()
+  })
+
+  it('已发布锁定（published_locked）时给出明确原因，不是笼统失败', async () => {
+    mocks.getJson.mockResolvedValue(detail(WITH_ASSET))
+    mocks.putJson.mockRejectedValue(new ApiError('server', 409, 'published_locked'))
+    const wrapper = mountView()
+    await flushPromises()
+
+    const saveBtn = wrapper.findAll('button').find((b) => b.text().includes('保存归位'))
+    await saveBtn!.trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('已发布的指导书不能调整素材')
+    wrapper.unmount()
+  })
+})
