@@ -125,7 +125,7 @@ ruff check .                            # 只开 E9/F63/F7/F82
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
 
 cd ../web
-npm run test:unit        # 组件单测（vitest + happy-dom），55 条，约 9s
+npm run test:unit        # 组件单测（vitest + happy-dom），79 条，约 10s
 npm run test:cov         # 同上 + 覆盖率门禁（低于阈值会以非零退出）
 npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（Dockerfile）
 ```
@@ -174,8 +174,10 @@ pip install --dry-run --require-hashes -r requirements.lock
 
 > CI 比对时会过滤注释行：uv 把「输入路径」写进头部与 `# via`，从仓库根跑和从 `api/` 跑天然不同，直接 `diff` 会永远失败。
 
-**已知未清**：`starlette 0.41.3`（FastAPI 0.115.6 的传递依赖）被 pip-audit 报了 12 条 advisory（PYSEC-2026-*）。
-升级需要同步抬 FastAPI 并回归 301 条测试，单独排一轮；当前扫描结果只告警、不阻塞发布。
+**依赖漏洞门禁（2026-11-06 起阻断）**：曾经的 `starlette 0.41.3` 7 个 CVE 已于 11-06 清零
+（`fastapi 0.162.0` + `starlette 1.10.0`），CI 的 `pip-audit` 同步从「只告警」改成**阻断**。
+新增漏洞必须二选一：升级依赖，或加 `--ignore-vuln <ID>` 并写明为什么在本项目不可利用。
+不接受「先合进去以后再说」——那正是这 7 个 CVE 躺了半个多月的原因。
 
 
 **前端 E2E（2026-10-21 进 CI，现 26 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）；`tests/e2e/polish.spec.ts` 四条收尾——800ms 转骨架、路由焦点归位、列表加载更多、打印表头重复；`tests/e2e/resilience.spec.ts` 五条——刷新续接、429 倒计时、时间预算、隐私页、成功即跳转；`tests/e2e/landscape.spec.ts` / `mobile.spec.ts` 各一条几何回归；`tests/e2e/revise.spec.ts` 三条——搜索两条 + 草稿修正（需设置 E2E_REVISE 环境变量才跑）；`tests/e2e/fallback.spec.ts` 与 `regenerate.spec.ts` 各一条——无图示占位、再生成入口。
@@ -187,9 +189,14 @@ cd apps/electro-assist/web && npm run build && npm run preview -- --port 4173
 E2E_CHANNEL=msedge npm run test:e2e        # 用系统 Edge，免下载浏览器
 ```
 
+⚠️ **两条本地必踩的坑（都实测过）**
+
+1. **4173 在 Windows 上绑不上**：它落在系统 TCP 排除段（`netsh interface ipv4 show excludedportrange protocol=tcp` 能看到 `4095–4194`），会报 `EACCES`。改用 5173 并把 `E2E_BASE_URL` 指过去。CI 是 Linux，永远撞不到这面墙。
+2. **必须用全新 DB**：A1 用例会真的推进会话状态（`current_seq` 前进、甚至结束），复用同一个 `DB_PATH` 跑第二遍，`theme.spec.ts` 的 A1 两条会红——**报错看起来像回归，其实是脏数据**。每次跑前换库或删掉旧文件，让 API 启动时重新 seed 4 份已发布案例。
+
 CI 里跑 `chromium`（`npx playwright install --with-deps chromium`），**部署依赖 E2E 通过**。
 
-**已知缺口**：前端仍无组件单测；E2E 只覆盖主路径，不覆盖打印与软键盘（这两项靠真机验收）。
+**已知缺口**：E2E 只覆盖主路径，不覆盖打印与软键盘（这两项靠真机验收）；`DiagnoseView` / `LibraryView` / `RecordView` 仍无组件单测。
 
 ### 4.1 性能与可访问性实测
 

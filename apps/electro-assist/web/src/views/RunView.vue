@@ -4,8 +4,11 @@ import { useRouter } from 'vue-router'
 import GuideFigure from '../figures/GuideFigure.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import ThemeNoticeBar from '../components/ui/ThemeNoticeBar.vue'
+import StepResult from '../components/run/StepResult.vue'
+import RunBar from '../components/run/RunBar.vue'
 import { ApiError, getJson, postJson } from '../lib/http'
 import { announce } from '../lib/announce'
+import { buildPayload, rangeWarning, verdictLabel } from '../lib/runeval'
 import { watchKeyboardInset } from '../lib/viewport'
 import type {
   Criterion,
@@ -16,7 +19,6 @@ import type {
   SessionSnapshot,
   Step,
   StepSubmitResponse,
-  Verdict,
 } from '../types'
 
 const props = defineProps<{ sid: string }>()
@@ -36,14 +38,6 @@ const errorCode = ref('')
 const abortConfirm = ref(false)
 const starting = ref(false)
 let keySeq = 0
-
-const VERDICT_LABEL: Record<Verdict, string> = {
-  pass: '通过',
-  warn: '需复测',
-  fail: '异常',
-  manual: '已记录',
-  skipped: '未执行',
-}
 
 const total = computed(() => guide.value?.steps.length ?? 0)
 const currentStep = computed(() => {
@@ -108,45 +102,16 @@ function setManual(id: string, checked: boolean): void {
   values.value[id] = checked ? 'true' : ''
 }
 
-function rangeWarning(criterion: Criterion): string {
-  if (criterion.type !== 'range') return ''
-  const raw = values.value[criterion.id]
-  if (raw === undefined || raw === '') return ''
-  const number = Number(raw)
-  if (!Number.isFinite(number)) return '请输入有效数值'
-  if (criterion.min != null && number < criterion.min) {
-    return `低于下限 ${criterion.min} ${criterion.unit ?? ''}`
-  }
-  if (criterion.max != null && number > criterion.max) {
-    return `超出上限 ${criterion.max} ${criterion.unit ?? ''}`
-  }
-  return ''
-}
-
-function buildPayload(step: Step): { payload: Record<string, unknown>; missing: Criterion[] } {
-  const payload: Record<string, unknown> = {}
-  const missing: Criterion[] = []
-  for (const criterion of step.criteria) {
-    const raw = values.value[criterion.id] ?? ''
-    if (criterion.type === 'manual') {
-      if (raw !== 'true') missing.push(criterion)
-      else payload[criterion.id] = true
-    } else if (criterion.type === 'range') {
-      if (raw === '' || !Number.isFinite(Number(raw))) missing.push(criterion)
-      else payload[criterion.id] = Number(raw)
-    } else {
-      if (raw.trim() === '') missing.push(criterion)
-      else payload[criterion.id] = raw.trim()
-    }
-  }
-  return { payload, missing }
+/** 模板与 computed 用：把当前输入值一起带上（纯函数本体在 lib/runeval）。 */
+function warnOf(criterion: Criterion): string {
+  return rangeWarning(criterion, values.value[criterion.id])
 }
 
 async function submitStep(): Promise<void> {
   const step = currentStep.value
   if (!step || phase.value !== 'ready') return
 
-  const { payload, missing } = buildPayload(step)
+  const { payload, missing } = buildPayload(step, values.value)
   if (missing.length) {
     errorCode.value = 'missing_criterion'
     errorText.value = `请先填写：${missing.map((c) => c.label).join('、')}`
@@ -275,20 +240,11 @@ function closeAbort(): void {
   abortConfirm.value = false
 }
 
-function verdictLabel(verdict?: Verdict): string {
-  return verdict ? VERDICT_LABEL[verdict] : '未执行'
-}
-
-function formatResult(result: CriterionResult): string {
-  if (typeof result.value === 'boolean') return result.value ? '已确认' : '未确认'
-  return `${String(result.value)}${result.unit ? ` ${result.unit}` : ''}`
-}
-
 /* 超差项数：>0 时底栏主按钮改文案为「仍要提交」。
    计划 §12.4 的口径是「提示但不阻断」——不让前端替现场做判断，
    但也不能让人闭眼点「提交本步」，所以把按钮文案换成一次显式确认。 */
 const warningCount = computed(
-  () => (currentStep.value?.criteria ?? []).filter((criterion) => rangeWarning(criterion)).length,
+  () => (currentStep.value?.criteria ?? []).filter((criterion) => warnOf(criterion)).length,
 )
 
 const submitLabel = computed(() => {
@@ -296,6 +252,11 @@ const submitLabel = computed(() => {
   // 超差时换文案：一次显式确认，但**不阻断**——服务端判 fail 才是结论
   return warningCount.value ? `仍要提交 · ${warningCount.value} 项超差` : '提交本步'
 })
+
+/** 结果面板的入参：收窄成两个终态，避免把 ready/submitting 之类的中间态传进去 */
+const resultPhase = computed<'passed' | 'exception' | null>(() =>
+  phase.value === 'passed' || phase.value === 'exception' ? phase.value : null,
+)
 
 /* 软键盘顶升（§12.5）：底栏是 fixed bottom:0，键盘一弹就被盖住。
    用 visualViewport 的差值写进 CSS 变量，样式仍在 CSS 里（CSP 禁内联 style）。 */
@@ -391,7 +352,7 @@ onBeforeUnmount(() => {
                 v-for="criterion in shownStep.criteria"
                 :key="criterion.id"
                 class="field"
-                :class="{ 'field--bad': rangeWarning(criterion) }"
+                :class="{ 'field--bad': warnOf(criterion) }"
               >
                 <label class="field__label" :for="`c-${criterion.id}`">
                   {{ criterion.label }}
@@ -416,8 +377,8 @@ onBeforeUnmount(() => {
                     />
                     <span class="unit-chip">{{ criterion.unit }}</span>
                   </div>
-                  <p v-if="rangeWarning(criterion)" class="field__error">
-                    {{ rangeWarning(criterion) }}
+                  <p v-if="warnOf(criterion)" class="field__error">
+                    {{ warnOf(criterion) }}
                   </p>
                 </template>
 
@@ -459,39 +420,16 @@ onBeforeUnmount(() => {
         </div>
       </article>
 
-      <section v-if="phase === 'passed'" class="result-box result-box--ok" aria-live="polite">
-        <p class="result-title">本步通过</p>
-        <ul class="result-list">
-          <li v-for="result in results" :key="result.criterion_id">
-            <span>{{ result.label }}</span>
-            <span>{{ formatResult(result) }}</span>
-            <span class="verdict-chip" :class="`v-${result.verdict}`">
-              {{ verdictLabel(result.verdict) }}
-            </span>
-          </li>
-        </ul>
-        <button class="btn btn--primary block-btn" type="button" @click="continueNext">
-          {{ isLastStep ? '完成并查看记录' : '继续下一步' }}
-        </button>
-      </section>
-
-      <section v-else-if="phase === 'exception'" class="result-box result-box--bad" aria-live="assertive">
-        <p class="result-title">本步异常，需处置</p>
-        <ul class="result-list">
-          <li v-for="result in results" :key="result.criterion_id">
-            <span>{{ result.label }}</span>
-            <span>{{ result.message }}</span>
-          </li>
-        </ul>
-        <p class="result-note">异常已记录。复测会生成新的尝试记录，原记录保留。</p>
-        <div class="actions">
-          <button class="btn btn--primary" type="button" @click="retest">复测本步</button>
-          <button class="btn" type="button" @click="goDiagnose">转故障排查</button>
-          <button class="btn btn--danger" type="button" @click="openAbort">
-            停止作业
-          </button>
-        </div>
-      </section>
+      <StepResult
+        v-if="resultPhase"
+        :phase="resultPhase"
+        :results="results"
+        :is-last-step="isLastStep"
+        @next="continueNext"
+        @retest="retest"
+        @diagnose="goDiagnose"
+        @abort="openAbort"
+      />
 
       <ConfirmDialog
         v-if="abortConfirm"
@@ -506,30 +444,15 @@ onBeforeUnmount(() => {
 
       <p v-if="errorText && phase === 'ready'" class="inline-error">{{ errorText }}</p>
 
-      <div v-if="phase === 'ready' || phase === 'submitting'" class="run-bar no-print">
-        <!-- 超差提示放在底栏上方而不是弹窗：现场要的是"我知道这项超了"，不是再点一次确认框 -->
-        <p v-if="warningCount" class="run-bar__warn" role="status" aria-live="polite">
-          {{ warningCount }} 项超差，提交后本步记为异常
-        </p>
-        <div class="run-bar__inner">
-          <button
-            class="bar-secondary"
-            type="button"
-            :disabled="phase === 'submitting' || starting"
-            @click="openAbort"
-          >
-            中止
-          </button>
-          <button
-            class="btn btn--primary bar-primary"
-            type="button"
-            :disabled="phase === 'submitting'"
-            @click="submitStep"
-          >
-            {{ submitLabel }}
-          </button>
-        </div>
-      </div>
+      <RunBar
+        v-if="phase === 'ready' || phase === 'submitting'"
+        :warning-count="warningCount"
+        :submit-label="submitLabel"
+        :submitting="phase === 'submitting'"
+        :starting="starting"
+        @abort="openAbort"
+        @submit="submitStep"
+      />
     </template>
   </div>
 </template>
@@ -710,55 +633,6 @@ onBeforeUnmount(() => {
   accent-color: var(--c-primary);
 }
 
-.result-box {
-  margin-top: 16px;
-  padding: 16px;
-  border: 1px solid var(--c-line);
-  border-radius: 8px;
-}
-
-.result-box--ok {
-  border-color: #9bc7ad;
-  background: #f1f8f4;
-}
-
-.result-box--bad {
-  border-color: #d9a3a0;
-  background: #fff7f6;
-}
-
-.result-title {
-  margin: 0 0 8px;
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.result-list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.result-list li {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  border-bottom: 1px dashed var(--c-line-soft);
-  font-size: 14px;
-}
-
-.result-list li:last-child {
-  border-bottom: none;
-}
-
-.result-note {
-  margin: 10px 0 0;
-  color: var(--c-ink-2);
-  font-size: 13px;
-}
-
 .verdict-chip {
   display: inline-flex;
   align-items: center;
@@ -794,25 +668,6 @@ onBeforeUnmount(() => {
   color: var(--c-ink-3);
 }
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.block-btn {
-  width: 100%;
-  min-height: 48px;
-  margin-top: 14px;
-}
-
-.btn--danger {
-  border-color: #b3261e;
-  background: #b3261e;
-  color: #fff;
-}
-
 .btn--danger:hover {
   background: #8f1d17;
 }
@@ -821,57 +676,6 @@ onBeforeUnmount(() => {
   margin: 12px 0 0;
   color: var(--c-danger);
   font-size: 13px;
-}
-
-.run-bar {
-  position: fixed;
-  right: 0;
-  /* 软键盘顶升：--kb-inset 由 visualViewport 写入（§12.5）。没有键盘时恒为 0。 */
-  bottom: var(--kb-inset, 0px);
-  left: 0;
-  z-index: 20;
-  border-top: 1px solid var(--c-line);
-  background: var(--c-surface);
-  padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
-}
-
-.run-bar__inner {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  max-width: 760px;
-  margin: 0 auto;
-}
-
-/* 超差提示：一条 12px 的 waring 行，不抢按钮的位置 */
-.run-bar__warn {
-  max-width: 760px;
-  margin: 0 auto 6px;
-  color: var(--c-danger);
-  font-size: 12px;
-  line-height: 16px;
-}
-
-.bar-secondary {
-  min-width: 64px;
-  min-height: 48px;
-  border: none;
-  background: transparent;
-  color: var(--c-ink-2);
-  font: inherit;
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.bar-secondary:disabled {
-  color: var(--c-ink-3);
-  cursor: default;
-}
-
-.bar-primary {
-  flex: 1;
-  min-height: 48px;
-  font-size: 16px;
 }
 
 .sr-only {
@@ -907,14 +711,6 @@ onBeforeUnmount(() => {
     width: 100%;
     justify-content: flex-start;
     padding: 0 12px;
-  }
-
-  .run-bar__inner {
-    gap: 8px;
-  }
-
-  .bar-primary {
-    font-size: 15px;
   }
 }
 
@@ -961,17 +757,6 @@ onBeforeUnmount(() => {
 
   .step__block {
     margin: 8px 0 0 12px;
-  }
-
-  /* 整行 800px 的主按钮要右手拇指跨半屏，反而破坏拇指区纪律 */
-  .run-bar__inner {
-    max-width: none;
-    justify-content: flex-end;
-  }
-
-  .bar-primary {
-    flex: 0 0 240px;
-    width: 240px;
   }
 }
 
