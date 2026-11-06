@@ -7,6 +7,7 @@ import { clearStoredJob, readStoredJob, writeStoredJob } from '../lib/jobhandoff
 import { dropStoredToken, readStoredToken } from '../lib/passcode'
 import AssetShelf from '../components/newguide/AssetShelf.vue'
 import PasscodePanel from '../components/newguide/PasscodePanel.vue'
+import ExtractPanel from '../components/newguide/ExtractPanel.vue'
 import type {
   ExtractResult,
   GenerateAccepted,
@@ -732,59 +733,12 @@ onBeforeUnmount(() => {
       @extract="runExtract"
     >
 
-      <section v-if="extractResult || extractError" class="extract" aria-live="polite">
-        <div class="extract__head">
-          <strong>识别结果</strong>
-          <span class="hint">只做录入，不自动生成</span>
-          <button class="linkbtn" type="button" @click="clearExtraction">关闭</button>
-        </div>
-
-        <p v-if="extractError" class="asset-error" role="alert">{{ extractError }}</p>
-
-        <template v-if="extractResult">
-          <p class="extract__note">{{ extractResult.disclaimer }}</p>
-          <p class="hint">
-            转录 {{ extractResult.stats.lines }} 行，识别 {{ extractResult.stats.steps }} 步，其中
-            {{ extractResult.stats.verified_steps }} 步逐字匹配原文。
-          </p>
-          <p class="hint">
-            <template v-if="extractResult.channels.mode === 'dual'">
-              双通道：转录 {{ extractResult.channels.transcribe?.lines ?? 0 }} 行 →
-              结构化 {{ extractResult.channels.structure?.steps ?? 0 }} 步，
-              引用 {{ Math.round((extractResult.channels.structure?.coverage ?? 0) * 100) }}% 的转录行
-            </template>
-            <template v-else>单通道识别（一次调用出结果）</template>
-          </p>
-          <p v-if="extractResult.channels.fallback" class="asset-error">
-            · 已降级到单通道（{{ extractResult.channels.fallback }}）：少了一层"字段必须能在原文里找到"的校验，请逐条核对。
-          </p>
-          <p
-            v-for="(item, index) in extractResult.unverified.slice(0, 6)"
-            :key="`u-${index}`"
-            class="asset-error"
-          >
-            · {{ item }}
-          </p>
-          <p v-if="extractResult.unverified.length > 6" class="hint">
-            另有 {{ extractResult.unverified.length - 6 }} 处待核对。
-          </p>
-          <p v-for="(item, index) in extractResult.warnings" :key="`w-${index}`" class="hint">
-            · {{ item }}
-          </p>
-
-          <details class="extract__lines">
-            <summary>查看转录原文（{{ extractResult.lines.length }} 行）</summary>
-            <pre class="extract__pre">{{ extractResult.lines.join('\n') }}</pre>
-          </details>
-
-          <div class="row">
-            <button class="btn btn--primary" type="button" @click="applyExtraction">
-              填入工艺文本
-            </button>
-            <button class="btn" type="button" @click="extractResult = null">放弃</button>
-          </div>
-        </template>
-      </section>
+      <ExtractPanel
+        :result="extractResult"
+        :error="extractError"
+        @apply="applyExtraction"
+        @clear="clearExtraction"
+      />
     </AssetShelf>
 
     <div v-if="quota" class="quota">
@@ -1067,50 +1021,7 @@ onBeforeUnmount(() => {
  * 素材区的样式已随组件移到 components/newguide/AssetShelf.vue（2026-11-06）。
  * 这里只留 .asset-error：识别结果块还在本组件里用它。 */
 
-/* 识别结果：一段带原文的"待确认草稿"，不是成品。视觉上要弱于正文，
-   但 unverified 必须显眼——那几行是"模型写了、图里没有"的地方。 */
-.extract {
-  margin-top: 12px;
-  padding: 12px;
-  border: 1px solid var(--c-line);
-  border-radius: 8px;
-  background: var(--c-bg);
-}
-
-.extract__head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.extract__head .linkbtn {
-  margin-left: auto;
-}
-
-.extract__note {
-  margin: 6px 0;
-  color: var(--c-warning);
-  font-size: 13px;
-}
-
-.extract__lines {
-  margin: 8px 0;
-  font-size: 13px;
-}
-
-.extract__pre {
-  max-height: 220px;
-  overflow: auto;
-  margin: 6px 0 0;
-  padding: 8px;
-  border: 1px solid var(--c-line);
-  border-radius: 6px;
-  background: var(--c-surface);
-  font-family: var(--font-mono, ui-monospace, Menlo, Consolas, monospace);
-  font-size: 12px;
-  white-space: pre-wrap;
-}
+/* 识别结果面板的样式已随组件移到 components/newguide/ExtractPanel.vue（2026-11-06）。 */
 
 .field-label--inline {
   margin-bottom: 0;

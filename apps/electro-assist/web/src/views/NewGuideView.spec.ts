@@ -216,6 +216,102 @@ describe('NewGuideView 429 冷却', () => {
   })
 })
 
+describe('NewGuideView 图片识别', () => {
+  const EXTRACT_OK = {
+    lines: ['工序：客室侧门开关门功能试验', '1. 检查门锁闭合'],
+    fields: {
+      name: '客室侧门开关门功能试验',
+      station: '车门调试工位',
+      tools: ['塞尺'],
+      safety: ['断电挂牌'],
+      steps: [
+        {
+          seq: 1,
+          action: '检查门锁闭合',
+          criterion: '闭合到位无间隙',
+          source_line: 2,
+          verified: true,
+        },
+      ],
+    },
+    warnings: [],
+    unverified: [],
+    needs_review: true as const,
+    stats: { lines: 2, steps: 1, verified_steps: 1 },
+    channels: {
+      mode: 'dual' as const,
+      fallback: null,
+      calls: 2,
+      model: 'test-model',
+      latency_ms: 1200,
+      transcribe: { lines: 2, latency_ms: 600 },
+      structure: { steps: 1, coverage: 1, latency_ms: 600 },
+    },
+    disclaimer: '识别结果仅供录入，需对着原图核对',
+  }
+
+  beforeEach(() => {
+    mocks.postForm.mockReset()
+    mocks.postForm.mockResolvedValue({ asset_id: 'a_test', width: 800, height: 600 })
+    mocks.postJson.mockReset()
+  })
+
+  async function extractButton(wrapper: ReturnType<typeof mount>) {
+    const btn = wrapper.findAll('button').find((b) => b.text().includes('识别图中内容'))
+    if (!btn) throw new Error('没找到识别按钮')
+    return btn
+  }
+
+  it('识别成功后展示结果与统计数字', async () => {
+    mocks.postJson.mockResolvedValue(EXTRACT_OK)
+    const wrapper = mountView()
+    await pick(wrapper, [fakeFile('p.png', 'image/png', 1024)])
+
+    await (await extractButton(wrapper)).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('识别结果')
+    expect(wrapper.text()).toContain('转录 2 行')
+    expect(wrapper.text()).toContain('识别 1 步')
+    // 必须提示"需核对"，否则用户会当成成品直接用
+    expect(wrapper.text()).toContain('需对着原图核对')
+    wrapper.unmount()
+  })
+
+  it('内容超长被截断时给出可执行的指引，而不是只说失败', async () => {
+    mocks.postJson.mockRejectedValue(
+      new ApiError('server', 422, 'extract_truncated', 'truncated'),
+    )
+    const wrapper = mountView()
+    await pick(wrapper, [fakeFile('p.png', 'image/png', 1024)])
+
+    await (await extractButton(wrapper)).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('分两张拍')
+    // 失败时面板仍会显示（用来承载错误文案），但结果区必须是空的：
+    // 「查看转录原文」只在拿到 extractResult 后才渲染
+    expect(wrapper.text()).not.toContain('查看转录原文')
+    wrapper.unmount()
+  })
+
+  it('超时后提示换图，且按钮恢复可点（不卡在「识别中…」）', async () => {
+    mocks.postJson.mockRejectedValue(new ApiError('timeout', undefined, 'extract_timeout'))
+    const wrapper = mountView()
+    await pick(wrapper, [fakeFile('p.png', 'image/png', 1024)])
+
+    await (await extractButton(wrapper)).trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('识别超时')
+    expect(wrapper.text()).toContain('配额不因失败丢失')
+    const btn = await extractButton(wrapper)
+    expect(btn.attributes('disabled')).toBeUndefined()
+    expect(btn.text()).toBe('识别图中内容')
+    wrapper.unmount()
+  })
+})
+
 describe('NewGuideView 口令失效', () => {
   // 服务端说令牌不认了（过期/换密钥），前端必须自己把本地那份清掉。
   // 不清的后果：用户看到「口令已生效」，实际每次提交都被拒，且 Refresh 也不会好。
