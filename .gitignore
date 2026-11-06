@@ -52,4 +52,10 @@ playwright-report/
 blob-report/
 .playwright/
 
+# 覆盖率产物（2026-11-06）
+# 后端 coverage.py 的数据文件与前端 vitest 的 html 报告都是构建产物，不入库
+.coverage
+.coverage.*
+apps/electro-assist/web/coverage/
+
 # 注意：锁文件（uv.lock / package-lock.json）必须入库，不要忽略

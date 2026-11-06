@@ -75,9 +75,15 @@ jobs:
         working-directory: apps/electro-assist/api
         run: python -m ruff check .
 
-      - name: 运行测试
+      # 覆盖率是**防退化线**，不是质量目标。2026-11-06 实测 91%（4371 语句 / 413 未覆盖，
+      # 12 个文件 100%）。设 89 而不是 91：允许小幅波动，但只要有人删了测试或加了
+      # 大段未测代码，它会红。
+      # 顺带把原来「再跑一遍全量测试只为算覆盖率」的独立步骤合并进来——那一步白花 92 秒。
+      - name: 运行测试与覆盖率（阻断）
         working-directory: apps/electro-assist/api
-        run: python -m pytest tests -q
+        run: |
+          python -m coverage run --source=. --omit=".venv/*,tests/*,scripts/*" -m pytest tests -q
+          python -m coverage report --skip-covered --fail-under=89
 
       # 两个"文档与代码一致性"门禁：不新增功能，只防漂移。
       - name: API 文档与代码一致
@@ -88,14 +94,8 @@ jobs:
         working-directory: apps/electro-assist/api
         run: python scripts/check_metrics.py
 
-      # 覆盖率先只"记录"，不设阈值：没有基线就设阈值只会逼人写凑数的测试。
-      # 它不参与部署门禁（continue-on-error），失败不影响发布。
-      - name: 覆盖率基线（只记录）
-        continue-on-error: true
-        working-directory: apps/electro-assist/api
-        run: |
-          python -m coverage run --source=. --omit=".venv/*,tests/*,scripts/*" -m pytest tests -q
-          python -m coverage report --skip-covered
+      # （原「覆盖率基线（只记录）」步骤已于 2026-11-06 合并进上面的
+      #  「运行测试与覆盖率（阻断）」——那一步为了算覆盖率把全量测试又跑了一遍，白花 92 秒。）
 
   e2e:
     name: E2E 冒烟
@@ -136,13 +136,13 @@ jobs:
         working-directory: apps/electro-assist/web
         run: npx playwright install --with-deps chromium
 
-      # 组件单测（vitest + happy-dom）。放在构建之前：它比 E2E 快一个数量级，
+      # 组件单测 + 覆盖率门禁（vitest + happy-dom）。放在构建之前：它比 E2E 快一个数量级，
       # 坏了要第一时间看到，而不是等浏览器装完、服务起完才发现。
-      # 2026-11-06 建立，当前 26 条（ConfirmDialog 8 + jobhandoff 7 + NewGuideView 11）；
-      # 目的是给「拆 NewGuideView 等三个千行级文件」提供回归网。
-      - name: 前端组件单测
+      # 2026-11-06 建立，当前 30 条；覆盖率阈值是防退化线（实测 13.8 行 / 11.52 分支），
+      # 低是因为只有 NewGuideView 与两个 lib 模块有单测，其余靠 E2E 覆盖（E2E 不计入）。
+      - name: 前端组件单测与覆盖率
         working-directory: apps/electro-assist/web
-        run: npm run test:unit
+        run: npm run test:cov
 
       - name: 构建前端
         working-directory: apps/electro-assist/web
