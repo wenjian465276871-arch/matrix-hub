@@ -4,7 +4,9 @@ import { RouterLink, useRouter } from 'vue-router'
 import { ApiError, getJson, postJson } from '../lib/http'
 import { announce } from '../lib/announce'
 import { clearStoredJob, readStoredJob, writeStoredJob } from '../lib/jobhandoff'
+import { dropStoredToken, readStoredToken } from '../lib/passcode'
 import AssetShelf from '../components/newguide/AssetShelf.vue'
+import PasscodePanel from '../components/newguide/PasscodePanel.vue'
 import type {
   ExtractResult,
   GenerateAccepted,
@@ -52,11 +54,8 @@ const quota = ref<QuotaSnapshot | null>(null)
 const elapsed = ref(0)
 const lastJobFailed = ref(false)
 
-// 口令令牌只放 sessionStorage：关掉标签页即失效，不写 localStorage。
-const PASSCODE_KEY = 'electro_passcode'
-const passcodeOpen = ref(false)
-const passcodeInput = ref('')
-const passcodeBusy = ref(false)
+// 口令令牌的读写与验证 UI 已在 components/newguide/PasscodePanel.vue（2026-11-06）。
+// 这里只留 token 与提示文案：提交要带 header，passcode_invalid 时要能清掉。
 const passcodeMsg = ref('')
 const passcodeToken = ref('')
 
@@ -473,62 +472,6 @@ function clearPasscode(message = ''): void {
   if (message) passcodeMsg.value = message
 }
 
-// 隐私模式/旧内核里 sessionStorage 可能直接抛异常：令牌退化为"仅本页有效"，
-// 不影响生成，只是刷新后要重新输入。
-function readStoredToken(): string {
-  try {
-    return sessionStorage.getItem(PASSCODE_KEY) || ''
-  } catch {
-    return ''
-  }
-}
-
-function storeToken(token: string): void {
-  try {
-    sessionStorage.setItem(PASSCODE_KEY, token)
-  } catch {
-    /* 忽略：内存里仍有 token */
-  }
-}
-
-function dropStoredToken(): void {
-  try {
-    sessionStorage.removeItem(PASSCODE_KEY)
-  } catch {
-    /* 忽略 */
-  }
-}
-
-async function verifyPasscode(): Promise<void> {
-  const code = passcodeInput.value.trim()
-  if (!code || passcodeBusy.value) return
-  passcodeBusy.value = true
-  passcodeMsg.value = ''
-  try {
-    const res = await postJson<{ token: string; expires_in: number }>(
-      '/api/electro/passcode/verify',
-      { code },
-    )
-    passcodeToken.value = res.token
-    storeToken(res.token)
-    passcodeInput.value = ''
-    passcodeOpen.value = false
-    passcodeMsg.value = `口令已生效：${Math.round(res.expires_in / 3600)} 小时内不受每 IP 次数限制（全站预算仍生效）`
-  } catch (err) {
-    if (err instanceof ApiError && err.kind === 'ratelimit') {
-      passcodeMsg.value = err.message || '验证过于频繁，请稍后再试。'
-    } else if (err instanceof ApiError && err.code === 'passcode_disabled') {
-      passcodeMsg.value = '本站未启用口令通道。'
-    } else if (err instanceof ApiError && err.message) {
-      passcodeMsg.value = err.message
-    } else {
-      passcodeMsg.value = '验证失败，请稍后再试。'
-    }
-  } finally {
-    passcodeBusy.value = false
-  }
-}
-
 async function poll(): Promise<void> {
   if (!jobId.value) return
   if (Date.now() - pollingStartedAt > HARD_TIMEOUT_MS) {
@@ -850,42 +793,11 @@ onBeforeUnmount(() => {
       <span>全站预算 ¥{{ quota.site_budget.used_cny }} / ¥{{ quota.site_budget.limit_cny }}</span>
     </div>
 
-    <div class="passcode">
-      <template v-if="!passcodeToken">
-        <button
-          class="linkbtn"
-          type="button"
-          :aria-expanded="passcodeOpen"
-          @click="passcodeOpen = !passcodeOpen"
-        >
-          {{ passcodeOpen ? '收起口令输入' : '有访问口令？' }}
-        </button>
-        <div v-if="passcodeOpen" class="passcode__row">
-          <input
-            v-model="passcodeInput"
-            class="passcode__input"
-            type="password"
-            autocomplete="off"
-            placeholder="输入访问口令"
-            :disabled="passcodeBusy"
-            @keyup.enter="verifyPasscode"
-          />
-          <button
-            class="btn"
-            type="button"
-            :disabled="passcodeBusy || !passcodeInput.trim()"
-            @click="verifyPasscode"
-          >
-            {{ passcodeBusy ? '验证中…' : '验证' }}
-          </button>
-        </div>
-      </template>
-      <template v-else>
-        <span class="passcode__ok">口令已生效</span>
-        <span class="passcode__hint">本机不受每 IP 次数限制，全站预算仍生效</span>
-      </template>
-      <p v-if="passcodeMsg" class="hint">{{ passcodeMsg }}</p>
-    </div>
+    <PasscodePanel
+      v-model:token="passcodeToken"
+      v-model:message="passcodeMsg"
+      :busy="busy"
+    />
 
     <button class="btn btn--primary submit" type="button" :disabled="!canSubmit" @click="submit()">
       <span v-if="busy" class="btn__spin" aria-hidden="true" />
@@ -1234,9 +1146,7 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.passcode {
-  margin-top: 12px;
-}
+/* 口令面板的样式已随组件移到 components/newguide/PasscodePanel.vue（2026-11-06）。 */
 
 .linkbtn {
   padding: 0;
@@ -1247,40 +1157,6 @@ onBeforeUnmount(() => {
   font-size: 13px;
   text-decoration: underline;
   cursor: pointer;
-}
-
-.passcode__row {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.passcode__input {
-  flex: 1;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--c-line);
-  border-radius: 6px;
-  background: var(--c-surface);
-  color: var(--c-ink);
-  font: inherit;
-}
-
-.passcode__input:focus {
-  outline: 2px solid var(--c-primary);
-  outline-offset: 1px;
-}
-
-.passcode__ok {
-  color: var(--c-primary-ink);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.passcode__hint {
-  margin-left: 8px;
-  color: var(--c-ink-3);
-  font-size: 13px;
 }
 
 /* 切图选择弹层：移动端从底部上来，桌面端居中；宽度用 min() 而不是媒体查询，

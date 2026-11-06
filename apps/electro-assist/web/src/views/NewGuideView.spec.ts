@@ -215,3 +215,24 @@ describe('NewGuideView 429 冷却', () => {
     wrapper.unmount()
   })
 })
+
+describe('NewGuideView 口令失效', () => {
+  // 服务端说令牌不认了（过期/换密钥），前端必须自己把本地那份清掉。
+  // 不清的后果：用户看到「口令已生效」，实际每次提交都被拒，且 Refresh 也不会好。
+  it('passcode_invalid 时清掉本地令牌并提示重新验证', async () => {
+    sessionStorage.setItem('electro_passcode', 'stale-token')
+    mocks.postJson.mockRejectedValue(
+      new ApiError('server', 400, 'passcode_invalid', '口令已失效，请重新验证后再生成。'),
+    )
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.find('textarea').setValue('客室侧门开关门功能试验，检查门锁闭合与指示灯')
+    await submitButton(wrapper).trigger('click')
+    await flushPromises()
+
+    expect(sessionStorage.getItem('electro_passcode')).toBeNull()
+    expect(wrapper.text()).toContain('口令已失效，请重新验证后再生成')
+    wrapper.unmount()
+  })
+})
