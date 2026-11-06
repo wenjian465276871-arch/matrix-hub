@@ -109,6 +109,16 @@ def list_guides(
     `q` 是卡片字段的子串搜索（UX §8 登记的欠账）。空串等于不过滤；
     搜索命中数就是 `total`，前端「共 N 份」直接可用。
     """
+    # ------------------------------------------------------------------
+    # C2 回滚演练（2026-11-06，验完立即 revert）
+    #
+    # 只在 APP_ENV=prod 触发：单测与 E2E 都跑在 dev 下，测不到这一条——
+    # 这正好模拟"环境相关 bug"这种单测永远抓不到、只有生产会炸的形态。
+    # 部署脚本的 probe_business 第一条就打这个端点，必然失败 → 触发自动回滚。
+    # ------------------------------------------------------------------
+    if os.getenv("APP_ENV", "").strip().lower() == "prod":
+        raise HTTPException(status_code=500, detail={"code": "c2_rollback_drill"})
+
     term = q.strip()
     items = library.list_published(limit=limit, offset=offset, query=term or None)
     total = library.count_published(query=term or None)
