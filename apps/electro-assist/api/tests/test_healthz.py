@@ -175,3 +175,53 @@ def test_budget_alert_logged_once_per_day(monkeypatch, caplog):
         assert quota_service.alert_if_needed(status) is True
         assert quota_service.alert_if_needed(status) is False
     assert sum("日预算" in rec.message for rec in caplog.records) == 1
+
+
+# ---------- 保留期清理状态：只报告，不改判定 ----------
+
+
+def test_healthz_reports_retention_state(tmp_path, monkeypatch):
+    """清理状态要能在 /healthz 上被看到——这是"失败了有人知道"的唯一出口。"""
+    path = tmp_path / "state.json"
+    path.write_text(
+        '{"last_success_at": "2026-11-06T03:40:00+08:00", "consecutive_failures": 0}',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RETENTION_STATE_PATH", str(path))
+    monkeypatch.setattr("shutil.disk_usage", lambda _p: Disk(100, 50, 50))
+
+    body = client.get("/healthz").json()
+    assert body["retention"]["last_success_at"].startswith("2026-11-06")
+    assert body["status"] == "ok"
+
+
+def test_retention_failure_does_not_degrade_readiness(tmp_path, monkeypatch):
+    """清理连续失败，站点依然是 ok / 200。
+
+    这是刻意的设计保证：清理失败意味着数据没按期删，但站点完全可用。
+    若让它触发 503，一次凌晨清理失败就会让部署脚本失败、看门狗回滚掉
+    一个正常版本——代价远大于"数据多留几天"。
+    """
+    path = tmp_path / "state.json"
+    path.write_text(
+        '{"consecutive_failures": 3, "last_error": "RuntimeError: boom"}',
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("RETENTION_STATE_PATH", str(path))
+    monkeypatch.setattr("shutil.disk_usage", lambda _p: Disk(100, 50, 50))
+
+    body = client.get("/healthz").json()
+    assert body["status"] == "ok", "清理失败把整站判成 degraded 了"
+    assert body["retention"]["consecutive_failures"] == 3
+
+    ready = client.get("/healthz?scope=ready")
+    assert ready.status_code == 200, "清理失败导致 readiness 503，会让部署回滚"
+
+
+def test_healthz_without_retention_state_has_no_field(tmp_path, monkeypatch):
+    """从来没跑过清理时不显示该字段，避免给一个空壳让人误读。"""
+    monkeypatch.setenv("RETENTION_STATE_PATH", str(tmp_path / "missing.json"))
+    monkeypatch.setattr("shutil.disk_usage", lambda _p: Disk(100, 50, 50))
+
+    body = client.get("/healthz").json()
+    assert "retention" not in body

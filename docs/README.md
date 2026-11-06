@@ -54,7 +54,7 @@
 | 项 | 值 | 采集 |
 |---|---|---|
 | 代码基线 | `6d070fa`（线上同名镜像；功能等价于 `c026149`，差异仅为 `scripts/_bootstrap.py`、脚本清单与文档）；功能面含 `bdf6937` 窄屏、`c026149` 发布闸门/分页/800ms/焦点/打印表头 | `git log --oneline -1` |
-| 契约测试 | **397 passed** | `pytest tests -q`（约 40s） |
+| 契约测试 | **417 passed** | `pytest tests -q`（约 1 分钟） |
 | 业务端点 | 35 + `/healthz` | `app.routes`（`scripts/check_metrics.py`） |
 | 首屏 | **45.70 KB gzip / CSS 9.70 KB** | `npm run build`（vue-tsc + vite） |
 | 性能与可访问性 | 线上 Perf **100** / LCP **1.31s** / CLS **0**；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-10-23 线上；此后只增 UI 元素，未复测） |

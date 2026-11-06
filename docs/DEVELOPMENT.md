@@ -83,7 +83,7 @@ api/
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             397 条契约测试
+└── tests/             417 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -119,7 +119,7 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q --basetemp=<临时目录>   # 397 passed（约 92s，starlette 1.10 的 TestClient 偏慢）
+pytest tests -q --basetemp=<临时目录>   # 417 passed（约 1 分钟，starlette 1.10 的 TestClient 偏慢）
 ruff check .                            # 只开 E9/F63/F7/F82
 # 不带 --basetemp 时退出码可能是 1：pytest 清理临时目录时一次删 200+ 文件，
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
@@ -378,7 +378,7 @@ POST /api/electro/guides/{id}/publish    X-Passcode-Token: <token>
 | 判"内容有没有变"用计数 | 刷新样例时"动效从 A 图挪到 B 图"不改图数/原语数/动效数，被判 `[SAME]` 跳过 | 比**规范化后的内容**（`sort_keys` JSON），计数只作摘要（2026-10-31） |
 
 | 本地跑 E2E 时 `vite preview` 报 `EACCES: permission denied 127.0.0.1:4173` | **不是端口被占、也不是权限问题**，是 4173 落在 Windows 的 TCP 排除段里（`netsh interface ipv4 show excludedportrange protocol=tcp` 能看到 `4095–4194`）。CI 是 Linux 所以永远撞不到，只有本地会 | 换端口 + 用 `E2E_BASE_URL` 指过去：`npm run preview -- --port 5173 --strictPort`，再 `E2E_BASE_URL=http://127.0.0.1:5173/apps/electro-assist/`。API 侧要 `DB_PATH` 指临时库并先灌一份草稿，`E2E_REVISE=1` 才会 26 条全跑（2026-11-06 实测 26 passed） |
-| `starlette 1.10` 弃用 TestClient 走 `httpx` | 测试输出 `StarletteDeprecationWarning: Using httpx with starlette.testclient is deprecated; install httpx2 instead`，当前不影响结果，只是警告 | 等升 `httpx2` 时一并处理；**不要**为了消警告单独换测试栈。顺带：升到 1.10 后 397 测试耗时从 36s 涨到 92s，是 TestClient 变慢，不是被测代码退化（2026-11-06 升 fastapi 0.162.0） |
+| `starlette 1.10` 弃用 TestClient 走 `httpx` | 测试输出 `StarletteDeprecationWarning: Using httpx with starlette.testclient is deprecated; install httpx2 instead`，当前不影响结果，只是警告 | 等升 `httpx2` 时一并处理；**不要**为了消警告单独换测试栈。顺带：升到 1.10 后（当时 397 条）测试耗时从 36s 涨到 92s，是 TestClient 变慢，不是被测代码退化（2026-11-06 升 fastapi 0.162.0） |
 
 ## 8. 不要做的事
 

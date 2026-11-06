@@ -325,4 +325,12 @@ def healthz(
         payload["budget"] = budget
         payload["http"] = http_window.snapshot()
 
+        # 保留期清理状态：**只报告，不参与 status 判定**。
+        # 清理失败意味着数据没按期删除，但站点仍然完全可用；若把它算进 ready，
+        # 一次凌晨清理失败就会让部署脚本 503、看门狗回滚掉一个正常版本。
+        # 真正的用法是：监控或人读这个字段，连续失败次数 >0 就该去看日志。
+        state = retention.read_state()
+        if state:
+            payload["retention"] = state
+
     return JSONResponse(status_code=http_status, content=payload)

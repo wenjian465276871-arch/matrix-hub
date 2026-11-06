@@ -10,7 +10,9 @@ from services import library, retention
 
 
 @pytest.fixture(autouse=True)
-def _clean_scheduler():
+def _clean_scheduler(tmp_path, monkeypatch):
+    # 状态文件必须隔离：默认路径在数据卷里，测试直接写会污染真实 app_data。
+    monkeypatch.setenv("RETENTION_STATE_PATH", str(tmp_path / "retention_state.json"))
     retention.reset_for_tests()
     yield
     retention.reset_for_tests()
@@ -68,3 +70,133 @@ def test_disabled_outside_prod_by_default(monkeypatch):
 def test_at_time_bad_value_falls_back(monkeypatch):
     monkeypatch.setenv("RETENTION_AT", "25:99")
     assert retention._at() == (3, 40)
+
+
+# ---------------------------------------------------------------- 清理状态与告警
+
+def test_at_time_unparsable_falls_back(monkeypatch):
+    """配成非时间格式也要退回默认值，不能让调度线程起不来。"""
+    monkeypatch.setenv("RETENTION_AT", "凌晨三点")
+    assert retention._at() == (3, 40)
+
+
+def test_run_once_records_success():
+    """成功执行后必须留下 last_success_at，这是"清理还在跑"的唯一凭据。"""
+    result = retention.run_once(apply=True)
+    assert result["applied"] in (True, False)
+
+    state = retention.read_state()
+    assert state["last_success_at"], "成功执行后没有记录 last_success_at"
+    assert state["consecutive_failures"] == 0
+    assert state["last_error"] == ""
+
+
+def test_dry_run_does_not_claim_success():
+    """dry-run 不能刷新 last_success_at——它没删任何东西，冒充成功会掩盖故障。"""
+    retention.run_once(apply=False)
+    assert retention.read_state() == {}
+
+
+def test_failure_accumulates_and_keeps_error():
+    """连续失败要累加并留下最后一次错误摘要。"""
+    retention._record_failure(RuntimeError("database is locked"))
+    first = retention.read_state()
+    assert first["consecutive_failures"] == 1
+    assert "RuntimeError" in first["last_error"]
+    assert "database is locked" in first["last_error"]
+    assert first["last_error_at"]
+
+    retention._record_failure(OSError("磁盘满了"))
+    second = retention.read_state()
+    assert second["consecutive_failures"] == 2, "失败次数没有跨次累计"
+    assert "OSError" in second["last_error"]
+
+
+def test_success_clears_failure_counter():
+    """成功一次要清零：否则"曾经失败过"会永远挂着，告警失去意义。"""
+    retention._record_failure(RuntimeError("boom"))
+    assert retention.read_state()["consecutive_failures"] == 1
+
+    retention.run_once(apply=True)
+    assert retention.read_state()["consecutive_failures"] == 0
+
+
+def test_read_state_tolerates_missing_and_corrupt_file(tmp_path, monkeypatch):
+    """状态文件缺失或损坏时返回空字典，不能抛异常——healthz 依赖它。"""
+    path = tmp_path / "state.json"
+    monkeypatch.setenv("RETENTION_STATE_PATH", str(path))
+    assert retention.read_state() == {}
+
+    path.write_text("{ 这不是 JSON", encoding="utf-8")
+    assert retention.read_state() == {}
+
+
+def test_write_state_survives_unwritable_path(monkeypatch):
+    """状态写不进去只该记日志，不该把清理本身搞挂。"""
+    monkeypatch.setenv("RETENTION_STATE_PATH", "Z:/不存在的盘/state.json")
+    retention._record_failure(RuntimeError("boom"))  # 不应抛异常
+    assert retention.read_state() == {}
+
+
+# ---------------------------------------------------------------- 失败重试
+
+def test_retry_succeeds_on_first_attempt(monkeypatch):
+    """正常情况只跑一次，不做多余重试。"""
+    monkeypatch.setenv("RETENTION_RETRY_S", "0.01")
+    calls: list[int] = []
+    monkeypatch.setattr(retention, "run_once", lambda **_: calls.append(1))
+
+    assert retention.run_with_retry() == 0
+    assert len(calls) == 1
+
+
+def test_retry_gives_up_after_attempts_and_records_count(monkeypatch):
+    """连续失败要跑满 RETRY_ATTEMPTS 次，并把累计次数留在状态里。"""
+    monkeypatch.setenv("RETENTION_RETRY_S", "0.01")
+    calls: list[int] = []
+
+    def boom(**_):
+        calls.append(1)
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(retention, "run_once", boom)
+
+    assert retention.run_with_retry() == retention.RETRY_ATTEMPTS
+    assert len(calls) == retention.RETRY_ATTEMPTS, "没有跑满重试次数"
+    state = retention.read_state()
+    assert state["consecutive_failures"] == retention.RETRY_ATTEMPTS
+    assert "database is locked" in state["last_error"]
+
+
+def test_retry_recovers_on_second_attempt(monkeypatch):
+    """第二次成功就不再重试，且连续失败计数清零——偶发失败不该长期挂着。"""
+    monkeypatch.setenv("RETENTION_RETRY_S", "0.01")
+    attempts: list[int] = []
+
+    def flaky(**_):
+        attempts.append(1)
+        if len(attempts) == 1:
+            raise RuntimeError("偶发锁冲突")
+        return {"applied": False, "candidates": {}, "deleted": {}}
+
+    monkeypatch.setattr(retention, "run_once", flaky)
+
+    assert retention.run_with_retry() == 0
+    assert len(attempts) == 2, "第二次成功后不该继续重试"
+    # 状态清零由 test_success_clears_failure_counter 验（那里 run_once 是真的），
+    # 这里 run_once 被 mock，不负责写状态。
+
+
+def test_retry_stops_early_when_shutdown_requested(monkeypatch):
+    """停止信号到来时不要继续重试——否则容器退出会被拖住。"""
+    monkeypatch.setenv("RETENTION_RETRY_S", "0.01")
+
+    def boom(**_):
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(retention, "run_once", boom)
+    monkeypatch.setattr(retention._stop, "wait", lambda _t: True)  # 立刻表示"要停了"
+
+    assert retention.run_with_retry() == 1, "收到停止信号后还继续重试了"
+
+
