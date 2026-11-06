@@ -17,7 +17,19 @@ from pathlib import Path
 
 API_DIR = Path(__file__).resolve().parent.parent
 # apps/electro-assist/api → apps/electro-assist → apps → 仓库根
-REPO_ROOT = API_DIR.parents[2]
+#
+# 但容器里不是这个层级：Dockerfile 把 api/ 整个 COPY 到 `/opt/electro`，
+# 于是 `parents[2]` 直接越界（`/` 之上没有了）。2026-11-06 实测：
+# `docker exec matrix-hub python -m scripts.eval_generate --dry-run`
+# 在导入阶段就 IndexError，`eval_generate` 与 `smoke_llm` 两个脚本因此在
+# 生产里**从来没有真正跑起来过**——本地结构正常，永远测不到。
+#
+# 兜底成 API_DIR：容器里 `.env` 本就在 `/opt/electro/.env`（或由 compose 注入
+# 环境变量），取不到仓库根也不该让脚本起不来。
+try:
+    REPO_ROOT = API_DIR.parents[2]
+except IndexError:  # 容器内层级更浅
+    REPO_ROOT = API_DIR
 
 
 def default_env_files() -> list[Path]:
