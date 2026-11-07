@@ -208,7 +208,12 @@ def finish(session_id: str, status: str, note: str = "") -> dict:
             status=409,
             extra={"expected_seq": session["current_seq"]},
         )
-    store.finish_session(session_id, status, note=note)  # type: ignore[arg-type]
+    applied = store.finish_session(session_id, status, note=note)  # type: ignore[arg-type]
+    if not applied:
+        # 并发兜底：上面那次 status 检查与本行写入之间，另一个请求先结束了会话。
+        # store 层的 `WHERE status='active'` 保证只有一次能命中，这里必须把
+        # "没命中"如实报出去——否则调用方会以为自己的 note 落了库，其实被丢掉。
+        raise SessionError("session_closed", "该作业已结束", status=409)
     return snapshot(session_id)
 
 

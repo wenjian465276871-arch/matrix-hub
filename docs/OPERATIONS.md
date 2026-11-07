@@ -74,11 +74,30 @@ probe.sh               由仓库同步（健康/业务只读探针，被 deploy.
 postdeploy_watch.sh    由仓库同步（部署后 10 分钟 5xx 观察，可自动回滚）
 backup.sh              由仓库同步（每日备份脚本）
 .env            600，含 IMAGE / TAG / SITE_DOMAIN / ACME_EMAIL / DEEPSEEK_API_KEY，不入库
+backup.env      600，部署级配置（当前只有 BACKUP_COS_BUCKET），不入库
 deploy.log             deploy.sh / 看门狗追加写入的部署与回滚记录
 watch.log              看门狗观察日志（每轮一行，10 分钟后自结束）
 .incoming/             CI 暂存目录（原子 mv 前落盘，避免覆盖运行中的脚本）
 backups/               SQLite + uploads 备份（卷外，各保留 7 份 ⇒ 14 个文件）
 ```
+
+### 2.1 新实例重建清单（2026-11-08 补，对应评审 P3-3）
+
+换机器时按这七步走，每步都有判据；顺序不能乱（备份依赖 coscli 与凭据）。
+
+| # | 做什么 | 判据 |
+|---|---|---|
+| 1 | 装 Docker + compose 插件 | `docker compose version` 有输出 |
+| 2 | 建目录与权限 | `install -d -o 10001 -g 10001 -m 700 /opt/matrix-hub/backups && ls -ld` 显示 `drwx------ 10001` |
+| 3 | 写 `.env`（600）：`IMAGE` / `TAG` / `SITE_DOMAIN` / `ACME_EMAIL` / `DEEPSEEK_API_KEY` | `docker compose -f compose.yml config` 不报缺变量 |
+| 4 | 写 `backup.env`（600）：`BACKUP_COS_BUCKET=ai2work-backup-1392959507` | `sudo bash -c '. /opt/matrix-hub/backup.env && echo $BACKUP_COS_BUCKET'` 有值 |
+| 5 | 装 `coscli` **并校验**（§7.6.1），配 `/root/.cos.yaml`（600） | `coscli --version` = v1.0.9；`sha256sum /usr/local/bin/coscli` 与 §7.6.1 的表一致 |
+| 6 | 装两条 cron：`17 3 * * *` 备份、`40 3 * * *` 清理（§14） | `crontab -l \| grep -c matrix-hub` = 2 |
+| 7 | 首次验收 | `deploy.sh <sha>` 通过 → `/healthz?scope=ready` 三项 ok → `backup.sh` 末行 `cos=uploaded … files=2` → 站点生成一份草稿 |
+
+> 前三步漏了会立刻报错（容器起不来）；**第 4–6 步漏了不会报错**——备份会一直打印
+> `cos=skipped` 而没人发现。这是重建时最容易静默降级的地方，验收必须看第 7 步的
+> `cos=uploaded`，不能只看「脚本跑完了」。
 
 ## 3. 部署
 

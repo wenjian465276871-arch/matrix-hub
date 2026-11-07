@@ -54,7 +54,7 @@
 | 项 | 值 | 采集 |
 |---|---|---|
 | 代码基线 | `5404382`（本地 HEAD；线上 tag 最后一次人工回读是 `ef7cffe`，2026-11-06 18:20） | `git rev-parse --short HEAD` |
-| 契约测试 | **418 passed** | `pytest tests -q`（约 1 分钟） |
+| 契约测试 | **419 passed** | `pytest tests -q`（约 1 分钟） |
 | 业务端点 | 35 + `/healthz` | `app.openapi()["paths"]`（`scripts/check_metrics.py`） |
 | 首屏 | **46.04 KB gzip / CSS 10.31 KB** | `npm run build`（2026-11-07，vue-tsc + vite） |
 | 性能与可访问性 | 库页 Perf **99** / LCP **1.29s** / CLS **0**；指导书页（8 步/20 图）**中位 95（9 轮 82–96，7/9 ≥90）** / LCP 1.42s / CLS 0 / TBT 中位 **265ms**；3 步页 94；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-11-07 线上复测，Lighthouse 13.6） |

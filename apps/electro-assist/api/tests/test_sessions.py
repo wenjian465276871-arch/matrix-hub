@@ -253,3 +253,42 @@ def test_session_creation_is_rate_limited(env, monkeypatch):
     assert r.status_code == 429
     assert r.json()["detail"]["code"] == "rate_limited"
     assert r.json()["detail"]["retry_after"] >= 1
+
+
+def test_finish_race_losing_side_gets_409(env, monkeypatch):
+    """并发双 finish：没抢到那一次写的一方必须拿到 409，不能假装成功。
+
+    真实竞态是「两个请求都通过 `status != active` 检查，只有一个 UPDATE 命中」。
+    这里用「库已结束、但服务读到旧 active 快照」重现同一个窗口：
+    store 层的 `WHERE status='active'` 是唯一裁决者，服务层要如实转达"没命中"，
+    否则后到的那个请求会以为自己的 note 落了库（实际被丢弃）。
+    """
+    sid = _start()
+    _submit(sid, 1, {"confirm_safe": True}, f"{sid}:s01:a1")
+
+    r = client.post(
+        f"/api/electro/sessions/{sid}/finish",
+        json={"status": "aborted", "note": "先到的那次"},
+    )
+    assert r.status_code == 200
+
+    # 构造"读到陈旧快照"：库里的状态不回退，只把返回给服务的副本改回 active
+    original_load = session_service._load
+
+    def stale_load(session_id: str):
+        snap_session, guide, process_id = original_load(session_id)
+        snap_session = dict(snap_session)
+        snap_session["status"] = "active"
+        return snap_session, guide, process_id
+
+    monkeypatch.setattr(session_service, "_load", stale_load)
+
+    r = client.post(
+        f"/api/electro/sessions/{sid}/finish",
+        json={"status": "aborted", "note": "后到的那次"},
+    )
+    assert r.status_code == 409
+    assert r.json()["detail"]["code"] == "session_closed"
+
+    # 先到的那次的 note 必须原样保留，后到的不能覆盖
+    assert store.get_session(sid)["note"] == "先到的那次"
