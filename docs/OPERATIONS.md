@@ -457,7 +457,7 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`core/ratelimit.py`、`services/sessions.py` 均假设单 worker）
 - ~~**真实密钥轮换（需本人）**~~ **已执行（2026-11-07 23:31）**：四步全走完——发新 Key → 改 `/opt/matrix-hub/.env`（只换一行，`getpass` 交互输入）→ `--force-recreate` → 23:35 吊销旧 Key。验收用**真实生成**而非健康检查（`j_b806bcebcc28461d` succeeded，12s）。详见 §17.3。剩一件：`.env.bak-*` 于 11-14 后清理。
 - ~~**GitHub secret scanning / push protection（需本人）**~~ **已确认（2026-11-07 23:50）**：仓库 `Settings → Advanced Security` 上 **Secret Protection 已启用**（按钮显示 `Disable` 即为开启），**Push protection 开关为 ON**；个人账号级 `Push protection for yourself` 亦为开启。**取证说明**：未鉴权 API 的 `security_and_analysis` 字段返回 `null`（需 admin token），所以只能由本人截图确认，无命令行证据。私有仓 `AI2Work` 不开——私有仓的 secret scanning 属 GitHub Advanced Security，需付费；要防的是公开仓。
-- **卸载 nginx（需本人，观察期早已结束）**：`systemctl stop nginx && systemctl disable nginx` 已做；确认无回退需求后 `apt-get purge -y nginx nginx-common`。注意这会删掉 host 侧证书与旧配置，Caddy 的证书在 `caddy_data` 卷里，不受影响。
+- ~~**卸载 nginx（需本人，观察期早已结束）**~~ **已执行（2026-11-08 00:00）**：先 `ss -lntp` 确认 80/443 只有 `docker-proxy`、nginx 为 `inactive`+`disabled`，再 `apt-get purge -y nginx nginx-common nginx-core`。实际移除 **10 个包**（含 `python3-certbot-nginx` 与 6 个 `libnginx-mod-*`）。验证：`dpkg -l | grep -c nginx` = **0**、`/healthz?scope=ready` = 200、站点页 = 200。Caddy 证书在 `caddy_data` 卷内，不受影响；`/var/www/html` 因非空被 dpkg 保留，可日后手动清理
 
 ## 12. 发布草稿（CLI）
 
