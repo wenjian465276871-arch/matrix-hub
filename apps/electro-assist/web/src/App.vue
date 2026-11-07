@@ -103,13 +103,16 @@ watch(
 }
 
 .site-foot__link {
-  color: rgba(255, 255, 255, 0.72);
+  /* 2026-11-07 axe 实测：原 rgba(255,255,255,.72) 是照深色导航条写的，
+     复制到浅底页脚后对比度约 1.1:1（8/8 扫描全红）。改用语义令牌，
+     浅色 #3d4a52 对 #F6F8F9 ≈ 8:1，暗色自动跟随。 */
+  color: var(--c-ink-2);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
 .site-foot__link:hover {
-  color: #fff;
+  color: var(--c-ink);
 }
 
 .nav-more:hover {
