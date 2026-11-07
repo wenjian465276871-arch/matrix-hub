@@ -277,9 +277,47 @@ BACKUP_COS_BUCKET=ai2work-backup-1392959507
 2026-11-07 第一次验证就栽在这里——下载失败后 `sqlite3.connect()` 顺手建了个空库，
 三个错误叠出一片假绿。验备份必须查**表的行数**，不能只看 integrity。
 
-首次安装（只需一次）：
+### 7.6.1 coscli 安装与升级（固定版本 + 校验）
+
+`coscli` 是**以 root 运行的外部二进制**，和基础镜像一样必须有校验，否则等于把一个不受控的可执行文件放进 root 的 PATH（阶段评审 2026-11-08 的 P2-1）。
+
+当前锁定：**v1.0.9**（2026-08-25 发布）
+
+| 项 | 值 |
+|---|---|
+| 下载 | `https://github.com/tencentyun/coscli/releases/download/v1.0.9/coscli-v1.0.9-linux-amd64` |
+| 官方校验清单 | 同 release 的 `sha256sum.log` |
+| SHA256 | `a07de5ba2800147a700ed29036b0c76a4229088cee68e1682d0eae19b638a915` |
+| 安装位置 | `/usr/local/bin/coscli`（755，root） |
+
+安装/升级一律走「下载 → 校验 → 原子替换」，**不要**直接 `curl -o /usr/local/bin/`：
 
 ```bash
+cd /tmp
+# 用官方文件名下载，才能让 sha256sum -c 直接对上清单里的条目
+curl -fSLO https://github.com/tencentyun/coscli/releases/download/v1.0.9/coscli-v1.0.9-linux-amd64
+curl -fsSLO https://github.com/tencentyun/coscli/releases/download/v1.0.9/sha256sum.log
+sha256sum -c sha256sum.log --ignore-missing     # 期望：coscli-v1.0.9-linux-amd64: OK
+```
+
+校验通过后再替换（原子 `mv`，避免 cron 正在调用时文件被截断）：
+
+```bash
+install -m 755 coscli-v1.0.9-linux-amd64 /usr/local/bin/coscli.new
+mv /usr/local/bin/coscli.new /usr/local/bin/coscli
+coscli --version                                 # 期望：v1.0.9
+rm -f /tmp/coscli-v1.0.9-linux-amd64 /tmp/sha256sum.log
+```
+
+`--ignore-missing` 是必要的：清单里还有 darwin / windows / arm 等 8 个平台，没下载的条目会被跳过而不是报错。
+
+**升级规则**：先改本节的三行（版本号、URL、SHA256），再按上面步骤执行；版本号与哈希必须同时改，只改一个等于没校验。
+
+**为什么不用官方安装脚本**：coscli 没有提供带签名的安装器，curl 管道执行（`curl … | sh`）比"下载后校验再装"更难审计。
+
+### 7.6.2 备份 cron（首次安装）
+
+首次安装（只需一次）：```bash
 install -d -o 10001 -g 10001 -m 700 /opt/matrix-hub/backups
 chmod 755 /opt/matrix-hub/backup.sh
 # 每天 03:17 备份；日志留在 /var/log
