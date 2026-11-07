@@ -216,6 +216,11 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 > 而失败的恰恰是"异地那一层"。现在上传没走完就在 `set -e` 处退出，本地新旧全留，
 > 下一次成功的运行再补做轮转。判据：手动让 `coscli` 失败时，`/opt/matrix-hub/backups`
 > 的文件数**不减反增**，日志停在 `[FAIL]` 之前。
+>
+> **2026-11-08 00:43–00:48 生产实测**：正常跑 → `rotated db_kept=7 uploads_kept=7`（14 个文件）；
+> 再用 `sudo env PATH=/usr/bin:/bin` 让 `coscli` 不可见 → `[FAIL] coscli 未安装`、`exit=1`、
+> **没有 `轮转` 那一行**；随后清点 **16 个文件（db 8 + uploads 8）** —— 旧份一份没删，
+> 多出来的是这次失败运行的新备份。次日 03:17 的正常运行会自动轮转回 7+7。
 
 **权限**：备份目录为 700，`.db` 与 `.tar.gz` 均为 600（计划 §11.3.3 的
 "加密或至少 root-only 600"，这里取后者）。脚本每次运行会把历史备份一并收紧：
