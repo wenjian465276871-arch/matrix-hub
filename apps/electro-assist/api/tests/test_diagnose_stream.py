@@ -110,3 +110,61 @@ def test_stream_rate_limited_before_frames(monkeypatch):
     r = client.post("/api/electro/diagnose?stream=1", json={"symptom": SYMPTOM})
     assert r.status_code == 429
     assert r.headers["Retry-After"]
+
+
+# ------------------------------------------------ 传输层重连（决策 #45）
+
+
+def test_resume_from_recall_skips_it():
+    """客户端说"收到 recall 了"：不重发它，直接给 rerank + done。
+
+    这条不是省流量，是省一次模型调用——重连时最贵的那一步恰好就是重排。
+    """
+    r = client.post(
+        "/api/electro/diagnose?stream=1",
+        json={"symptom": SYMPTOM},
+        headers={"Last-Event-ID": "recall"},
+    )
+    assert r.status_code == 200
+    frames = _frames(r.text)
+    assert [event for event, _ in frames] == ["rerank", "done"]
+    assert frames[-1][1]["matched"] is True
+
+
+def test_resume_from_rerank_only_done():
+    r = client.post(
+        "/api/electro/diagnose?stream=1",
+        json={"symptom": SYMPTOM},
+        headers={"Last-Event-ID": "rerank"},
+    )
+    frames = _frames(r.text)
+    assert [event for event, _ in frames] == ["done"]
+    assert frames[0][1]["results"]
+
+
+def test_resume_with_unknown_value_is_ignored():
+    """白名单外的值当没断点处理：旧客户端、中间层乱加头都不该把结果弄没。"""
+    r = client.post(
+        "/api/electro/diagnose?stream=1",
+        json={"symptom": SYMPTOM},
+        headers={"Last-Event-ID": "recall,rerank"},
+    )
+    assert r.status_code == 200
+    frames = _frames(r.text)
+    assert [event for event, _ in frames] == ["recall", "rerank", "done"]
+
+
+def test_resume_point_never_reached_reports_error():
+    """断点名合法但本流程不会产出（例如 `error`）：必须显式报错，不能给空流。
+
+    空流会让前端以为"服务端卡住了"，而真正的原因是两边版本对不上。
+    """
+    r = client.post(
+        "/api/electro/diagnose?stream=1",
+        json={"symptom": SYMPTOM},
+        headers={"Last-Event-ID": "error"},
+    )
+    frames = _frames(r.text)
+    assert len(frames) == 1
+    assert frames[0][0] == "error"
+    assert frames[0][1]["code"] == "resume_mismatch"

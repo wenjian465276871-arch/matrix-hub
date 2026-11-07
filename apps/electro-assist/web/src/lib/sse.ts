@@ -4,9 +4,11 @@
  *  排查接口是 POST + JSON 入参，且 429/422 必须能被读到并显示 `Retry-After`——
  *  EventSource 遇到非 200 只会静默重连，用户看到的是"一直转圈"。
  *
- *  不实现 `Last-Event-ID` 重连：`POST /diagnose` 不承诺跨请求续生成
- *  （§12.8 明确写了），重连等于把同一次检索重跑一遍，多花钱还不一定更快。
- *  断流就如实报错，让用户点重试。
+ *  `Last-Event-ID` 重连（2026-11-08，决策 #45）：断流且**已收到帧、未收到终止帧**时
+ *  自动重连一次，带上最后收到的事件名，服务端据此跳过已发帧。
+ *  不做跨请求续生成——重连会把被打断的那一步重跑（重排多花一次模型调用，约 ¥0.002），
+ *  所以**只重连一次**；再失败就如实报错，让用户点重试。一帧都没收到的失败不重连：
+ *  那等于把整个请求重跑，与用户手点重试没有区别，只是偷偷多花一次钱。
  */
 
 import { ApiError, parseErrorResponse } from './http'
@@ -16,19 +18,90 @@ export type SseHandler = (event: string, data: unknown) => void
 interface StreamOptions {
   signal?: AbortSignal
   onEvent: SseHandler
+  /** 关掉自动重连（默认开启）。一次性诊断调用与测试用得上。 */
+  resume?: boolean
+}
+
+/** 收到这些事件说明本轮已经结束，不该再重连。 */
+const TERMINAL_EVENTS = new Set(['done', 'error'])
+
+interface StreamState {
+  lastEventId: string | null
+  terminal: boolean
 }
 
 /** 一次 SSE 请求。正常结束 resolve；HTTP 错误抛 `ApiError`；网络中断抛原异常。 */
 export async function postStream(
   path: string,
   body: unknown,
-  { signal, onEvent }: StreamOptions,
+  { signal, onEvent, resume = true }: StreamOptions,
 ): Promise<void> {
+  const state: StreamState = { lastEventId: null, terminal: false }
+  const track: SseHandler = (event, data) => {
+    // 先交给调用方再记账：调用方抛异常时不能把"没显示出来的帧"记成已收到。
+    onEvent(event, data)
+    state.lastEventId = event
+    if (TERMINAL_EVENTS.has(event)) state.terminal = true
+  }
+
+  try {
+    await runOnce(path, body, signal, track, null)
+  } catch (err) {
+    if (!canResume(resume, signal, state)) throw err
+    await runOnce(path, body, signal, track, state.lastEventId)
+    assertTerminal(state)
+    return
+  }
+
+  // 流正常关闭却没有终止帧：服务端崩了、反代超时、或中间层截断。
+  // 这种"静默截断"比抛异常更坏——前端会以为结果就是这几个候选。
+  if (state.lastEventId !== null && !state.terminal) {
+    if (!canResume(resume, signal, state)) {
+      throw new ApiError('server', 200, 'stream_truncated')
+    }
+    await runOnce(path, body, signal, track, state.lastEventId)
+    assertTerminal(state)
+  }
+}
+
+/** 重连之后仍然没有终止帧：这次必须抛，不能再静默返回。 */
+function assertTerminal(state: StreamState): void {
+  if (!state.terminal && state.lastEventId !== null) {
+    throw new ApiError('server', 200, 'stream_truncated')
+  }
+}
+
+/** 该不该再试一次。
+ *
+ *  HTTP 层错误（429 / 422 / 503 / `stream_unsupported`）都发生在读到第一帧之前，
+ *  那时 `lastEventId` 仍是 null，所以不需要再按错误类型判断一遍——
+ *  配额问题重试不会好，而"一帧都没收到"的重连等于把整个请求重跑。
+ */
+function canResume(resume: boolean, signal: AbortSignal | undefined, state: StreamState): boolean {
+  if (!resume) return false
+  if (signal?.aborted) return false
+  if (state.terminal) return false
+  return state.lastEventId !== null
+}
+
+async function runOnce(
+  path: string,
+  body: unknown,
+  signal: AbortSignal | undefined,
+  onEvent: SseHandler,
+  resumeFrom: string | null,
+): Promise<void> {
+  const headers: Record<string, string> = {
+    Accept: 'text/event-stream',
+    'Content-Type': 'application/json',
+  }
+  if (resumeFrom) headers['Last-Event-ID'] = resumeFrom
+
   let res: Response
   try {
     res = await fetch(path, {
       method: 'POST',
-      headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(body),
       signal,
     })

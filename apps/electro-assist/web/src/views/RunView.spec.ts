@@ -183,6 +183,23 @@ describe('RunView 载入', () => {
     wrapper.unmount()
   })
 
+  it('单位超过 3 字符时加宽兜底，常规单位不加宽（计划 §12.8）', async () => {
+    // 生成端已把单位限到 3 字符；超长只可能来自历史/导入数据，
+    // 展示层必须给它 56px 的位，而不是截断（截断单位等于改变量级）。
+    mocks.getJson.mockResolvedValue(snapshot([step([crit({ unit: 'mm/s²' })])]))
+    const wide = mountView()
+    await flushPromises()
+    expect(wide.findAll('.unit-chip')).toHaveLength(1)
+    expect(wide.find('.unit-chip').classes()).toContain('unit-chip--wide')
+    wide.unmount()
+
+    mocks.getJson.mockResolvedValue(snapshot([step([crit()])]))
+    const normal = mountView()
+    await flushPromises()
+    expect(normal.find('.unit-chip').classes()).not.toContain('unit-chip--wide')
+    normal.unmount()
+  })
+
   it('会话已结束时跳转到记录页，而不是停在引导页', async () => {
     const data = snapshot()
     data.session.status = 'done'

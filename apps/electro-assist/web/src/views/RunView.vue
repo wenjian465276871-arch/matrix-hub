@@ -375,7 +375,13 @@ onBeforeUnmount(() => {
                       step="any"
                       placeholder="实测值"
                     />
-                    <span class="unit-chip">{{ criterion.unit }}</span>
+                    <!-- 单位 >3 字符只可能来自历史/导入数据（生成端已限 3 字符），
+                         按计划 §12.8 加宽到 56px 兜底，绝不用 overflow 截断。 -->
+                    <span
+                      class="unit-chip"
+                      :class="{ 'unit-chip--wide': (criterion.unit ?? '').length > 3 }"
+                      >{{ criterion.unit }}</span
+                    >
                   </div>
                   <p v-if="warnOf(criterion)" class="field__error">
                     {{ warnOf(criterion) }}
@@ -616,6 +622,13 @@ onBeforeUnmount(() => {
   color: var(--c-primary-ink);
   font-family: var(--font-mono);
   font-size: 13px;
+}
+
+/* 计划 §12.8：历史/导入数据的单位可能超过 3 字符（生成端已限 3），
+   展示层加宽到 56px 兜底。不用 `overflow:hidden`——截断单位比换行更糟：
+   「mm/s²」被截成「mm/」现场会按错误量级读数。 */
+.unit-chip--wide {
+  min-width: 56px;
 }
 
 .check-row {

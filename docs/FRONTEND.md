@@ -11,10 +11,10 @@
 |---|---|---|
 | TypeScript | **采用** | 契约仍在演进，`Job`/判据都是联合类型，靠类型提前暴露漂移；esbuild 只剥类型，**产物零成本**。`vue-tsc --noEmit` 在 `npm run build` 里跑，0 error 才出包 |
 | 状态库 | **不引入 Pinia** | 三个页面的状态生命周期都短于一次导航：生成态随跳转结束、引导态由 `GET /sessions/{id}` 重建、配额每次进页拉一次。引 store 只增加同步点 |
-| B 流式 | **不做**，一次性 JSON | 知识库 18 条、P95 个位数毫秒，没有可流的内容；传输统一走 `lib/http.ts` |
+| B 流式 | ~~**不做**，一次性 JSON~~ → **做三帧业务流**（2026-11-01 起） | 原判断只对一半：召回是毫秒，但**重排是一次模型调用 1–4 秒**，等的就是它。流 `recall → rerank → done`，每帧对应一步真的完成；切三段发是假流式。传输走 `lib/sse.ts`（`fetch` + `getReader`，只有它能读到 429 与 `Retry-After`） |
 | 关键 CSS 内联 | **否决** | 内联 `<style>` 需 `style-src 'unsafe-inline'`，与 `default-src 'self'` 冲突。改单文件 CSS + `<link>`，并关掉 `modulePreload.polyfill` |
 
-一句话：**代码比方案简单得多**——没有 store、没有 SSE、没有独立 UI 组件库，状态在视图里，网络层只有一个文件。
+一句话：**代码比方案简单得多**——没有 store、没有独立 UI 组件库，状态在视图里，网络层只有 `http.ts` + `sse.ts` 两个文件。
 
 ## 1. 工程结构（实际）
 
@@ -168,7 +168,7 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 | 项 | 状态 |
 |---|---|
 | 类型检查 | `vue-tsc --noEmit`，0 error 才出包 |
-| 单测 | **136 条**（Vitest 5.1 + @vue/test-utils + happy-dom）；覆盖率 **54.76 / 44.91 / 44.56 / 56.66**，四维阈值 54/52/43/43 **阻断** CI（2026-11-06） |
+| 单测 | **144 条**（Vitest 5.1 + @vue/test-utils + happy-dom）；覆盖率 **57.71 / 46.83 / 46.37 / 59.77**，四维阈值 54/52/43/43 **阻断** CI（2026-11-08） |
 | E2E | Playwright **26 条**：6 条冒烟 + 抽屉/暗色/打印/取消 4 条 + 续接/倒计时/时间预算/隐私/**成功即跳转** 5 条 + **横屏两栏 1 条**（844×390 两栏、667×375 回落单列、390×844 竖屏不变）+ **窄屏与超限 1 条**（320 宽表格堆叠/判据堆叠、软键盘顶升 240px、点击放大层焦点与 Esc、超限按钮改文案后由服务端判异常）+ **收尾 4 条**（800ms 转骨架与提交阶段取消、路由焦点归位 h1、列表加载更多 12/页、打印表头 `table-header-group`）+ **降级与再生成 2 条**（无图示/无素材时占位可见且判据仍在、详情页「再生成一份草稿」打到正确端点并交接 job）；交互类一律 route mock，不花 token；CI 内跑，失败阻断发布 |
 | 打印 | Chromium 打印记录页，A4 三页无截断（真机验收 2026-10-21） |
 | 可访问性 | axe-core **0 violation**（4 页 × 2 视口 = 8 次扫描，**2026-11-07 线上复测**）；Lighthouse A11y **100**。本轮复测先抓到页脚链接对比度 1.1:1（8/8 全红），改 `--c-ink-2` 后清零；同日补 skip-link 与 13 个原语的 `<title>`（改动后 axe 复跑仍 0） |
@@ -205,7 +205,7 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 
 | 原欠账 | 落地位置 |
 |---|---|
-| `lib/sse.ts` + 流式解析 | `lib/sse.ts`（`postStream`，fetch + `getReader` 按帧解析）；`DiagnoseView` 消费 recall→rerank→done |
+| `lib/sse.ts` + 流式解析 | `lib/sse.ts`（`postStream`，fetch + `getReader` 按帧解析）；`DiagnoseView` 消费 recall→rerank→done。**2026-11-08 加重连**：断流且已收帧、未收终止帧时自动重连一次，带 `Last-Event-ID`（值是最后一个事件名），服务端跳过已发帧；一帧未收不重连（那等于重跑整个请求） |
 | `_fe-error` 上报端点 | 后端 `routers/fe.py`（只写日志、不落库）+ 前端 `lib/report.ts`（每会话 20 条上限、60s 去重） |
 | `aria-live` 双区 | `components/ui/LiveRegion.vue` + `lib/announce.ts`（`polite` / `assertive` 两区，2s 去重） |
 

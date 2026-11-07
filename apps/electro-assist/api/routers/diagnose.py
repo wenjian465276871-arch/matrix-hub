@@ -9,6 +9,11 @@
 召回确实是毫秒，但**重排是一次模型调用**，有 Key 时 1–4 秒。等的就是这一段，
 而它前面已经能给出候选列表。CSV 式"假分帧"（把同一个结果切三段发）不做——
 每帧必须是某一步真的完成了，否则不如不要。
+
+**传输层重连（2026-11-08，决策 #45）**：请求头 `Last-Event-ID` 的值是**客户端最后
+收到的事件名**（`recall` / `rerank` / `done`），服务端据此跳过该帧及之前所有帧。
+不做跨请求续生成：重连会把被打断的那一步重跑一遍（重排多花一次模型调用，约 ¥0.002），
+换来的是"客户端已看到的帧不重复、没看到的帧不丢"。
 """
 from __future__ import annotations
 
@@ -19,7 +24,7 @@ import re
 from collections.abc import Iterator
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Header, HTTPException, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -29,6 +34,9 @@ from services import diagnosis, knowledge
 
 router = APIRouter(prefix="/api/electro/diagnose", tags=["diagnose"])
 RUN_ID_RE = re.compile(r"^d_[0-9a-f]{16}$")
+# `Last-Event-ID` 的可接受值：本接口会产出的事件名。
+# 含 `error` 是因为它也是终止帧——客户端收到 error 后不该再重连。
+RESUME_EVENTS = ("recall", "rerank", "done", "error")
 
 log = logging.getLogger("electro.diagnose")
 
@@ -107,19 +115,40 @@ def _frame(event: str, payload: dict) -> str:
     return f"event: {event}\ndata: {body}\n\n"
 
 
-def _stream(body: DiagnoseIn) -> Iterator[str]:
+def _stream(body: DiagnoseIn, resume_from: str | None = None) -> Iterator[str]:
     """把业务流程翻成帧。异常也要发帧，不能直接断开。
 
     客户端看到"连接被重置"只会说"页面卡住了"；收到 `event: error` 才能
     把 `message` 显示出来，也才知道该不该重试。
+
+    `resume_from` 是客户端最后收到的事件名：跳过它及之前的所有帧。
+    为什么要按事件名而不是字节偏移：三帧的边界就是阶段边界，没有"半帧"可续。
     """
+    skipping = resume_from
     try:
         for event, payload in knowledge.iter_diagnose(
             body.symptom, system=body.system.value if body.system else None, top_k=body.top_k
         ):
+            if skipping is not None:
+                if event == skipping:
+                    # 断点帧本身不再重发——客户端已经有了。
+                    skipping = None
+                continue
             if event == "done" and body.context is not None:
                 payload["context"] = body.context.model_dump()
             yield _frame(event, payload)
+        if skipping is not None:
+            # 客户端报了一个本次流程不会产出的事件名（版本不一致、或伪造）。
+            # 静默返回空流会让前端以为"卡住"，必须显式说清楚。
+            log.warning("unknown Last-Event-ID: %s", skipping)
+            yield _frame(
+                "error",
+                {
+                    "stage": "error",
+                    "code": "resume_mismatch",
+                    "message": "断点位置无法识别，请重新发起排查",
+                },
+            )
     except Exception as exc:  # noqa: BLE001 - 流内异常只能靠帧传递
         log.exception("排查流式推送失败")
         yield _frame(
@@ -138,10 +167,16 @@ def diagnose(
     body: DiagnoseIn,
     request: Request,
     stream: bool = Query(False, description="true 时按 recall → rerank → done 三帧推送"),
+    last_event_id: str | None = Header(
+        default=None,
+        alias="Last-Event-ID",
+        description="客户端最后收到的事件名；只对 stream=1 生效",
+    ),
 ) -> dict | StreamingResponse:
     """一次性 JSON 或 SSE，二选一。默认一次性：老客户端与 curl 都不用改。"""
     # 限流必须在返回响应之前做完：一旦开始流，HTTP 状态码已经发出去了，
     # 再发现超额只能发一个"429 帧"——那比直接 429 更难处理。
+    # 重连请求**照常计数**：免限流等于给"反复断流"发一张免费重排券。
     allowed, retry = _limiter.hit(ratelimit.client_ip(request))
     if not allowed:
         raise HTTPException(
@@ -156,8 +191,14 @@ def diagnose(
             result["context"] = body.context.model_dump()
         return result
 
+    # 白名单外的值一律当作没断点：最可能是旧版客户端或中间层乱加的头，
+    # 正常返回结果比让用户看一条 `resume_mismatch` 更有用。
+    resume_from = last_event_id if last_event_id in RESUME_EVENTS else None
+    if last_event_id is not None and resume_from is None:
+        log.warning("忽略非法 Last-Event-ID: %r", last_event_id[:40])
+
     return StreamingResponse(
-        _stream(body),
+        _stream(body, resume_from),
         media_type="text/event-stream; charset=utf-8",
         headers={
             "Cache-Control": "no-cache, no-store",
