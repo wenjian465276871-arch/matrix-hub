@@ -2,11 +2,13 @@
 # P0 骨架镜像：Caddy（唯一入口）+ electro API + 静态站点
 # 构建只在 CI 发生；服务器只拉成品镜像
 
-# ---- Caddy 二进制来源（正式构建时改为按 digest 固定）----
-FROM caddy:2.8-alpine AS caddy-bin
+# ---- Caddy 二进制来源（2026-11-07 起按 digest 固定，计划 §11.3.4）----
+# 刷新方式：`docker buildx imagetools inspect <image>:<tag> | grep Digest`
+# 三个 digest 都是 **manifest list（index）**，amd64/arm64 由构建器按平台选。
+FROM caddy:2.8-alpine@sha256:af32e97399febea808609119bb21544d0265c58a02836576e32a2d082c262c17 AS caddy-bin
 
 # ---- 前端构建（Node 只在构建阶段存在，不进运行镜像）----
-FROM node:22-alpine AS web
+FROM node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202 AS web
 WORKDIR /app
 # 先只拷 manifest：依赖不变时这一层可命中缓存
 COPY apps/electro-assist/web/package.json apps/electro-assist/web/package-lock.json ./
@@ -19,7 +21,7 @@ RUN npm run build
 RUN node -e "const fs=require('fs');const s=fs.readFileSync('dist/index.html','utf8');if(/<script(?![^>]*\bsrc=)|<style[\s>]/.test(s)){console.error('CSP 违规：产物含内联 script/style');process.exit(1)}"
 
 # ---- 运行镜像 ----
-FROM python:3.12-slim
+FROM python:3.12-slim@sha256:4840d514c583a4d3d8cad3940e68dee6f0f6f3635c12fcd0a3d74c21a5b93a54
 
 ARG APP_UID=10001
 ARG PIP_INDEX_URL=https://mirrors.aliyun.com/pypi/simple
