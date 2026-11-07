@@ -66,8 +66,8 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
 | B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.8ms** / P95 **5.3ms** | `python scripts/eval_diagnose.py`（2026-11-01 本机复跑，441 采样；10-30 为 2.6/4.4，差异来自机器负载） |
 | 前端首屏 | **45.96 KB** gzip（预算 75KB），CSS **10.14 KB**（预算 14KB） | `npm run build`（2026-11-06） |
-| 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 100** / LCP **1.31s** / CLS **0** / TBT **70ms**；指导书页 **99** / **1.29s** / **0** / **124.5ms** | Lighthouse 13.5 + `scripts/lighthouse.mjs`（2026-10-23 线上） |
-| 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（含"注入低对比元素必须被抓到"的 harness 自检） |
+| 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 99** / LCP **1.29s** / CLS **0** / TBT **133ms**；指导书页（8 步 / 20 图）**87** / **1.44s** / **0** / **531ms**；3 步页 **94**。**重页面 Perf 未达 ≥90 目标**，已登记 | Lighthouse 13.6 + `scripts/lighthouse.mjs`（2026-11-07 线上，页面 4–5 轮） |
+| 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（2026-11-07 线上复测；本轮修掉页脚链接对比度 1.1:1 的一处 serious） |
 | 契约面 | **35 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
 | 前端 E2E | **26 条**：6 条冒烟 + 抽屉/暗色/打印/取消 4 条 + 续接/倒计时/时间预算/隐私/成功即跳转 5 条 + 横屏两栏 1 条 + 窄屏/键盘/表格堆叠/放大/仍要提交 1 条 + 800ms 转骨架 / 路由焦点 / 加载更多 / 打印表头 4 条 + 修正与搜索 2 条 + **无图示占位 1 条 + 再生成入口 1 条** + 上一轮增量 1 条 | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
 
