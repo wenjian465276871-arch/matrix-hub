@@ -111,6 +111,15 @@
     border: 1px solid #ccc;
   }
 
+  /* 屏幕端用 content-visibility:auto 跳过首屏外画布；打印必须整页还原，
+     否则 Chromium 会打出空白页（2026-11-07 加，同 FRONTEND §8 记的坑）。
+     这条必须 `!important`：组件是 scoped 的（`.figure__canvas[data-v-xxx]`，
+     0,2,0），print.css 里写任何同权重规则都只能靠加载顺序赌运气；
+     而且 A1 引导页也复用同一个组件，收敛在这一处比逐页加选择器可靠。 */
+  .figure__canvas {
+    content-visibility: visible !important;
+  }
+
   /* 现场素材：不裂页、不超一页高度。用户照片尺寸不可控，
      一张竖拍的手机会整页放不下，必须在打印时压住。 */
   .asset,

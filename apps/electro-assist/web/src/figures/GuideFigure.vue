@@ -76,14 +76,20 @@ onErrorCaptured((err) => {
 <template>
   <figure class="figure">
     <figcaption v-if="spec.caption" class="figure__caption">{{ spec.caption }}</figcaption>
-    <component
-      :is="component"
-      v-if="component && !failed"
-      :params="spec.params"
-      :label="spec.caption || spec.fallback_text"
-      :motion="spec.motion"
-    />
-    <p v-else class="figure__fallback">{{ spec.fallback_text }}</p>
+    <!-- 2026-11-07：8 步 / 20 图的正式案例 TBT 531ms、Perf 87（目标 ≥90）。
+         只让「画布」参与 content-visibility，题注留在外面——实测整块跳过会把
+         题注一起从无障碍树里拿掉（CDP 全量 AX 树里搜不到「收工确认」），
+         而正文/判据始终可读。打印在 print.css 里还原为 visible。 -->
+    <div class="figure__canvas">
+      <component
+        :is="component"
+        v-if="component && !failed"
+        :params="spec.params"
+        :label="spec.caption || spec.fallback_text"
+        :motion="spec.motion"
+      />
+      <p v-else class="figure__fallback">{{ spec.fallback_text }}</p>
+    </div>
     <p v-if="failed" class="figure__pending">{{ reason }} · 已降级为文字</p>
 
     <!-- 只在横屏短高出现：竖屏的图够大，多一个按钮只是噪音 -->
@@ -119,6 +125,14 @@ onErrorCaptured((err) => {
 <style scoped>
 .figure {
   position: relative;
+}
+
+/* 首屏外的画布跳过布局与绘制：20 张内联 SVG 的同步布局就是 TBT 主因。
+   `auto` 关键字记住上次渲染高度，滚动条不跳。题注不在这个容器里，
+   所以读屏仍能读到「读数示例」这类文字。 */
+.figure__canvas {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
 }
 
 /* 默认不显示：竖屏图够大，只在横屏短高才需要 */
