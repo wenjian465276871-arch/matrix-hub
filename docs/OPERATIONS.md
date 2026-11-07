@@ -658,6 +658,19 @@ docker exec matrix-hub python -m scripts.cleanup --apply
 
 > 清理是**不可逆**的。`--apply` 前先看一眼 dry-run 的条数与样例；输出里没有删除明细就说明没匹配到数据。
 
+**重试实测（2026-11-08 01:09，端到端，非单测）**
+
+单测早就覆盖了 `run_with_retry` 的四个分支，缺的是"真实进程里到底会不会重试"。做法：本地临时库 + 端口 8015 + `RETENTION_AT` 设为 1 分钟后 + `RETENTION_RETRY_S=1`，启动后把库文件截成 0 字节制造确定性失败。
+
+| 观察点 | 实测 |
+|---|---|
+| 调度线程是否按时醒来 | 设 `01:09`，实际 `01:09:02` 触发 |
+| 重试次数 | 日志出现 2 次「失败（第 N/3 次）**，1 秒后重试**」+ 1 次「连续失败 3 次，本轮放弃」= **3 次尝试** |
+| 状态落盘 | `consecutive_failures: 3`、`last_error: "OperationalError: no such table: sessions"` |
+| 恢复后 | `consecutive_failures: 0`、`last_success_at` 刷新 → **成功即清零** |
+
+**仍未直接观测的一项**：生产 03:40 的定时触发。它与上面验的是同一段 `_loop`，差别只是等 86400 秒；次日看 `/healthz` 的 `retention.last_success_at` 是否落在 **03:40** 即可确认，不需要再用故障注入。
+
 ## 15. 错误号与重排预算（2026-10-22）
 
 **错误号（ref）**：所有响应带 `X-Request-Id`；未捕获异常统一返回
