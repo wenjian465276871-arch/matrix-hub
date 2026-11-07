@@ -81,6 +81,7 @@ const model = computed(() => {
       :aria-label="label || `对照表，${model.vertical} 行`"
       preserveAspectRatio="xMidYMid meet"
     >
+    <title>{{ label || `对照表，${model.vertical} 行` }}</title>
     <rect x="0" y="0" width="340" :height="model.headerH" class="fig-track" />
     <g v-for="(header, col) in model.headers" :key="header">
       <text

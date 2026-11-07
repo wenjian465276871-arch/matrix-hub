@@ -62,6 +62,7 @@ const model = computed(() => {
     :aria-label="label || `力矩目标 ${model.target}${model.unit}，公差 ±${model.tolerance}`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `力矩目标 ${model.target}${model.unit}，公差 ±${model.tolerance}` }}</title>
     <path
       :d="model.track"
       fill="none"

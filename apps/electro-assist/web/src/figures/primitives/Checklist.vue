@@ -37,6 +37,7 @@ const model = computed(() => {
     :aria-label="label || `检查清单，共 ${model.rows.length} 项`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `检查清单，共 ${model.rows.length} 项` }}</title>
     <g v-for="row in model.rows" :key="row.text">
       <rect
         x="12"

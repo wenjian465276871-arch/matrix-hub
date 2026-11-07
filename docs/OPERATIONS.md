@@ -220,6 +220,29 @@ docker exec matrix-hub sh -c "chmod 700 /srv/backups && chmod 600 /srv/backups/*
 > 2026-10-22 起备份包含上传目录。此前只备份 db：恢复后指导书在、图片全丢，
 > 而图片是视觉原语与切图的输入，等于半个产品没了。
 
+### 7.5 异地副本（2026-11-07）
+
+本地备份挡不住"整台机器没了"。在 cron 环境里给一个第二位置即可：
+
+```bash
+BACKUP_OFFSITE_DIR=/mnt/nas/matrix-hub-backups   # 或任意挂载点
+```
+
+- 设置了就复制 `electro-*.db` 与 `uploads-*.tar.gz`，并**逐字节比对大小**，不一致退出 1；
+- 没设置就打印 `offsite=skipped`——"跑完了"不等于"有异地副本"，不静默通过；
+- 轮转与本地同口径（`KEEP`，默认 7），只清理这两类文件，不碰目录里的其他东西；
+- **云对象存储**：脚本不碰凭证。把 OSS 挂到本机，或让 `rclone sync "$BACKUP_OFFSITE_DIR" oss:…`
+  定时同步（AK 写 rclone.conf，权限 600）。手册不记录任何密钥。
+
+验证（本机已用真实脚本块跑过：复制、比对、KEEP=3 轮转均通过）：
+
+```bash
+BACKUP_OFFSITE_DIR=/tmp/offsite ./backup.sh
+# 末行应出现：offsite=copied dir=/tmp/offsite files=2 keep=7
+```
+
+> **未完成的部分**：生产上的第二位置（NAS 或 OSS）需要你提供路径/AK，脚本侧已就绪。
+
 首次安装（只需一次）：
 
 ```bash
@@ -395,9 +418,12 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
 - 监控告警：**GitHub Actions 定时探活已加**（`.github/workflows/uptime.yml`，查 `/healthz`、页面与 guides；失败会以 workflow 失败通知）。**注意实际频次**：cron 写每 10 分钟，但 GitHub 调度实测日均约 2–8 次（10-22～10-30），最坏间隔可达数小时；它只是低成本兜底，需要分钟级告警请外接 UptimeRobot 一类服务
 - 清理任务**已从空跑转真删**（§14，2026-10-31；cron 每日 03:40，先备份后删）
-- 异地备份：当前只有服务器本地 `/opt/matrix-hub/backups` 与本机 `pull_backup.py` 拉取，**无异地副本**
+- 异地备份：机制已加（`BACKUP_OFFSITE_DIR`，见 §7.5；复制 + 大小校验 + 同口径轮转），**位置尚未配置**——需要 NAS 挂载点或 OSS 的 AK，脚本侧不碰凭证
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯；已加次数上限与限流）
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`core/ratelimit.py`、`services/sessions.py` 均假设单 worker）
+- **真实密钥轮换（需本人）**：目前只演练过失败侧（§17.3）。四步——DeepSeek 控制台发新 Key → 改 `/opt/matrix-hub/.env` → `docker compose up -d --force-recreate` → 吊销旧 Key。验证：`/healthz` 全 ok + 生成一份草稿。
+- **GitHub secret scanning / push protection（需本人）**：Settings → Code security，确认 Secret scanning 与 Push protection 均为 Enabled（公开仓默认开，但没人核实过）。
+- **卸载 nginx（需本人，观察期早已结束）**：`systemctl stop nginx && systemctl disable nginx` 已做；确认无回退需求后 `apt-get purge -y nginx nginx-common`。注意这会删掉 host 侧证书与旧配置，Caddy 的证书在 `caddy_data` 卷里，不受影响。
 
 ## 12. 发布草稿（CLI）
 

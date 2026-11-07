@@ -46,6 +46,7 @@ const model = computed(() => {
     :aria-label="label || `运动时序，共 ${model.rows.length} 段`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `运动时序，共 ${model.rows.length} 段` }}</title>
     <line
       x1="20"
       :y1="model.rows[0].y - 10"

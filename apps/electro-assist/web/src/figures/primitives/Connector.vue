@@ -40,6 +40,7 @@ const model = computed(() => {
     :aria-label="label || `接插件针脚 ${model.pins.join('、')}`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `接插件针脚 ${model.pins.join('、')}` }}</title>
     <rect
       x="8"
       y="14"

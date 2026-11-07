@@ -39,6 +39,7 @@ const model = computed(() => {
     :aria-label="label || `第 ${model.index} 步：${model.action}`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `第 ${model.index} 步：${model.action}` }}</title>
     <rect
       x="8"
       y="8"

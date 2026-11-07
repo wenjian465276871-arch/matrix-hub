@@ -34,6 +34,7 @@ const model = computed(() => {
     :aria-label="`状态：${model.label}`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ `状态：${model.label}` }}</title>
     <circle cx="42" cy="44" r="27" fill="none" stroke-width="2" class="fig-stroke-line" />
     <circle
       cx="42"

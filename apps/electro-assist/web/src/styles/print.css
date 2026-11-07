@@ -4,6 +4,23 @@
 @page {
   size: A4;
   margin: 12mm;
+
+  /* 记录页页眉（计划 §12.6 / §12.7 裁决 2）：编号与时间每页重复。
+     用边距盒而不是 position:fixed——固定元素会盖住每页正文首行；边距盒在
+     页边距区内，正文从 12mm 以下开始。变量由 RecordView 用 CSSOM 写入
+     （CSP 是 style-src 'self'，内联 style 会被拦）；别的页面没有变量时输出空串。
+     Chromium 实测：4 页 PDF 每页页首都有这两个字段。 */
+  @top-left {
+    content: var(--print-run-id, "");
+    font-size: 9pt;
+    color: #555;
+  }
+
+  @top-right {
+    content: var(--print-run-time, "");
+    font-size: 9pt;
+    color: #555;
+  }
 }
 
 @media print {

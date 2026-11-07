@@ -54,6 +54,7 @@ const model = computed(() => {
     :aria-label="label || `门状态：${model.label}`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `门状态：${model.label}` }}</title>
     <text x="12" y="18" font-size="12" class="fig-ink2">
       {{ str(props.params.label) || '门状态' }}
     </text>

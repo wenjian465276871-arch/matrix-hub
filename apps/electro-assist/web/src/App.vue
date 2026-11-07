@@ -36,12 +36,22 @@ watch(
   () => route.fullPath,
   () => close(false),
 )
+
+/* 跳转链接原生行为只改 hash，Chrome 不一定把焦点交给带 tabindex=-1 的 main，
+   结果下一次 Tab 又回到跳转链接。这里显式聚焦，键盘路径才真的"跳过去了"。 */
+function skipToMain(): void {
+  requestAnimationFrame(() => {
+    document.getElementById('main')?.focus()
+  })
+}
 </script>
 
 <template>
   <!-- 播报区必须在页面加载时就存在（计划 §12.5）：后插入的 aria-live
        容器，部分读屏不会播报它的第一次内容。 -->
   <LiveRegion />
+
+  <a class="skip-link" href="#main" @click="skipToMain">跳到主要内容</a>
 
   <header class="site-nav">
     <div class="nav-inner">
@@ -70,7 +80,7 @@ watch(
     </div>
   </header>
 
-  <main class="container">
+  <main id="main" class="container" tabindex="-1">
     <RouterView />
   </main>
 
@@ -83,6 +93,33 @@ watch(
 </template>
 
 <style scoped>
+/* 键盘用户第一个 Tab 就能跳过导航直达正文（计划 §12.5「全键盘可操作」）。
+   平时移出视口，聚焦时贴左上角；打印不参与。 */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 10px 14px;
+  border: 2px solid var(--c-primary);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font-size: 14px;
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: translateY(0);
+}
+
+@media print {
+  .skip-link {
+    display: none;
+  }
+}
+
 .nav-links {
   display: flex;
   align-items: center;

@@ -53,6 +53,7 @@ const model = computed(() => {
     :aria-label="label || `标注：${str(params.target)}`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `标注：${str(params.target)}` }}</title>
     <rect
       :x="model.target.x"
       :y="model.target.y"

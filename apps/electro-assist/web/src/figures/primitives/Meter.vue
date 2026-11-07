@@ -62,6 +62,7 @@ const model = computed(() => {
     "
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || (model.hasValue ? `仪表读数 ${model.value}${model.unit}` : `允许范围 ${model.min} 至 ${model.max}${model.unit}`) }}</title>
     <text v-if="model.label" x="16" y="18" font-size="13" class="fig-ink2">
       {{ model.label }}
     </text>

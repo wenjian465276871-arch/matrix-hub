@@ -41,6 +41,7 @@ const model = computed(() => {
     :aria-label="label || `标注示意，共 ${model.markers.length} 处`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `标注示意，共 ${model.markers.length} 处` }}</title>
     <text v-if="model.title" x="12" y="16" font-size="12" class="fig-ink2">
       {{ model.title }}
     </text>

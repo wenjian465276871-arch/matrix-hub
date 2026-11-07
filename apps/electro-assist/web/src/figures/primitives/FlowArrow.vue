@@ -89,6 +89,7 @@ const model = computed(() => {
     :aria-label="label || `操作流程，共 ${model.boxes.length} 步`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `操作流程，共 ${model.boxes.length} 步` }}</title>
     <g v-for="box in model.boxes" :key="box.text">
       <rect
         :x="box.x"

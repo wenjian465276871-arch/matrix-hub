@@ -66,6 +66,7 @@ const model = computed(() => {
     :aria-label="label || `端子顺序 ${model.items.map((i) => i.text).join('、')}`"
     preserveAspectRatio="xMidYMid meet"
   >
+    <title>{{ label || `端子顺序 ${model.items.map((i) => i.text).join('、')}` }}</title>
     <g v-for="item in model.items" :key="item.text">
       <rect
         :x="item.x"

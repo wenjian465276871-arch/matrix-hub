@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ApiError, getJson } from '../lib/http'
 import { formatDuration, formatStepDuration, formatTime } from '../lib/recordfmt'
@@ -35,6 +35,7 @@ async function load(): Promise<void> {
   errorText.value = ''
   try {
     report.value = await getJson<SessionReport>(`/api/electro/records/${props.sid}`)
+    setPrintHead(report.value.session.id, report.value.session.created_at)
     phase.value = 'ready'
   } catch (err) {
     phase.value = 'error'
@@ -44,6 +45,24 @@ async function load(): Promise<void> {
         : '无法载入记录，请稍后重试。'
   }
 }
+
+/* 打印页眉：编号/时间进每页页边距盒（计划 §12.6 / §12.7 裁决 2）。
+   为什么不用 position:fixed：固定元素会盖住每页正文首行，而 @page 的
+   @top-left/@top-right 落在页边距里。值必须带引号——CSS content 要的是字符串。
+   用 CSSOM 写入而不是内联 style：CSP 是 style-src 'self'。 */
+function setPrintHead(sessionId: string, startedAt: string): void {
+  const root = document.documentElement.style
+  root.setProperty('--print-run-id', JSON.stringify(`编号 ${sessionId}`))
+  root.setProperty('--print-run-time', JSON.stringify(formatTime(startedAt)))
+}
+
+function clearPrintHead(): void {
+  const root = document.documentElement.style
+  root.removeProperty('--print-run-id')
+  root.removeProperty('--print-run-time')
+}
+
+onUnmounted(clearPrintHead)
 
 /* verdictLabel / formatResult 与 A1 判定页共用同一套口径，直接从 lib/runeval 取，
    不要在每处各写一份——两份定义早晚会漂移（"需复测"写成"待复测"这种）。 */
