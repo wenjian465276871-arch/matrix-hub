@@ -97,4 +97,35 @@ upload_mb = round(os.path.getsize(upload_path) / 1024 / 1024, 2)
 print(f"integrity=ok db_kept={db_kept} uploads_kept={up_kept} uploads={upload_mb}MB")
 PY
 
+echo "==> 异地副本"
+
+# 计划 §9.4 #13：本地备份不算"有备份"，要有第二个位置。
+# 目的地由 BACKUP_OFFSITE_DIR 指定（挂载的 NAS / 另一块盘 / ossutil/rclone 的同步目录），
+# 不配置就**明确打印 skipped**——"跑完了"和"有异地副本"是两件事，不许静默成功。
+# 云对象存储需要你的 AK：把 OSS 挂到本机或让 rclone 同步该目录即可，脚本不碰凭证。
+OFFSITE="${BACKUP_OFFSITE_DIR:-}"
+if [ -z "$OFFSITE" ]; then
+  echo "offsite=skipped（未配置 BACKUP_OFFSITE_DIR）"
+else
+  mkdir -p "$OFFSITE"
+  for f in "$DIR/backups/$NAME" "$DIR/backups/$UPLOADS"; do
+    cp -p "$f" "$OFFSITE/"
+    src_bytes=$(wc -c < "$f")
+    dst_bytes=$(wc -c < "$OFFSITE/$(basename "$f")")
+    if [ "$src_bytes" != "$dst_bytes" ]; then
+      echo "[FAIL] 异地副本大小不一致：$f ($src_bytes) vs $OFFSITE/$(basename "$f") ($dst_bytes)" >&2
+      exit 1
+    fi
+  done
+  # 与本地同口径轮转：只清理本脚本自己的两类文件，不碰目录里的其他东西。
+  KEEP_N="${KEEP:-7}"
+  for pattern in 'electro-*.db' 'uploads-*.tar.gz'; do
+    # shellcheck disable=SC2012 # 文件名固定格式，无空格；ls -t 足够
+    ls -1t "$OFFSITE"/$pattern 2>/dev/null | tail -n "+$((KEEP_N + 1))" | while read -r old; do
+      rm -f -- "$old"
+    done
+  done
+  echo "offsite=copied dir=$OFFSITE files=2 keep=$KEEP_N"
+fi
+
 echo "==> 完成"
