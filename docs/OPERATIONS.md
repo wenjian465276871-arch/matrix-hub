@@ -201,6 +201,7 @@ echo | openssl s_client -connect <域名>:443 -servername <域名> 2>/dev/null |
 | 业务库 | `deploy/backup.sh`（SQLite 在线备份到卷外） | 每日 03:17（cron） |
 | 上传资产 | 同一个脚本打包 `uploads-*.tar.gz`（容器内 tar） | 每日 03:17（cron） |
 | 整机 | 云厂商快照 | 变更前手动 |
+| 跨云副本 | `deploy/backup.sh` 上传到腾讯云 COS（§7.6） | 每日 03:17（同上） |
 
 **SQLite 不能直接 `cp`。** WAL 模式下最新数据还在 `-wal` 文件里，热拷贝会得到
 一个"少了最后几笔"的库，而且恢复时不会报错——这是最坏的一种备份。
@@ -242,6 +243,29 @@ BACKUP_OFFSITE_DIR=/tmp/offsite ./backup.sh
 ```
 
 > **未完成的部分**：生产上的第二位置（NAS 或 OSS）需要你提供路径/AK，脚本侧已就绪。
+
+### 7.6 跨云副本：腾讯云 COS（2026-11-07 上线）
+
+跨云这一层才是真正挡"阿里云整台机器没了"的。用腾讯云官方 CLI `coscli`，凭据放
+`/root/.cos.yaml`（600），**脚本只读配置，不碰任何密钥**。
+
+配置写在 `/opt/matrix-hub/backup.env`（600，脚本启动时 source），不动 cron 行：
+
+```bash
+BACKUP_COS_BUCKET=ai2work-backup-1392959507
+```
+
+- 桶：`ai2work-backup-1392959507`（广州 / **单 AZ** / **私有读写** / SSE-COS 加密）；
+- 子用户 `ai2work-backup`：只有编程访问，策略 `ai2work-cos-backup` 限定这一个桶；
+- 上传 `electro-*.db` 与 `uploads-*.tar.gz`，**失败即非零退出**，cron 日志里直接红；
+- 没配 `BACKUP_COS_BUCKET` 就打印 `cos=skipped`，不静默通过。
+
+**为什么不列举桶**：子用户只授了对象级权限，`coscli ls` 会 403（2026-11-07 实测）。
+备份文件名由 `STAMP` 唯一确定，上传与删除都不需要列举，所以这不是缺陷。
+代价是**远端不做轮转**——桶上挂一条生命周期规则（30 天过期）即可；没挂就是一直
+累积，约 2.5MB/天（50GB 资源包够用几十年）。
+
+验证（2026-11-07 实测）：`coscli cp` 单文件上传成功（24 字节，0.18s）；整份备份待跑。
 
 首次安装（只需一次）：
 
@@ -418,7 +442,7 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - 自动快照策略（轻量应用服务器不提供，需用 CI 定时调用 API 替代）
 - 监控告警：**GitHub Actions 定时探活已加**（`.github/workflows/uptime.yml`，查 `/healthz`、页面与 guides；失败会以 workflow 失败通知）。**注意实际频次**：cron 写每 10 分钟，但 GitHub 调度实测日均约 2–8 次（10-22～10-30），最坏间隔可达数小时；它只是低成本兜底，需要分钟级告警请外接 UptimeRobot 一类服务
 - 清理任务**已从空跑转真删**（§14，2026-10-31；cron 每日 03:40，先备份后删）
-- 异地备份：机制已加（`BACKUP_OFFSITE_DIR`，见 §7.5；复制 + 大小校验 + 同口径轮转），**位置尚未配置**——需要 NAS 挂载点或 OSS 的 AK，脚本侧不碰凭证
+- 异地备份：**已上线跨云副本**（腾讯云 COS，见 §7.6；`BACKUP_COS_BUCKET` 写在 `/opt/matrix-hub/backup.env`）。剩余小事：桶上挂 30 天生命周期规则（远端不做轮转，约 2.5MB/天累积）
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯；已加次数上限与限流）
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`core/ratelimit.py`、`services/sessions.py` 均假设单 worker）
 - **真实密钥轮换（需本人）**：目前只演练过失败侧（§17.3）。四步——DeepSeek 控制台发新 Key → 改 `/opt/matrix-hub/.env` → `docker compose up -d --force-recreate` → 吊销旧 Key。验证：`/healthz` 全 ok + 生成一份草稿。

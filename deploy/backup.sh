@@ -19,6 +19,13 @@ CONTAINER="${CONTAINER:-matrix-hub}"
 STAMP="$(date +%Y%m%d-%H%M)"
 NAME="electro-${STAMP}.db"
 
+# 部署级配置放文件里，不改 cron 行：cron 是手写的，多一个环境变量就少一处"部署时漏改"。
+# 文件由 root 持有、600；不存在也能跑（所有配置项都有默认值）。
+if [ -r "$DIR/backup.env" ]; then
+  # shellcheck disable=SC1091 # 运行时才存在的部署配置，不参与静态检查
+  . "$DIR/backup.env"
+fi
+
 echo "==> 备份 $CONTAINER -> $DIR/backups/$NAME"
 
 # /srv/backups 由 compose 绑定到宿主机的 $DIR/backups
@@ -126,6 +133,39 @@ else
     done
   done
   echo "offsite=copied dir=$OFFSITE files=2 keep=$KEEP_N"
+fi
+
+echo "==> 异地副本（腾讯云 COS）"
+
+# 计划 §9.4 #13 的第二个落点：跨云对象存储。上面的 BACKUP_OFFSITE_DIR 需要另一块盘或
+# NAS；整机连同挂载盘一起丢掉时，只有跨云这一层还留着。
+#
+# 用腾讯云官方 CLI coscli，凭据在 /root/.cos.yaml（600），**本脚本不碰任何密钥**。
+# 上传前不列举桶：子用户只授了对象级权限，列举会 403（2026-11-07 实测），
+# 而备份文件名由 STAMP 唯一确定，上传与删除都不需要列举。
+#
+# 远端保留策略：本脚本只负责上传，不在远端轮转（删除要列举）。桶上挂一条
+# 生命周期规则（30 天过期）即可；没挂就是一直累积，约 2.5MB/天。
+COS_BUCKET="${BACKUP_COS_BUCKET:-}"
+COS_CONFIG="${BACKUP_COS_CONFIG:-/root/.cos.yaml}"
+if [ -z "$COS_BUCKET" ]; then
+  echo "cos=skipped（未配置 BACKUP_COS_BUCKET）"
+elif ! command -v coscli >/dev/null 2>&1; then
+  # 配了桶却没装工具，是配置错误，不能当"没有异地副本"放过去。
+  echo "[FAIL] coscli 未安装，无法上传异地副本" >&2
+  exit 1
+elif [ ! -r "$COS_CONFIG" ]; then
+  echo "[FAIL] COS 凭据文件不可读：$COS_CONFIG" >&2
+  exit 1
+else
+  for f in "$DIR/backups/$NAME" "$DIR/backups/$UPLOADS"; do
+    base="$(basename "$f")"
+    # 失败即中断：set -e 会让整脚本非零退出，cron 日志里直接是红的，
+    # 而不是"备份跑完了"却只有一个本地副本。
+    coscli cp "$f" "cos://$COS_BUCKET/$base" -c "$COS_CONFIG" >/dev/null
+    echo "  uploaded $base ($(wc -c <"$f") bytes)"
+  done
+  echo "cos=uploaded bucket=$COS_BUCKET files=2"
 fi
 
 echo "==> 完成"
