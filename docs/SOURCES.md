@@ -6,6 +6,7 @@
 > v1.1 → v1.2：B 模块扩充为 3 子系统 18 条（车门 11 / 空调 4 / 受电弓 3），新增 D-05～D-07 与 K-02/K-03；所有条目均为公开资料改写、参数虚构。
 > v1.2 → v1.3（2026-10-28）：新增 D-08 受电弓升弓功能检查（`g_pantograph_raise_check`），补上受电弓的 A2 迁移案例。
 > v1.3 → v1.4（2026-11-06）：新增 D-09 门控器供电与上电自检（`g_door_power_selfcheck_001`），车门主线补到 3 个独立工序。
+> v1.4 → v1.5（2026-11-07）：新增「条目级索引」（18 条逐条映射到批次），并加 `tests/test_sources_index.py` 做门禁——库里有的 id 在本文件缺失即 CI 红。
 
 ## 规则
 
@@ -34,6 +35,21 @@
 > **"原创虚构"也要登记**：登记的目的不是凑出处，而是明确"它没有外部来源"，
 > 防止读者把示例数值当成真实工艺参数。凡是页面上能点开的指导书，本表必须有一行。
 > 若后续改用公开资料改写，需按规则 3 改写并补登记实际出处。
+
+### 条目级索引（B 模块 18 条 → 登记批次）
+
+> 上表按"文件/批次"登记；本表把**每一条**条目映射到批次。新增条目必须同时加一行，
+> `apps/electro-assist/api/tests/test_sources_index.py` 会核对：库里有的 id 在本文件里
+> 必须出现，少一条 CI 直接红——不再靠自觉。
+
+| 批次 | 文件 | 条目 id |
+|---|---|---|
+| K-01 | `door_faults.json` | `kb_door_no_action`、`kb_door_power`、`kb_door_slow_close`、`kb_door_anti_pinch`、`kb_door_position_signal`、`kb_door_obstruction`、`kb_door_isolation`、`kb_door_emergency_release`、`kb_door_98_limit`、`kb_door_air_pressure`、`kb_door_unlock_motor` |
+| K-02 | `hvac_faults.json` | `kb_hvac_no_cool`、`kb_hvac_compressor`、`kb_hvac_airflow`、`kb_hvac_sensor` |
+| K-03 | `pantograph_faults.json` | `kb_pantograph_no_raise`、`kb_pantograph_auto_lower`、`kb_pantograph_contact` |
+| D-05 | `door_faults.json`（三条分支的细分来源） | `kb_door_98_limit`、`kb_door_air_pressure`、`kb_door_unlock_motor` |
+
+> D-05 的三条同时在 K-01 的 11 条里：K-01 是整批来源，D-05 是这三条的更具体出处；冲突时以更具体的一行为准。
 
 ## 测试图（不进案例库）
 
