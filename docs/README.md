@@ -57,11 +57,11 @@
 | 契约测试 | **417 passed** | `pytest tests -q`（约 1 分钟） |
 | 业务端点 | 35 + `/healthz` | `app.openapi()["paths"]`（`scripts/check_metrics.py`） |
 | 首屏 | **45.96 KB gzip / CSS 10.14 KB** | `npm run build`（2026-11-06，vue-tsc + vite） |
-| 性能与可访问性 | 库页 Perf **99** / LCP **1.29s** / CLS **0**；指导书页（8 步/20 图）**87** / 1.44s / 0（**低于 ≥90 目标**）；3 步页 94；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-11-07 线上复测，Lighthouse 13.6） |
+| 性能与可访问性 | 库页 Perf **99** / LCP **1.29s** / CLS **0**；指导书页（8 步/20 图）**中位 95（9 轮 82–96，7/9 ≥90）** / LCP 1.42s / CLS 0 / TBT 中位 **265ms**；3 步页 94；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-11-07 线上复测，Lighthouse 13.6） |
 | B 检索 | Top-3 **21/21**、未覆盖 **2/2**、P50 **2.8ms** / P95 **5.3ms**（441 采样） | `scripts/eval_diagnose.py`（2026-11-01） |
 | 线上数据 | 已发布指导书 **5** / 草稿 2 / KB **18 条 / 3 子系统** / sessions 16 / records 62 / diagnose_runs 15（**2026-11-01 快照**，非当前值） | `GET /guides`、容器内 SQLite |
 | 真机验收 | 通过（Honor/5G，8 步 + 超差复测 + 3 页打印） | 私有仓 `reports/真机验收记录-2026-10-21.md` |
-| 已知边界 | 前端 **136 条**单测（覆盖率 54.63%）；**指导书重页面 Perf 87 < 90**（8 步/20 图，TBT 531ms 为主因）；备份同盘无异地；`NewGuideView` **1,154 行** | 私有仓 `reports/计划与实现差距分析-2026-11-06.md` §执行收口 |
+| 已知边界 | 前端 **136 条**单测（覆盖率 54.63%）；指导书重页面 Perf **方差大**（9 轮 82–96，中位 95，最差一轮 TBT 749ms）；备份同盘无异地；`NewGuideView` **1,154 行** | 私有仓 `reports/计划与实现差距分析-2026-11-06.md` §执行收口 |
 
 ## 4. 维护规则
 

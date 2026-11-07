@@ -155,6 +155,14 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 不引入虚拟滚动：上界确定（库 6 份、步骤 ≤20、候选 ≤8、记录 ≤30），
 `content-visibility:auto` 足够，虚拟滚动反而破坏打印完整性与 Ctrl+F。
 
+**落地位置（2026-11-07）**：只加在 `.figure__canvas`（包住 SVG 原语的那层），
+`contain-intrinsic-size: auto 240px`。**不能整块跳过 `.step` 或 `.figure`**——
+实测后几步 `innerText` 归零、题注从 CDP 全量 AX 树里消失，等于拿可访问性换性能。
+只跳画布时题注仍在无障碍树里，正文与判据完全不受影响。
+8 步 / 20 图的正式案例：TBT 中位 **531 → 265ms**，Perf 中位 **85.5 → 95**（线上 9 轮）。
+打印必须在 print.css 里 `content-visibility: visible !important`：组件是 scoped 的
+（`.figure__canvas[data-v-xxx]` 权重 0,2,0），同权重规则只能赌加载顺序。
+
 ## 7. 测试现状
 
 | 项 | 状态 |
@@ -178,7 +186,7 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 | `AbortSignal.timeout` | 真机上所有请求报"未知错误" | `AbortController` + `setTimeout` + `timedOut` 标记 |
 | `hour12:false` | 部分内核输出 `24:42:45` | `hourCycle:'h23'`，并固定年月日时分秒 |
 | 内联 script | CSP 拦截，白屏 | 关 `modulePreload.polyfill`，产物检查兜底 |
-| `content-visibility` | 打印出空白页 | `@media print` 强制 `visible` |
+| `content-visibility` | 打印出空白页；整块跳过还会让题注从无障碍树消失 | 屏幕只跳 `.figure__canvas`（题注留容器外）；打印 `visible !important`（scoped 0,2,0，普通规则压不住） |
 | Vite 默认 base | 深链 404 | `base:'/apps/electro-assist/'` + Caddy `try_files` |
 | 单位 chip 自适应 | 判据行参差 | chip 固定 44px，>3 字符统一 56px，绝不 `overflow:hidden` 截断 |
 | 全局导入的 CSS 撞类名 | 诊断页的 `.step` 把指导书步骤卡变成 flex 横排，390px 屏横向溢出 300px、标题一行一个字 | 全局 CSS 的类名必须带模块前缀（`.dstep` / `.diag-disclaimer`）；`cssCodeSplit:false` 意味着所有样式同域，撞名会跨页生效 |
