@@ -26,3 +26,10 @@ anyio==4.15.1
 # 找不到该版本，构建步骤失败。它是 pydantic 的传递依赖，同样必须钉死。
 # 升级前先查 https://mirrors.aliyun.com/pypi/simple/typing-inspection/ 有没有目标版本。
 typing-inspection==0.4.4
+
+# click 第四次同类坑（2026-11-07 11:46 CI）：PyPI 当天发布 8.5.1，锁文件门禁重新解析到
+# 新版本 → 与已提交的 8.5.0 不一致，契约测试红，部署被跳过。它是 uvicorn 的传递依赖，
+# 只在 CLI 层用到，不影响运行时。
+# 处置：钉回 8.5.0（镜像源已有，零行为变化）；等确认阿里云同步 8.5.1 再连同上面几行一起升。
+# 升级前先查 https://mirrors.aliyun.com/pypi/simple/click/ 有没有目标版本。
+click==8.5.0
