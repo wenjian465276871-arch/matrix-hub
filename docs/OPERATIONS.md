@@ -455,7 +455,7 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - 异地备份：**已上线跨云副本**（腾讯云 COS，见 §7.6；`BACKUP_COS_BUCKET` 写在 `/opt/matrix-hub/backup.env`）。剩余小事：桶上挂 30 天生命周期规则（远端不做轮转，约 2.5MB/天累积）
 - 切图结果落 manifest（现每次 `/slice` 重算，既费 CPU 也无法回溯；已加次数上限与限流）
 - 多实例部署前替换进程内队列与限流（`services/jobqueue.py`、`core/ratelimit.py`、`services/sessions.py` 均假设单 worker）
-- **真实密钥轮换（需本人）**：目前只演练过失败侧（§17.3）。四步——DeepSeek 控制台发新 Key → 改 `/opt/matrix-hub/.env` → `docker compose up -d --force-recreate` → 吊销旧 Key。验证：`/healthz` 全 ok + 生成一份草稿。
+- ~~**真实密钥轮换（需本人）**~~ **已执行（2026-11-07 23:31）**：四步全走完——发新 Key → 改 `/opt/matrix-hub/.env`（只换一行，`getpass` 交互输入）→ `--force-recreate` → 23:35 吊销旧 Key。验收用**真实生成**而非健康检查（`j_b806bcebcc28461d` succeeded，12s）。详见 §17.3。剩一件：`.env.bak-*` 于 11-14 后清理。
 - **GitHub secret scanning / push protection（需本人）**：Settings → Code security，确认 Secret scanning 与 Push protection 均为 Enabled（公开仓默认开，但没人核实过）。
 - **卸载 nginx（需本人，观察期早已结束）**：`systemctl stop nginx && systemctl disable nginx` 已做；确认无回退需求后 `apt-get purge -y nginx nginx-common`。注意这会删掉 host 侧证书与旧配置，Caddy 的证书在 `caddy_data` 卷里，不受影响。
 
@@ -704,6 +704,21 @@ docker inspect matrix-hub --format '{{range .Config.Env}}{{println .}}{{end}}' |
 ```
 
 **回滚**：`cp -p /opt/matrix-hub/.env.bak-* /opt/matrix-hub/.env && cd /opt/matrix-hub && docker compose -f compose.yml up -d --force-recreate web`。
+
+**已执行（2026-11-07 23:31，本人操作，AI 逐步指导）**：
+
+| 步 | 结果 |
+|---|---|
+| 备份 | `cp -p` 到 `.env.bak-*`（600） |
+| 替换 | 只改 `DEEPSEEK_API_KEY` 一行；文件 397 B 不变；用 `getpass` 交互输入，**不进 shell 历史、不进进程参数** |
+| 重建 | `Container matrix-hub Recreated`（1.2s） |
+| 吊销旧凭据 | 23:35 控制台删除 |
+
+**验收口径（重要）**：`/healthz?scope=ready` 三项全 ok **不足以**证明新凭据可用——健康检查不调模型，填错照样全绿。真正的判据是**跑一次真实生成**：
+`POST /api/electro/generate` → `202` → 任务 `j_b806bcebcc28461d` → **succeeded**，12s，8,521 micros。
+以后任何动 LLM 凭据的操作，验收都必须包含这一步。
+
+遗留：`.env.bak-*` 保留作回滚路径，**2026-11-14 之后删除**。
 
 ### 17.4 边界（如实记录）
 
