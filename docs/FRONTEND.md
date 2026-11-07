@@ -214,7 +214,7 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 | 文件 | 拆分前 | 现在 | 抽出的组件 / 纯逻辑 | 结论 |
 |---|---|---|---|---|
 | `NewGuideView.vue` | 1,413 行 | **1,154 行** | `AssetShelf` 290 / `PasscodePanel` 161 / `ExtractPanel` 153 | 三轮拆完；剩余部分是状态耦合（`text` 既是输入又是回填目标），再拆要动逻辑，收益低于风险 |
-| `RunView.vue` | 961 行 | **874 行** | `StepResult` 169 / `RunBar` 134 + `lib/runeval.ts` | 同上；横屏媒体查询随 `RunBar` 一起搬，否则主按钮宽度会塌 |
+| `RunView.vue` | 961 行 | **887 行** | `StepResult` 169 / `RunBar` 134 + `lib/runeval.ts` | 同上；横屏媒体查询随 `RunBar` 一起搬，否则主按钮宽度会塌 |
 | `GuideView.vue` | 1,155 行 | **814 行** | `AttachPanel` 233 / `EditPanel` 260 + `lib/guidepatch.ts` | 同上 |
 
 判断标准（2026-11-06 修订）：**超过 600 行且混多个职责才拆**；纯页面壳（模板长、状态集中）不按行数强拆。
