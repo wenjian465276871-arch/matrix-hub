@@ -5,7 +5,7 @@
 # ---- Caddy 二进制来源（2026-11-07 起按 digest 固定，计划 §11.3.4）----
 # 刷新方式：`docker buildx imagetools inspect <image>:<tag> | grep Digest`
 # 三个 digest 都是 **manifest list（index）**，amd64/arm64 由构建器按平台选。
-FROM caddy:2.8-alpine@sha256:af32e97399febea808609119bb21544d0265c58a02836576e32a2d082c262c17 AS caddy-bin
+FROM caddy:2.10-alpine@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d AS caddy-bin
 
 # ---- 前端构建（Node 只在构建阶段存在，不进运行镜像）----
 FROM node:22-alpine@sha256:0e1754758c2df4cfa3e68d59e2e1b7374bb7fd9ea6328eaaacf15cc934af8202 AS web
