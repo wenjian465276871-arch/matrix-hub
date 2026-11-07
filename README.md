@@ -65,7 +65,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
 | B 检索 | 知识库 **18 条 / 3 子系统**；Top-3 **21/21**，未覆盖 2/2，P50 **2.8ms** / P95 **5.3ms** | `python scripts/eval_diagnose.py`（2026-11-01 本机复跑，441 采样；10-30 为 2.6/4.4，差异来自机器负载） |
-| 前端首屏 | **45.96 KB** gzip（预算 75KB），CSS **10.14 KB**（预算 14KB） | `npm run build`（2026-11-06） |
+| 前端首屏 | **45.96 KB** gzip（预算 75KB），CSS **10.20 KB**（预算 14KB） | `npm run build`（2026-11-07） |
 | 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 99** / LCP **1.29s** / CLS **0** / TBT **133ms**；指导书页（8 步 / 20 图）**中位 95**（9 轮 82–96，7/9 ≥90）/ LCP **1.42s** / CLS **0** / TBT **中位 265ms**（240–749）；3 步页 94 | Lighthouse 13.6 + `scripts/lighthouse.mjs`（2026-11-07 线上，单页 3–9 轮） |
 | 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（2026-11-07 线上复测；本轮修掉页脚链接对比度 1.1:1 的一处 serious） |
 | 契约面 | **35 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
