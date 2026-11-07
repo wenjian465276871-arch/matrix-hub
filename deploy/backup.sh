@@ -60,7 +60,7 @@ echo "==> 备份上传目录"
 UPLOADS="uploads-${STAMP}.tar.gz"
 docker exec "$CONTAINER" tar czf "/srv/backups/$UPLOADS" -C /srv/app_data uploads
 
-docker exec -i -e NAME="$NAME" -e UPLOADS="$UPLOADS" -e KEEP="${KEEP:-7}" "$CONTAINER" python - <<'PY'
+docker exec -i -e NAME="$NAME" -e UPLOADS="$UPLOADS" "$CONTAINER" python - <<'PY'
 import os
 import sqlite3
 
@@ -72,22 +72,6 @@ conn.close()
 if result != "ok":
     raise SystemExit(f"[FAIL] integrity_check={result}")
 
-keep = int(os.environ.get("KEEP", "7"))
-
-
-def prune(prefix: str, suffix: str) -> int:
-    files = sorted(
-        (f for f in os.listdir(root) if f.startswith(prefix) and f.endswith(suffix)),
-        key=lambda f: os.path.getmtime(os.path.join(root, f)),
-        reverse=True,
-    )
-    for old in files[keep:]:
-        os.remove(os.path.join(root, old))
-    return min(len(files), keep)
-
-
-db_kept = prune("electro-", ".db")
-up_kept = prune("uploads-", ".tar.gz")
 upload_path = os.path.join(root, os.environ["UPLOADS"])
 # 上传包里有访客截图，权限与业务库同级。
 os.chmod(upload_path, 0o600)
@@ -101,7 +85,7 @@ for name in os.listdir(root):
             pass
 os.chmod(root, 0o700)
 upload_mb = round(os.path.getsize(upload_path) / 1024 / 1024, 2)
-print(f"integrity=ok db_kept={db_kept} uploads_kept={up_kept} uploads={upload_mb}MB")
+print(f"integrity=ok uploads={upload_mb}MB")
 PY
 
 echo "==> 异地副本"
@@ -167,5 +151,34 @@ else
   done
   echo "cos=uploaded bucket=$COS_BUCKET files=2"
 fi
+
+echo "==> 轮转本地旧份"
+
+# 放在最后一步，是 2026-11-08 修的 P3-2：原来在容器里做完就 prune，
+# 一旦随后 COS 上传失败（网络/凭据/额度），被删掉的旧份已经回不来了，
+# 而失败方恰恰是"异地那一层"。现在只要上传没走完，脚本就在 set -e 处退出，
+# 本地连旧带新全留着；下一次成功的运行再补做轮转。
+docker exec -i -e KEEP="${KEEP:-7}" "$CONTAINER" python - <<'PY'
+import os
+
+root = "/srv/backups"
+keep = int(os.environ.get("KEEP", "7"))
+
+
+def prune(prefix: str, suffix: str) -> int:
+    files = sorted(
+        (f for f in os.listdir(root) if f.startswith(prefix) and f.endswith(suffix)),
+        key=lambda f: os.path.getmtime(os.path.join(root, f)),
+        reverse=True,
+    )
+    for old in files[keep:]:
+        os.remove(os.path.join(root, old))
+    return min(len(files), keep)
+
+
+db_kept = prune("electro-", ".db")
+up_kept = prune("uploads-", ".tar.gz")
+print(f"rotated db_kept={db_kept} uploads_kept={up_kept} keep={keep}")
+PY
 
 echo "==> 完成"
