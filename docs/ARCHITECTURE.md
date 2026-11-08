@@ -194,6 +194,13 @@ routers/diagnose.py     POST /diagnose + GET /diagnose/kb + /diagnose/runs 四�
 3. **回填失败不能让生成失败**：它只是补证据，一份没有 provenance 的指导书仍然可用
    （页面不显示标记），把"补证据"失败升级成"生成失败"是轻重倒置。
 
+**历史数据**：回填只对**新生成**生效。2026-11-08 修复前产生的草稿由
+`scripts/backfill_provenance.py` 补，三条边界写死在脚本里：
+
+- 默认 dry-run，`--apply` 前用 `sqlite3.Connection.backup` 做整库备份（WAL 下也安全）；
+- **跳过已发布**（红线：已发布不可覆盖），两道防线——plan 阶段跳过 + `UPDATE ... WHERE status='draft'`；
+- 只改 `json` 字段，不动 status 与 `updated_at`（改了会让补过的草稿在「最近更新」里全跳到最前）。
+
 ## 2. 请求链路（2026-10-19 已实现）
 
 ```mermaid
