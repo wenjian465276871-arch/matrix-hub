@@ -177,9 +177,12 @@ docker stats --no-stream
   滚出的文件再留 14 天，寿命可达 22 天；零流量站点则永远不滚，"14 天"等于不存在。
   改 2MiB 后约 1.5 天滚一次，寿命收敛到 ~15 天
 - **零流量兜底**：`services/retention.py` 的 `prune_logs()` 每天随 03:40 清理跑一次——
-  删除超过 14 天的 `access-*.log`；当前 `access.log` **只在 mtime 也超过 14 天时**才清空
+  删除超过 14 天的 `access-*.log` / `.log.gz`；当前 `access.log` **只在 mtime 也超过 14 天时**才清空
   （mtime 证明这段时间没有任何写入，文件里不可能有保留期内的记录）。用截断不用 unlink：
   Caddy 持有该 fd，删掉会让后续写入落到已 unlink 的 inode 上，日志静默消失
+- **线上实证（2026-11-08）**：部署瞬间把 6.6MB 的旧文件滚成
+  `access-2026-11-08T07-44-20.024.log.gz`（251KB）；再造一个 20 天前的 `.log.gz` 跑
+  `prune_logs()` → `{"rotated": 1}`，假文件被删、真实文件保留、当前文件未动
 - 改动原因：原先 stdout + Docker `10MB×3` 的保留时长由流量决定，流量一涨就从"几个月"
   变成"几天"，"14 天"只是碰巧成立
 
@@ -709,7 +712,21 @@ docker exec matrix-hub python -m scripts.cleanup --apply
 | 状态落盘 | `consecutive_failures: 3`、`last_error: "OperationalError: no such table: sessions"` |
 | 恢复后 | `consecutive_failures: 0`、`last_success_at` 刷新 → **成功即清零** |
 
-**仍未直接观测的一项**：生产 03:40 的定时触发。它与上面验的是同一段 `_loop`，差别只是等 86400 秒；次日看 `/healthz` 的 `retention.last_success_at` 是否落在 **03:40** 即可确认，不需要再用故障注入。
+**定时分支已直接观测（2026-11-08 16:44）**
+
+同镜像在容器内起一个**隔离进程**验证调度，不碰生产数据：`DB_PATH` 指向库副本、
+`UPLOAD_DIR` 指向空目录、`RETENTION_STATE_PATH=/tmp/…`、`RETENTION_ENABLED=1`、
+`RETENTION_ON_START=0`、`RETENTION_AT` 设为 1 分钟后。
+
+| 观察点 | 实测 |
+|---|---|
+| 线程是否准点醒 | 设 `16:44`，状态文件时间戳就是 `16:44:00` |
+| 写了哪个触发者 | `last_trigger: "scheduled"` |
+| 定时字段 | `last_scheduled_run_at: "2026-11-08T16:44:00+08:00"` 出现 |
+
+**生产 03:40 仍以 `/healthz?scope=all` 的 `retention.last_scheduled_run_at` 为准**：
+`last_success_at` 每次容器重建都会被启动清理刷新，只有 `last_scheduled_run_at`
+是"定时那次"的专属凭据（这也是 2026-11-08 加它的原因）。
 
 ## 15. 错误号与重排预算（2026-10-22）
 
@@ -993,6 +1010,15 @@ Guide 契约同步增加（均可选，旧数据无需迁移）：
 > 存量 JSON——库里 5 份指导书写着 `"confidence": null`，直接删字段会让它们在
 > A1 开始 / 编辑 / 发布时解析失败（`extra="forbid"`）。`bbox` 保留但恒为 null
 > （无视觉服务返回坐标），等真接上 OCR 再说。
+
+**回填命中率（2026-11-08 实测，用线上 6 份有工艺原文的指导书离线重跑）**：
+
+| 粒度 | 命中 | 说明 |
+|---|---|---|
+| 判据 | **22 / 44（50.0%）** | 补不上的多是 `manual` 与概括语（"作业区域通风良好并设警示"原文没有逐字对应句），以及模型改写过的标签 |
+| 步骤 | **5 / 28（17.9%）** | 动作几乎总被改写成"标题+说明"，逐字保留才填。**改写的不填是设计**——指错行比指不回去危险 |
+
+样本小（6 份），但结论稳定：命中率取决于模型"照抄"的程度，不取决于定位算法本身。
 
 **回滚影响**：旧镜像不认识 `jobs.source_type` / `station` 列，读写不受影响；
 `meta.source_type` 与 `meta.station` 在 JSON 里，但 **text 来源与空工位不落这两个字段**
