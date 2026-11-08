@@ -1083,3 +1083,50 @@ Guide 契约同步增加（均可选，旧数据无需迁移）：
   `full` 把小知识库全部条目送进重排 prompt，仅用于对比；超过 20 条自动回退 hybrid。
 - **部署自检**：`scripts/eval_diagnose.py --quick --json` 不调模型（约 50ms），
   Top-3 命中率与未覆盖识别都过才算部署成功；门槛由 `EVAL_MIN_TOP3` 控制。
+
+### 19.7 回滚演练：怎么真的验一次自动回滚（2026-11-08 加）
+
+**为什么需要这一节**：看门狗跑了 **40 次**（每次部署拉一次，`watch.log` 826 行）、判定逻辑
+有 8 个 `--self-test` 用例，但 `deploy.log` 里 `reason=` **一条都没有**——也就是真触发时的
+那五个动作（核对 tag → `docker compose up -d web` → 6×5s 健康复查 → `sed .env` → 写日志）
+**一次都没执行过**。第一次真用它，就是生产出故障的时候。
+
+**故障注入开关（`FAULT_5XX_PATHS`）**：`main.py` 的中间件里，设了这个环境变量后，
+命中前缀的请求直接返回 **500 纯文本 `fault-injected`**。三条约束：
+
+1. **默认空** ⇒ 不写这个变量就等于没有这个功能；
+2. **只按路径前缀注入**，不搞"全站 5xx 比例"——演练不该把整个站点打挂；
+3. **`/healthz` 永远不注入**（`tests/test_faults.py` 钉死）。否则回滚会走"探针失败"那条
+   分支，验不到"起来了但业务请求都 500"这条更难的分支，**看起来成功其实是假通过**。
+
+**演练步骤（全程约 5 分钟 + 等一个观察周期）**：
+
+```bash
+# 0) 前提：当前线上 tag 记为 NEW，上一版记为 PREV
+cd /opt/matrix-hub && docker inspect -f '{{.Config.Image}}' matrix-hub | sed 's/.*://'
+
+# 1) 打开注入（改 .env，TAG 不动 —— 等效"这一版上线后开始 500"）
+printf '\nFAULT_5XX_PATHS=/api/electro/diagnose\n' >> .env
+docker compose up -d web && sleep 5
+
+# 2) 确认注入生效、探针仍健康（这两个必须同时成立）
+curl -s -o /dev/null -w '%{http_code}\n' https://<域名>/api/electro/diagnose/kb   # 期望 500
+curl -s -o /dev/null -w '%{http_code}\n' 'https://<域名>/healthz?scope=ready'     # 期望 200
+
+# 3) 制造 ≥3 条 5xx（判据是「≥3 条 且 比例 >1%」）
+for i in 1 2 3 4; do curl -s -o /dev/null https://<域名>/api/electro/diagnose/kb; done
+
+# 4) 等一个采样周期（30s），看它自己回滚
+tail -5 watch.log ; grep 'reason=' deploy.log | tail -2
+docker inspect -f '{{.Config.Image}}' matrix-hub | sed 's/.*://'    # 期望回到 PREV
+
+# 5) 收尾：清掉注入变量，把 TAG 切回 NEW（回滚会把 .env 的 TAG 改成 PREV）
+sed -i '/^FAULT_5XX_PATHS=/d' .env
+TAG=<NEW> docker compose up -d web && sleep 5
+curl -s -o /dev/null -w '%{http_code}\n' https://<域名>/api/electro/diagnose/kb   # 期望 200
+```
+
+**代价与边界**：演练期间**该路径真的不可用**（其余路径正常，因为只注入一个前缀）。
+所以只在测试阶段或低峰窗口做，且要有人在电脑前——万一回滚失败，手工 `TAG=<NEW> docker compose up -d web` 兜底。
+
+**结果**：见下一次修订的回填段（本条先落步骤，结果与耗时随后补）。

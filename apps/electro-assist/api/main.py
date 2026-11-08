@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import store
@@ -92,6 +92,16 @@ app = FastAPI(
 http_window = HttpWindow()
 
 
+def _fault_paths() -> tuple[str, ...]:
+    """读 `FAULT_5XX_PATHS`（逗号分隔的路径前缀）。每次请求都读，不改就基本零成本。
+
+    按请求读取而不是启动时缓存，是为了让测试能 `monkeypatch.setenv` 直接验行为——
+    启动时读一次的实现只能靠重启进程来测，那种测试最后一定是"没测"。
+    """
+    raw = os.getenv("FAULT_5XX_PATHS", "")
+    return tuple(part.strip() for part in raw.split(",") if part.strip())
+
+
 @app.middleware("http")
 async def attach_request_ref(request: Request, call_next):
     """给每个请求一个 8 位 ref，同时回写到响应头。
@@ -105,6 +115,23 @@ async def attach_request_ref(request: Request, call_next):
     ref = (request.headers.get("X-Request-Id") or secrets.token_hex(4))[:16]
     request.state.ref = ref
     counted = request.url.path != "/healthz"
+
+    # 演练用的故障注入（2026-11-08 加，为验证"部署后看门狗自动回滚"那条链路）。
+    # 没有它，O2 只能等真事故来验——而第一次真事故正是最不该做实验的时候。
+    # 三条约束，缺一条都会把它变成新的风险：
+    #   ① 默认空 ⇒ 生产不受影响（`.env` 里不写这两个变量就等于没这功能）；
+    #   ② 显式路径前缀，不搞"全局 5xx 比例"——那会把站点真的打挂，演练不该有这种杀伤；
+    #   ③ 只返回纯文本，不套统一信封：这是**人造**故障，页面上看到"fault-injected"
+    #      比看到一条像模像样的业务错误码更安全（不会有人把它当真实故障去排查）。
+    faults = _fault_paths()
+    if faults and request.url.path != "/healthz" and any(
+        request.url.path.startswith(p) for p in faults
+    ):
+        log.warning("故障注入生效：%s（FAULT_5XX_PATHS=%s）", request.url.path, ",".join(faults))
+        if counted:
+            http_window.record(500)
+        return PlainTextResponse("fault-injected", status_code=500, headers={"X-Request-Id": ref})
+
     try:
         response = await call_next(request)
     except Exception:
