@@ -919,24 +919,41 @@ def update_diagnose_run(
     status: str,
     current_order: int | None,
     conclusion: dict[str, Any] | None = None,
-) -> None:
+    expect_status: str | None = None,
+) -> bool:
+    """写诊断 run 的状态；给了 `expect_status` 就带 CAS，返回是否命中。
+
+    **为什么必须有 CAS**（2026-11-08 评审 P2-1）：`submit` 的流程是
+    「读状态 → 落 step → 写状态」，读和写之间用户可能已经 `abort`。
+    没有守卫时那次写会把 `aborted` 覆盖回 `active`，留下
+    `status=active` + `conclusion=aborted` 的矛盾态——这个组合正常路径不可达，
+    排查时会先怀疑数据库坏了。
+    另外三个状态写点（`sessions.finish`、`jobs.mark_running`、`sweep_stale_jobs`）
+    早就是 CAS 写法，这里补齐，让整张表口径一致。
+    """
     now = now_iso()
     finished = now if status != "active" else None
     payload = json.dumps(conclusion, ensure_ascii=False) if conclusion is not None else None
+    where = "WHERE id = ?"
+    tail: tuple[Any, ...] = (run_id,)
+    if expect_status is not None:
+        where = "WHERE id = ? AND status = ?"
+        tail = (run_id, expect_status)
     with connect() as conn:
         with tx(conn):
             if payload is None:
-                conn.execute(
+                cur = conn.execute(
                     "UPDATE diagnose_runs SET status = ?, current_order = ?, updated_at = ?, "
-                    "finished_at = ? WHERE id = ?",
-                    (status, current_order, now, finished, run_id),
+                    f"finished_at = ? {where}",
+                    (status, current_order, now, finished, *tail),
                 )
             else:
-                conn.execute(
+                cur = conn.execute(
                     "UPDATE diagnose_runs SET status = ?, current_order = ?, conclusion_json = ?, "
-                    "updated_at = ?, finished_at = ? WHERE id = ?",
-                    (status, current_order, payload, now, finished, run_id),
+                    f"updated_at = ?, finished_at = ? {where}",
+                    (status, current_order, payload, now, finished, *tail),
                 )
+            return cur.rowcount > 0
 
 
 def list_diagnose_runs_by_session(session_id: str) -> list[dict[str, Any]]:

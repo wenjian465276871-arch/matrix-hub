@@ -291,23 +291,33 @@ def submit(
             if check.kind == "measure"
             else "人工确认异常"
         )
-        store.update_diagnose_run(
+        applied = store.update_diagnose_run(
             run_id,
             status="concluded",
             current_order=None,
             conclusion=_conclusion_fail(entry, check, evidence),
+            expect_status="active",
         )
     else:
         nxt = _next_order(entry, check)
         if nxt is None:
-            store.update_diagnose_run(
+            applied = store.update_diagnose_run(
                 run_id,
                 status="concluded",
                 current_order=None,
                 conclusion=_conclusion_exhausted(entry),
+                expect_status="active",
             )
         else:
-            store.update_diagnose_run(run_id, status="active", current_order=nxt)
+            applied = store.update_diagnose_run(
+                run_id, status="active", current_order=nxt, expect_status="active"
+            )
+
+    # 写侧没命中 = 这期间用户已经结束了诊断（abort 抢先落库）。
+    # 此时不能把 run 改回 active，也不能假装成功——step 已经记下了，
+    # 但结论必须尊重"结束"这个更晚的意图。返回 409 让前端刷新到终态。
+    if not applied:
+        raise DiagnosisError("run_finished", "该诊断已结束，请重新开始", 409)
 
     return state(run_id)
 
@@ -319,7 +329,12 @@ def abort(run_id: str) -> dict:
     if run["status"] == "active":
         entry = knowledge.get_entry(run["entry_id"])
         conclusion = _conclusion_aborted(entry) if entry else None
+        # 幂等：并发的两次 abort 只有一次命中，另一次什么也不做就能返回终态。
         store.update_diagnose_run(
-            run_id, status="aborted", current_order=None, conclusion=conclusion
+            run_id,
+            status="aborted",
+            current_order=None,
+            conclusion=conclusion,
+            expect_status="active",
         )
     return state(run_id)
