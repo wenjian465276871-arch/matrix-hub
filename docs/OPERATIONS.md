@@ -1099,34 +1099,83 @@ Guide 契约同步增加（均可选，旧数据无需迁移）：
 3. **`/healthz` 永远不注入**（`tests/test_faults.py` 钉死）。否则回滚会走"探针失败"那条
    分支，验不到"起来了但业务请求都 500"这条更难的分支，**看起来成功其实是假通过**。
 
-**演练步骤（全程约 5 分钟 + 等一个观察周期）**：
+**注入方式：用 compose override，不改 `.env`**（2026-11-08 实操后的修订）。
+`env_file: .env` 里的变量会全量进容器，但改 `.env` 是动生产配置，而且这台机器上
+`.env` 属受保护文件（AI 侧读取会被安全层拒，也就别指望脚本去改）。override 文件更干净：
+
+```yaml
+# /opt/matrix-hub/compose.fault.yml（用完即删，不入库）
+services:
+  web:
+    environment:
+      - FAULT_5XX_PATHS=/api/electro/diagnose
+```
 
 ```bash
-# 0) 前提：当前线上 tag 记为 NEW，上一版记为 PREV
+docker compose -f compose.yml -f compose.fault.yml up -d web    # 注入生效
+# …演练…
+rm -f compose.fault.yml                                          # 收尾时删掉
+```
+
+**演练步骤（2026-11-08 实测 3 分钟）**：
+
+```bash
+# 0) 记录 NEW 与 PREV（PREV = 上一个线上 tag）
 cd /opt/matrix-hub && docker inspect -f '{{.Config.Image}}' matrix-hub | sed 's/.*://'
 
-# 1) 打开注入（改 .env，TAG 不动 —— 等效"这一版上线后开始 500"）
-printf '\nFAULT_5XX_PATHS=/api/electro/diagnose\n' >> .env
-docker compose up -d web && sleep 5
+# 1) 注入（写 override 后重起，TAG 不变）
+docker compose -f compose.yml -f compose.fault.yml up -d web && sleep 8
 
-# 2) 确认注入生效、探针仍健康（这两个必须同时成立）
-curl -s -o /dev/null -w '%{http_code}\n' https://<域名>/api/electro/diagnose/kb   # 期望 500
-curl -s -o /dev/null -w '%{http_code}\n' 'https://<域名>/healthz?scope=ready'     # 期望 200
+# 2) 两个必须同时成立的确认
+curl -s -o /dev/null -w '业务=%{http_code}\n' https://<域名>/api/electro/diagnose/kb  # 期望 500
+curl -s -o /dev/null -w '探针=%{http_code}\n' 'https://<域名>/healthz?scope=ready'    # 期望 200
 
-# 3) 制造 ≥3 条 5xx（判据是「≥3 条 且 比例 >1%」）
+# 3) 制造 ≥3 条 5xx（判据：≥3 条 且 比例 >1%）
 for i in 1 2 3 4; do curl -s -o /dev/null https://<域名>/api/electro/diagnose/kb; done
 
 # 4) 等一个采样周期（30s），看它自己回滚
-tail -5 watch.log ; grep 'reason=' deploy.log | tail -2
-docker inspect -f '{{.Config.Image}}' matrix-hub | sed 's/.*://'    # 期望回到 PREV
+tail -6 watch.log ; grep 'reason=' deploy.log | tail -2
+docker inspect -f '{{.Config.Image}}' matrix-hub | sed 's/.*://'    # 期望 = PREV
 
-# 5) 收尾：清掉注入变量，把 TAG 切回 NEW（回滚会把 .env 的 TAG 改成 PREV）
-sed -i '/^FAULT_5XX_PATHS=/d' .env
-TAG=<NEW> docker compose up -d web && sleep 5
-curl -s -o /dev/null -w '%{http_code}\n' https://<域名>/api/electro/diagnose/kb   # 期望 200
+# 5) 收尾
+rm -f compose.fault.yml
+# 回滚会把 .env 的 TAG 改成 PREV ⇒ 用一次正常部署把 TAG 改回来（或手工 sed）
 ```
 
 **代价与边界**：演练期间**该路径真的不可用**（其余路径正常，因为只注入一个前缀）。
-所以只在测试阶段或低峰窗口做，且要有人在电脑前——万一回滚失败，手工 `TAG=<NEW> docker compose up -d web` 兜底。
+只在测试阶段或低峰窗口做，且要有人在电脑前——回滚失败就手工 `TAG=<NEW> docker compose up -d web` 兜底。
 
-**结果**：见下一次修订的回填段（本条先落步骤，结果与耗时随后补）。
+### 19.8 演练结果（2026-11-08 19:46，第一次真触发）
+
+用户裁决「O2 立即做，我现在就在电脑前，当前项目也还处于测试阶段」。全程 **3 分钟**，
+回滚由**部署后自动拉起的那只看门狗**执行，不是我手工调的。
+
+| 时间 | 事件 |
+|---|---|
+| 19:43 | `0204731` 部署完成，看门狗自动开始 10 分钟观察 |
+| 19:45:24 | 用 override 注入 `FAULT_5XX_PATHS=/api/electro/diagnose`，容器重建 |
+| 19:45:40 | 业务路径 **500 `fault-injected`**、`/healthz?scope=ready` **200** —— 正是"起来了但业务全挂"的形状 |
+| 19:46:0x | 4 次请求全部 500 |
+| **19:46:23** | 看门狗判定 → `[watch] 回滚到 c4368e4（原因：postdeploy_5xx，ratio=6/6）` |
+| 19:46:30 | 回滚后 6×5s 健康复查通过 → `已回滚到 c4368e4（.env TAG 已同步）` |
+| 19:46:33 | `deploy.log` 出现 `reason=postdeploy_5xx` |
+
+**五个从未执行过的动作，这次全部真实执行**：核对线上 tag → `docker compose up -d web`
+→ 6×5s 健康复查 → `sed .env` 同步 TAG → 写 `deploy.log`。
+
+**回滚是否真的修好了**：注入后业务路径 500；回滚后同一条路径 **200**、站点 200、`/healthz` 200。
+故障确实由新版本引入、由回滚消除——不是"回滚了但故障还在"的假象。
+
+**`ratio=6/6` 说明一件事**：窗口内只有演练请求，比例是 100%。低流量站真实的 5xx 比例
+也会这样（3 个 5xx / 10 个请求就是 30%），所以判据里的「**≥3 条**」这个绝对下限是必需的
+——只有比例阈值的话，一次 1/2 的偶发也会被当成回滚理由。
+
+**演练顺带确认的两条运维事实**（原本只是推断）：
+1. **宿主机不发布 8001**：在宿主上 `curl 127.0.0.1:8001` 返回 `000`（连接被拒），
+   验证必须走公网域名或 `docker exec`。第一次查状态时就撞到，差点误判成"服务没起来"。
+2. **`.env` 属受保护文件**：AI 侧读它会被安全层拒绝，所以演练注入走 compose override。
+   这反而是更好的做法——不动生产配置，用完即删。
+
+**遗留一条（下一步该做的）**：回滚失败时脚本只写 `[FAIL] 需人工介入` 并 `exit 0`，
+**没有主动告警**；能发现"站点挂了"的只有 `uptime.yml`，而它实测日均 2–8 次、最坏间隔数小时。
+这条与演练无关，单独登记。
