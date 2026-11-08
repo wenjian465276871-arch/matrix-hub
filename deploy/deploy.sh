@@ -26,6 +26,33 @@ NEW_TAG="${1:-$PREV_TAG}"
 [ -n "$NEW_TAG" ] || { echo "[FAIL] 未指定 TAG"; exit 1; }
 [ -n "${IMAGE:-}" ] || { echo "[FAIL] .env 缺少 IMAGE"; exit 1; }
 
+# 闸门（2026-11-08 加，对应服务器专档 §9 #30）：上一次自动回滚失败就拒绝继续部署。
+#
+# 为什么要在部署前拦：回滚失败意味着"换回上一版也起不来"，生产已经是坏状态。
+# 此时继续叠新版本，只会让现场更难还原，而且新版本的健康检查很可能在坏底座上
+# 也过不了，把故障时间拉得更长。停线比抢修更安全。
+#
+# 三个细节：
+#   ① 用 marker 文件而不是解析 JSON——shell 里 `[ -f ]` 不会因为格式变化而误判；
+#   ② 允许显式放行 `ROLLBACK_FAILED_ACK=1`，现场确认过就用它，不做成死锁；
+#   ③ 放行也要留痕：把 ack 写进 deploy.log，事后能查到"这次是人工越过闸门的"。
+STATE_MARKER="backups/rollback_failed"
+if [ -f "$STATE_MARKER" ] && [ "${ROLLBACK_FAILED_ACK:-}" != "1" ]; then
+  echo "[FAIL] 上一次自动回滚失败，拒绝部署。现场信息："
+  sed -n '1,20p' backups/rollback_state.json 2>/dev/null || echo "  （rollback_state.json 缺失）"
+  echo "  确认已人工恢复并验证正常后："
+  echo "    a) 删掉 backups/rollback_failed 与 backups/rollback_state.json；或"
+  echo "    b) 本次执意要部署：ROLLBACK_FAILED_ACK=1 ./deploy.sh ${NEW_TAG}"
+  echo "  站点状态："
+  # 宿主机不发布 8001（只有 80/443），探针要在容器内跑，否则永远显示 000
+  docker exec matrix-hub curl -s -m 5 -o /dev/null -w '    /healthz -> %{http_code}\n' http://127.0.0.1:8001/healthz || true
+  exit 1
+fi
+if [ "${ROLLBACK_FAILED_ACK:-}" = "1" ]; then
+  echo "[WARN] ROLLBACK_FAILED_ACK=1：越过「上次回滚失败」闸门（已记入 deploy.log）"
+  printf 'ack_rollback_failed=1 time=%s new_tag=%s\n' "$(date -Is)" "$NEW_TAG" >> deploy.log
+fi
+
 echo "==> 目标镜像: ${IMAGE}:${NEW_TAG}"
 echo "==> 当前镜像: ${IMAGE}:${PREV_TAG:-<none>}"
 

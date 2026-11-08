@@ -59,3 +59,25 @@ jobs:
               echo "::warning::healthz 未返回 budget 字段（后端版本可能过旧）"
               ;;
           esac
+
+      # 回滚失败告警（2026-11-08 加，对应服务器专档 #30）。
+      # 看门狗回滚失败时会把 failed=true 写进 rollback_state.json，healthz 的
+      # rollback 字段透出来。这里借 GitHub 的失败通知当告警通道——仍然是零新增基础设施。
+      # 局限照实说：cron 写每 10 分钟，但 GitHub 实际日均只跑 2–8 次；它是兜底，不是秒级告警。
+      - name: 自动回滚是否失败过（failed=true 则失败并通知）
+        run: |
+          set -euo pipefail
+          health=$(curl -fsS --max-time 10 https://www.superplayer007.cn/healthz)
+          state=$(printf '%s' "$health" | python3 -c '
+          import json, sys
+          print(json.dumps(json.load(sys.stdin).get("rollback", {}), ensure_ascii=False))
+          ')
+          echo "rollback: $state"
+          if printf '%s' "$state" | grep -q '"failed": *true'; then
+            echo "::error::上一次自动回滚失败，站点可能处于未恢复状态：$state"
+            exit 1
+          fi
+          # 字段缺失多半是后端版本过旧（还没带这个能力），提示而非失败
+          if ! printf '%s' "$state" | grep -q 'failed'; then
+            echo "::warning::healthz 未返回 rollback 字段（后端版本可能过旧）"
+          fi

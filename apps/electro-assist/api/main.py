@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 import store
+from core import rollbackstate
 from core.httpwindow import HttpWindow
 from routers import diagnose as diagnose_router
 from routers import extract as extract_router
@@ -359,5 +360,10 @@ def healthz(
         state = retention.read_state()
         if state:
             payload["retention"] = state
+
+        # 最近一次自动回滚的结局（宿主侧看门狗写、这里读）。同样**只报告不判定**：
+        # 回滚失败说明生产是坏状态，但此刻站点可能已人工恢复；把它算进 status 会让
+        # 部署脚本对着一个已经在跑的版本 503。真正的闸门在 deploy.sh 开头。
+        payload["rollback"] = rollbackstate.summary()
 
     return JSONResponse(status_code=http_status, content=payload)

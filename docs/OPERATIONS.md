@@ -1179,3 +1179,54 @@ rm -f compose.fault.yml
 **遗留一条（下一步该做的）**：回滚失败时脚本只写 `[FAIL] 需人工介入` 并 `exit 0`，
 **没有主动告警**；能发现"站点挂了"的只有 `uptime.yml`，而它实测日均 2–8 次、最坏间隔数小时。
 这条与演练无关，单独登记。
+
+### 19.9 回滚失败之后：状态落盘 + 两道出口（2026-11-08 加，对应服务器专档 §9 #30）
+
+**为什么加**：19.8 那次演练虽然是成功的，但看代码时发现失败分支没有出口——
+`postdeploy_watch.sh` 在「回滚命令失败」或「回滚后仍不健康」时只写一行
+`[FAIL] 需人工介入` 然后 **`exit 0`**，没有任何主动通知。能发现"站点挂了"的只有
+`uptime.yml`，而它实测日均 2–8 次、最坏间隔数小时。最坏情况是一整夜没人知道。
+
+**机制（一份状态，两个消费者）**：
+
+```
+/opt/matrix-hub/backups/rollback_state.json   # 宿主 root 写，容器 uid 10001 读
+/opt/matrix-hub/backups/rollback_failed       # marker 文件，存在即代表失败
+```
+
+| 谁 | 做什么 |
+|---|---|
+| `postdeploy_watch.sh` | 回滚**成功** → 写 `failed:false` 并删 marker；回滚**失败**（命令失败 / 6 次复查仍不健康）→ 写 `failed:true` 并创建 marker |
+| `/healthz`（默认口径与 `scope=all`） | 多一个 `rollback` 字段：`{"failed": false}` 或 `{"failed": true, "reason": ..., "detail": ..., "from_tag": ..., "to_tag": ...}` |
+| `uptime.yml` | 新增一步：`rollback.failed == true` 就**让 workflow 失败**（借 GitHub 失败通知当告警） |
+| `deploy.sh` | 开头闸门：marker 存在就**拒绝部署**，除非 `ROLLBACK_FAILED_ACK=1` |
+
+**关键取舍：`rollback` 只报告、不参与 `status` 判定。** 回滚失败说明生产是坏状态，
+但此刻站点可能已人工恢复；把它算进 `status` 会让部署脚本对着一个已经在跑的版本 503，
+甚至触发看门狗回滚一个正常版本。真正的闸门放在 `deploy.sh` 开头，那里有上下文、
+有逃生口、也会留痕。
+
+**为什么闸门默认"拦"而不是"提醒"**：回滚失败意味着"换回上一版也起不来"，生产已经
+躺下了。这时继续叠新版本，只会让现场更难还原，而且新版本多半在坏底座上一样过不了
+健康检查，把故障时间拉得更长。停线比抢修安全。
+
+**操作口径**：
+
+```bash
+# 看到 CI / 部署被闸门拦住时，先看现场
+cat /opt/matrix-hub/backups/rollback_state.json
+tail -40 /opt/matrix-hub/watch.log
+
+# 人工恢复并验证正常后，二选一：
+rm -f /opt/matrix-hub/backups/rollback_failed /opt/matrix-hub/backups/rollback_state.json
+# 或（执意要发布，会记 ack 到 deploy.log）
+ROLLBACK_FAILED_ACK=1 ./deploy.sh <tag>
+```
+
+**已验证的部分**（2026-11-08）：
+- `record_rollback` 真跑过：`failed=true` 生成合法 JSON + marker；`failed=false` 覆盖并删 marker（本地 harness 测的）
+- `/healthz` 四条：无文件 / 坏 JSON / `failed=true` 带上下文 / `failed=false`（`tests/test_rollbackstate.py`）
+- 闸门负例：见部署记录（造 marker → `deploy.sh` 拒跑 → 删 marker 恢复）
+
+**没验证的**：`uptime.yml` 那一步没法在本地跑（要真实 GitHub 调度），只做了逻辑等价验证；
+它本身的频率局限也没变（日均 2–8 次）。
