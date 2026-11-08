@@ -87,6 +87,12 @@ record_state() {
 # shellcheck source=probe.sh
 . ./probe.sh
 
+# 回滚结局落盘：与 postdeploy_watch.sh 共用同一份实现（deploy/rollback_state.sh）。
+# 2026-11-08 评审 P3-2：此前这里是 echo 一句就 exit，部署期回滚失败不落任何状态，
+# 于是「换回上一版也起不来」这条最该被闸门拦住的路径反而没有程序可读的事实。
+# shellcheck source=rollback_state.sh
+. ./rollback_state.sh
+
 
 echo "==> 拉取镜像"
 TAG="$NEW_TAG" docker compose pull web
@@ -147,9 +153,23 @@ if [ "$deploy_ok" -eq 1 ]; then
     fi
     echo "==> 已启动 10 分钟 5xx 看门狗（日志 watch.log）"
   fi
-  # -a 是必须的：不带 -a 只清 dangling（无 tag）镜像，而 CI 每个部署都打 tag，
-  # 结果就是每个 commit 留一个 318MB 的镜像，永不回收（10-19 实测已堆积 15 个）。
-  docker image prune -af --filter "until=168h" >/dev/null 2>&1 || true
+  # 镜像回收：只留**当前版与上一版**（2026-11-08，评审 P3-7）。
+  #
+  # 原来的 `prune -af --filter until=168h` 要等 7 天才回收。2026-11-08 一天部署 8 次，
+  # 实测堆了 12 个 × 321MB ≈ 3.9GB——40G 的盘上这不是理论风险。改成按 tag 保留：
+  # 当前版（正在跑的）+ 上一版（唯一回滚位），其余立即删。
+  #
+  # 三条安全边界：① 只碰 `$IMAGE:` 前缀的 tag，不碰基础镜像与别的仓库；
+  # ② 按引用删而不是 image id（同 id 多 tag 时按 id 删会误伤别的 tag）；
+  # ③ 全程 `|| true`——清理失败绝不能把一次成功部署变成失败。
+  # 更老的版本没丢：ACR 上有，需要时 `docker pull` 回来。
+  keep_refs="${IMAGE}:${NEW_TAG}"
+  if [ -n "${PREV_TAG:-}" ]; then keep_refs="$keep_refs ${IMAGE}:${PREV_TAG}"; fi
+  docker images --format "{{.Repository}}:{{.Tag}}" | grep -F "${IMAGE}:" | while read -r ref; do
+    case " $keep_refs " in *" $ref "*) continue ;; esac
+    docker rmi "$ref" >/dev/null 2>&1 || true
+  done
+  docker image prune -f >/dev/null 2>&1 || true
   exit 0
 fi
 
@@ -166,9 +186,14 @@ if [ -n "${PREV_TAG:-}" ]; then
     echo "==> 已回滚到 ${PREV_TAG}" >&2
   else
     echo "[FAIL] 回滚后仍不健康，需要人工介入" >&2
+    record_rollback "$PWD/backups" true "rollback_failed" \
+      "deploy.sh 自身回滚后 6 次健康复查未通过" "$NEW_TAG" "${PREV_TAG:-}" || true
   fi
 else
   echo "[FAIL] 无上一版本可回滚（首次部署）" >&2
+  # 首次部署没有回滚点，站点多半没起来——同样落状态，让下一次部署先被闸门拦一下。
+  record_rollback "$PWD/backups" true "no_prev_tag" \
+    "首次部署失败且无可回滚版本" "$NEW_TAG" "" || true
 fi
 record_state
 exit 1

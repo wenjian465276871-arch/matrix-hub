@@ -103,31 +103,13 @@ current_tag() {
   docker inspect -f '{{.Config.Image}}' matrix-hub 2>/dev/null | sed 's/.*://'
 }
 
+# 状态文件/marker 的路径由 rollback_state.sh 拼（只传目录），此处不留第二份定义。
 STATE_DIR="$DIR/backups"
-STATE_FILE="$STATE_DIR/rollback_state.json"
-STATE_MARKER="$STATE_DIR/rollback_failed"
 
-# 把回滚结局落成文件（宿主写、容器读）。两个消费者：/healthz 的 rollback 字段、
-# deploy.sh 开头的闸门（上一次回滚失败就拒绝继续部署）。
-# 为什么还要一个 marker 文件：deploy.sh 是 shell，`[ -f ]` 比 grep JSON 可靠；
-# 而 API 那边要的是"为什么失败"，所以两份都写。
-record_rollback() { # failed reason detail
-  local failed="$1" reason="$2" detail="$3"
-  mkdir -p "$STATE_DIR" 2>/dev/null || true
-  if ! { printf '{"failed": %s, "at": "%s", "reason": "%s", "detail": "%s", "from_tag": "%s", "to_tag": "%s"}\n' \
-        "$failed" "$(date -Is)" "$reason" "$detail" "$NEW_TAG" "$PREV_TAG" > "$STATE_FILE.tmp"; }; then
-    log "[watch][FAIL] 状态文件写入失败（$STATE_FILE），回滚结局无法上报"
-    return 1
-  fi
-  chmod 644 "$STATE_FILE.tmp" 2>/dev/null || true
-  mv -f "$STATE_FILE.tmp" "$STATE_FILE"
-  if [ "$failed" = "true" ]; then
-    : > "$STATE_MARKER"
-    chmod 644 "$STATE_MARKER" 2>/dev/null || true
-  else
-    rm -f "$STATE_MARKER"
-  fi
-}
+# 回滚结局落盘：与 deploy.sh 共用同一份实现（deploy/rollback_state.sh）。
+# 抽出来的理由写在那个文件的头部：两个回滚点的字段与权限必须完全一致。
+# shellcheck source=rollback_state.sh
+. "$DIR/rollback_state.sh"
 
 # 回滚只有一份实现：统计触发与探针触发走同一条路径，避免两处逻辑漂移。
 do_rollback() {
@@ -141,7 +123,7 @@ do_rollback() {
   log "[watch] 回滚到 ${PREV_TAG}（原因：${reason}，${detail}）"
   if ! TAG="$PREV_TAG" docker compose up -d web >>watch.log 2>&1; then
     log "[watch][FAIL] 回滚命令失败，需人工介入"
-    record_rollback true "$reason" "回滚命令执行失败（$detail）"
+    record_rollback "$STATE_DIR" true "$reason" "回滚命令执行失败（$detail）" "$NEW_TAG" "$PREV_TAG"
     exit 1
   fi
 
@@ -156,10 +138,10 @@ do_rollback() {
     # .env 也要退回去，否则下一次手工 `docker compose up -d` 又把坏版本拉起来
     sed -i "s/^TAG=.*/TAG=${PREV_TAG}/" .env 2>/dev/null || true
     log "[watch] 已回滚到 ${PREV_TAG}（.env TAG 已同步）"
-    record_rollback false "$reason" "$detail"
+    record_rollback "$STATE_DIR" false "$reason" "$detail" "$NEW_TAG" "$PREV_TAG"
   else
     log "[watch][FAIL] 回滚后仍不健康，需人工介入"
-    record_rollback true "$reason" "回滚后 6 次健康复查仍未通过（$detail）"
+    record_rollback "$STATE_DIR" true "$reason" "回滚后 6 次健康复查仍未通过（$detail）" "$NEW_TAG" "$PREV_TAG"
   fi
 
   {
