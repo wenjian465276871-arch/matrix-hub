@@ -40,12 +40,31 @@ async function newSession() {
 }
 
 const sid = await newSession()
+// 每页除了扫描，还要**证明扫的是这一页**（2026-11-08 加，评审 P2-3 / 待办 R5-4）。
+//
+// 为什么必须加：原来只统计 `violations.length`，只要渲染出任何东西、没有违规就是绿。
+// 而 router 有 `{ path: '/:pathMatch(.*)*', redirect: '/' }`——路径写错、路由改名、
+// seed 缺数据导致页面走 error 分支时，脚本会把**重定向后的页面**（或错误态）当成目标页
+// 扫一遍，输出照样是「16 次扫描 0 违规」。门禁就从"结论"退化成了"仪式"。
+//
+// 两道断言缺一不可：
+//   ① 路径断言：URL 必须停在期望路径上（挡住 redirect）；
+//   ② 内容断言：目标页的特征元素必须存在（挡住 loading/error/空壳）。
 const pages = [
-  ['库页', '/'],
-  ['指导书', '/guide/g_door_switch_formal_001'],
-  ['引导', `/run/${sid}`],
-  ['排查', '/diagnose'],
+  // [名字, 路径, 页面就绪的判据（在浏览器里求值）]
+  ['库页', '/', () => !!document.querySelector('.page-title')?.textContent?.includes('作业指导书')],
+  [
+    '指导书',
+    '/guide/g_door_switch_formal_001',
+    () => document.querySelectorAll('article.card .step').length > 0,
+  ],
+  ['引导', `/run/${sid}`, () => !!document.querySelector('.run-head')],
+  ['排查', '/diagnose', () => !!document.querySelector('.page-title')?.textContent?.includes('故障排查')],
 ]
+
+const BASE_PATH = new URL(BASE).pathname.replace(/\/+$/, '')
+const expectPath = (path) => (BASE_PATH + path).replace(/\/+$/, '') || '/'
+
 const viewports = [
   ['mobile', { width: 390, height: 844 }],
   ['desktop', { width: 1280, height: 900 }],
@@ -69,8 +88,20 @@ for (const [vpName, viewport] of viewports) {
       })
     }
     const page = await ctx.newPage()
-    for (const [name, path] of pages) {
+    for (const [name, path, ready] of pages) {
       await page.goto(BASE + path, { waitUntil: 'networkidle' })
+
+      // ① 路径断言：SPA 的 catch-all 是 redirect /，路径错了不会 404，只会悄悄换成别的页。
+      const landed = new URL(page.url()).pathname.replace(/\/+$/, '') || '/'
+      if (landed !== expectPath(path)) {
+        throw new Error(`页面没停在期望路径：${name} ${path} → 实际 ${landed}（被重定向了？）`)
+      }
+
+      // ② 内容断言：加载中、错误态、空壳都过得了 axe（没有违规），必须显式拒绝。
+      if (!(await page.evaluate(ready))) {
+        throw new Error(`页面没有渲染出目标内容：${name} ${path}（可能在 loading/error 分支）`)
+      }
+
       if (theme === 'dark') {
         const isDark = await page.evaluate(() =>
           document.documentElement.classList.contains('theme-dark'),
