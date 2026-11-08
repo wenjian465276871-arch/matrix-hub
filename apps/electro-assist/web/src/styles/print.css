@@ -118,6 +118,13 @@
     background: none;
   }
 
+  /* 判据行在纸上不要底色：浅灰边框叠浅灰底，灰度打印会糊成一条灰带，
+     而这块恰恰是现场最需要看清的读数区（视觉验收 2026-11-08 发现）。 */
+  .criterion {
+    border-color: #d0d0d0;
+    background: none;
+  }
+
   .disclaimer {
     border: 1px solid #999;
     background: #fff;

@@ -296,3 +296,103 @@ describe('GuideView 素材归位（已拆到 AttachPanel）', () => {
     wrapper.unmount()
   })
 })
+
+describe('判据来源标记', () => {
+  /**
+   * 来源标记只在服务端定位到原文时出现。
+   *
+   * 为什么值得单独测：它是"这个数值不是编的"唯一可见证据。渲染条件写反
+   * （比如 `v-if="!c.provenance"`）不会有任何别的测试变红，线上表现是
+   * **每条判据都显示"有据"**——比不显示更糟，等于给假数据盖章。
+   */
+  it('有 provenance 显示「有据 · 第 N 行」，没有则不渲染标记', async () => {
+    mocks.getJson.mockResolvedValue(
+      detail({
+        steps: [
+          {
+            id: 's1',
+            seq: 1,
+            title: '检查门锁闭合',
+            action: '手动关闭车门，观察锁扣',
+            safety: [],
+            tools: [],
+            criteria: [
+              {
+                id: 'c_lock_time',
+                label: '关门时间',
+                type: 'range' as const,
+                unit: 's',
+                min: 2,
+                max: 3.5,
+                provenance: {
+                  asset_id: null,
+                  line: 2,
+                  raw_text: '关门时间 2.0–3.5s',
+                  flag: 'ok' as const,
+                },
+              },
+              {
+                id: 'c_visual',
+                label: '目视确认',
+                type: 'manual' as const,
+              },
+            ],
+            figures: [],
+            assets: [],
+            duration_s: null,
+          },
+        ],
+      }),
+    )
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    const marks = wrapper.findAll('.criterion__src')
+    // 两条判据只该有一条标记：没有 provenance 的那条不许出现"无据"占位
+    expect(marks).toHaveLength(1)
+    expect(marks[0].text()).toBe('有据 · 第 3 行')
+    expect(marks[0].classes()).toContain('criterion__src--ok')
+    expect(marks[0].attributes('title')).toContain('2.0–3.5s')
+    wrapper.unmount()
+  })
+
+  it('suspect 显示「待核」，不能被渲染成 ok', async () => {
+    mocks.getJson.mockResolvedValue(
+      detail({
+        steps: [
+          {
+            id: 's1',
+            seq: 1,
+            title: '检查门锁闭合',
+            action: '手动关闭车门，观察锁扣',
+            safety: [],
+            tools: [],
+            criteria: [
+              {
+                id: 'c_lock_time',
+                label: '关门时间',
+                type: 'range' as const,
+                unit: 's',
+                min: 2,
+                max: 3.5,
+                provenance: { asset_id: null, line: 0, raw_text: '参考行', flag: 'suspect' as const },
+              },
+            ],
+            figures: [],
+            assets: [],
+            duration_s: null,
+          },
+        ],
+      }),
+    )
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    const mark = wrapper.get('.criterion__src')
+    expect(mark.text()).toBe('待核 · 第 1 行')
+    expect(mark.classes()).toContain('criterion__src--suspect')
+    wrapper.unmount()
+  })
+})

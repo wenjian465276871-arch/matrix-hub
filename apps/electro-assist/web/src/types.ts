@@ -9,9 +9,19 @@ export type System = 'door' | 'hvac' | 'pantograph'
 
 export type CriterionType = 'range' | 'enum' | 'text' | 'manual'
 
-/** 图片输入的字段级来源（决策 #11）。文本输入没有该字段。 */
+/**
+ * 一条判据的字段级来源（决策 #11）。由**服务端**在生成落库前回填，模型不写。
+ *
+ * 两个锚点至少有一个：
+ * - `asset_id`：图片来源，**只有本次提交恰好 1 张图时才有**——多张图是合并转录的，
+ *   行号归属不明，硬指一张就是编；
+ * - `line`：原文行号（0 基）。
+ *
+ * `bbox` 留在契约里但当前恒为 null：没有视觉服务返回坐标，填了就是假定位。
+ */
 export interface Provenance {
-  asset_id: string
+  asset_id: string | null
+  line: number | null
   bbox?: [number, number, number, number] | null
   raw_text?: string | null
   confidence?: number | null
@@ -215,8 +225,28 @@ export interface ExtractedStep {
   seq: number
   action: string
   criterion: string | null
+  /** 判据的溯源；判据被清空时为 null（没有判据就不该有来源） */
+  criterion_trace: TraceRef | null
   source_line: number | null
+  /** 动作的溯源。服务端在转录行里重新定位的结果，优先于模型自报的 source_line */
+  trace: TraceRef
   verified: boolean
+}
+
+/**
+ * 一条内容的"从哪儿来"。
+ *
+ * - `ok`：整段文字能定位到具体行，且内容校验通过——可以当真凭据看
+ * - `suspect`：能指到一行但内容被改写，或只对得上数字——是线索，不是证据
+ * - `unverified`：指不回去（跨行太多、或原文里根本没有），前端必须说清
+ *
+ * `line` 是 `ExtractResult.lines` 的 0 基下标，**不是图片行号**：
+ * 多张图是合并转录的，这里指不到具体哪张图。
+ */
+export interface TraceRef {
+  line: number | null
+  text: string | null
+  flag: 'ok' | 'suspect' | 'unverified'
 }
 
 export interface ExtractResult {
@@ -235,6 +265,8 @@ export interface ExtractResult {
     lines: number
     steps: number
     verified_steps: number
+    /** 能指回原文具体行的步数。与 verified_steps 不同：后者看内容，前者看证据链 */
+    located_steps: number
   }
   /** 通道统计：dual = 转录 + 结构化两次调用；fallback 非空说明退回单通道 */
   channels: {

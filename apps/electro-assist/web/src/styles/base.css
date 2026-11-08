@@ -487,6 +487,45 @@ html.theme-dark .btn--warn:hover {
   font-size: 12px;
 }
 
+/* 判据来源：数值 + 「有据 / 待核 · 第 N 行」。两者必须跟在一起，
+   否则 flex 的 space-between 会把标签、数值、来源拉成三段等距。 */
+.criterion__tail {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.criterion__src {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  background: var(--c-surface);
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--c-ink-3);
+  white-space: nowrap;
+}
+
+.criterion__src--ok {
+  border-color: var(--c-success);
+  color: var(--c-success);
+}
+
+.criterion__src--suspect {
+  border-color: var(--c-warning-line);
+  color: var(--c-warning);
+}
+
+/* 打印去掉底与描边：浅色边框在白纸上糊成灰块，文字本身已经说明问题 */
+@media print {
+  .criterion__src {
+    padding: 0;
+    border-color: transparent;
+    background: none;
+  }
+}
+
 .step__duration {
   margin: 0;
   color: var(--c-ink-2);

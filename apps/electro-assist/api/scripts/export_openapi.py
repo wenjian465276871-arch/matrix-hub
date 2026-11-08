@@ -58,7 +58,7 @@ CURATED = {
     "POST /api/electro/diagnose/runs/{run_id}/checks/{order}":
         "回填一项检查（确认 pass/fail 或实测值），由服务端判定并推进",
     "POST /api/electro/diagnose/runs/{run_id}/abort": "中止逐步诊断，保留已完成步骤",
-    "POST /api/electro/extract": "图片识别：默认双通道（先转录后结构化），失败回退单通道并标注；不落库、不自动生成",
+    "POST /api/electro/extract": "图片识别：默认双通道（先转录后结构化），失败回退单通道并标注；每步与每条判据带 `trace`（服务端在转录行里重新定位的行号 + `ok`/`suspect`/`unverified` 三态）；不落库、不自动生成",
     "POST /api/electro/processes": "工艺文本预检：规则解析工序/工位/工具/安全与判据线索；`save=true` 时把原文落库并返回 `process_id`（默认不落库、不扣配额）",
     "GET /api/electro/processes/{process_id}": "取已保存的工艺原文（随机 id，不枚举；保留 30 天）",
     "POST /api/electro/processes/{process_id}/generate":
@@ -125,6 +125,11 @@ def collect(spec: dict) -> list[dict]:
 
 
 def render(spec: dict, rows: list[dict]) -> str:
+    # 延迟 import：`core.errors` 依赖 `sys.path` 里已有 API_DIR（本文件顶部插入），
+    # 放在函数内可以保证「先设路径、后导包」，也避免 `--help` 时拉起整个 core 包。
+    from core.errors import ERROR_CODES as error_codes
+    from core.errors import PREFIX_FAMILIES as prefix_families
+
     info = spec.get("info", {})
     business = [r for r in rows if r["path"] != "/healthz"]
     out: list[str] = []
@@ -191,6 +196,32 @@ def render(spec: dict, rows: list[dict]) -> str:
                     kind = "enum(" + " / ".join(str(e) for e in meta["enum"]) + ")"
                 a(f"| `{field}` | `{kind}` | {'是' if field in required else '否'} |")
             a("")
+
+    a("## 5. 错误码")
+    a("")
+    a("> 由 `apps/electro-assist/api/core/errors.py` 的 `ERROR_CODES` 登记，本节由脚本渲染。")
+    a("> **双向校验**：代码里出现未登记的码、或表里存在没人用的码，`--check` 都会失败。")
+    a("")
+    a("错误体统一为 `{\"detail\": {\"code\": ..., \"message\": ...}}`；429 另带 `retry_after`，")
+    a("5xx 另带 `ref`（与 `X-Request-Id` 同值，供查日志）。异步任务的码在 `GET /jobs/{id}` 的")
+    a("`error_code` 字段，不是 `detail.code`。")
+    a("")
+    a("### 5.1 码表")
+    a("")
+    a("| code | HTTP | 含义 | 产生位置 |")
+    a("|---|---|---|---|")
+    for code, spec in sorted(error_codes.items(), key=lambda kv: (kv[1].where, kv[0])):
+        status = str(spec.status) if spec.status is not None else "由端点定"
+        a(f"| `{code}` | {status} | {spec.message} | `{spec.where}` |")
+    a("")
+    if prefix_families:
+        a("### 5.2 前缀族（f-string 拼出来的码）")
+        a("")
+        a("| 前缀 | 形态 | 含义 | 产生位置 |")
+        a("|---|---|---|---|")
+        for prefix, family in sorted(prefix_families.items()):
+            a(f"| `{prefix}` | `{family.pattern}` | {family.message} | `{family.where}` |")
+        a("")
     return "\n".join(out).rstrip() + "\n"
 
 
@@ -211,11 +242,22 @@ def main() -> int:
     text = render(spec, rows)
     out = Path(args.out)
     if args.check:
+        # 先校错误码再校文档：码表是手工登记的，它错了文档一定跟着错，
+        # 先报「哪个码没登记」比报「整份文档不一致」有用得多。
+        from core.errors import ERROR_CODES, verify
+
+        problems = verify()
+        if problems:
+            print(f"[FAIL] 错误码登记与代码不一致（{len(problems)} 处）：")
+            for problem in problems:
+                print(f"   - {problem}")
+            print("修复：改 `core/errors.py` 的 ERROR_CODES / PREFIX_FAMILIES 后重跑导出")
+            return 1
         current = out.read_text(encoding="utf-8") if out.exists() else ""
         if current != text:
             print(f"[FAIL] {out} 与当前代码不一致，请运行 python scripts/export_openapi.py 重新导出")
             return 1
-        print(f"[OK] {out} 与代码一致（{len(rows)} 个端点）")
+        print(f"[OK] {out} 与代码一致（{len(rows)} 个端点 / {len(ERROR_CODES)} 个错误码）")
         return 0
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")

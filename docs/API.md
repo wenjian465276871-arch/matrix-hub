@@ -26,7 +26,7 @@
 | `GET` | `/api/electro/diagnose/runs/{run_id}` | 取逐步诊断状态：已填步骤、当前检查、结论 | `—` | `200 · object` |
 | `POST` | `/api/electro/diagnose/runs/{run_id}/abort` | 中止逐步诊断，保留已完成步骤 | `—` | `200 · object` |
 | `POST` | `/api/electro/diagnose/runs/{run_id}/checks/{order}` | 回填一项检查（确认 pass/fail 或实测值），由服务端判定并推进 | `CheckIn` | `200 · object` |
-| `POST` | `/api/electro/extract` | 图片识别：默认双通道（先转录后结构化），失败回退单通道并标注；不落库、不自动生成 | `ExtractIn` | `200 · object` |
+| `POST` | `/api/electro/extract` | 图片识别：默认双通道（先转录后结构化），失败回退单通道并标注；每步与每条判据带 `trace`（服务端在转录行里重新定位的行号 + `ok`/`suspect`/`unverified` 三态）；不落库、不自动生成 | `ExtractIn` | `200 · object` |
 | `POST` | `/api/electro/fe-error` | 前端错误上报：只写日志、不落库；字段白名单 + 单 IP 30/时限流 | `FeErrorIn` | `—` |
 | `POST` | `/api/electro/generate` | 提交生成任务，返回 202 + job_id（单 worker 有界队列） | `GenerateIn` | `202 · object` |
 | `GET` | `/api/electro/guides` | 指导书列表，**只含已发布**（草稿不进列表）；`q` 按标题/摘要/来源说明子串搜索 | `—` | `200 · object` |
@@ -70,7 +70,7 @@
 
 ### extract
 
-- `POST /api/electro/extract` — 图片识别：默认双通道（先转录后结构化），失败回退单通道并标注；不落库、不自动生成
+- `POST /api/electro/extract` — 图片识别：默认双通道（先转录后结构化），失败回退单通道并标注；每步与每条判据带 `trace`（服务端在转录行里重新定位的行号 + `ok`/`suspect`/`unverified` 三态）；不落库、不自动生成
 
 ### generate
 
@@ -310,3 +310,89 @@
 | `type` | `string` | 是 |
 | `input` | `—` | 否 |
 | `ctx` | `object` | 否 |
+
+## 5. 错误码
+
+> 由 `apps/electro-assist/api/core/errors.py` 的 `ERROR_CODES` 登记，本节由脚本渲染。
+> **双向校验**：代码里出现未登记的码、或表里存在没人用的码，`--check` 都会失败。
+
+错误体统一为 `{"detail": {"code": ..., "message": ...}}`；429 另带 `retry_after`，
+5xx 另带 `ref`（与 `X-Request-Id` 同值，供查日志）。异步任务的码在 `GET /jobs/{id}` 的
+`error_code` 字段，不是 `detail.code`。
+
+### 5.1 码表
+
+| code | HTTP | 含义 | 产生位置 |
+|---|---|---|---|
+| `rate_limited` | 429 | 该 IP 的窗口配额已用完，响应带 `retry_after` | `core/ratelimit.py 调用方` |
+| `auth` | 由端点定 | 上游鉴权失败：Key 无效、被吊销或额度耗尽 | `llm/deepseek.py` |
+| `bad_request` | 由端点定 | 上游拒绝请求（参数或模型名有误） | `llm/deepseek.py` |
+| `network` | 由端点定 | 上游网络失败：连接超时、DNS、TLS | `llm/deepseek.py` |
+| `rate_limit` | 由端点定 | 上游限流（不是本站配额） | `llm/deepseek.py` |
+| `server` | 由端点定 | 上游 5xx | `llm/deepseek.py` |
+| `timeout` | 由端点定 | 上游在单次调用时限内没有返回 | `llm/deepseek.py` |
+| `truncated` | 由端点定 | 输出被 `max_tokens` 截断，JSON 不完整 | `llm/deepseek.py` |
+| `validation` | 由端点定 | 模型输出不是合法 JSON，或字段不合 schema | `llm/deepseek.py` |
+| `budget` | 由端点定 | 剩余时间预算不足以再发起一次调用（不是上游错误） | `llm/runner.py` |
+| `internal_error` | 500 | 未预期异常，响应带 `ref` 供查日志 | `main.py` |
+| `invalid_request` | 422 | 请求体不合 schema（字段缺失、类型错、长度越界） | `main.py` |
+| `resume_mismatch` | 由端点定 | `Last-Event-ID` 不在本次流的事件序列里（跨请求续读不被支持），应重发请求 | `routers/diagnose.py` |
+| `run_not_found` | 404 | 逐步诊断会话不存在 | `routers/diagnose.py` |
+| `stream_failed` | 由端点定 | 流内失败帧：召回或重排阶段抛错，连接已结束 | `routers/diagnose.py` |
+| `asset_not_found` | 422 | 素材不存在或已过期 | `routers/extract.py` |
+| `assets_required` | 422 | 至少要提供 1 项（图片 / 素材项） | `routers/extract.py` |
+| `duplicate_asset` | 422 | 同一张图在本次提交里出现两次 | `routers/extract.py` |
+| `extract_invalid` | 502 | 模型输出不合结构化 schema，无法当作识别结果 | `routers/extract.py` |
+| `too_many_assets` | 422 | 一次提交的图片超过 3 张 | `routers/extract.py` |
+| `vision_not_configured` | 503 | 服务端没配置视觉模型 Key，识别入口整体关闭 | `routers/extract.py` |
+| `asset_duplicate` | 422 | 同一素材被挂到两个位置（一个素材只能归位一次） | `routers/guides.py` |
+| `bad_caption` | 422 | 素材说明为空，或含标记语法（说明是纯文本） | `routers/guides.py` |
+| `guide_invalid` | 409 | 草稿数据无法解析成 Guide（库里存的 JSON 与当前 schema 不兼容） | `routers/guides.py` |
+| `passcode_disabled` | 503 | 服务端没配置口令，写入口整体关闭 | `routers/guides.py` |
+| `passcode_required` | 401 | 该操作需要口令令牌，请求没带 `X-Passcode-Token` | `routers/guides.py` |
+| `published_locked` | 409 | 已发布的指导书不可改；要改内容请生成新版本 | `routers/guides.py` |
+| `step_not_found` | 422 | 草稿里没有该 `step_id` | `routers/guides.py` |
+| `unknown_asset` | 422 | 这份草稿里没有该素材，无法归位 | `routers/guides.py` |
+| `not_found` | 404 | 资源不存在，或凭当前 id 读不到 | `routers/guides.py 等` |
+| `passcode_invalid` | 401 | 口令或令牌不正确 / 已过期（令牌 12 小时） | `routers/jobs.py` |
+| `input_too_long` | 422 | 工艺文本超过 20,000 字符上限 | `routers/processes.py` |
+| `input_too_short` | 422 | 工艺文本少于 10 字符，不够生成一份指导书 | `routers/processes.py` |
+| `process_not_found` | 404 | 工艺原文不存在，或已过 30 天保留期 | `routers/processes.py` |
+| `idempotency_key_required` | 400 | 提交步骤必须带 `Idempotency-Key`，否则无法保证重投不产生第二条记录 | `routers/sessions.py` |
+| `session_not_found` | 404 | 会话不存在 | `routers/sessions.py` |
+| `adopt_limit` | 429 | 同一张图被复制成独立素材的次数超过上限（6 次） | `routers/uploads.py` |
+| `bad_asset_id` | 400 | 素材 id 格式不合法（应为 `a_` + 16 位十六进制） | `routers/uploads.py` |
+| `bad_path` | 400 | 取图路径不合法（文件名不在该素材的切片清单里） | `routers/uploads.py` |
+| `bad_region_id` | 400 | 切块 id 格式不合法 | `routers/uploads.py` |
+| `region_not_found` | 404 | 切块不存在 | `routers/uploads.py` |
+| `slice_limit` | 429 | 同一张图的切图次数超过上限（每图 12 次/时） | `routers/uploads.py` |
+| `too_large` | 413 | 图片超过 5MB | `routers/uploads.py` |
+| `unreadable` | 422 | 图片无法解码（损坏、或不是 png/jpg/webp） | `routers/uploads.py` |
+| `invalid_value` | 由端点定 | 实测值不是数字，或不在判据允许的取值域内 | `services/criteria.py` |
+| `manual_not_confirmed` | 由端点定 | 人工确认类判据未勾选确认 | `services/criteria.py` |
+| `missing_criterion` | 由端点定 | 该步有判据没有提交结果 | `services/criteria.py` |
+| `unknown_criterion` | 由端点定 | 提交了该步不存在的判据 id | `services/criteria.py` |
+| `check_not_found` | 由端点定 | 该诊断会话没有这个检查项序号 | `services/diagnosis.py` |
+| `duplicate_check` | 由端点定 | 该检查项已回填过，不能重复提交（改结论请重开一轮） | `services/diagnosis.py` |
+| `entry_not_found` | 由端点定 | 知识库里没有该条目 id | `services/diagnosis.py` |
+| `result_required` | 由端点定 | 该检查项要求 pass/fail 结论，提交里没有 | `services/diagnosis.py` |
+| `run_finished` | 由端点定 | 诊断会话已收束，不再接受回填 | `services/diagnosis.py` |
+| `value_invalid` | 由端点定 | 实测值格式不合法 | `services/diagnosis.py` |
+| `value_required` | 由端点定 | 该检查项要求实测值，提交里没有 | `services/diagnosis.py` |
+| `wrong_order` | 由端点定 | 回填的检查项不是当前待办项 | `services/diagnosis.py` |
+| `busy` | 由端点定 | 生成队列已满，任务未被接收（异步任务的 `error_code`） | `services/generation.py` |
+| `internal` | 由端点定 | 生成过程抛了非 LLM 异常（异步任务的 `error_code`，详情是异常类名） | `services/generation.py` |
+| `guide_missing` | 由端点定 | 开始会话时指定的指导书不存在 | `services/sessions.py` |
+| `guide_not_found` | 由端点定 | 会话关联的指导书已被删除 | `services/sessions.py` |
+| `out_of_order` | 由端点定 | 提交的步序与当前进度不连续 | `services/sessions.py` |
+| `record_missing` | 由端点定 | 该步还没有任何记录，无法读取或导出 | `services/sessions.py` |
+| `session_closed` | 由端点定 | 会话已结束（done / aborted），不能再提交 | `services/sessions.py` |
+| `step_already_passed` | 由端点定 | 该步已通过，不允许重投（要复测请对未通过步提交） | `services/sessions.py` |
+| `steps_incomplete` | 由端点定 | 结束会话时仍有步骤未通过（`done` 的前置条件） | `services/sessions.py` |
+
+### 5.2 前缀族（f-string 拼出来的码）
+
+| 前缀 | 形态 | 含义 | 产生位置 |
+|---|---|---|---|
+| `extract_` | `extract_{kind}` | 图片识别时上游失败，`kind` 取 `auth` / `network` / `timeout` / `rate_limit` / `server` / `truncated` / `validation` / `bad_request` / `budget` 之一；前端提示按 kind 分档 | `routers/extract.py` |
+| `http_` | `http_{status}` | 框架自身抛的 `HTTPException`（无此路由 404、方法不允许 405 等）被收进统一信封时补的码 | `main.py` |

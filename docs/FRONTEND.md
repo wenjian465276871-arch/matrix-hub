@@ -207,15 +207,29 @@ DSL 由后端生成并做 schema 校验，前端只负责按规格渲染——**
 |---|---|
 | `lib/sse.ts` + 流式解析 | `lib/sse.ts`（`postStream`，fetch + `getReader` 按帧解析）；`DiagnoseView` 消费 recall→rerank→done。**2026-11-08 加重连**：断流且已收帧、未收终止帧时自动重连一次，带 `Last-Event-ID`（值是最后一个事件名），服务端跳过已发帧；一帧未收不重连（那等于重跑整个请求） |
 | `_fe-error` 上报端点 | 后端 `routers/fe.py`（只写日志、不落库）+ 前端 `lib/report.ts`（每会话 20 条上限、60s 去重） |
+
+**2026-11-08 新增（能力，不是欠账）**：识别结果的逐条溯源落在 `components/newguide/TraceList.vue`，
+数据来自 `POST /extract` 返回的 `fields.steps[i].trace` / `.criterion_trace`（服务端在转录行里
+重新定位，三态 `ok` / `suspect` / `unverified`）。前端只负责不撒谎：`suspect` 必须显示「待核」，
+`unverified` 必须显示「指不回原文」且**不是按钮**——点不开的东西不该长得像按钮。
+
+同日还有**生成侧的判据来源标记**：`GuideView` 的判据行显示「有据 · 第 N 行」/「待核 · 第 N 行」
+（`.criterion__src`，`title` 带原文片段），数据来自 `Criterion.provenance`，由
+`services/provenance.py` 在生成落库前用原文定位回填。三点约定：
+
+- **没有标记 ≠ 数值错**，只代表没有证据链（手写输入的指导书就没有），所以不渲染"无据"占位；
+- 标记与数值必须包在同一个 `.criterion__tail` 里——`.criterion` 是 `space-between`，
+  三项平铺会把标签、数值、来源拉成三段等距；
+- 打印时去掉描边与底色，否则浅绿边框在白纸上糊成灰块。
 | `aria-live` 双区 | `components/ui/LiveRegion.vue` + `lib/announce.ts`（`polite` / `assertive` 两区，2s 去重） |
 
 ### 9.1 大文件拆分（2026-11-06 已执行，不再是"未执行"）
 
 | 文件 | 拆分前 | 现在 | 抽出的组件 / 纯逻辑 | 结论 |
 |---|---|---|---|---|
-| `NewGuideView.vue` | 1,413 行 | **1,154 行** | `AssetShelf` 290 / `PasscodePanel` 161 / `ExtractPanel` 153 | 三轮拆完；剩余部分是状态耦合（`text` 既是输入又是回填目标），再拆要动逻辑，收益低于风险 |
+| `NewGuideView.vue` | 1,413 行 | **1,158 行** | `AssetShelf` 290 / `PasscodePanel` 161 / `ExtractPanel` 153 / `TraceList` 327 | 三轮拆完；剩余部分是状态耦合（`text` 既是输入又是回填目标），再拆要动逻辑，收益低于风险。**2026-11-08 加 `TraceList`**：识别结果的逐条溯源（每步 / 每条判据「来自第几行」+ 点击展开原文）。与 `ExtractPanel` 分工明确——摘要回答"要不要重识别"，逐条回答"这一条能不能信"；合成一个会让那块面板很快变成第二个千行文件 |
 | `RunView.vue` | 961 行 | **887 行** | `StepResult` 169 / `RunBar` 134 + `lib/runeval.ts` | 同上；横屏媒体查询随 `RunBar` 一起搬，否则主按钮宽度会塌 |
-| `GuideView.vue` | 1,155 行 | **814 行** | `AttachPanel` 233 / `EditPanel` 260 + `lib/guidepatch.ts` | 同上 |
+| `GuideView.vue` | 1,155 行 | **833 行** | `AttachPanel` 233 / `EditPanel` 260 + `lib/guidepatch.ts` | 同上。**2026-11-08 加判据来源标记**（+19 行：`provenanceText()` + 模板一处 + `.criterion__tail` 包裹），没有新组件——它的消费者只有判据行 |
 
 判断标准（2026-11-06 修订）：**超过 600 行且混多个职责才拆**；纯页面壳（模板长、状态集中）不按行数强拆。
 `DiagnoseView`（516）/ `RecordView`（503）/ `LibraryView`（335）评估后不拆，改为补组件单测。

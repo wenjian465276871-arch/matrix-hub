@@ -8,6 +8,7 @@ import { dropStoredToken, readStoredToken } from '../lib/passcode'
 import AssetShelf from '../components/newguide/AssetShelf.vue'
 import PasscodePanel from '../components/newguide/PasscodePanel.vue'
 import ExtractPanel from '../components/newguide/ExtractPanel.vue'
+import TraceList from '../components/newguide/TraceList.vue'
 import type {
   ExtractResult,
   GenerateAccepted,
@@ -739,6 +740,9 @@ onBeforeUnmount(() => {
         @apply="applyExtraction"
         @clear="clearExtraction"
       />
+      <!-- 逐条溯源：每步/每条判据"来自原图第几行"。放在摘要下面——
+           摘要回答"要不要重识别"，这里回答"这一条能不能信"。 -->
+      <TraceList v-if="extractResult" :result="extractResult" />
     </AssetShelf>
 
     <div v-if="quota" class="quota">

@@ -14,6 +14,7 @@ import type {
   Guide,
   GuideDetail,
   GuideStatus,
+  Provenance,
   PublishResult,
   SessionSnapshot,
 } from '../types'
@@ -66,6 +67,13 @@ function criterionValue(c: Criterion): string {
   if (c.type === 'enum') return (c.options ?? []).join(' / ')
   if (c.type === 'manual') return '人工确认'
   return '记录'
+}
+
+/** 判据来源标签。行号内部 0 基、显示 1 基，与识别确认页同一口径。 */
+function provenanceText(p: Provenance): string {
+  const tag = p.flag === 'ok' ? '有据' : '待核'
+  if (p.line === null || p.line === undefined) return `${tag} · 见原图`
+  return `${tag} · 第 ${p.line + 1} 行`
 }
 
 // 模板里拿不到 window（Vue 只白名单了 Math/Date/JSON 等），必须在这里包一层。
@@ -543,8 +551,19 @@ restoreToken()
         <div class="criteria">
           <div v-for="c in step.criteria" :key="c.id" class="criterion">
             <span class="criterion__label">{{ c.label }}</span>
-            <span class="criterion__value">
-              {{ criterionValue(c) }}<span v-if="c.unit" class="criterion__unit">{{ c.unit }}</span>
+            <span class="criterion__tail">
+              <span class="criterion__value">
+                {{ criterionValue(c) }}<span v-if="c.unit" class="criterion__unit">{{ c.unit }}</span>
+              </span>
+              <!-- 有据/待核：只有服务端定位到了原文才出现。**没有这个标记不代表数值错**，
+                   只代表没有证据链（手写输入的指导书就没有），所以不显示"无据"占位。 -->
+              <span
+                v-if="c.provenance"
+                class="criterion__src"
+                :class="`criterion__src--${c.provenance.flag ?? 'ok'}`"
+                :title="c.provenance.raw_text || '原文片段未保留'"
+                >{{ provenanceText(c.provenance) }}</span
+              >
             </span>
           </div>
         </div>

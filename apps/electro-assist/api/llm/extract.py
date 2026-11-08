@@ -22,13 +22,18 @@
 1. **结构**：pydantic 强约束，字段缺失即拒；
 2. **语义**：`fields` 里的每个值必须能在 `lines`（原图转录）里找到；
    找不到就标 `unverified`，数值类直接清空——宁可空，不可编；
-3. **回溯**：每个 step 带 `source_line`，指回 `lines` 的下标，确认页据此并排显示。
+3. **回溯**：每个 step 带 `source_line`（模型自报的线索）与 `trace`（**服务端在
+   `lines` 里重新定位的结果**：行号 + 该行原文 + `ok` / `suspect` / `unverified` 三态）。
+   行号是 `lines` 的 0 基下标。服务端定位优先于模型自报——模型数行经常差一，
+   差一就指到别的步骤，而"指错行"比"指不回去"更糟（人会被引到错误的一行去核对）。
+   `source_line` 保留不动：`coverage` 仍按它算，且它是"模型认为在哪"的原始证据。
 
 输出永远 `needs_review=True`：识别结果不写库、不自动发布，只回给确认页。
 """
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -36,11 +41,22 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 MAX_LINES = 80
 MAX_STEPS = 20
 MAX_LINE_CHARS = 200
+# 一条内容最多允许跨几行定位。工艺卡里一个步骤被折成两三行很常见，
+# 超过 3 行还能"拼出来"的多半是巧合（归一化去掉了空格，误命中成本很低）。
+MAX_SPAN = 3
 
 NUM_RE = re.compile(r"\d+(?:\.\d+)?")
 SPACE_RE = re.compile(r"[\s\u3000]+")
-# 转录时常混入全角数字/单位，比较前统一，避免"２.０"与"2.0"被判成两个值。
-FULLWIDTH = str.maketrans("０１２３４５６７８９．－～", "0123456789.-~")
+# 比较用的折叠规则（两处共用：`normalize` 判文本、`_numbers` 抽数字）。
+#
+# 为什么不只靠手工全角表：转录里混的不止全角——工艺卡上「2.0–3.5s」用的是
+# **en dash**，模型输出常写成 ASCII 连字符；「２.０～３.５ｓ」还带全角字母 s。
+# 手工表要穷举这些变体会一直漏，NFKC 一次解决全角数字/字母/波浪/圈字符；
+# 剩下的"横线家族"没有 unicode 归一，只能显式映射。
+# 不统一它们的后果不是显示难看，是**同一个范围被判成两个值**，判据会被误清空。
+DASHES = str.maketrans(
+    {"–": "-", "—": "-", "−": "-", "‐": "-", "‑": "-", "‒": "-", "―": "-"}
+)
 
 SYSTEM_PROMPT = """你是工艺截图的转录器，不是解释器。
 
@@ -307,17 +323,101 @@ class StructurePayload(BaseModel):
         return self
 
 
+def _fold(text: str) -> str:
+    """比较前的字符折叠：NFKC + 横线统一。不用于回写，只用于比较。"""
+    return unicodedata.normalize("NFKC", text).translate(DASHES)
+
+
 def normalize(text: str) -> str:
-    """比较用的归一化：去空白 + 全角转半角 + 小写。
+    """比较用的归一化：去空白 + 全角/兼容字符折叠 + 小写。
 
     只用于「这句话在不在转录里」的判断，不改动返回值——
     归一化后的文本绝不能回写给用户，否则原文就被悄悄改写了。
     """
-    return SPACE_RE.sub("", text.translate(FULLWIDTH)).lower()
+    return SPACE_RE.sub("", _fold(text)).lower()
 
 
 def _numbers(text: str) -> list[str]:
-    return NUM_RE.findall(text.translate(FULLWIDTH))
+    return NUM_RE.findall(_fold(text))
+
+
+def locate(lines: list[str], text: str | None) -> tuple[int | None, str | None]:
+    """在转录行里定位一段内容，返回 `(行号, 该行原文)`；定位不到返回 `(None, None)`。
+
+    先找单行（最常见，行号也最准），再试跨 2–3 行的拼接。比较用 `normalize`
+    （去空白、全角转半角、小写），所以"２.０～３.５s"和"2.0-3.5s"能对上。
+
+    **不做模糊匹配**。宁可返回 None 让它显示"指不回原文"，也不要指到一行
+    看着像但其实是别的内容——人去核对被引错的那一行，比没有引路更危险。
+    """
+    if not text:
+        return None, None
+    needle = normalize(text)
+    if not needle:
+        return None, None
+    for index, line in enumerate(lines):
+        if needle in normalize(line):
+            return index, line
+    for span in range(2, MAX_SPAN + 1):
+        for start in range(len(lines) - span + 1):
+            window = lines[start : start + span]
+            if needle in normalize("".join(window)):
+                return start, " ".join(window)
+    return None, None
+
+
+def locate_by_numbers(lines: list[str], text: str | None) -> tuple[int | None, str | None]:
+    """整句定位不到时的退路：按**数字集合**找行，用作 `suspect` 级线索。
+
+    典型场景是判据被改写——原图「不大于 3.5s」、模型输出「≤3.5s」，
+    整句对不上，但 3.5 确实在那一行。
+
+    比较用「该行数字集合是否包含目标数字集合」，不用子串包含：
+    `"3.5" in "13.50"` 是 True，子串匹配会把「3.5s」指到写着「13.5s」的行——
+    这类错指比指不回去更难被发现。
+    """
+    wanted = set(_numbers(text or ""))
+    if not wanted:
+        return None, None
+    for index, line in enumerate(lines):
+        if wanted <= set(_numbers(line)):
+            return index, line
+    for index, line in enumerate(lines):
+        if wanted & set(_numbers(line)):
+            return index, line
+    return None, None
+
+
+def _trace(
+    lines: list[str],
+    text: str | None,
+    hint: int | None,
+) -> dict[str, Any]:
+    """给一条内容生成溯源：`{line, text, flag}`。
+
+    判定不靠模型自述，靠「这段文字在不在转录里、在的话是哪一行」：
+
+    - `ok`：整段文字能定位到具体行——服务端定位，不采信模型自报的 `source_line`；
+    - `suspect`：定位不到整句，但对得上行内数字，或模型给了有效行号——
+      **指得到参考位置，但不是证据**；
+    - `unverified`：都没有，前端必须显示"指不回原文"。
+
+    这里**没有**「verified 才给 ok」这一层：`locate` 逐字命中必然意味着
+    `found()` 为真、数字也都在原文（单行文本是 haystack 的子串），所以再加
+    一个 `exact` 参数永远不会改变结果——2026-11-08 试过，负例不红，删掉了。
+
+    `hint` 只当线索用，且必须落在 `lines` 范围内；越界当没有——越界的行号
+    指向的是不存在的位置，展示出来等于凭空造一个"来源"。
+    """
+    line, source = locate(lines, text)
+    if line is not None:
+        return {"line": line, "text": source, "flag": "ok"}
+    num_line, num_source = locate_by_numbers(lines, text)
+    if num_line is not None:
+        return {"line": num_line, "text": num_source, "flag": "suspect"}
+    if hint is not None and 0 <= hint < len(lines):
+        return {"line": hint, "text": lines[hint], "flag": "suspect"}
+    return {"line": None, "text": None, "flag": "unverified"}
 
 
 def reconcile(lines: list[str], fields: ExtractFields, warnings: list[str]) -> dict[str, Any]:
@@ -370,12 +470,23 @@ def reconcile(lines: list[str], fields: ExtractFields, warnings: list[str]) -> d
         elif not verified:
             unverified.append(f"第 {step.seq} 步为改写文本（非原图原文），请核对")
 
+        # 判据溯源：整句能定位到某行 → ok；只对得上数字（句式被模型改写）→ suspect；
+        # 判据已被清空 → None——没有判据就不该给它配一个"来源"。
+        if criterion is None:
+            criterion_trace = None
+        else:
+            # 判据定位不到时，用步骤自报的行号当线索——判据通常就写在步骤那一行，
+            # 这能把"数字有据但句式被改写"和"完全凭空"区分开。
+            criterion_trace = _trace(lines, criterion, step.source_line)
+
         steps.append(
             {
                 "seq": len(steps) + 1,
                 "action": step.action,
                 "criterion": criterion,
+                "criterion_trace": criterion_trace,
                 "source_line": step.source_line,
+                "trace": _trace(lines, step.action, step.source_line),
                 "verified": verified,
             }
         )
@@ -401,5 +512,9 @@ def reconcile(lines: list[str], fields: ExtractFields, warnings: list[str]) -> d
             "lines": len(lines),
             "steps": len(steps),
             "verified_steps": sum(1 for step in steps if step["verified"]),
+            # 「能指回原文第几行」的步数。与 verified_steps 不等价：verified 要求
+            # 逐字命中且数字齐，located 只要求定位得到——前者是内容结论，后者是
+            # 证据链完整性。两个都报，是为了不让一个数字替另一个说话。
+            "located_steps": sum(1 for step in steps if step["trace"]["flag"] == "ok"),
         },
     }

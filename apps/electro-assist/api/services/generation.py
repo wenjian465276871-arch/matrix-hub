@@ -22,7 +22,7 @@ from llm import LLMError, generate_guide, get_provider
 from llm.pricing import PRICE_VERSION
 from models.guide import SCHEMA_VERSION, AssetRef
 
-from . import quota
+from . import provenance, quota
 from .jobqueue import job_queue
 
 log = logging.getLogger("electro.generate")
@@ -147,14 +147,17 @@ def _record_usage(job_id: str, model: str, usage, cost_micros: int) -> None:
     )
 
 
-def _attach_assets(guide, job: dict) -> None:
-    """把本次提交的素材挂到草稿上（**不放进模型**）。
+def _attach_assets(guide, job: dict) -> list[dict]:
+    """把本次提交的素材挂到草稿上（**不放进模型**）。返回解析后的素材列表。
 
     为什么不让模型分配：它没看过图，只能凭说明猜位置——猜错就是"把 A 门的
     照片贴到 B 门步骤下"，而这种错在现场不会被发现，只会被照着做。
     图片位置是事实，事实由人给；模型只做它看得到的文本结构化。
 
     归位（挂到某一步）由人在草稿页完成，见 `PUT /guides/{id}/assets`。
+
+    返回值给 `provenance.backfill` 用：**恰好 1 张图时才敢把 `asset_id` 写进
+    provenance**，所以那边需要知道本次到底传了几张、是哪张。
     """
     job_id = job.get("id", "")
     raw = job.get("assets_json") or "[]"
@@ -162,7 +165,10 @@ def _attach_assets(guide, job: dict) -> None:
         items = json.loads(raw)
     except (TypeError, ValueError):
         log.warning("job 素材字段损坏，按无素材处理 job=%s", job_id)
-        return
+        return []
+    if not isinstance(items, list):
+        log.warning("job 素材字段不是数组，按无素材处理 job=%s", job_id)
+        return []
     refs = []
     for item in items:
         try:
@@ -171,6 +177,7 @@ def _attach_assets(guide, job: dict) -> None:
             log.warning("跳过非法素材 job=%s item=%s", job_id, item)
     # 模型即便照 schema 编了 assets，也在这一步被清掉：只有提交时校验过的才作数。
     guide.assets = refs
+    return [item for item in items if isinstance(item, dict)]
 
 
 def run(job_id: str, text: str, provider_factory=get_provider) -> None:
@@ -198,7 +205,16 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
         # 素材同理：模型即使照 schema 编了 asset_id 也一律丢弃，只认提交时传过的。
         for step in draft.guide.steps:
             step.assets = []
-        _attach_assets(draft.guide, job)
+        assets = _attach_assets(draft.guide, job)
+        # 判据来源：模型给的 provenance 已在 runner 剥掉，这里用原文重新定位回填。
+        # 顺序不能换——`asset_id` 要靠"本次恰好 1 张图"判断，必须先拿到素材清单。
+        try:
+            filled = provenance.backfill(draft.guide, text, assets)
+        except Exception as exc:  # noqa: BLE001 - 溯源失败不该让整次生成失败
+            # 回填只是"补证据"，不是主链路。它抛异常时，一份没有 provenance 的
+            # 指导书仍然可用（前端会显示"无据"）；让生成失败才是更坏的结果。
+            log.warning("判据来源回填失败 job=%s：%s", job_id, exc)
+            filled = 0
         # 来源工艺随指导书落库：详情页据此提供「重新生成」，不用回生成页重粘。
         saved = store.save_guide(
             draft.guide, status="draft", job_id=job_id, process_id=job.get("process_id")
@@ -223,6 +239,9 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
             draft.cost_micros / 1_000_000,
             # 降级与自纠都要留痕：界面上看不出来，日志里必须能查"这份图少了一条动效是为什么"
             f" repairs={'；'.join(draft.repairs)}" if draft.repairs else "",
+            # 回填条数进日志：为 0 说明原文里定位不到任何判据，值得查一版
+            # （要么 prompt 让模型改写了判据，要么原文切行口径变了）。
+            f" sources={filled}" if filled else "",
         )
     except LLMError as exc:
         _record_usage(job_id, getattr(provider, "name", "unknown"), exc.usage, exc.cost_micros)

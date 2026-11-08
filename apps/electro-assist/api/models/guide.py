@@ -25,21 +25,34 @@ ASSET_ID_RE = r"^a_[0-9a-f]{16}$"
 
 
 class Provenance(BaseModel):
-    """一条内容"从哪儿来"的证据（决策 #11，图片输入时才有）。
+    """一条判据"从哪儿来"的证据。
 
-    为什么必须可选且由服务端/受信生产者填写：模型看不到图，让它输出 bbox 与
-    raw_text 等于让它编坐标。契约先立住，前端与识别链路才能按同一形状传递；
-    文本输入路径不产生该字段，旧数据也无需迁移。
+    为什么必须可选且由服务端填写：模型看不到图，也数不准行，让它输出 bbox 与
+    `raw_text` 等于让它编。**生成阶段一律剥掉模型给的 provenance**（`llm/runner.py`），
+    由 `services/generation.py` 在落库前用原文重新定位后回填——模型只负责内容，
+    来源由服务端用可复现的方式算出来。
 
-    `flag` 沿用三层校验的结论：ok / suspect（疑似但不阻断）/ unverified（指不回原图）。
+    两个锚点至少有一个，否则这条 provenance 没有意义（既不知道哪张图、
+    也不知道第几行）：
+
+    - `asset_id`：图片来源。**只有本次提交恰好 1 张图时才填**——多张图是合并
+      转录的，行号归属不明，硬指一张就是编；
+    - `line`：原文行号（0 基）。纯文本输入或图片多于 1 张时靠它。
+
+    `bbox` 仍留在契约里但**当前恒为 None**：没有视觉服务返回坐标，保留了也只是
+    一个"看起来有定位"的假象。等真接上 OCR 再说。
+
+    `flag` 沿用三层校验的结论：ok（原文逐字命中）/ suspect（只对得上数值，
+    句式被改写）/ unverified（指不回原文）。
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    asset_id: str = Field(pattern=ASSET_ID_RE)
+    asset_id: str | None = Field(default=None, pattern=ASSET_ID_RE)
     # 归一化到 0–1 的 [x, y, w, h]：原图尺寸不同，像素坐标没法跨设备复用。
     bbox: list[float] | None = Field(default=None, min_length=4, max_length=4)
     raw_text: str | None = Field(default=None, max_length=200)
+    line: int | None = Field(default=None, ge=0, le=9999)
     confidence: float | None = Field(default=None, ge=0, le=1)
     flag: Literal["ok", "suspect", "unverified"] = "ok"
 
@@ -53,6 +66,12 @@ class Provenance(BaseModel):
         if value[0] + value[2] > 1.0001 or value[1] + value[3] > 1.0001:
             raise ValueError("bbox 超出画布范围")
         return value
+
+    @model_validator(mode="after")
+    def _needs_anchor(self) -> "Provenance":
+        if self.asset_id is None and self.line is None:
+            raise ValueError("provenance 至少要有一个锚点：asset_id 或 line")
+        return self
 
 
 class AssetRef(BaseModel):
