@@ -58,7 +58,7 @@
 | 业务端点 | 35 + `/healthz` | `app.openapi()["paths"]`（`scripts/check_metrics.py`） |
 | 首屏 | **46.04 KB gzip / CSS 10.31 KB** | `npm run build`（2026-11-07，vue-tsc + vite） |
 | 性能与可访问性 | 库页 Perf **99** / LCP **1.29s** / CLS **0**；指导书页（8 步/20 图）**中位 95（9 轮 82–96，7/9 ≥90）** / LCP 1.42s / CLS 0 / TBT 中位 **265ms**；3 步页 94；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-11-07 线上复测，Lighthouse 13.6） |
-| B 检索 | Top-3 **21/21**、未覆盖 **2/2**、P50 **2.8ms** / P95 **5.3ms**（441 采样） | `scripts/eval_diagnose.py`（2026-11-01） |
+| B 检索 | Top-3 **22/22**、未覆盖 **2/2**、P50 **2.7–2.8ms** / P95 **3.2–3.7ms**（462 采样） | `scripts/eval_diagnose.py`（**2026-11-08 三次复跑**；11-01 为 21 条 21/21、2.8/5.3） |
 | 线上数据 | 已发布指导书 **5** / 草稿 2 / KB **18 条 / 3 子系统** / sessions 16 / records 62 / diagnose_runs 15（**2026-11-01 快照**，非当前值） | `GET /guides`、容器内 SQLite |
 | 真机验收 | 通过（Honor/5G，8 步 + 超差复测 + 3 页打印） | 私有仓 `reports/真机验收记录-2026-10-21.md` |
 | 已知边界 | 前端 **158 条**单测（覆盖率 61.23%）；指导书重页面 Perf **方差大**（9 轮 82–96，中位 95，最差一轮 TBT 749ms）；异地备份**已跨云上线**（腾讯云 COS，§7.6），远端未挂生命周期规则、约 2.5MB/天累积；`NewGuideView` **1,154 行** | 私有仓 `reports/未验证项复核-2026-11-08.md` |

@@ -1,12 +1,13 @@
 # 案例资料来源清单
 
-> 版本 v1.3 · 状态：已确认 · 最后更新：2026-10-28
+> 版本 v1.6 · 状态：已确认 · 最后更新：2026-11-08
 > 用途：登记所有进入演示/案例库的内容来源，满足"零内部资料 + 来源可溯"。
 > v1.0 → v1.1（2026-10-21）：D-04 空调迁移案例已上线（`g_hvac_cooling_check`）；明确其为"原创虚构（AI 生成）"，不是公开资料改写。
 > v1.1 → v1.2：B 模块扩充为 3 子系统 18 条（车门 11 / 空调 4 / 受电弓 3），新增 D-05～D-07 与 K-02/K-03；所有条目均为公开资料改写、参数虚构。
 > v1.2 → v1.3（2026-10-28）：新增 D-08 受电弓升弓功能检查（`g_pantograph_raise_check`），补上受电弓的 A2 迁移案例。
 > v1.3 → v1.4（2026-11-06）：新增 D-09 门控器供电与上电自检（`g_door_power_selfcheck_001`），车门主线补到 3 个独立工序。
 > v1.4 → v1.5（2026-11-07）：新增「条目级索引」（18 条逐条映射到批次），并加 `tests/test_sources_index.py` 做门禁——库里有的 id 在本文件缺失即 CI 红。
+> v1.5 → v1.6（2026-11-08）：新增 **D-10 车门门控器通信偶发中断**（`kb_door_comm_dropout`），B 模块 18 → **19 条**（车门 11 → 12）。起因是计划 §1.5 六个候选故障只落地 4 个，差的「通信偶发中断」是真缺口。**注意**：本次改动了 `data/knowledge/`，`docs/status/内容合规确认-2026-11-06.md` 的整体确认按自身失效条件失效（17:50）；**本人已于 17:53 答复「已确认合规」，恢复至 25 项**，凭据见该文件 §4.4 / §4.5。
 
 ## 规则
 
@@ -31,12 +32,13 @@
 | D-04 | 客室空调机组制冷功能检查（`g_hvac_cooling_check`） | **原创虚构（AI 生成，人工发布）** | 无外部来源（按通用电气调试常识编写） | 2026-10-20 | 参数全部为虚构示例值；作为"换子系统"迁移验证案例，不是实际作业依据 | 演示中（迁移案例） |
 | D-08 | 受电弓升弓功能检查（`g_pantograph_raise_check`） | **公开资料改写** | 同 K-03 ①③④：受电弓故障诊断（城市轨道交通研究 2021）、CRH2/CRH380A 自动降弓原因分析、碳滑板异常磨耗分析 | 2026-10-28 | 只取"安全确认 → 弓头/碳滑板 → 气路压力 → 升弓时间 → 到位信号"的检查结构；碳滑板厚度、气路压力、升弓时间参数全部虚构 | 演示中（迁移案例） |
 | D-09 | 客室侧门门控器供电与上电自检（`g_door_power_selfcheck_001`） | **公开资料改写** | 结构参考 D-03 ①②（门控器接口与接插件公开资料）；检查顺序按通用电气调试流程编排，未新增外部检索 | 2026-11-06 | 只取"断电测绝缘 → 上电测电压 → 看自检指示 → 核对节点地址"的顺序；绝缘值、电压范围、节点号全部虚构，不含任何企业资料 | 演示中（车门主线第 3 工序） |
+| D-10 | 车门门控器通信偶发中断故障分支（`kb_door_comm_dropout`） | **公开资料改写** | ① [CR400AF 塞拉门部件偶发性故障排除（含 MVB/CAN 拓扑、插头虚接、读 EDCU 故障记录）](https://www.mlzp.cc/forum.php?goto=nextoldset&mod=redirect&tid=23937)；② [CR400AF 塞拉门门控器故障主要原因（主门控器 MVB 连 CCU、副门控器 CAN 连主门控器）](https://www.mlzp.cc/forum.php?goto=nextoldset&mod=redirect&tid=19320)；③ [现场 ESD+MVB 总线故障分析与测试策略（终端电阻、连接器缩针、屏蔽层接地）](http://baike.ecrrc.com/equip_526.html)；④ [新线列车 MVB 通信中断案例复盘（错表现为通信超时/丢包，高温下接触电阻变大）](https://kwkr.cn/news/429808) | 2026-11-08 | 只取"读故障记录判范围 → 查接插件与退针 → 测终端电阻 → 查屏蔽接地 → 动态晃线定位 → 核软件版本"的排查结构与 MVB/CAN 两级拓扑；端子编号、阻值、温度、时间等参数全部虚构，不含任何企业资料 | 演示中（B 模块；补齐计划 §1.5 候选第 6 条「通信偶发中断」） |
 
 > **"原创虚构"也要登记**：登记的目的不是凑出处，而是明确"它没有外部来源"，
 > 防止读者把示例数值当成真实工艺参数。凡是页面上能点开的指导书，本表必须有一行。
 > 若后续改用公开资料改写，需按规则 3 改写并补登记实际出处。
 
-### 条目级索引（B 模块 18 条 → 登记批次）
+### 条目级索引（B 模块 19 条 → 登记批次）
 
 > 上表按"文件/批次"登记；本表把**每一条**条目映射到批次。新增条目必须同时加一行，
 > `apps/electro-assist/api/tests/test_sources_index.py` 会核对：库里有的 id 在本文件里
@@ -44,12 +46,13 @@
 
 | 批次 | 文件 | 条目 id |
 |---|---|---|
-| K-01 | `door_faults.json` | `kb_door_no_action`、`kb_door_power`、`kb_door_slow_close`、`kb_door_anti_pinch`、`kb_door_position_signal`、`kb_door_obstruction`、`kb_door_isolation`、`kb_door_emergency_release`、`kb_door_98_limit`、`kb_door_air_pressure`、`kb_door_unlock_motor` |
+| K-01 | `door_faults.json` | `kb_door_no_action`、`kb_door_power`、`kb_door_slow_close`、`kb_door_anti_pinch`、`kb_door_position_signal`、`kb_door_obstruction`、`kb_door_isolation`、`kb_door_emergency_release`、`kb_door_98_limit`、`kb_door_air_pressure`、`kb_door_unlock_motor`、`kb_door_comm_dropout` |
 | K-02 | `hvac_faults.json` | `kb_hvac_no_cool`、`kb_hvac_compressor`、`kb_hvac_airflow`、`kb_hvac_sensor` |
 | K-03 | `pantograph_faults.json` | `kb_pantograph_no_raise`、`kb_pantograph_auto_lower`、`kb_pantograph_contact` |
 | D-05 | `door_faults.json`（三条分支的细分来源） | `kb_door_98_limit`、`kb_door_air_pressure`、`kb_door_unlock_motor` |
+| D-10 | `door_faults.json`（通信分支的细分来源） | `kb_door_comm_dropout` |
 
-> D-05 的三条同时在 K-01 的 11 条里：K-01 是整批来源，D-05 是这三条的更具体出处；冲突时以更具体的一行为准。
+> D-05 的三条与 D-10 的一条**同时在 K-01 里**：K-01 是整批来源，D-05 / D-10 是这几条的更具体出处；冲突时以更具体的一行为准。
 
 ## 测试图（不进案例库）
 

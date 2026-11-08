@@ -21,7 +21,8 @@
     { "query": "控制面板温度显示明显不对，按键没反应", "expect": "kb_hvac_sensor", "note": "传感器/面板" },
     { "query": "受电弓升不起来，升弓按钮没反应", "expect": "kb_pantograph_no_raise", "note": "升弓无动作" },
     { "query": "运行中受电弓突然自动降下来", "expect": "kb_pantograph_auto_lower", "note": "ADD/自动降弓" },
-    { "query": "碳滑板磨到限了，弓网拉弧", "expect": "kb_pantograph_contact", "note": "碳滑板/接触压力" }
+    { "query": "碳滑板磨到限了，弓网拉弧", "expect": "kb_pantograph_contact", "note": "碳滑板/接触压力" },
+    { "query": "集控关门没反应，跑到那个门旁边按本地按钮又能关", "expect": "kb_door_comm_dropout", "note": "通信偶发中断：集控失效但本地正常" }
   ],
   "uncovered": [
     { "query": "制动缸压力不足，闸瓦间隙大", "why": "制动子系统未收录" },
