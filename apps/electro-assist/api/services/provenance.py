@@ -16,7 +16,7 @@ from __future__ import annotations
 import unicodedata
 
 from llm.extract import NUM_RE, locate
-from models.guide import Criterion, CriterionType, Guide, Provenance
+from models.guide import AssetRef, Criterion, CriterionType, Guide, Provenance
 
 # 一行原文最多留这么多字进 `raw_text`（与 `Provenance` 字段上限一致）。
 MAX_RAW_TEXT = 200
@@ -87,8 +87,13 @@ def _locate_criterion(lines: list[str], criterion: Criterion, asset_id: str | No
     return None
 
 
-def backfill(guide: Guide, text: str, assets: list[dict]) -> int:
+def backfill(guide: Guide, text: str, assets: list[AssetRef]) -> int:
     """给 `guide` 的每条判据回填 provenance，返回回填条数（供日志）。原地修改。
+
+    `assets` 必须是**校验过的 `AssetRef`**，不是请求体里的裸 dict：
+    请求体的字段叫 `asset_id`，裸 dict 若当成 `["id"]` 取会抛 KeyError，
+    而这里的外层 `try/except` 会把它吞成一行 warning——2026-11-08 生产上
+    就是这样"静默零回填"的。用模型对象，字段名错了当场 AttributeError。
 
     `asset_id` 只在**本次提交恰好 1 张图**时才填：多张图是合并转录的，识别期
     本来就没记录行号属于哪张图，这里硬指一张就是编。0 张（纯文本输入）时为 None，
@@ -98,7 +103,7 @@ def backfill(guide: Guide, text: str, assets: list[dict]) -> int:
     if not lines:
         return 0
 
-    asset_id = assets[0]["id"] if len(assets) == 1 else None
+    asset_id = assets[0].asset_id if len(assets) == 1 else None
     filled = 0
     for step in guide.steps:
         for criterion in step.criteria:

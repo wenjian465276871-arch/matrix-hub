@@ -14,10 +14,12 @@
 """
 from __future__ import annotations
 
+import json
+
 import pytest
 
 import store
-from models.guide import Guide, Provenance
+from models.guide import AssetRef, Guide, Provenance
 from services import generation
 from services.jobqueue import job_queue
 from services.provenance import backfill, split_lines
@@ -113,16 +115,46 @@ def test_range_endpoints_must_share_one_line() -> None:
 
 def test_asset_id_only_when_exactly_one_image() -> None:
     one = _guide([_range()])
-    backfill(one, TEXT, [{"id": "a_0123456789abcdef", "caption": ""}])
+    backfill(one, TEXT, [AssetRef(asset_id="a_0123456789abcdef", caption="现场照片")])
     assert one.steps[0].criteria[0].provenance.asset_id == "a_0123456789abcdef"
 
     two = _guide([_range()])
     backfill(
         two,
         TEXT,
-        [{"id": "a_0123456789abcdef", "caption": ""}, {"id": "a_fedcba9876543210", "caption": ""}],
+        [
+            AssetRef(asset_id="a_0123456789abcdef", caption="现场照片"),
+            AssetRef(asset_id="a_fedcba9876543210", caption="另一张"),
+        ],
     )
     assert two.steps[0].criteria[0].provenance.asset_id is None
+
+
+def test_attach_assets_hands_over_validated_refs() -> None:
+    """回归：请求体字段是 `asset_id`，不是 `id`。
+
+    2026-11-08 生产实测：`backfill` 里写成 `assets[0]["id"]` → `KeyError: 'id'`，
+    被外层 `except` 吞成一行 warning，前端表现为「provenance 恒为 null」。
+    当时这份测试用的是我自己编的 `{"id": ...}`，与真实请求形状不一致，所以全绿——
+    **测试数据编错形状，等于给 bug 发通行证**。这里改成走真实的
+    `_attach_assets`（它吃 `{"asset_id", "caption"}` 的 JSON）。
+    """
+    from services.generation import _attach_assets
+
+    guide = _guide([_range()])
+    refs = _attach_assets(
+        guide,
+        {
+            "id": "j_test",
+            "assets_json": json.dumps([{"asset_id": "a_0123456789abcdef", "caption": "现场照片"}]),
+        },
+    )
+    assert [r.asset_id for r in refs] == ["a_0123456789abcdef"]
+
+    assert backfill(guide, TEXT, refs) == 1
+    prov = guide.steps[0].criteria[0].provenance
+    assert prov.asset_id == "a_0123456789abcdef"
+    assert prov.line == 1
 
 
 def test_existing_provenance_is_not_overwritten() -> None:

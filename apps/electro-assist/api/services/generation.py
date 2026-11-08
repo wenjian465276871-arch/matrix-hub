@@ -147,8 +147,8 @@ def _record_usage(job_id: str, model: str, usage, cost_micros: int) -> None:
     )
 
 
-def _attach_assets(guide, job: dict) -> list[dict]:
-    """把本次提交的素材挂到草稿上（**不放进模型**）。返回解析后的素材列表。
+def _attach_assets(guide, job: dict) -> list[AssetRef]:
+    """把本次提交的素材挂到草稿上（**不放进模型**）。返回**校验过的** `AssetRef` 列表。
 
     为什么不让模型分配：它没看过图，只能凭说明猜位置——猜错就是"把 A 门的
     照片贴到 B 门步骤下"，而这种错在现场不会被发现，只会被照着做。
@@ -156,8 +156,9 @@ def _attach_assets(guide, job: dict) -> list[dict]:
 
     归位（挂到某一步）由人在草稿页完成，见 `PUT /guides/{id}/assets`。
 
-    返回值给 `provenance.backfill` 用：**恰好 1 张图时才敢把 `asset_id` 写进
-    provenance**，所以那边需要知道本次到底传了几张、是哪张。
+    返回 `AssetRef` 而不是原始 dict：给 `provenance.backfill` 用，那边要靠
+    `assets[0].asset_id` 判断"本次恰好 1 张图"。返回裸 dict 会诱发 `["id"]`
+    这类字段名错误——2026-11-08 生产上就因此静默零回填过。
     """
     job_id = job.get("id", "")
     raw = job.get("assets_json") or "[]"
@@ -169,7 +170,7 @@ def _attach_assets(guide, job: dict) -> list[dict]:
     if not isinstance(items, list):
         log.warning("job 素材字段不是数组，按无素材处理 job=%s", job_id)
         return []
-    refs = []
+    refs: list[AssetRef] = []
     for item in items:
         try:
             refs.append(AssetRef(**item))
@@ -177,7 +178,7 @@ def _attach_assets(guide, job: dict) -> list[dict]:
             log.warning("跳过非法素材 job=%s item=%s", job_id, item)
     # 模型即便照 schema 编了 assets，也在这一步被清掉：只有提交时校验过的才作数。
     guide.assets = refs
-    return [item for item in items if isinstance(item, dict)]
+    return refs
 
 
 def run(job_id: str, text: str, provider_factory=get_provider) -> None:
