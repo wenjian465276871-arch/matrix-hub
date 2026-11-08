@@ -8,6 +8,12 @@
 只核对**能从代码直接算出来**的数字；体积、延迟这类需要跑构建/压测的，
 留给各自的脚本，不在这里假装核对。
 
+**另外打印两条「到点该复查」的提示**（2026-11-08 加，不影响退出码）：
+① 知识库条目超过 100 条 → 该评估从进程内稀疏向量切到 embedding（决策 #19 的触发条件）；
+② Lighthouse 基线超过 30 天没复测 → 按 UI.md §8 的复查条件再看一次。
+两者的共同问题都是「条件写在文档里，只有人记得才会触发」，所以把它们变成 CI 的输出。
+故意不设成 FAIL：超阈值说明该做一次决策，不说明代码错了。
+
 用法（在 apps/electro-assist/api 下）：
 
     python scripts/check_metrics.py
@@ -16,13 +22,20 @@
 """
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
+from datetime import date
 from pathlib import Path
 
 API_DIR = Path(__file__).resolve().parents[1]
 ROOT = API_DIR.parents[2]
+
+# 两条「到点该复查」的阈值（2026-11-08 加）。它们**不参与门禁判定**：
+# 超阈值说明该做一件决策，不说明代码错了，算进 exit code 会让它变成"随机红"。
+KB_ENTRY_HINT = 100  # 决策 #19：条目上千才切 embedding，先按 100 提醒一次
+PERF_STALE_DAYS = 30  # UI.md §8：中位 <90 或 TBT 中位 >400ms 即需处理
 
 
 def collected_tests() -> int:
@@ -57,6 +70,31 @@ def endpoint_counts() -> tuple[int, int]:
     return business, business + health
 
 
+def review_hints() -> list[str]:
+    """到点该复查的两件事。不参与门禁，只在 CI 日志里说话。"""
+    out: list[str] = []
+    kb_files = sorted((API_DIR / "data" / "knowledge").glob("*_faults.json"))
+    kb = sum(len(json.loads(p.read_text(encoding="utf-8"))["entries"]) for p in kb_files)
+    if kb > KB_ENTRY_HINT:
+        out.append(
+            f"知识库已 {kb} 条（提醒线 {KB_ENTRY_HINT}）：评估把进程内稀疏向量换成 embedding"
+            "（决策 #19 的触发条件）。换之前先跑 eval_diagnose 留基线，否则无法证明换完更好。"
+        )
+    ui_path = ROOT / "docs" / "UI.md"
+    ui = ui_path.read_text(encoding="utf-8") if ui_path.exists() else ""
+    m = re.search(r"Lighthouse Mobile.*?(\d{4}-\d{2}-\d{2})", ui)
+    if m is None:
+        out.append("UI.md 里找不到 Lighthouse 基线日期，性能复查条件算不出来——把日期补进 §8。")
+    else:
+        days = (date.today() - date.fromisoformat(m.group(1))).days
+        if days > PERF_STALE_DAYS:
+            out.append(
+                f"Lighthouse 基线采于 {m.group(1)}（{days} 天前，提醒线 {PERF_STALE_DAYS} 天）："
+                "按 UI.md §8 复测一次；中位 <90 或 TBT 中位 >400ms 才需要处理。"
+            )
+    return out
+
+
 def main() -> int:
     tests = collected_tests()
     business, total = endpoint_counts()
@@ -89,6 +127,12 @@ def main() -> int:
         print("\n文档与代码不一致。改完代码记得同步上面这些文件（或反过来）。")
         return 1
     print(f"\n一致：{tests} 条测试、{business} 个业务端点（共 {total} 个端点）。")
+
+    hints = review_hints()
+    if hints:
+        print(f"\n[提示] {len(hints)} 条到点该复查（不影响本次门禁结果）：")
+        for item in hints:
+            print(f"  - {item}")
     return 0
 
 
