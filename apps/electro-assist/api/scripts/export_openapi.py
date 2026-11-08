@@ -26,7 +26,11 @@ METHOD_ORDER = ["get", "post", "put", "patch", "delete"]
 # 中文说明：OpenAPI 的 summary 来自函数名（英文、且形如 "List Guides"），对读者没有信息量。
 # 这里只补"这个端点干什么"，不重复 schema；新增端点若未登记，退回自动摘要并在导出时提示。
 CURATED = {
-    "GET /healthz": "健康检查：进程 + 数据库 + 磁盘余量；`scope=live|ready|electro|all` 分级，readiness 失败返回 503",
+    "GET /healthz": (
+        "健康检查：进程 + 数据库 + 磁盘余量；`scope=live|ready|electro|all` 分级，readiness 失败返回 503。"
+        "默认口径另带四个**只报告不判定**的字段：`budget`（预算水位）/ `http`（滚动 5xx）"
+        "/ `retention`（保留期清理状态）/ `rollback`（上次自动回滚结局，2026-11-08 加）"
+    ),
     "GET /api/electro/schema/guide": "取 Guide 的 JSON Schema（schema_version 1.2）",
     "GET /api/electro/schema/visual": "取视觉原语清单与动效槽位（13 种原语 + motion）",
     "POST /api/electro/schema/validate": "校验一份 Guide，返回错误列表",
