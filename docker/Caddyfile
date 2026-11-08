@@ -104,12 +104,16 @@ http://{$SITE_DOMAIN:localhost}, http://www.{$SITE_DOMAIN:localhost} {
 	# 由流量决定——低流量能存几个月，流量涨十倍就只剩几天，"14 天"只是碰巧成立。
 	#
 	# 口径（查 Caddy 2.8.4 源码确认）：`roll_keep_for` 是时长字符串，按天向上取整；
-	# `roll_keep_for 336h` = 14 天。时间删除发生在**滚动时**，所以实际磁盘上限是
-	# 10MiB × 21 ≈ 210MiB，而"14 天"只约束已滚动的文件；低流量下单个文件可能更久
-	# 才滚一次，这是 lumberjack 的固有行为，不额外引入 logrotate。
+	# `roll_keep_for 336h` = 14 天。时间删除发生在**滚动时**。
+	#
+	# 2026-11-08 修：`roll_size` 10MiB → **2MiB**。实测流量约 1.3MB/天，10MiB 要 8 天才滚
+	# 一次，滚出来的文件再留 14 天，实际寿命可达 22 天；而零流量站点永远不滚，"14 天"
+	# 等于不存在。改 2MiB 后约 1.5 天滚一次，寿命收敛到 ~15 天。
+	# 零流量那种极端情况由 `services/retention.py` 的 `prune_logs()` 兜底：
+	# mtime 超过 14 天（证明 14 天内没有写入）就清空当前文件，见该函数注释。
 	log {
 		output file /srv/app_data/logs/access.log {
-			roll_size 10MiB
+			roll_size 2MiB
 			roll_keep 20
 			roll_keep_for 336h
 		}

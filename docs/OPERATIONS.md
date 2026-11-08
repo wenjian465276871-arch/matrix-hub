@@ -41,12 +41,19 @@
 | `/srv/app_data/uploads/` | 上传资产，每份一个目录（原图 + 切片 + meta.json） |
 | `/srv/app_data/caddy/` | 证书与 ACME 账户状态 |
 
-**权限**：API 进程 umask 为 077，新建的库与上传资产是 600/700。
-从旧版本升上来的实例需要一次性收紧历史文件：
+**权限**：API 进程 umask 为 077（`docker/supervisord.conf` 的 `umask=0077`，uvicorn 与
+caddy 都继承），新建的库、WAL 与上传资产是 600/700。
+
+> 2026-11-08 更正：这一行此前是**声明**，代码里没有任何地方设过 umask——线上实测
+> `electro.db` 是 **644**。现在 umask 真的设了，但**存量文件不会自己变**，必须跑下面这条。
 
 ```bash
 docker exec matrix-hub sh -c "chmod -R go-rwx /srv/app_data/uploads /srv/app_data/electro.db*"
 ```
+
+> 同一个坑的第二半（2026-11-08）：数据卷里散落着 4 个 10-31 的手工 `.bak`（含访客文本、
+> 权限 644），`cleanup.py` **不覆盖这类手工副本**——它只管库内数据与上传目录。
+> 已删除；以后临时备份请放 `/opt/matrix-hub/backups`（700/600，有保留策略），别留在卷里。
 
 **证书与数据库都在 app_data 卷里。** 重建容器不会丢；删卷才会。
 `/healthz` 同时检查进程与数据库，`checks.db` 为 `error` 时返回 `status: degraded`。
@@ -164,9 +171,15 @@ docker stats --no-stream
 /srv/app_data/logs/access-*.log.gz       # 滚动后的历史（gzip）
 ```
 
-- 滚动：单文件 10MiB，保留 20 个文件、**14 天**（`roll_keep_for 336h`，按天向上取整）
-- 磁盘上限约 **210MiB**；时间删除只在**滚动时**生效，低流量下单文件可能更久才滚一次，
-  这是 lumberjack 的固有行为——不额外引入 logrotate
+- 滚动：单文件 **2MiB**，保留 20 个文件、**14 天**（`roll_keep_for 336h`，按天向上取整）
+- 磁盘上限约 **42MiB**（2MiB × 21）；时间删除只在**滚动时**生效，这是 lumberjack 的固有行为
+- **2026-11-08 修**：`roll_size` 10MiB → 2MiB。实测流量约 1.3MB/天，10MiB 要 8 天才滚一次，
+  滚出的文件再留 14 天，寿命可达 22 天；零流量站点则永远不滚，"14 天"等于不存在。
+  改 2MiB 后约 1.5 天滚一次，寿命收敛到 ~15 天
+- **零流量兜底**：`services/retention.py` 的 `prune_logs()` 每天随 03:40 清理跑一次——
+  删除超过 14 天的 `access-*.log`；当前 `access.log` **只在 mtime 也超过 14 天时**才清空
+  （mtime 证明这段时间没有任何写入，文件里不可能有保留期内的记录）。用截断不用 unlink：
+  Caddy 持有该 fd，删掉会让后续写入落到已 unlink 的 inode 上，日志静默消失
 - 改动原因：原先 stdout + Docker `10MB×3` 的保留时长由流量决定，流量一涨就从"几个月"
   变成"几天"，"14 天"只是碰巧成立
 
@@ -176,7 +189,9 @@ docker exec matrix-hub sh -c 'ls -lh /srv/app_data/logs | tail'
 ```
 
 日志在 `app_data` 卷内，**不进每日备份**（`backup.sh` 只备 DB 与 uploads），容器重建不丢。
-容器自身 stdout（启动日志、traceback）仍由 `json-file` 10MB×3 兜底（计划 §9.4 #5）。
+容器自身 stdout **只有启动日志与 traceback**：uvicorn 用 `--no-access-log` 关掉了自己的
+访问日志（2026-11-08 修，此前每条请求写两遍，`/healthz` 每 30 秒一次把 docker logs 刷满）。
+`json-file` 10MB×3 只是兜底（计划 §9.4 #5）。
 
 ### 5.1 预算水位与告警（2026-10-24 新增）
 
@@ -550,6 +565,7 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 - ~~**真实密钥轮换（需本人）**~~ **已执行（2026-11-07 23:31）**：四步全走完——发新 Key → 改 `/opt/matrix-hub/.env`（只换一行，`getpass` 交互输入）→ `--force-recreate` → 23:35 吊销旧 Key。验收用**真实生成**而非健康检查（`j_b806bcebcc28461d` succeeded，12s）。详见 §17.3。剩一件：`.env.bak-*` 于 11-14 后清理。
 - ~~**GitHub secret scanning / push protection（需本人）**~~ **已确认（2026-11-07 23:50）**：仓库 `Settings → Advanced Security` 上 **Secret Protection 已启用**（按钮显示 `Disable` 即为开启），**Push protection 开关为 ON**；个人账号级 `Push protection for yourself` 亦为开启。**取证说明**：未鉴权 API 的 `security_and_analysis` 字段返回 `null`（需 admin token），所以只能由本人截图确认，无命令行证据。私有仓 `AI2Work` 不开——私有仓的 secret scanning 属 GitHub Advanced Security，需付费；要防的是公开仓。
 - ~~**卸载 nginx（需本人，观察期早已结束）**~~ **已执行（2026-11-08 00:00）**：先 `ss -lntp` 确认 80/443 只有 `docker-proxy`、nginx 为 `inactive`+`disabled`，再 `apt-get purge -y nginx nginx-common nginx-core`。实际移除 **10 个包**（含 `python3-certbot-nginx` 与 6 个 `libnginx-mod-*`）。验证：`dpkg -l | grep -c nginx` = **0**、`/healthz?scope=ready` = 200、站点页 = 200。Caddy 证书在 `caddy_data` 卷内，不受影响；`/var/www/html` 因非空被 dpkg 保留，可日后手动清理
+- **certbot.timer 保留（2026-11-08 记，计划 §9.4 #9 的偏差）**：计划写的是"stop+disable nginx/certbot，观察期后卸载"，nginx 已卸，但 `certbot.timer` 仍 `enabled`（每天 05:07 / 17:07 各跑一次）。尝试 `systemctl disable --now certbot.timer` 时被宿主安全策略拒绝（理由：关闭自动续期属于削弱安全维护机制），**未绕过**。实际影响为零——Caddy 用 `caddy_data` 卷里的自签 ACME 证书，`/etc/letsencrypt` 里那套已无人引用；它的续期即便失败也只写自己的日志。**结论：保留，不再尝试停用**；若将来要彻底清掉，需本人先在控制台确认没有其他站点依赖 Let's Encrypt 证书
 
 ## 12. 发布草稿（CLI）
 

@@ -15,6 +15,11 @@
 
 时间取 **03:40**，不是计划原文的 03:00：备份 cron 在 03:17，先备份后删是运维铁律
 （`OPERATIONS.md` §14）。把清理放到备份之前，等于每天先毁掉恢复点再谈保留期。
+
+**启动那次不能冒充定时那次**（2026-11-08 修）：`last_success_at` 原来被启动清理覆盖，
+容器每重建一次就刷新，于是"每日 03:40 到底跑没跑"在 healthz 上永远看不出来——这不是
+功能缺陷，但没有证据就等于没验证。现在分开记：`last_trigger` 标明这次是谁触发的，
+`last_scheduled_run_at` **只由定时那次写**。
 """
 from __future__ import annotations
 
@@ -29,6 +34,8 @@ log = logging.getLogger("electro.retention")
 
 DEFAULT_AT = "03:40"
 START_DELAY_S = 3.0
+# 访问日志保留天数（计划 §11.3.3，与 Caddyfile 的 roll_keep_for 336h 同一口径）。
+LOG_RETENTION_DAYS = 14
 # 失败不再硬等 24 小时：临时性原因（锁冲突、磁盘瞬时满）等一天就是白等一天。
 RETRY_ATTEMPTS = 3
 DEFAULT_RETRY_S = 1800.0
@@ -79,6 +86,68 @@ def _write_state(**fields) -> None:
         log.warning("保留期状态写入失败：%s", exc)
 
 
+def _log_dir() -> Path:
+    """访问日志目录。默认跟着数据卷走，测试可用 `ACCESS_LOG_DIR` 注入。"""
+    raw = (os.getenv("ACCESS_LOG_DIR") or "").strip()
+    if raw:
+        return Path(raw)
+    from store import db as _store_db
+
+    return Path(_store_db.db_path()).parent / "logs"
+
+
+def prune_logs(days: int = LOG_RETENTION_DAYS, now: datetime | None = None) -> dict:
+    """按保留期处理访问日志，返回 `{"rotated": n, "truncated": bool}`。
+
+    为什么不能只靠 Caddy 的 `roll_keep_for`：它是**滚动时**才删，而滚动由 `roll_size`
+    触发。零流量（或极低流量）站点永远达不到阈值，于是"保留 14 天"在那种站点上等于
+    不存在——日志会一直留着，里面的 IP 与路径也一直留着。
+
+    两种文件分开处理：
+
+    - 已滚动出来的 `access-*.log`：mtime 超过 `days` 直接删；
+    - 当前的 `access.log`：**只有 mtime 也超过 `days`**（证明这段时间一次写入都没有）
+      才清空。这条判断是安全的：文件里不可能存在比 mtime 更新的记录，所以清空不会
+      丢掉"还在保留期内"的数据。反过来，只要有任何流量，mtime 就会刷新，绝不动它。
+    """
+    directory = _log_dir()
+    if not directory.is_dir():
+        return {"rotated": 0, "truncated": False}
+
+    moment = now or datetime.now()
+    # 用本地时间的 timestamp 比较：mtime 是 epoch，跟时区无关，这里只求"多久以前"。
+    cutoff = moment.timestamp() - days * 86400
+    rotated = 0
+    truncated = False
+
+    for path in sorted(directory.glob("access-*.log")):
+        try:
+            if path.stat().st_mtime < cutoff:
+                path.unlink()
+                rotated += 1
+        except OSError as exc:  # 单个文件删不掉不该让整轮清理失败
+            log.warning("访问日志删除失败 %s：%s", path, exc)
+
+    active = directory / "access.log"
+    try:
+        if active.is_file() and active.stat().st_mtime < cutoff:
+            # 用 'w' 截断而不是 unlink：Caddy 持有这个文件的 fd，删掉会让后续写入
+            # 落到已 unlink 的 inode 上，日志静默消失。
+            active.write_text("", encoding="utf-8")
+            truncated = True
+    except OSError as exc:
+        log.warning("访问日志清空失败 %s：%s", active, exc)
+
+    if rotated or truncated:
+        log.warning(
+            "访问日志保留期执行：删除 %d 个滚动文件，清空当前文件=%s（>%d 天）",
+            rotated,
+            truncated,
+            days,
+        )
+    return {"rotated": rotated, "truncated": truncated}
+
+
 def _retry_delay() -> float:
     raw = os.getenv("RETENTION_RETRY_S")
     if raw is None or not raw.strip():
@@ -124,8 +193,33 @@ def _seconds_until(hour: int, minute: int, now: datetime | None = None) -> float
     return max(1.0, (target - moment).total_seconds())
 
 
-def run_once(*, apply: bool = True, now: datetime | None = None) -> dict:
+def _success_state(trigger: str) -> dict:
+    """成功执行的落账字段。
+
+    `last_scheduled_run_at` 只在定时那次写：启动清理每重建一次容器就跑一次，
+    如果它也写这个字段，平台上就无法回答"03:40 那次到底跑没跑"。
+    """
+    stamp = _now_iso()
+    state = {
+        "last_success_at": stamp,
+        "last_trigger": trigger,
+        "consecutive_failures": 0,
+        "last_error": "",
+    }
+    if trigger == "scheduled":
+        state["last_scheduled_run_at"] = stamp
+    return state
+
+
+def run_once(
+    *,
+    apply: bool = True,
+    now: datetime | None = None,
+    trigger: str = "manual",
+) -> dict:
     """执行一轮清理。`apply=False` 只统计，给测试与人工核对用。
+
+    `trigger` 只影响状态记录（`startup` / `scheduled` / `manual`），不影响删什么。
 
     返回结构固定，调用方（启动日志 / 测试）不需要理解 `Report` 的内部字段。
     """
@@ -135,6 +229,8 @@ def run_once(*, apply: bool = True, now: datetime | None = None) -> dict:
 
     with _run_lock:
         report = cleanup.plan(now=now)
+        # 访问日志与数据库是两套保留期，不能因为"库里没东西可删"就跳过日志。
+        logs = prune_logs() if apply else {"rotated": 0, "truncated": False}
         candidates = {
             "sessions": len(report.sessions),
             "records": report.records,
@@ -151,15 +247,18 @@ def run_once(*, apply: bool = True, now: datetime | None = None) -> dict:
             if apply:
                 # 没有过期数据也是一次**成功执行**：`last_success_at` 必须刷新，
                 # 否则"长期没有可删数据"会被 healthz 误读成"清理一直没跑"。
-                _write_state(
-                    last_success_at=_now_iso(), consecutive_failures=0, last_error=""
-                )
-            return {"applied": False, "candidates": candidates, "deleted": {}}
+                _write_state(**_success_state(trigger))
+            return {
+                "applied": False,
+                "candidates": candidates,
+                "deleted": {},
+                "logs": logs,
+            }
 
         deleted = cleanup.apply(report)
         log.warning("保留期清理已执行：候选=%s 实删=%s", candidates, deleted)
-        _write_state(last_success_at=_now_iso(), consecutive_failures=0, last_error="")
-        return {"applied": True, "candidates": candidates, "deleted": deleted}
+        _write_state(**_success_state(trigger))
+        return {"applied": True, "candidates": candidates, "deleted": deleted, "logs": logs}
 
 
 def _record_failure(exc: BaseException) -> int:
@@ -182,7 +281,7 @@ def run_with_retry() -> int:
     """
     for attempt in range(1, RETRY_ATTEMPTS + 1):
         try:
-            run_once(apply=True)
+            run_once(apply=True, trigger="scheduled")
             return 0
         except Exception as exc:  # noqa: BLE001 - 定时任务失败不能杀死进程
             failures = _record_failure(exc)
@@ -218,7 +317,7 @@ def _run_startup() -> None:
     if _stop.wait(START_DELAY_S):
         return
     try:
-        result = run_once(apply=True)
+        result = run_once(apply=True, trigger="startup")
         if result["applied"]:
             log.warning("启动清理完成：%s", result["deleted"])
     except Exception as exc:  # noqa: BLE001 - 启动清理失败不该让容器起不来

@@ -208,3 +208,77 @@ def test_retry_stops_early_when_shutdown_requested(monkeypatch):
     assert retention.run_with_retry() == 1, "收到停止信号后还继续重试了"
 
 
+
+
+def test_startup_run_does_not_claim_scheduled_time():
+    """启动清理不能写 `last_scheduled_run_at`。
+
+    容器每重建一次都会跑一次启动清理。如果它也写这个字段，healthz 上永远是
+    "刚刚跑过"，而 03:40 那次到底执行没执行反而看不出来——这正是该字段存在的
+    唯一理由。所以这里断言的是"**没有**这个东西"，写反了必须红。
+    """
+    retention.run_once(apply=True, trigger="startup")
+    state = retention.read_state()
+
+    assert state["last_trigger"] == "startup"
+    assert state["last_success_at"], "成功执行后必须有 last_success_at"
+    assert "last_scheduled_run_at" not in state, "启动清理冒充了定时执行"
+
+
+def test_scheduled_run_records_its_own_timestamp():
+    retention.run_once(apply=True, trigger="scheduled")
+    state = retention.read_state()
+
+    assert state["last_trigger"] == "scheduled"
+    assert state["last_scheduled_run_at"] == state["last_success_at"]
+
+
+def _age(path, days: int) -> None:
+    """把文件 mtime 推到 N 天前，模拟"这么久没写过"。"""
+    import os
+    import time
+
+    stamp = time.time() - days * 86400
+    os.utime(path, (stamp, stamp))
+
+
+def test_prune_logs_deletes_rotated_and_truncates_stale_active(tmp_path, monkeypatch):
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    monkeypatch.setenv("ACCESS_LOG_DIR", str(logs))
+    old_rotated = logs / "access-2026-10-20T03-00-00.000.log"
+    fresh_rotated = logs / "access-2026-11-07T03-00-00.000.log"
+    active = logs / "access.log"
+    for path, text in ((old_rotated, "超期"), (fresh_rotated, "未超期"), (active, "很久没写")):
+        path.write_text(text, encoding="utf-8")
+    _age(old_rotated, 20)
+    _age(fresh_rotated, 2)
+    # 15 天没有写入 ⇒ 文件里不可能有保留期内的记录，清空不丢有效数据
+    _age(active, 15)
+
+    result = retention.prune_logs()
+
+    assert result == {"rotated": 1, "truncated": True}
+    assert not old_rotated.exists(), "超过 14 天的滚动文件必须删"
+    assert fresh_rotated.exists(), "保留期内的文件不能被误删"
+    assert active.exists(), "当前文件不能 unlink（Caddy 持有 fd）"
+    assert active.read_text(encoding="utf-8") == ""
+
+
+def test_prune_logs_keeps_active_file_with_recent_writes(tmp_path, monkeypatch):
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    monkeypatch.setenv("ACCESS_LOG_DIR", str(logs))
+    active = logs / "access.log"
+    active.write_text("今天还有请求", encoding="utf-8")
+
+    result = retention.prune_logs()
+
+    assert result == {"rotated": 0, "truncated": False}
+    assert active.read_text(encoding="utf-8") == "今天还有请求"
+
+
+def test_prune_logs_without_log_dir_is_noop(tmp_path, monkeypatch):
+    """没有日志目录时不能抛——测试库、开发机都没有这个目录。"""
+    monkeypatch.setenv("ACCESS_LOG_DIR", str(tmp_path / "missing"))
+    assert retention.prune_logs() == {"rotated": 0, "truncated": False}
