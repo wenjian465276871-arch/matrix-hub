@@ -203,7 +203,7 @@ pip install --dry-run --require-hashes -r requirements.lock
 - **复查触发条件**：`js-beautify` 发版且其依赖升到 `glob@>=14.0.2`，或 `@vue/test-utils` 换掉 js-beautify → 那时升依赖即可，不需要 overrides。
   这两条任一发生都应在下一次依赖周更（周一 03:00）被 Dependabot 提醒到；若没提醒到，说明 Dependabot 又"太久没开 PR"（#28 就出现过这种提示）。
 
-**锁文件混源现状（2026-11-08 实测）**：`package-lock.json` 里 87 条 `resolved` 指向 `registry.npmjs.org`、68 条指向 `registry.npmmirror.com`（含本次新增的 minimatch —— 已手工指回 npmjs）。这是历史遗留，**不影响 CI**（`npm ci --dry-run` 通过、远端 `npm ci` 一直绿），但不符合上面第 155 行定的"升完指回 npmjs"口径。没有在本次一并清理：68 条纯文本改写虽然 `integrity` 不变、风险低，但会把一次依赖修复的 diff 撑到看不清。要清的时候单独提一次 commit，改完跑 `npm ci --dry-run` 验。
+**锁文件源站（2026-11-08 已清零）**：`package-lock.json` 里 154 条 `resolved` 现在**全部**指向 `registry.npmjs.org`——此前 67 条指向 `registry.npmmirror.com`，是历史遗留（不影响 CI，两条源都通，但违反下面第 155 行定的"升完指回 npmjs"口径，也让"某个包从哪来"看不清）。清理做法是**纯文本替换 host**，不重新序列化 JSON、不动任何版本与 integrity，验证四条：`integrity` 指纹前后一致、`git diff` 无一行非 `resolved`、154 条 tarball 逐条 HEAD 全 200、`npm ci --dry-run` 通过。以后 `npm install` 若又写回镜像地址，按同样办法改回来。
 
 
 **前端 E2E（2026-10-21 进 CI，现 26 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）；`tests/e2e/polish.spec.ts` 四条收尾——800ms 转骨架、路由焦点归位、列表加载更多、打印表头重复；`tests/e2e/resilience.spec.ts` 五条——刷新续接、429 倒计时、时间预算、隐私页、成功即跳转；`tests/e2e/landscape.spec.ts` / `mobile.spec.ts` 各一条几何回归；`tests/e2e/revise.spec.ts` 三条——搜索两条 + 草稿修正（需设置 E2E_REVISE 环境变量才跑）；`tests/e2e/fallback.spec.ts` 与 `regenerate.spec.ts` 各一条——无图示占位、再生成入口。
