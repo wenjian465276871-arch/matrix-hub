@@ -84,7 +84,7 @@ api/
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             496 条契约测试
+└── tests/             515 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -120,7 +120,7 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q --basetemp=<临时目录>   # 496 passed（约 1–1.5 分钟，starlette 1.10 的 TestClient 偏慢）
+pytest tests -q --basetemp=<临时目录>   # 515 passed（约 1–1.5 分钟，starlette 1.10 的 TestClient 偏慢）
 ruff check .                            # 只开 E9/F63/F7/F82
 # 不带 --basetemp 时退出码可能是 1：pytest 清理临时目录时一次删 200+ 文件，
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。

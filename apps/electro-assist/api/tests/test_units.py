@@ -76,6 +76,58 @@ def test_empty_unit_is_left_to_required_check() -> None:
     assert check("") == ""
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        # 扭矩：同一个量的三种常见写法（2026-11-08 补，此前全部被判非法）
+        ("N.m", "N·m"),
+        ("Nm", "N·m"),
+        ("N m", "N·m"),          # 去空白后与 Nm 同形
+        ("N*m", "N·m"),
+        ("N·m", "N·m"),          # 规范写法自己也要通过
+        # 容积：加注量
+        ("L", "L"),
+        ("l", "L"),
+        ("升", "L"),
+        ("ml", "mL"),
+        ("毫升", "mL"),
+        # A 计权声压级：五个字符进不了契约，折成 dBA
+        ("dB(A)", "dBA"),
+        ("dB（A）", "dBA"),      # 全角括号，NFKC 折成半角
+        ("dBA", "dBA"),
+    ],
+)
+def test_common_spellings_are_accepted(raw: str, expected: str) -> None:
+    """这些是同一种单位的另一种写法，拒了就是拿"格式"惩罚用户。
+
+    反向验证：从 `_ALIASES` 删掉对应的键 → 本用例立刻红（已实测）。
+    """
+    assert check(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["kgf", "kgf·m", "千克", "nm", "N·M"])
+def test_ambiguous_or_different_units_still_rejected(raw: str) -> None:
+    """别名表收的是**写法差异**，不是**量纲差异**。
+
+    `kgf` 是 9.8N（不同量纲）、`nm` 是纳米（与 Nm 同形不同义）、
+    `千克` 是质量而非力——这些必须继续拒，否则现场会照着错单位读数。
+    """
+    with pytest.raises(UnitError):
+        check(raw)
+
+
+def test_every_canonical_symbol_fits_contract_length() -> None:
+    """规范符号必须 ≤3 字符，与 `Criterion.unit` 的 max_length 同一口径。
+
+    这条是给未来加符号的人看的：`dB(A)` 五个字符曾经看起来"最自然"，
+    但落库时会被 pydantic 拒掉，而失败点离这里很远、极难定位。
+    """
+    from core.units import ALLOWED
+
+    too_long = sorted(s for s in ALLOWED if len(s) > 3)
+    assert too_long == [], f"这些符号超出契约长度：{too_long}"
+
+
 def _guide(unit: str) -> Guide:
     return Guide(
         id="g_unit_test_0001",
