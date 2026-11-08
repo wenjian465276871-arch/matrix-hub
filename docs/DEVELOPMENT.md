@@ -55,6 +55,7 @@ npm run dev        # http://localhost:5173/apps/electro-assist/
 
 ```bash
 npm run build      # vue-tsc --noEmit + vite build
+npm run check:inline   # 断言产物无内联 script（CSP script-src 'self' 会拒）
 npm run preview    # http://localhost:4173/apps/electro-assist/
 ```
 
@@ -83,7 +84,7 @@ api/
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             465 条契约测试
+└── tests/             487 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -119,15 +120,16 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q --basetemp=<临时目录>   # 465 passed（约 1–1.5 分钟，starlette 1.10 的 TestClient 偏慢）
+pytest tests -q --basetemp=<临时目录>   # 487 passed（约 1–1.5 分钟，starlette 1.10 的 TestClient 偏慢）
 ruff check .                            # 只开 E9/F63/F7/F82
 # 不带 --basetemp 时退出码可能是 1：pytest 清理临时目录时一次删 200+ 文件，
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
 
 cd ../web
-npm run test:unit        # 组件单测（vitest + happy-dom），114 条，约 18s
+npm run test:unit        # 组件单测（vitest + happy-dom），167 条，约 18s
 npm run test:cov         # 同上 + 覆盖率门禁（低于阈值会以非零退出）
-npm run build            # vue-tsc + vite；构建期还有 CSP 内联检查（Dockerfile）
+npm run build            # vue-tsc + vite
+npm run check:inline     # 产物内联 script 断言；CI 在 build 之后跑（失败=构建红）
 ```
 
 > `npm run test:unit` 是 2026-11-06 建立的回归网，目的是**在拆 `NewGuideView` /

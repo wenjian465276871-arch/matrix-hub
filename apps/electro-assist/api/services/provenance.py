@@ -87,8 +87,35 @@ def _locate_criterion(lines: list[str], criterion: Criterion, asset_id: str | No
     return None
 
 
+def _locate_step(lines: list[str], step, asset_id: str | None) -> Provenance | None:
+    """步骤级来源：只看 `action`，且只接受"整句能在原文里找到"（`ok`），**不做数值回退**。
+
+    为什么不像判据那样按数字兜底：一步动作里常有好几个数值，按数字集合匹配很容易
+    指到"另一条也在说 2.0mm"的行——**指错行比指不回去更危险**，人会拿着错误的一行
+    核对，然后以为对上了。
+
+    为什么不拿 `title` 兜底：标题是两三个字的概括语（"开关门"），原文里到处都能命中，
+    命中了也不说明这一行是它的来源。实测 `title="开关门"` 会指到"开关门各 3 次…"
+    那一行——看起来对，其实是碰巧。
+    """
+    if not step.action:
+        return None
+    line, source = locate(lines, step.action)
+    if line is None:
+        return None
+    return Provenance(
+        asset_id=asset_id,
+        line=line,
+        raw_text=source[:MAX_RAW_TEXT],
+        flag="ok",
+    )
+
+
 def backfill(guide: Guide, text: str, assets: list[AssetRef]) -> int:
-    """给 `guide` 的每条判据回填 provenance，返回回填条数（供日志）。原地修改。
+    """给 `guide` 的判据与步骤回填 provenance，返回**判据**回填条数（供日志）。原地修改。
+
+    步骤级 provenance 单独记在 `step.provenance`，不并进返回值——两者粒度不同，
+    合成一个数字会让日志里的 `sources=N` 说不清是"几条判据"还是"几步动作"。
 
     `assets` 必须是**校验过的 `AssetRef`**，不是请求体里的裸 dict：
     请求体的字段叫 `asset_id`，裸 dict 若当成 `["id"]` 取会抛 KeyError，
@@ -106,6 +133,10 @@ def backfill(guide: Guide, text: str, assets: list[AssetRef]) -> int:
     asset_id = assets[0].asset_id if len(assets) == 1 else None
     filled = 0
     for step in guide.steps:
+        # 步骤级：这一步的作业描述来自原文哪一行。判据级更精确，但两者回答的问题不同
+        # ——"这一整步是抄的还是编的"与"这个数值是抄的还是编的"。
+        if step.provenance is None:
+            step.provenance = _locate_step(lines, step, asset_id)
         for criterion in step.criteria:
             if criterion.provenance is not None:
                 continue

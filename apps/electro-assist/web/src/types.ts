@@ -24,7 +24,7 @@ export interface Provenance {
   line: number | null
   bbox?: [number, number, number, number] | null
   raw_text?: string | null
-  confidence?: number | null
+  // 没有 confidence：证据强度看 flag 三态，折成小数会被读成"有多可信"。
   flag?: 'ok' | 'suspect' | 'unverified'
 }
 

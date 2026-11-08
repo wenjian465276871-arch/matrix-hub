@@ -287,7 +287,6 @@ def test_provenance_round_trips_on_step_and_criterion():
         "asset_id": "a_0123456789abcdef",
         "bbox": [0.1, 0.2, 0.3, 0.4],
         "raw_text": "0.8 N·m",
-        "confidence": 0.92,
         "flag": "suspect",
     }
     data["steps"][1]["provenance"] = ref

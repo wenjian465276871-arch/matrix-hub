@@ -211,3 +211,46 @@ def test_generation_run_backfills_provenance(env, monkeypatch) -> None:
     assert prov["flag"] == "ok"
     assert prov["line"] == 1
     assert "2.0–3.5s" in prov["raw_text"]
+
+
+def test_step_provenance_filled_when_action_is_verbatim() -> None:
+    """步骤级 provenance：动作描述逐字来自原文时填 `ok`。
+
+    这一层回答的问题与判据级不同——"这一整步是抄的还是编的" vs "这个数值是不是编的"。
+    少了它，`step.provenance` 就是一个有定义、没生产者的字段（2026-11-08 之前正是）。
+    """
+    guide = _guide([_range()])
+    backfill(guide, TEXT, [])
+
+    assert guide.steps[0].provenance is not None
+    assert guide.steps[0].provenance.flag == "ok"
+    assert guide.steps[0].provenance.line == 1
+    assert "开关门各 3 次" in guide.steps[0].provenance.raw_text
+
+
+def test_step_provenance_left_empty_when_action_is_rewritten() -> None:
+    """改写过的动作不填——步骤级不做数值回退，宁可空着。
+
+    按数字兜底会指到"另一条也在说 2.0s"的行，人拿着错行核对还以为对上了。
+    """
+    guide = _guide([_range()])
+    guide.steps[0].action = "手动把两扇门各开关三次并计时"
+    backfill(guide, TEXT, [])
+
+    assert guide.steps[0].provenance is None
+
+
+def test_step_provenance_has_no_asset_id_when_multiple_images() -> None:
+    """多张图是合并转录的，步骤级同样不许硬指一张。"""
+    guide = _guide([_range()])
+    backfill(
+        guide,
+        TEXT,
+        [
+            AssetRef(asset_id="a_0123456789abcdef", caption="甲图"),
+            AssetRef(asset_id="a_fedcba9876543210", caption="乙图"),
+        ],
+    )
+
+    assert guide.steps[0].provenance is not None
+    assert guide.steps[0].provenance.asset_id is None

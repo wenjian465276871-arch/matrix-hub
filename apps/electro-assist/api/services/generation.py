@@ -18,6 +18,7 @@ import threading
 from datetime import datetime, timedelta, timezone
 
 import store
+from core.units import UnitError, normalize_guide
 from llm import LLMError, generate_guide, get_provider
 from llm.pricing import PRICE_VERSION
 from models.guide import SCHEMA_VERSION, AssetRef
@@ -203,6 +204,18 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
         draft.guide.id = new_guide_id()
         # 版本号同理：模型抄错一个数字，前端就会按旧结构解析。
         draft.guide.schema_version = SCHEMA_VERSION
+        # 单位归一化 + 符号表校验（计划 §12.8）。放在落库前、回填前：
+        # 表外符号直接让这次生成失败——一份单位可疑的指导书比"请重试"危险得多。
+        try:
+            unit_stats = normalize_guide(draft.guide)
+        except UnitError as exc:
+            # token 已经花掉了，必须记账，否则失败任务不计数会让日预算失真。
+            _record_usage(job_id, draft.model, draft.usage, draft.cost_micros)
+            store.finish_job(
+                job_id, "failed", error_code="validation", error_detail=str(exc)[:500]
+            )
+            log.warning("单位校验失败 job=%s：%s", job_id, exc)
+            return
         # 素材同理：模型即使照 schema 编了 asset_id 也一律丢弃，只认提交时传过的。
         for step in draft.guide.steps:
             step.assets = []
@@ -216,6 +229,9 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
             # 指导书仍然可用（前端会显示"无据"）；让生成失败才是更坏的结果。
             log.warning("判据来源回填失败 job=%s：%s", job_id, exc)
             filled = 0
+        # 步骤级单独计数：判据回填条数与"几步动作能指回原文"是两件事，
+        # 合成一个数字后，日志里就分不清是哪一层出了问题。
+        steps_filled = sum(1 for step in draft.guide.steps if step.provenance is not None)
         # 来源工艺随指导书落库：详情页据此提供「重新生成」，不用回生成页重粘。
         saved = store.save_guide(
             draft.guide, status="draft", job_id=job_id, process_id=job.get("process_id")
@@ -243,6 +259,9 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
             # 回填条数进日志：为 0 说明原文里定位不到任何判据，值得查一版
             # （要么 prompt 让模型改写了判据，要么原文切行口径变了）。
             f" sources={filled}" if filled else "",
+            f" step_sources={steps_filled}" if steps_filled else "",
+            # 归一化条数进日志：单位被改了写法说明模型没照符号表抄，值得看一版。
+            f" units={unit_stats['changed']}" if unit_stats["changed"] else "",
         )
     except LLMError as exc:
         _record_usage(job_id, getattr(provider, "name", "unknown"), exc.usage, exc.cost_micros)

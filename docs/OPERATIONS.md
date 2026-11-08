@@ -981,12 +981,17 @@ Guide 契约同步增加（均可选，旧数据无需迁移）：
 |---|---|---|
 | `meta.source_type` | Guide | `text` / `image`，服务端按 job 写入，模型不得填 |
 | `meta.station` | Guide | 工位，预检/人工给；空值不落盘 |
-| `step.provenance` | Step | `asset_id / bbox / raw_text / confidence / flag` |
-| `criterion.provenance` | Criterion | 同上，精度到判据 |
+| `step.provenance` | Step | `asset_id / line / bbox / raw_text / flag`；**要求 `action` 逐字来自原文**才填，不做数值回退 |
+| `criterion.provenance` | Criterion | 同上，精度到判据；按标签整句（ok）→ 同一行数值（suspect）→ 不填 |
 
 `provenance` 由识别链路/受信生产者填写，**不在给模型看的 schema 里**（模型没有读图能力，
 让它输出 bbox 就是让它编坐标）。当前图片路径是"识别 → 回填文本 → 生成"，
-字段级回填尚未接入，属已知边界：契约先立住，避免下游再改一次结构。
+
+> **2026-11-08 更新**：字段级回填已接入（`services/provenance.py`，生成落库前执行），
+> 上一句"尚未接入"作废。线上 11 份指导书里 22 条判据带 provenance。
+> 同批删掉了 `Provenance.confidence`——它从未被填过，而"逐字命中/只对得上数字/定位不到"
+> 三档信息已经在 `flag` 里，折成 0–1 的小数只会被读成"这条判据有多可信"。
+> `bbox` 保留但恒为 null（无视觉服务返回坐标），等真接上 OCR 再说。
 
 **回滚影响**：旧镜像不认识 `jobs.source_type` / `station` 列，读写不受影响；
 `meta.source_type` 与 `meta.station` 在 JSON 里，但 **text 来源与空工位不落这两个字段**
