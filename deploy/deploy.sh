@@ -113,6 +113,14 @@ if [ "$deploy_ok" -eq 1 ]; then
   echo "==> 部署成功: ${NEW_TAG}"
   sed -i "s/^TAG=.*/TAG=${NEW_TAG}/" "$ENV_FILE" || true
   record_state
+
+  # 用 ack 越过闸门时，部署成功不等于"上次那次回滚失败已经查清"。
+  # 不自动删 marker（删了等于替人下结论），但必须提醒——否则下一次部署又会莫名其妙被拦。
+  if [ -f "backups/rollback_failed" ]; then
+    echo "[WARN] 本次是 ROLLBACK_FAILED_ACK=1 越过的；backups/rollback_failed 仍在。" >&2
+    echo "       确认上次故障已查清后删掉它，否则下一次部署仍会被闸门拦住：" >&2
+    echo "       rm -f backups/rollback_failed backups/rollback_state.json" >&2
+  fi
   # 部署后 10 分钟 5xx 看门狗（计划 §9.4 #11）：健康检查与业务探针都是"这一瞬间"的判定，
   # 看不出"部署后第 3 分钟开始每个请求都 502"。后台跑，不阻塞 CI。
   if [ -x ./postdeploy_watch.sh ]; then
