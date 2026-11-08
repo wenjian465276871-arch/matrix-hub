@@ -1,0 +1,256 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > annotation：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 190" role="img" aria-label="标注示意，共 3 处" preserveAspectRatio="xMidYMid meet">
+  <title>标注示意，共 3 处</title><text x="12" y="16" font-size="12" class="fig-ink2">门区作业部位</text>
+  <rect x="12" y="26" width="316" height="96" rx="8" stroke-width="1.2" stroke-dasharray="6 4" class="fig-stroke-line fig-surface"></rect>
+  <line x1="28" y1="46" x2="312" y2="46" stroke-width="1" class="fig-stroke-track"></line>
+  <line x1="28" y1="70" x2="312" y2="70" stroke-width="1" class="fig-stroke-track"></line>
+  <line x1="28" y1="94" x2="312" y2="94" stroke-width="1" class="fig-stroke-track"></line>
+  <g>
+    <line x1="64.66666666666666" y1="85" x2="64.66666666666666" y2="114" stroke-width="1" class="fig-stroke-track"></line>
+    <circle cx="64.66666666666666" cy="74" r="11" class="fig-primary"></circle><text x="64.66666666666666" y="78" text-anchor="middle" font-size="11" class="fig-on-primary">1</text><text x="12" y="142" font-size="11" class="fig-ink">1. 门扇：检查间隙</text>
+  </g>
+  <g>
+    <line x1="170" y1="85" x2="170" y2="114" stroke-width="1" class="fig-stroke-track"></line>
+    <circle cx="170" cy="74" r="11" class="fig-primary"></circle><text x="170" y="78" text-anchor="middle" font-size="11" class="fig-on-primary">2</text><text x="12" y="158" font-size="11" class="fig-ink">2. 门机：复紧螺栓</text>
+  </g>
+  <g>
+    <line x1="275.3333333333333" y1="85" x2="275.3333333333333" y2="114" stroke-width="1" class="fig-stroke-track"></line>
+    <circle cx="275.3333333333333" cy="74" r="11" class="fig-primary"></circle><text x="275.3333333333333" y="78" text-anchor="middle" font-size="11" class="fig-on-primary">3</text><text x="12" y="174" font-size="11" class="fig-ink">3. 门控器：核对插头</text>
+  </g>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > callout：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 116" role="img" aria-label="标注：门机安装螺栓" preserveAspectRatio="xMidYMid meet">
+  <title>标注：门机安装螺栓</title>
+  <rect x="12" y="22" width="140" height="72" rx="6" stroke-width="1.4" class="fig-stroke-ink2 fig-surface"></rect><text x="82" y="62" text-anchor="middle" font-size="12" class="fig-ink">门机安装螺栓</text>
+  <rect x="188" y="22" width="140" height="72" rx="8" stroke-width="1.2" class="fig-stroke-primary fig-primary-soft"></rect>
+  <polygon points="188,56 178,62 188,68" class="fig-primary-soft"></polygon><text x="258" y="54.5" text-anchor="middle" font-size="11" class="fig-ink">对角顺序分两次复紧至规</text><text x="258" y="69.5" text-anchor="middle" font-size="11" class="fig-ink">定力矩</text>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > checklist：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 142" role="img" aria-label="检查清单，共 4 项" preserveAspectRatio="xMidYMid meet">
+  <title>检查清单，共 4 项</title>
+  <g>
+    <rect x="12" y="12" width="16" height="16" rx="3" fill="none" stroke-width="1.5" class="fig-stroke-ink2"></rect><text x="38" y="24" font-size="13" class="fig-ink">绝缘电阻已测且合格</text>
+  </g>
+  <g>
+    <rect x="12" y="40" width="16" height="16" rx="3" fill="none" stroke-width="1.5" class="fig-stroke-ink2"></rect><text x="38" y="52" font-size="13" class="fig-ink">输入电压在范围内</text>
+  </g>
+  <g>
+    <rect x="12" y="68" width="16" height="16" rx="3" fill="none" stroke-width="1.5" class="fig-stroke-ink2"></rect><text x="38" y="80" font-size="13" class="fig-ink">自检通过、无报警</text>
+  </g>
+  <g>
+    <rect x="12" y="96" width="16" height="16" rx="3" fill="none" stroke-width="1.5" class="fig-stroke-ink2"></rect><text x="38" y="108" font-size="13" class="fig-ink">节点地址与版本已核对</text>
+  </g>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > connector：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 308 160" role="img" aria-label="接插件针脚 X1-1 电源正、X1-2 电源负、X1-3 自检回馈、X2-2 零速安全、X2-3 信号公共、X3-1 内钥匙、X3-2 外钥匙" preserveAspectRatio="xMidYMid meet">
+  <title>接插件针脚 X1-1 电源正、X1-2 电源负、X1-3 自检回馈、X2-2 零速安全、X2-3 信号公共、X3-1 内钥匙、X3-2 外钥匙</title>
+  <rect x="8" y="14" width="292" height="120" rx="10" stroke-width="2" class="fig-surface fig-stroke-ink2"></rect>
+  <g>
+    <rect x="22" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="37" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X1-1 电源正</text>
+  </g>
+  <g>
+    <rect x="66" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="81" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X1-2 电源负</text>
+  </g>
+  <g>
+    <rect x="110" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="125" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X1-3 自检回馈</text>
+  </g>
+  <g>
+    <rect x="154" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="169" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X2-2 零速安全</text>
+  </g>
+  <g>
+    <rect x="198" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="213" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X2-3 信号公共</text>
+  </g>
+  <g>
+    <rect x="242" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="257" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X3-1 内钥匙</text>
+  </g>
+  <g>
+    <rect x="22" y="80" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="37" y="95" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X3-2 外钥匙</text>
+  </g><text x="8" y="152" font-size="11" class="fig-ink3">针脚定义按公开资料改写，仅示意顺序</text>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > flow_arrow：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 122" role="img" aria-label="操作流程，共 4 步" preserveAspectRatio="xMidYMid meet">
+  <title>操作流程，共 4 步</title>
+  <g>
+    <rect x="10" y="10" width="94.66666666666667" height="40" rx="6" stroke-width="1.2" class="fig-stroke-line fig-surface"></rect><text x="57.333333333333336" y="30" text-anchor="middle" font-size="11" class="fig-ink">断开主控并挂牌</text>
+    <line x1="107.66666666666667" y1="30" x2="116.66666666666667" y2="30" stroke-width="1.5" pathLength="100" class="fig-stroke-ink2"></line>
+    <polygon points="116.66666666666667,30 111.66666666666667,26.5 111.66666666666667,33.5" class="fig-ink2"></polygon>
+  </g>
+  <g>
+    <rect x="122.66666666666667" y="10" width="94.66666666666667" height="40" rx="6" stroke-width="1.2" class="fig-stroke-line fig-surface"></rect><text x="170" y="30" text-anchor="middle" font-size="11" class="fig-ink">验电确认无电</text>
+    <line x1="220.33333333333334" y1="30" x2="229.33333333333334" y2="30" stroke-width="1.5" pathLength="100" class="fig-stroke-ink2"></line>
+    <polygon points="229.33333333333334,30 224.33333333333334,26.5 224.33333333333334,33.5" class="fig-ink2"></polygon>
+  </g>
+  <g>
+    <rect x="235.33333333333334" y="10" width="94.66666666666667" height="40" rx="6" stroke-width="1.2" class="fig-stroke-line fig-surface"></rect><text x="282.6666666666667" y="30" text-anchor="middle" font-size="11" class="fig-ink">设置防溜车</text>
+    <!--v-if-->
+  </g>
+  <g>
+    <rect x="10" y="72" width="94.66666666666667" height="40" rx="6" stroke-width="1.2" class="fig-stroke-line fig-surface"></rect><text x="57.333333333333336" y="92" text-anchor="middle" font-size="11" class="fig-ink">确认门区无人</text>
+    <!--v-if-->
+  </g><!-- 换行连接：竖 → 横 → 竖，末段带箭头。少这一段，第二行会被读成并列而不是后续。 -->
+  <g>
+    <polyline points="282.6666666666667,50 282.6666666666667,61 57.333333333333336,61 57.333333333333336,67" fill="none" stroke-width="1.5" pathLength="100" class="fig-stroke-ink2"></polyline>
+    <polygon points="57.333333333333336,72 53.833333333333336,67 60.833333333333336,67" class="fig-ink2"></polygon>
+  </g>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > gate_state：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 133" role="img" aria-label="门状态：半开" preserveAspectRatio="xMidYMid meet">
+  <title>门状态：半开</title><text x="12" y="18" font-size="12" class="fig-ink2">门扇位置</text><text x="328" y="18" text-anchor="end" font-size="12" class="fig-warn">半开</text>
+  <rect x="70" y="24" width="200" height="76" rx="3" stroke-width="1.4" class="fig-stroke-line fig-surface"></rect>
+  <rect x="72" y="26" width="50" height="72" rx="3" stroke-width="1.2" class="fig-stroke-primary fig-primary-soft"></rect>
+  <rect x="218" y="26" width="50" height="72" rx="3" stroke-width="1.2" class="fig-stroke-primary fig-primary-soft"></rect>
+  <line x1="170" y1="54" x2="170" y2="88" stroke-width="1.2" stroke-dasharray="4 4" class="fig-stroke-warn-soft"></line><text x="170" y="42" text-anchor="middle" font-size="11" class="fig-ink3"> 开口 </text><text x="12" y="122" font-size="11" class="fig-ink3">隔离后应可手动半开，松手不自动回位</text>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > meter：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 108" role="img" aria-label="仪表读数 2mm" preserveAspectRatio="xMidYMid meet">
+  <title>仪表读数 2mm</title><text x="16" y="18" font-size="13" class="fig-ink2">中部间隙</text><text x="324" y="18" text-anchor="end" font-size="17" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">2<tspan dx="4" font-size="12" class="fig-ink3">mm</tspan></text>
+  <rect x="16" y="46" width="308" height="14" rx="7" class="fig-track"></rect>
+  <rect x="16" y="46" width="154" height="14" rx="7" class="fig-pass"></rect>
+  <line x1="170" y1="38" x2="170" y2="68" stroke-width="2" pathLength="100" class="fig-stroke-ink"></line><text x="16" y="84" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink3">1</text><text x="324" y="84" text-anchor="end" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink3">3</text><text x="170" y="84" text-anchor="middle" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-pass">范围内</text>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > motion_timeline：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 160" role="img" aria-label="运动时序，共 4 段" preserveAspectRatio="xMidYMid meet">
+  <title>运动时序，共 4 段</title>
+  <line x1="20" y1="16" x2="20" y2="142" stroke-width="2" class="fig-stroke-track"></line>
+  <g class="">
+    <circle cx="20" cy="22" r="7" class="fig-primary-soft"></circle><text x="20" y="25.5" text-anchor="middle" font-size="9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-primary">1</text><text x="40" y="26" font-size="12" class="fig-ink">0–0.4s 收到开门指令</text>
+  </g>
+  <g class="">
+    <circle cx="20" cy="58" r="7" class="fig-primary-soft"></circle><text x="20" y="61.5" text-anchor="middle" font-size="9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-primary">2</text><text x="40" y="62" font-size="12" class="fig-ink">0.4–1.2s 解锁并启动</text>
+  </g>
+  <g class="">
+    <circle cx="20" cy="94" r="7" class="fig-primary-soft"></circle><text x="20" y="97.5" text-anchor="middle" font-size="9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-primary">3</text><text x="40" y="98" font-size="12" class="fig-ink">1.2–2.8s 匀速运行至全开</text>
+  </g>
+  <g class="">
+    <circle cx="20" cy="130" r="7" class="fig-primary-soft"></circle><text x="20" y="133.5" text-anchor="middle" font-size="9" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-primary">4</text><text x="40" y="134" font-size="12" class="fig-ink">2.8–3.2s 到位缓冲</text>
+  </g><text x="324" y="14" text-anchor="end" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink3"> 合计 3.2s</text>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > status_light：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 88" role="img" aria-label="状态：间隙合格" preserveAspectRatio="xMidYMid meet">
+  <title>状态：间隙合格</title>
+  <circle cx="42" cy="44" r="27" fill="none" stroke-width="2" class="fig-stroke-line"></circle>
+  <circle cx="42" cy="44" r="20" class="fig-pass"></circle><text x="42" y="44" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="700" class="fig-on-primary">✓</text><text x="84" y="44" dominant-baseline="central" font-size="15" class="fig-ink">间隙合格</text><text x="84" y="66" dominant-baseline="central" font-size="11" class="fig-ink3">通过</text>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > step_card：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 96" role="img" aria-label="第 1 步：确认无电并设置警示" preserveAspectRatio="xMidYMid meet">
+  <title>第 1 步：确认无电并设置警示</title>
+  <rect x="8" y="8" width="324" height="80" rx="10" stroke-width="1" class="fig-primary-soft fig-stroke-primary"></rect>
+  <circle cx="44" cy="44" r="20" class="fig-primary"></circle><text x="44" y="44" text-anchor="middle" dominant-baseline="central" font-size="17" font-weight="700" class="fig-on-primary" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">1</text><text x="78" y="52" font-size="15" class="fig-ink">确认无电并设置警示</text>
+  <!--v-if-->
+  <rect x="78" y="68" width="3" height="14" class="fig-primary"></rect><text x="90" y="80" font-size="12" class="fig-ink3">先挂牌再动手</text>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > table：渲染出 SVG 且关键文本在位 1`] = `
+"<div data-v-45b22d7a="" class="fig-table"><svg data-v-45b22d7a="" class="fig-table__svg" viewBox="0 0 340 103" role="img" aria-label="对照表，3 行" preserveAspectRatio="xMidYMid meet">
+    <title data-v-45b22d7a="">对照表，3 行</title>
+    <rect data-v-45b22d7a="" x="0" y="0" width="340" height="26" class="fig-track"></rect>
+    <g data-v-45b22d7a=""><text data-v-45b22d7a="" x="6" y="17" font-size="11" class="fig-ink" font-weight="600">项目</text>
+      <!--v-if-->
+    </g>
+    <g data-v-45b22d7a=""><text data-v-45b22d7a="" x="157.95530726256982" y="17" font-size="11" class="fig-ink" font-weight="600">标准</text>
+      <line data-v-45b22d7a="" x1="151.95530726256982" y1="0" x2="151.95530726256982" y2="103" stroke-width="1" class="fig-stroke-line"></line>
+    </g>
+    <g data-v-45b22d7a="">
+      <rect data-v-45b22d7a="" x="0" y="26" width="340" height="25" class="fig-surface"></rect>
+      <line data-v-45b22d7a="" x1="0" y1="51" x2="340" y2="51" stroke-width="1" class="fig-stroke-line"></line><text data-v-45b22d7a="" font-size="11" class="fig-ink">
+        <tspan data-v-45b22d7a="" x="6" y="41">门扇间隙</tspan>
+      </text><text data-v-45b22d7a="" font-size="11" class="fig-ink">
+        <tspan data-v-45b22d7a="" x="157.95530726256982" y="41">2.0–5.0mm</tspan>
+      </text>
+    </g>
+    <g data-v-45b22d7a="">
+      <rect data-v-45b22d7a="" x="0" y="51" width="340" height="25" class="fig-primary-soft"></rect>
+      <line data-v-45b22d7a="" x1="0" y1="76" x2="340" y2="76" stroke-width="1" class="fig-stroke-line"></line><text data-v-45b22d7a="" font-size="11" class="fig-ink">
+        <tspan data-v-45b22d7a="" x="6" y="66">锁闭信号</tspan>
+      </text><text data-v-45b22d7a="" font-size="11" class="fig-ink">
+        <tspan data-v-45b22d7a="" x="157.95530726256982" y="66">100% 关闭</tspan>
+      </text>
+    </g>
+    <g data-v-45b22d7a="">
+      <rect data-v-45b22d7a="" x="0" y="76" width="340" height="25" class="fig-surface"></rect>
+      <line data-v-45b22d7a="" x1="0" y1="101" x2="340" y2="101" stroke-width="1" class="fig-stroke-line"></line><text data-v-45b22d7a="" font-size="11" class="fig-ink">
+        <tspan data-v-45b22d7a="" x="6" y="91">关门到位</tspan>
+      </text><text data-v-45b22d7a="" font-size="11" class="fig-ink">
+        <tspan data-v-45b22d7a="" x="157.95530726256982" y="91">无回弹</tspan>
+      </text>
+    </g>
+    <rect data-v-45b22d7a="" x="0.5" y="0.5" width="339" height="102" fill="none" stroke-width="1" class="fig-stroke-line"></rect>
+  </svg>
+  <!-- 窄屏（<360px）堆叠：SVG 里 11px 的字缩到 320 宽只剩 9px，横着排谁也读不了。
+         用真表格而不是 div：读屏仍按表格播报，视觉上再拆成「表头: 值」。
+         首列当行标题（th），其余 td 用 data-label 出标签。 -->
+  <table data-v-45b22d7a="" class="fig-table__stack">
+    <!-- 打印时这张表的 thead 会在每页顶部重复（计划 §12.6）。
+           屏幕上的窄屏堆叠模式把它藏起来：那时每行自带 data-label，再顶一行表头是重复信息。 -->
+    <thead data-v-45b22d7a="">
+      <tr data-v-45b22d7a="">
+        <th data-v-45b22d7a="" scope="col">项目</th>
+        <th data-v-45b22d7a="" scope="col">标准</th>
+      </tr>
+    </thead>
+    <tbody data-v-45b22d7a="">
+      <tr data-v-45b22d7a="">
+        <th data-v-45b22d7a="" scope="row">门扇间隙</th>
+        <td data-v-45b22d7a="" data-label="标准">2.0–5.0mm</td>
+      </tr>
+      <tr data-v-45b22d7a="">
+        <th data-v-45b22d7a="" scope="row">锁闭信号</th>
+        <td data-v-45b22d7a="" data-label="标准">100% 关闭</td>
+      </tr>
+      <tr data-v-45b22d7a="">
+        <th data-v-45b22d7a="" scope="row">关门到位</th>
+        <td data-v-45b22d7a="" data-label="标准">无回弹</td>
+      </tr>
+    </tbody>
+  </table>
+</div>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > torque_gauge：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 340 190" role="img" aria-label="力矩目标 0.8N·m，公差 ±0.1" preserveAspectRatio="xMidYMid meet">
+  <title>力矩目标 0.8N·m，公差 ±0.1</title>
+  <path d="M 74 150 A 96 96 0 0 1 266 150" fill="none" stroke-width="16" stroke-linecap="round" class="fig-stroke-track"></path>
+  <path d="M 122.00000000000003 66.86156123669389 A 96 96 0 0 1 218 66.86156123669389" fill="none" stroke-width="16" stroke-linecap="butt" class="fig-stroke-warn-soft"></path>
+  <line x1="170" y1="70" x2="170" y2="44" stroke-width="3" class="fig-stroke-ink"></line><text x="56" y="150" text-anchor="start" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink3">0.5</text><text x="284" y="150" text-anchor="end" font-size="11" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink3">1.1</text><text x="170" y="132" text-anchor="middle" font-size="24" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">0.8<tspan dx="4" font-size="14" class="fig-ink3">N·m</tspan></text><text x="170" y="160" text-anchor="middle" font-size="12" class="fig-ink2">目标 ± 0.1 N·m</text>
+</svg>"
+`;
+
+exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > wiring：渲染出 SVG 且关键文本在位 1`] = `
+"<svg viewBox="0 0 260 138" role="img" aria-label="端子顺序 1、2、3" preserveAspectRatio="xMidYMid meet">
+  <title>端子顺序 1、2、3</title>
+  <g>
+    <rect x="20" y="28" width="56" height="42" rx="6" stroke-width="2" class="fig-surface fig-stroke-ink2"></rect><text x="48" y="49" text-anchor="middle" dominant-baseline="central" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">1</text>
+  </g>
+  <g>
+    <rect x="92" y="28" width="56" height="42" rx="6" stroke-width="2" class="fig-surface fig-stroke-ink2"></rect><text x="120" y="49" text-anchor="middle" dominant-baseline="central" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">2</text>
+  </g>
+  <g>
+    <rect x="164" y="28" width="56" height="42" rx="6" stroke-width="2" class="fig-surface fig-stroke-ink2"></rect><text x="192" y="49" text-anchor="middle" dominant-baseline="central" font-size="15" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">3</text>
+  </g>
+  <line x1="48" y1="104" x2="192" y2="104" stroke-width="2" class="fig-stroke-line"></line>
+  <circle cx="48" cy="104" r="7" fill="#7b4b2a" stroke="none" stroke-width="1.5"></circle>
+  <circle cx="120" cy="104" r="7" fill="#1d5fbf" stroke="none" stroke-width="1.5"></circle>
+  <circle cx="192" cy="104" r="7" fill="#7ba428" stroke="none" stroke-width="1.5"></circle><text x="20" y="130" font-size="11" class="fig-ink3">仅示意端子顺序</text>
+</svg>"
+`;
