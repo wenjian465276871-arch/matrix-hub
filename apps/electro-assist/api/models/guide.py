@@ -45,11 +45,11 @@ class Provenance(BaseModel):
     `flag` 沿用三层校验的结论：ok（原文逐字命中）/ suspect（只对得上数值，
     句式被改写）/ unverified（指不回原文）。
 
-    **故意没有 `confidence`（2026-11-08 删）**：字段曾经存在但从未被填过。能算的只有
-    "逐字命中 / 只对得上数字 / 定位不到"三档，也就是 `flag`；把它折成一个 0–1 的小数
-    会立刻被读成"这条判据有多可信"，而它实际上只是定位方式。本项目已经把检索的
-    `confidence` 对外改称"匹配度"（`OPERATIONS.md` §16），同一个坑不踩第二次。
-    证据强度看 `flag`，不要发明概率。
+    **`confidence` 已废弃（2026-11-08）**：它从未被填过，而能算的只有"逐字命中 /
+    只对得上数字 / 定位不到"三档，也就是 `flag`；折成 0–1 的小数会立刻被读成
+    "这条判据有多可信"，而它实际上只是定位方式（本项目已把检索的 `confidence`
+    对外改称"匹配度"，同一个坑不踩第二次）。字段本身只为读得懂存量 JSON 而保留，
+    `exclude=True` 保证不再写出——证据强度看 `flag`，不要发明概率。
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -59,6 +59,11 @@ class Provenance(BaseModel):
     bbox: list[float] | None = Field(default=None, min_length=4, max_length=4)
     raw_text: str | None = Field(default=None, max_length=200)
     line: int | None = Field(default=None, ge=0, le=9999)
+    # 仅为**读得懂存量 JSON**保留（2026-11-08 之前回填的数据里写着 `"confidence": null`）。
+    # `exclude=True` 保证它不会再被写出去：新数据没有这个键，旧数据读进来即丢弃。
+    # 删字段不能只改模型——5 份库里的指导书会当场解析失败（`extra="forbid"`），
+    # 而 A1 开始、编辑、发布都要过模型校验。这条注释是给下一次想删它的人看的。
+    confidence: float | None = Field(default=None, ge=0, le=1, exclude=True)
     flag: Literal["ok", "suspect", "unverified"] = "ok"
 
     @field_validator("bbox")

@@ -341,3 +341,27 @@ def test_station_round_trips():
     guide = Guide.model_validate(data)
     assert guide.meta.station == "3 号车门"
     assert guide.model_dump(mode="json")["meta"]["station"] == "3 号车门"
+
+
+def test_legacy_confidence_key_is_accepted_but_not_written():
+    """存量 JSON 里的 `"confidence": null` 必须还能读，但不再写出去。
+
+    这不是兼容性洁癖：2026-11-08 删字段时只改了模型，5 份库里的指导书当场解析失败
+    （`extra="forbid"`），而 A1 开始、编辑、发布都要过模型校验——线上会 500。
+    回归方式是"读旧写新"：`exclude=True` 让它进得来、出不去。
+    """
+    data = deepcopy(SAMPLE)
+    data["steps"][1]["provenance"] = {
+        "line": 3,
+        "raw_text": "0.8 N·m",
+        "flag": "ok",
+        "confidence": None,
+    }
+    guide = Guide.model_validate(data)
+    assert guide.steps[1].provenance.line == 3
+    assert "confidence" not in guide.steps[1].provenance.model_dump()
+
+    # 带数值的旧数据同样只读不写
+    data["steps"][1]["provenance"]["confidence"] = 0.92
+    guide = Guide.model_validate(data)
+    assert "confidence" not in guide.steps[1].provenance.model_dump()

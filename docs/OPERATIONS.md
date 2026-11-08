@@ -989,9 +989,10 @@ Guide 契约同步增加（均可选，旧数据无需迁移）：
 
 > **2026-11-08 更新**：字段级回填已接入（`services/provenance.py`，生成落库前执行），
 > 上一句"尚未接入"作废。线上 11 份指导书里 22 条判据带 provenance。
-> 同批删掉了 `Provenance.confidence`——它从未被填过，而"逐字命中/只对得上数字/定位不到"
-> 三档信息已经在 `flag` 里，折成 0–1 的小数只会被读成"这条判据有多可信"。
-> `bbox` 保留但恒为 null（无视觉服务返回坐标），等真接上 OCR 再说。
+> 同批把 `Provenance.confidence` 标为**废弃**：不再写出（`exclude=True`），但仍读得懂
+> 存量 JSON——库里 5 份指导书写着 `"confidence": null`，直接删字段会让它们在
+> A1 开始 / 编辑 / 发布时解析失败（`extra="forbid"`）。`bbox` 保留但恒为 null
+> （无视觉服务返回坐标），等真接上 OCR 再说。
 
 **回滚影响**：旧镜像不认识 `jobs.source_type` / `station` 列，读写不受影响；
 `meta.source_type` 与 `meta.station` 在 JSON 里，但 **text 来源与空工位不落这两个字段**
