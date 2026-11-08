@@ -84,7 +84,7 @@ api/
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             518 条契约测试
+└── tests/             521 条契约测试
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -120,7 +120,7 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q --basetemp=<临时目录>   # 518 passed（约 1–1.5 分钟，starlette 1.10 的 TestClient 偏慢）
+pytest tests -q --basetemp=<临时目录>   # 521 passed（约 1–1.5 分钟，starlette 1.10 的 TestClient 偏慢）
 ruff check .                            # 只开 E9/F63/F7/F82
 # 不带 --basetemp 时退出码可能是 1：pytest 清理临时目录时一次删 200+ 文件，
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
@@ -420,6 +420,31 @@ POST /api/electro/guides/{id}/publish    X-Passcode-Token: <token>
 
 | 本地跑 E2E 时 `vite preview` 报 `EACCES: permission denied 127.0.0.1:4173` | **不是端口被占、也不是权限问题**，是 4173 落在 Windows 的 TCP 排除段里（`netsh interface ipv4 show excludedportrange protocol=tcp` 能看到 `4095–4194`）。CI 是 Linux 所以永远撞不到，只有本地会 | 换端口 + 用 `E2E_BASE_URL` 指过去：`npm run preview -- --port 5173 --strictPort`，再 `E2E_BASE_URL=http://127.0.0.1:5173/apps/electro-assist/`。API 侧要 `DB_PATH` 指临时库并先灌一份草稿，`E2E_REVISE=1` 才会 26 条全跑（2026-11-06 实测 26 passed） |
 | `starlette 1.10` 弃用 TestClient 走 `httpx` | 测试输出 `StarletteDeprecationWarning: Using httpx with starlette.testclient is deprecated; install httpx2 instead`，当前不影响结果，只是警告 | 等升 `httpx2` 时一并处理；**不要**为了消警告单独换测试栈。顺带：升到 1.10 后（当时 397 条）测试耗时从 36s 涨到 92s，是 TestClient 变慢，不是被测代码退化（2026-11-06 升 fastapi 0.162.0） |
+
+## 7.4 删模型字段的规矩（2026-11-08 加，已经踩过一次）
+
+**不要直接删。** `models/guide.py` 的模型是 `extra="forbid"`，而库里存的是**当时写出去的 JSON**。
+删一个字段 → 已发布指导书当场解析失败 → `GET /guides/{id}` 仍返回 200（读的是原始 JSON），
+坏在 **A1 开始 / 编辑 / 发布**三条路径上，线上 500。
+
+两条正路，任选一条：
+
+1. **保留 + `exclude=True`**（推荐，零迁移）：读得进、写不出，新数据自然不带这个键——
+   `Provenance.confidence` 就是这么处理的；
+2. **先迁移数据，再删字段**：迁移脚本要幂等，且删之前把回放跑绿。
+
+**删之前的三步**：
+
+```bash
+# 1. 把一份含该字段的真实 JSON 脱敏后冻进样本
+cp <导出>.json apps/electro-assist/api/tests/fixtures/legacy/guide_<日期>_<字段>.json
+# 2. 改模型
+# 3. 回放：0 失败才允许提交
+cd apps/electro-assist/api && .venv/Scripts/python.exe scripts/replay_samples.py
+```
+
+`tests/test_replay_samples.py` 在 CI 的「契约测试」作业里跑同一套校验。
+**它的边界**：只覆盖 `tests/fixtures/legacy/` 里已冻结的形状——新删字段不冻样本，它保护不到。
 
 ## 8. 不要做的事
 
