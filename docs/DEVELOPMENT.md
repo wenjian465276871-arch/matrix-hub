@@ -132,11 +132,24 @@ npm run build            # vue-tsc + vite
 npm run check:inline     # 产物内联 script 断言；CI 在 build 之后跑（失败=构建红）
 ```
 
+```bash
+# 可访问性（2026-11-08 进 CI，阻断）。前置：API 8001 + preview 4173 已在跑，
+# 且库里有 g_door_switch_formal_001（脚本会为「引导」页建一个会话）。
+npm run test:a11y        # 4 页 × 2 视口 × 2 皮肤 = 16 次 axe 扫描，约 20-25s
+BASE=http://127.0.0.1:5173/apps/electro-assist API=http://127.0.0.1:8001 \
+  AXE_CHANNEL=msedge npm run test:a11y   # 本机：用系统 Edge + preview 换到 5173
+```
+
+> `test:a11y` 的判据是**违规数为 0**（wcag2a/2aa/21a/21aa + best-practice），有违规就 exit 2。
+> `AXE_CHANNEL` 默认 `msedge`（本机免下载浏览器），CI 里设 `bundled` 用 Playwright 自带 chromium。
+> **它能抓的是"静默退化"**：颜色改浅一点、读屏标签漏一个，页面看着正常但键盘/读屏用户用不了。
+> 同理**不要**把它扩成 Lighthouse 那种分数门禁——分数会飘，违规列表不会。
+
 > `npm run test:unit` 是 2026-11-06 建立的回归网，目的是**在拆 `NewGuideView` /
 > `GuideView` / `RunView` 这三个千行级文件之前先有行为断言**。删断言、改断言都算改测试，
 > 要单独说明理由——不然这套东西会退化成"跑过但没用"。
 
-CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致性 + 依赖漏洞扫描（**阻断**）+ API 文档一致性 + 文档指标一致性 → E2E 冒烟（含**前端组件单测**，与构建并行）→ 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 从 GitHub 探活：**cron 写每 10 分钟，但 GitHub 实际日均约 2–8 次（2026-10-22～10-30 实测），只作兜底，不是分钟级告警**。
+CI（`.github/workflows/ci.yml`）顺序：契约测试 + ruff + 依赖锁一致性 + 依赖漏洞扫描（**阻断**）+ API 文档一致性 + 文档指标一致性 → E2E 冒烟（含**前端组件单测**，与构建并行）→ **可访问性扫描（axe，阻断；违规数 >0 即红，同时跳过部署）** → 构建镜像（含 Caddyfile 校验、CSP 产物检查）→ 推 ACR → 服务器拉取 → 3 次健康检查 → 失败回滚。另有一条独立的 `uptime.yml` 从 GitHub 探活：**cron 写每 10 分钟，但 GitHub 实际日均约 2–8 次（2026-10-22～10-30 实测），只作兜底，不是分钟级告警**。
 
 ## 4.1 供应链固定（2026-10-24）
 

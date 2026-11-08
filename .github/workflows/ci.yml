@@ -164,9 +164,12 @@ jobs:
       # 配额放开到 50：E2E 每个会话就是一次真实生成入口调用，16 条用例里
       # smoke / landscape / mobile 各建 1 个会话，正好撞上生产配额（2 次/小时）。
       # 这只影响 CI 的临时库，生产配额不受影响。
-      - name: 起服务并跑冒烟
-        env:
-          E2E_REVISE: "1"
+      #
+      # 2026-11-08 拆成「起服务 / E2E / axe / 停服务」四步：原来起服务与跑用例在
+      # 同一个 run 块里，靠 `trap cleanup EXIT` 收尾——服务在块结束时就被杀了，
+      # 后面的 axe 步骤就复用不上。现在起服务不管收尾，由最后一步 `if: always()`
+      # 统一停，E2E 失败也能保证进程被清掉。
+      - name: 起服务（API + preview，临时库）
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/e2e/uploads"
@@ -187,11 +190,6 @@ jobs:
               > "$RUNNER_TEMP/preview.log" 2>&1 &
             echo $! > "$RUNNER_TEMP/preview.pid"
           )
-          cleanup() {
-            kill "$(cat "$RUNNER_TEMP/preview.pid" 2>/dev/null)" 2>/dev/null || true
-            kill "$(cat "$RUNNER_TEMP/api.pid" 2>/dev/null)" 2>/dev/null || true
-          }
-          trap cleanup EXIT
 
           for _ in $(seq 1 40); do
             if curl -fsS http://127.0.0.1:8001/healthz >/dev/null 2>&1 \
@@ -212,8 +210,27 @@ jobs:
             DB_PATH="$RUNNER_TEMP/e2e/e2e.db" python -c "import store; from services import library; store.init_db(); g = library.load_fixtures()[0]; g.id = 'g_e2e_draft_001'; g.steps = g.steps[:3]; print(store.save_guide(g, status='draft'))"
           )
 
-          cd apps/electro-assist/web
-          npx playwright test
+      - name: E2E 冒烟
+        env:
+          E2E_REVISE: "1"
+        working-directory: apps/electro-assist/web
+        run: npx playwright test
+
+      # 可访问性门禁（计划 §12.8「axe 0 violation」）。2026-11-08 进 CI。
+      # 为什么值得占 CI 时间：可访问性退化是**静默**的——颜色改浅一点、读屏标签漏一个，
+      # 页面看着完全正常，键盘用户却 Tab 不到。10-23 之后新增的暗色/抽屉/放大层/分页
+      # 从未量化复测，等于这段时间里"过 AA"这个说法没有依据。
+      # 首次接入就抓到真实缺陷：暗色下 .criterion 用了裸值 #fbfcfc 当背景，
+      # 而 --c-ink-2 在暗色里翻成 #b6bec9 → 实测 1.82:1，28 个判据标签不可读。
+      # 复扫基线：16 次扫描（4 页 × 2 视口 × 2 皮肤）0 违规，耗时约 20s。
+      - name: 可访问性扫描（axe，阻断）
+        working-directory: apps/electro-assist/web
+        env:
+          BASE: http://127.0.0.1:4173/apps/electro-assist
+          API: http://127.0.0.1:8001
+          # CI 只有 Playwright 自带的 chromium，没有系统 Edge
+          AXE_CHANNEL: bundled
+        run: npm run test:a11y
 
       - name: 失败时打印服务日志
         if: failure()
@@ -230,6 +247,18 @@ jobs:
             apps/electro-assist/web/test-results/
             apps/electro-assist/web/playwright-report/
           if-no-files-found: ignore
+
+      # 放在最后且 always()：E2E 或 axe 失败也要收尾，否则 runner 上留下两个监听进程，
+      # 后续步骤（尤其是再起一次服务的重试）会撞端口。日志打印与产物上传都在它之前。
+      - name: 停止服务
+        if: always()
+        run: |
+          for f in preview api; do
+            pid=$(cat "$RUNNER_TEMP/$f.pid" 2>/dev/null || true)
+            if [ -n "${pid:-}" ]; then kill "$pid" 2>/dev/null || true; fi
+          done
+          pkill -f 'vite preview' 2>/dev/null || true
+          exit 0
 
   build:
     name: 构建与校验

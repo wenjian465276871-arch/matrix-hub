@@ -76,7 +76,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 测量口径：Chrome 兼容内核（本机 Edge）无头模式，Lighthouse 13.5 默认移动端配置
 （390×844、4×CPU、模拟 4G）；axe-core 4.14 用 CDP 注入（CSP 禁内联 `<script>`，
 但 `Runtime.evaluate` 不受 `script-src` 约束），扫描 4 个页面 × 2 个视口。
-复现：`node apps/electro-assist/web/scripts/lighthouse.mjs <url>`、`node scripts/axe.mjs`
+复现：`node apps/electro-assist/web/scripts/lighthouse.mjs <url>`、`npm run test:a11y`（在 `apps/electro-assist/web` 下，需先起 API 与 preview）
 （两个包按需 `npm i --no-save`，不拖慢 CI）。
 
 **第一次跑出来并不达标，三处是真缺陷，已修：**

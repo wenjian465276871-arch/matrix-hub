@@ -465,7 +465,11 @@ html.theme-dark .btn--warn:hover {
   padding: 8px 10px;
   border: 1px solid var(--c-line-soft);
   border-radius: var(--radius-sm);
-  background: #fbfcfc;
+  /* 2026-11-08 修：原为裸值 #fbfcfc。暗色皮肤下背景仍是近白，而 --c-ink-2 会翻成
+     浅灰 #b6bec9 → 实测 1.82:1（AA 要 4.5），28 个判据标签全部不可读；
+     这是 axe 进 CI 后抓到的第一条真实违规。改用 --c-bg：两套皮肤里它都表示
+     "比卡片再深一层的内嵌块"，暗色下对 --c-ink-2 为 10.08:1。 */
+  background: var(--c-bg);
 }
 
 .criterion__label {
