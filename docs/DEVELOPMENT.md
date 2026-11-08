@@ -179,6 +179,32 @@ pip install --dry-run --require-hashes -r requirements.lock
 新增漏洞必须二选一：升级依赖，或加 `--ignore-vuln <ID>` 并写明为什么在本项目不可利用。
 不接受「先合进去以后再说」——那正是这 7 个 CVE 躺了半个多月的原因。
 
+**前端依赖漏洞（2026-11-08 处理 Dependabot #28）**：三条口径，别重复踩。
+
+| 项 | 结论 |
+|---|---|
+| `npm audit` 的假阴性 | **必须带 `--registry=https://registry.npmjs.org`**。npmmirror 不实现 `/-/npm/v1/security/audits/*`，返回 404 → 命令失败 → 若管道里 `2>/dev/null` 就会拿到空结果，看起来"零漏洞"。我 2026-11-08 就这样误判过一次，同一天晚些时候才发现整条 dev 依赖链有 3 条 moderate |
+| CI 的覆盖范围 | 原命令是 `npm audit --omit=dev`，只审计生产依赖——本项目 prod 只有 `vue` + `vue-router`，**永远干净，dev 链上的漏洞从来没被这条门禁看见**。2026-11-08 去掉 `--omit=dev`，仍 `continue-on-error`（只告警不阻断） |
+| CI 为什么能用 | runner 在海外，默认 `registry.npmjs.org`，audit 端点可用；**只有本机因镜像配置不可用** |
+
+**已修的**：`minimatch`（CVE-2026-118764 / GHSA-23lw-7isw-mr49，DoS via globparts amplification）。
+依赖链 `@vue/test-utils@2.5.1 → js-beautify@2.0.3 → glob@13.0.6 / editorconfig@3.0.2 → minimatch@10.2.6`。
+上游没有新版可升（test-utils 与 js-beautify 都已是各自最新），用 `package.json` 的
+`overrides: { "minimatch": "^11.0.5" }` 强行统一到 11.0.5。
+**这是越界改版**：`editorconfig` 声明 `~10.2.4`、`glob` 声明 `^10.2.2`，都不接受 11。
+敢越的原因有三条，缺一条都不该做：① `minimatch@11` 要 Node `20 || >=22`，本地与 CI 都是 22；
+② 项目**没有 `.editorconfig`**，js-beautify 的配置匹配路径不执行；③ 144 条单测与构建在升级后全绿
+（2026-11-08 实测，覆盖率 57.71/46.83/46.37/59.77 不变）。
+
+**不修的**（`glob 9.0.0–14.0.1` 的 AbortSignal 取消绕过，连带 `js-beautify` 与 `@vue/test-utils` 被判）：
+
+- `npm audit` 给的唯一修复是**把 `@vue/test-utils` 从 2.5.1 降回 2.4.11**——为修一个测试工具的传递依赖而回退测试框架，方向是错的。
+- 漏洞需要**主动用 glob 遍历文件系统**才可达；本项目只调 `mount()` 做 DOM 字符串格式化，不传 glob、不碰文件。
+- **复查触发条件**：`js-beautify` 发版且其依赖升到 `glob@>=14.0.2`，或 `@vue/test-utils` 换掉 js-beautify → 那时升依赖即可，不需要 overrides。
+  这两条任一发生都应在下一次依赖周更（周一 03:00）被 Dependabot 提醒到；若没提醒到，说明 Dependabot 又"太久没开 PR"（#28 就出现过这种提示）。
+
+**锁文件混源现状（2026-11-08 实测）**：`package-lock.json` 里 87 条 `resolved` 指向 `registry.npmjs.org`、68 条指向 `registry.npmmirror.com`（含本次新增的 minimatch —— 已手工指回 npmjs）。这是历史遗留，**不影响 CI**（`npm ci --dry-run` 通过、远端 `npm ci` 一直绿），但不符合上面第 155 行定的"升完指回 npmjs"口径。没有在本次一并清理：68 条纯文本改写虽然 `integrity` 不变、风险低，但会把一次依赖修复的 diff 撑到看不清。要清的时候单独提一次 commit，改完跑 `npm ci --dry-run` 验。
+
 
 **前端 E2E（2026-10-21 进 CI，现 26 条）**：`tests/e2e/smoke.spec.ts` 六条路径——列表→引导第 1 步→刷新保持、B 命中、B 未覆盖、B 逐步诊断收敛、素材上传/移除、结构化预检，全部走启动时 seed 的案例，不调模型；`tests/e2e/theme.spec.ts` 四条交互回归——抽屉 + 暗色持久化、A1 暗色逃生条、暗色下打印仍为亮色、生成可取消（`page.route` mock，不花 token）；`tests/e2e/polish.spec.ts` 四条收尾——800ms 转骨架、路由焦点归位、列表加载更多、打印表头重复；`tests/e2e/resilience.spec.ts` 五条——刷新续接、429 倒计时、时间预算、隐私页、成功即跳转；`tests/e2e/landscape.spec.ts` / `mobile.spec.ts` 各一条几何回归；`tests/e2e/revise.spec.ts` 三条——搜索两条 + 草稿修正（需设置 E2E_REVISE 环境变量才跑）；`tests/e2e/fallback.spec.ts` 与 `regenerate.spec.ts` 各一条——无图示占位、再生成入口。
 

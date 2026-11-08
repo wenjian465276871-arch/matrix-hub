@@ -125,12 +125,18 @@ jobs:
         working-directory: apps/electro-assist/web
         run: npm ci
 
-      # 前端漏洞扫描同样只告警：`npm audit` 的间接依赖噪音很大，
-      # 卡发布等于逼人加 --legacy-peer-deps 绕过去。
+      # 前端漏洞扫描只告警（不阻断）：间接依赖噪音大，卡发布等于逼人绕过去。
+      # **2026-11-08 起不再带 `--omit=dev`**：原来只查生产依赖（本项目 prod 只有
+      # vue + vue-router 两个，永远干净），dev 链上的漏洞全靠 Dependabot 偶发提醒。
+      # 实测 `@vue/test-utils → js-beautify → glob` 这条链 3 条 moderate 就是这么久
+      # 没被发现的。全量审计后仍然只告警，但至少「有没有漏洞」变成每次可见的事实。
+      # 注意：本地跑要用 `--registry=https://registry.npmjs.org`——国内镜像
+      # （registry.npmmirror.com）不实现 `/-/npm/v1/security/audits/*`，会 404，
+      # 表现为"审计结果为空"，是假阴性。
       - name: 前端依赖漏洞扫描（只告警）
         continue-on-error: true
         working-directory: apps/electro-assist/web
-        run: npm audit --omit=dev
+        run: npm audit
 
       - name: 安装浏览器
         working-directory: apps/electro-assist/web
