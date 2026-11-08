@@ -246,7 +246,7 @@ def test_prune_logs_deletes_rotated_and_truncates_stale_active(tmp_path, monkeyp
     logs = tmp_path / "logs"
     logs.mkdir()
     monkeypatch.setenv("ACCESS_LOG_DIR", str(logs))
-    old_rotated = logs / "access-2026-10-20T03-00-00.000.log"
+    old_rotated = logs / "access-2026-10-20T03-00-00.000.log.gz"
     fresh_rotated = logs / "access-2026-11-07T03-00-00.000.log"
     active = logs / "access.log"
     for path, text in ((old_rotated, "超期"), (fresh_rotated, "未超期"), (active, "很久没写")):

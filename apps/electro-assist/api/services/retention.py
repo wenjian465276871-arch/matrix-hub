@@ -120,7 +120,9 @@ def prune_logs(days: int = LOG_RETENTION_DAYS, now: datetime | None = None) -> d
     rotated = 0
     truncated = False
 
-    for path in sorted(directory.glob("access-*.log")):
+    for path in sorted(
+        [*directory.glob("access-*.log"), *directory.glob("access-*.log.gz")]
+    ):
         try:
             if path.stat().st_mtime < cutoff:
                 path.unlink()
