@@ -40,6 +40,9 @@ const initial = computed(() => {
   return Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0.6
 })
 
+/** 打印用：DeviceScene 在停下后给的当前帧 PNG。canvas 打印出来是空白。 */
+const shot = ref('')
+
 const progress = ref(initial.value)
 watch(initial, (value) => {
   progress.value = value
@@ -54,7 +57,20 @@ function seek(event: Event): void {
 
 <template>
   <div class="device">
-    <DeviceScene :subject="subject" :t="progress" :focus="part" :label="label" />
+    <DeviceScene
+      :subject="subject"
+      :t="progress"
+      :focus="part"
+      :label="label"
+      @snapshot="shot = $event"
+    />
+    <!-- 打印时替掉 canvas：canvas 在纸上什么都不打，指导书不能出现空白框 -->
+    <img
+      v-if="shot"
+      class="device__print"
+      :src="shot"
+      :alt="label || '设备三维示意'"
+    />
     <label class="device__scrub no-print">
       <span class="device__scrub-label">动作进度 {{ percent }}%</span>
       <input
@@ -94,10 +110,31 @@ function seek(event: Event): void {
   min-width: 0;
 }
 
+.device__print {
+  display: none;
+}
+
 .device__note {
   margin: 6px 0 0;
   color: var(--c-ink-2);
   font-size: 12px;
   line-height: 1.6;
+}
+@media print {
+  /* canvas 换成静态帧；进度条与提示已经在全局 .no-print 里隐藏 */
+  .device :deep(.scene) {
+    display: none;
+  }
+
+  .device__print {
+    display: block;
+    width: 100%;
+    /* 限高：A4 内容区里一张满宽 3:2 图约 11cm 高，加上题注容易顶到下一页 */
+    max-height: 95mm;
+    height: auto;
+    object-fit: contain;
+    border: 1px solid var(--c-line);
+    border-radius: 6px;
+  }
 }
 </style>

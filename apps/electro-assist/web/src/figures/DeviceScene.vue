@@ -51,6 +51,12 @@ const props = withDefaults(
   { subject: 'door', t: 0, focus: '', interactive: true, label: '' },
 )
 
+/**
+ * `snapshot` 在每次停下后给出当前帧的 PNG dataURL。
+ * 打印时必须用它——canvas 在纸上什么都不打，指导书不能出现空白框。
+ */
+const emit = defineEmits<{ snapshot: [dataUrl: string] }>()
+
 const host = ref<HTMLDivElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
 const error = ref('')
@@ -93,6 +99,28 @@ function followCamera(t: number): void {
     frame.target[2] + VIEW_DIR[2] * frame.distance,
   )
   controls.update()
+}
+
+let captureTimer = 0
+
+/** 把当前帧导出成 PNG。失败只是打印版少一张图，不该影响交互，所以静默吞掉。 */
+function capture(): void {
+  const canvasEl = canvas.value
+  if (!canvasEl || !rig) return
+  try {
+    const url = canvasEl.toDataURL('image/png')
+    // 空画布的 dataURL 很短；这里顺带挡掉「只截到一个透明框」
+    if (url.length < 512) return
+    emit('snapshot', url)
+  } catch {
+    /* 跨源污染或 GPU 回收时会抛，忽略 */
+  }
+}
+
+/** 拖动时每帧截图会卡（一次 toDataURL 约 10–30ms），停下再截。 */
+function scheduleCapture(): void {
+  window.clearTimeout(captureTimer)
+  captureTimer = window.setTimeout(capture, 320)
 }
 
 function render(): void {
@@ -181,6 +209,8 @@ async function init(): Promise<void> {
     antialias: true,
     alpha: true,
     powerPreference: 'high-performance',
+    // 截图要在渲染之后读像素，不保留绘制缓冲会拿到一张全空图
+    preserveDrawingBuffer: true,
   })
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   // ACES：没有它，金属高光会糊成一块死白，PBR 看起来还不如 Phong。这不是可选项。
@@ -268,6 +298,8 @@ async function init(): Promise<void> {
 
   if (props.focus) setFocus(props.focus)
   loading.value = false
+  // 第一帧渲染完再截：此时 loading 已经关掉，画布里有内容
+  capture()
 }
 
 watch(
@@ -276,6 +308,7 @@ watch(
     rig?.setT(value)
     followCamera(value)
     render()
+    scheduleCapture()
   },
 )
 
@@ -289,6 +322,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.clearTimeout(captureTimer)
   observer?.disconnect()
   observer = null
   controls?.dispose()
