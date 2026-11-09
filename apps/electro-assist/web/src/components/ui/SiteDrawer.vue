@@ -81,6 +81,7 @@ onBeforeUnmount(() => {
           <RouterLink class="drawer__link" to="/">作业指导书库</RouterLink>
           <RouterLink class="drawer__link" to="/new">生成指导书</RouterLink>
           <RouterLink class="drawer__link" to="/diagnose">故障排查</RouterLink>
+          <RouterLink class="drawer__link" to="/demo/device">三维演示</RouterLink>
           <a class="drawer__link" href="/">返回门户</a>
         </nav>
 

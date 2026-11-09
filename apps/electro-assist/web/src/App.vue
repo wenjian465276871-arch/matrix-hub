@@ -63,6 +63,7 @@ function skipToMain(): void {
       <nav class="nav-links" aria-label="主导航">
         <RouterLink class="nav-link" to="/new">生成指导书</RouterLink>
         <RouterLink class="nav-link" to="/diagnose">故障排查</RouterLink>
+        <RouterLink class="nav-link" to="/demo/device">三维演示</RouterLink>
         <a class="nav-link" href="/">返回门户</a>
       </nav>
       <button
