@@ -1,6 +1,6 @@
 # 脚本清单
 
-> 11 个脚本，**四类用途、三种风险**。放在一个目录里是因为都以 `python -m scripts.<name>` 或
+> 13 个脚本，**四类用途、三种风险**。放在一个目录里是因为都以 `python -m scripts.<name>` 或
 > `python scripts/<name>.py` 从 `api/` 执行；分类靠本表，不靠子目录——运维入口
 > （`publish` / `cleanup`）已被服务器 cron 与运行手册引用，移动目录会**静默打断周任务**。
 
@@ -16,6 +16,8 @@
 | `eval_generate.py` | 8 份语料的批量生成评测（真实调模型，约 ¥0.1） | 只写本地文件 | 否 | `python scripts/eval_generate.py [--dry-run]` |
 | `demo_flow.py` | 全流程自检：建会话 → 提交 → 记录 → 排查 | 写库 | 否（用临时会话） | `python scripts/demo_flow.py --base http://127.0.0.1:8001` |
 | `smoke_llm.py` | 单次生成冒烟，打印耗时与费用 | 只写本地文件 | 否 | `python scripts/smoke_llm.py --text "…"` |
+| `capture_generation.py` | 把一次生成输出冻成快照夹具（`tests/fixtures/generations/`）；`--from-sample` 不调模型 | 只写测试夹具 | 否 | `python scripts/capture_generation.py --case <语料> ／ --from-sample <样例>` |
+| `replay_samples.py` | 把 `tests/fixtures/legacy/` 的历史形状逐份过一遍 `Guide.model_validate`，并验"读旧写新" | 只读 | 否 | `python scripts/replay_samples.py`（CI 阻断） |
 | `backfill_provenance.py` | 给**历史草稿**补判据来源（`provenance`），顺带输出定位命中率 | 写库 | **会**（只改 draft 的 `json` 字段，不动 status / updated_at） | `python scripts/backfill_provenance.py [--apply]`（默认 dry-run；`--apply` 先整库备份） |
 
 ## 约定
