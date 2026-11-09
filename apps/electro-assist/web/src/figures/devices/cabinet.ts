@@ -484,76 +484,106 @@ export function buildCabinet(): DeviceRig {
 
   /* ------------------------------------------------------------ 动作 */
   /**
-   * 每台断路器只由两个量驱动：
-   * - `closed` 合闸进度（手柄 0.02–0.14、触点 0.10–0.16，触点晚于手柄）
-   * - `trip` 脱扣进度（0.90 起，热脱扣 → 触点弹开 → 手柄落到中间位）
+   * 时间轴（与 DeviceDemoView 的读数同源，改一处要改两处）：
+   *   0.02 主断路器合闸 │ 0.14 分路合闸 │ 0.28 控制回路得电 │ 0.30 接触器
+   *   0.48 继电器自检   │ 0.72 系统就绪 │ 0.78 过载脱扣     │ 0.88 复位
+   *   0.94 重新合闸
    *
-   * 所有零件都从这两个量算出来，不各自写一套时间，顺序才不会打架。
+   * 每台断路器只由四个量驱动：`closed` / `trip` / `reset` / `reclose`。
+   * 手柄角度、触点、弹簧、双金属、脱扣杆全部从这四个量算出来——
+   * 不给零件各写一套时间，否则脱扣时会出现「触点弹开了、手柄还在合闸位」这种错位。
    */
-  const applyBreaker = (rig: BreakerRig, closed: number, trip: number): void => {
-    // 手柄：断开 1.0 → 合闸 -0.35；脱扣后落到 0.42（中间位）
-    const rest = 1.0 - 1.35 * closed
-    for (const handle of rig.handles) handle.rotation.x = rest + (0.42 - rest) * trip
-    // 触点：合闸时压向静触点，脱扣时弹开
-    const armAngle = -0.5 * closed * (1 - trip)
-    for (const arm of rig.arms) arm.rotation.x = armAngle
-    // 弹簧压缩量 = 超程。合闸才压，脱扣立刻回弹
-    for (const spring of rig.springs) spring.scale.y = 1 - 0.18 * closed * (1 - trip)
-    // 热脱扣链：双金属片弯曲 → 顶开脱扣杆
-    for (const hinge of rig.bimetals) hinge.rotation.x = 0.12 * trip
-    for (const bar of rig.trips) bar.rotation.x = -0.18 * trip
-    // 状态窗：合闸红（带电），断开/脱扣绿（安全位）
-    const live = closed >= 0.98 && trip < 0.5
-    for (const plate of rig.windows) setLed(plate, live ? RED : GREEN, true)
+  const applyBreaker = (
+    rig: BreakerRig,
+    closed: number,
+    trip: number,
+    reset: number,
+    reclose: number,
+  ): void => {
+    const OFF = 1.0
+    const ON = -0.35
+    const MID = 0.42
+
+    /* 手柄的四段：合闸 → 脱扣落到中间位 → 扳到底复位 → 再推上去合闸。
+       这四段就是现场处置顺序，缺一段「中间位」这个知识点就立不住。 */
+    const base = OFF + (ON - OFF) * closed
+    let angle = base + (MID - base) * trip
+    angle += (OFF - angle) * reset
+    angle += (ON - angle) * reclose
+    for (const handle of rig.handles) handle.rotation.x = angle
+
+    // 触点：合闸到位的进度；脱扣清零、再合闸恢复
+    const contact = Math.max(closed * (1 - trip), reclose)
+    for (const arm of rig.arms) arm.rotation.x = -0.5 * contact
+    // 弹簧压缩量 = 超程，跟着触点走
+    for (const spring of rig.springs) spring.scale.y = 1 - 0.18 * contact
+
+    /* 热元件：脱扣时弯曲，复位时才回弹。真机要等双金属片冷却，
+       这里跟复位同步，是为了让「复位」这个动作有可见的因果。 */
+    const thermal = trip * (1 - reset)
+    for (const hinge of rig.bimetals) hinge.rotation.x = 0.12 * thermal
+    for (const bar of rig.trips) bar.rotation.x = -0.18 * thermal
+
+    // 状态窗：触点闭合即带电（红），断开/脱扣/已复位都是绿（安全位）
+    for (const plate of rig.windows) setLed(plate, contact >= 0.98 ? RED : GREEN, true)
   }
 
   const setT = (t: number): void => {
     /**
-     * 段一~二：断路器合闸。手柄从 +1.0（指向前下 = 断开）转到 -0.35（指向上后 = 闭合）——
+     * 手柄从 +1.0（指向前下 = 断开）转到 -0.35（指向上后 = 闭合）——
      * 方向不能反：现场看到手柄朝下就是断开，朝上才是合闸。
      * 行程取 1.35rad（约 77°），比真机的 ±25° 夸张——真机行程在屏幕上
-     * 只有十几个像素的位移，不夸张等于没动作。
+     * 只有十几个像素，不夸张等于没动作。
      */
-    const mainClosed = seg(t, 0.02, 0.14)
-    const mainTrip = seg(t, 0.9, 0.97)
-    applyBreaker(main, mainClosed, mainTrip)
+    const trip = seg(t, 0.78, 0.86)
+    const reset = seg(t, 0.88, 0.93)
+    const reclose = seg(t, 0.94, 1.0)
+
+    applyBreaker(main, seg(t, 0.02, 0.12), trip, reset, reclose)
 
     // 单极断路器随后合上
     const sp = [sp1, sp2]
     sp.forEach((breaker, i) => {
-      applyBreaker(breaker, seg(t, 0.16 + i * 0.05, 0.24 + i * 0.05), mainTrip)
+      applyBreaker(breaker, seg(t, 0.14 + i * 0.04, 0.2 + i * 0.04), trip, reset, reclose)
     })
 
-    // 段三：控制回路得电。未得电时电源灯是红的——红灯表示
+    // 控制回路得电。未得电时电源灯是红的——红灯表示
     // 「主回路有电、控制回路没起来」，这是现场语义，不是「不亮」。
-    setLed(powerLed, t >= 0.3 ? GREEN : RED, true)
+    setLed(powerLed, t >= 0.28 ? GREEN : RED, true)
 
-    // 段四：接触器吸合（衔铁动作 + 线圈腔可见）；脱扣后释放
-    const pulled = seg(t, 0.34, 0.5) * (1 - seg(t, 0.95, 0.99))
+    // 接触器：吸合 → 脱扣释放 → 再合闸吸回
+    const pulled = Math.max(seg(t, 0.3, 0.44) * (1 - seg(t, 0.82, 0.86)), seg(t, 0.97, 1.0))
     armature.position.z = 0.132 - 0.018 * pulled
     setLed(contactorLed, GREEN, pulled >= 0.98)
 
-    // 段五：继电器依次动作——触点片摆动 + 顶部灯亮
+    // 继电器依次动作 → 脱扣全部释放 → 再合闸依次吸回
     for (let i = 0; i < relayLeds.length; i += 1) {
-      const active = t >= 0.56 + i * 0.08 && t < 0.95
-      setLed(relayLeds[i], AMBER, active)
-      relayArms[i].rotation.z = active ? -0.38 : 0
+      const at = 0.48 + i * 0.06
+      const active = Math.max(
+        t >= at && t < 0.82 ? 1 : 0,
+        t >= 0.97 + i * 0.01 ? 1 : 0,
+      )
+      setLed(relayLeds[i], AMBER, active === 1)
+      relayArms[i].rotation.z = active === 1 ? -0.38 : 0
     }
 
-    // 段六：运行指示；过载脱扣后转报警
-    setLed(runLed, GREEN, t >= 0.86 && t < 0.93)
-    setLed(alarmLed, RED, t >= 0.93)
+    // 运行指示：就绪绿 → 脱扣灭 → 再合闸后恢复
+    const running = (t >= 0.72 && t < 0.8) || t >= 0.99
+    setLed(runLed, GREEN, running)
+    setLed(alarmLed, RED, t >= 0.8 && t < 0.97)
   }
 
   const phase = (t: number): string => {
-    if (t < 0.15) return '主断路器合闸'
-    if (t < 0.3) return '分路断路器合闸'
-    if (t < 0.34) return '控制回路得电'
-    if (t < 0.52) return '接触器吸合'
-    if (t < 0.82) return '继电器自检'
-    if (t < 0.9) return '系统就绪'
-    if (t < 0.97) return '过载脱扣'
-    return '已脱扣'
+    if (t < 0.13) return '主断路器合闸'
+    if (t < 0.26) return '分路断路器合闸'
+    if (t < 0.3) return '控制回路得电'
+    if (t < 0.46) return '接触器吸合'
+    if (t < 0.68) return '继电器自检'
+    if (t < 0.78) return '系统就绪'
+    if (t < 0.88) return '过载脱扣'
+    if (t < 0.94) return '复位（手柄扳到底）'
+    if (t < 0.999) return '重新合闸'
+    return '系统就绪'
   }
 
   setT(0)

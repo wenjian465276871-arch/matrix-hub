@@ -190,43 +190,66 @@ const pantoReads = computed<Readout[]>(() => {
 
 /* -------------------------------------------------------------- 电气柜读数 */
 
+/** 与 cabinet.ts 的 setT 同源：0.78 脱扣、0.88 复位、0.94 再合闸。改一处要改两处。 */
+const CAB_TRIP = 0.78
+const CAB_RESET = 0.88
+const CAB_RECLOSE = 0.94
+
 const cabinetReads = computed<Readout[]>(() => {
-  // 第三只断路器在 0.12 合完，主回路才算真正带电
-  const closed = t.value >= 0.12
-  // 0.90 起热脱扣：双金属片弯曲 → 触点弹开 → 主回路失电
-  const tripped = t.value >= 0.97
-  const tripping = t.value >= 0.9
-  const mainV = closed && !tripped ? '380' : '0'
-  // 控制回路取自断路器上游，脱扣后仍有电——这也是现场判据：主回路没了、控制回路还在
-  const ctrlV = t.value >= 0.3 ? '220' : '0'
-  const pulled = t.value >= 0.5 && !tripped
-  const relayCount = tripped ? 0 : [0, 1, 2].filter((i) => t.value >= 0.56 + i * 0.08).length
-  const running = t.value >= 0.86 && !tripping
+  const now = t.value
+  const closed = now >= 0.12
+  // 主回路带电：合闸后、脱扣前；再合闸到位后恢复
+  const live = (closed && now < 0.82) || now >= 0.99
+  // 控制回路取自断路器上游，**脱扣后仍有电**——主回路没了、控制回路还在，本身就是判据
+  const ctrlV = now >= 0.28 ? '220' : '0'
+  const pulled = (now >= 0.44 && now < 0.82) || now >= 0.97
+  const relayCount = now < 0.82 ? [0, 1, 2].filter((i) => now >= 0.48 + i * 0.06).length : now >= 0.99 ? 3 : 0
+  const running = (now >= 0.72 && now < 0.8) || now >= 0.99
+
   const phase =
-    t.value < 0.15
+    now < 0.13
       ? '主断路器合闸'
-      : t.value < 0.3
+      : now < 0.26
         ? '分路断路器合闸'
-        : t.value < 0.34
+        : now < 0.3
           ? '控制回路得电'
-          : t.value < 0.52
+          : now < 0.46
             ? '接触器吸合'
-            : t.value < 0.82
+            : now < 0.68
               ? '继电器自检'
-              : t.value < 0.9
+              : now < CAB_TRIP
                 ? '系统就绪'
-                : t.value < 0.97
+                : now < CAB_RESET
                   ? '过载脱扣'
-                  : '已脱扣'
+                  : now < CAB_RECLOSE
+                    ? '复位（手柄扳到底）'
+                    : now < 0.999
+                      ? '重新合闸'
+                      : '系统就绪'
+
+  /* 手柄位置是这一页最要紧的一条：中间位既非合闸也非断开，
+     现场见到它不能直接往上扳，必须先扳到底复位。 */
+  const handleState =
+    now < 0.12
+      ? { value: '断开位', dot: 'idle' as const }
+      : now < CAB_TRIP
+        ? { value: '合闸位', dot: 'ok' as const }
+        : now < CAB_RESET
+          ? { value: '中间位（已脱扣）', dot: 'warn' as const }
+          : now < CAB_RECLOSE
+            ? { value: '断开位（已复位）', dot: 'idle' as const }
+            : now < 0.99
+              ? { value: '合闸中', dot: 'warn' as const }
+              : { value: '合闸位', dot: 'ok' as const }
+
   return [
     { label: '动作阶段', value: phase },
-    { label: '主回路电压', value: mainV, unit: 'V' },
+    { label: '主回路电压', value: live ? '380' : '0', unit: 'V' },
     { label: '控制回路电压', value: ctrlV, unit: 'V' },
     { label: '接触器', value: pulled ? '吸合' : '断开', dot: pulled ? 'ok' : 'idle' },
     { label: '继电器', value: `${relayCount} / 3`, unit: '个' },
     { label: '运行指示', value: running ? '亮' : '灭', dot: running ? 'ok' : 'idle' },
-    // 脱扣是这一页最要紧的一条：手柄停在中间位，不是断开位
-    { label: '断路器手柄', value: tripped ? '中间位（已脱扣）' : closed ? '合闸位' : '断开位', dot: tripped ? 'warn' : 'idle' },
+    { label: '断路器手柄', value: handleState.value, dot: handleState.dot },
   ]
 })
 
