@@ -318,7 +318,13 @@ export function buildPantograph(): DeviceRig {
     roughness: 0.55,
     map: dialTex,
   })
-  const dial = new Mesh(new CylinderGeometry(gaugeR, gaugeR, 0.014, 32), [dialMaterial, chromeMaterial(), chromeMaterial()])
+  /* 材质组顺序是 [侧面, 顶盖, 底盖]。表盘必须挂在**顶盖**（索引 1）上，
+     挂到索引 0 会把表盘卷在圆柱侧面上，正面只剩一圈不锈钢——第一版就是这样。 */
+  const dial = new Mesh(new CylinderGeometry(gaugeR, gaugeR, 0.014, 32), [
+    chromeMaterial(),
+    dialMaterial,
+    chromeMaterial(),
+  ])
   // 圆柱的顶面朝 +Y，转成朝 +Z 才能被相机看见
   dial.rotation.x = Math.PI / 2
   dial.position.set(boxX, boxY + 0.02, gaugeZ)
