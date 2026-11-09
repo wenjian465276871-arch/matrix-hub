@@ -369,6 +369,12 @@ export function buildPantograph(): DeviceRig {
   const drive = new Group()
   drive.add(box)
   drive.add(lampGroup)
+  /* 指示灯也是可高亮件，必须单独登记。
+     后端白名单里 `pantograph` 有 `lamp` 一项（与车门同名），但这里原先只把
+     lampGroup 挂进了 drive —— 模型选 `part=lamp` 时 `parts.lamp` 取不到，
+     高亮静默失效：不报错、不提示，只是点了没反应。
+     2026-11-09 由 builders.spec.ts 的「parts 键与后端白名单一致」抓到。 */
+  parts.lamp = lampGroup
 
   /* 软管：控制箱 → 两支气缸。走线照现场，贴着底架走，不横穿机构。 */
   const hoseMat = rubberMaterial(0x23262a)
