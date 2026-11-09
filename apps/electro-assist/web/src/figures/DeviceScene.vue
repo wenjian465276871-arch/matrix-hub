@@ -19,6 +19,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Mesh, MeshStandardMaterial, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 import type { DeviceRig } from './devices/rig'
+import type { SectionCutter } from './devices/section'
 
 /** 只声明用得到的那几个成员，避免把整个 OrbitControls 的类型拖进主包。 */
 interface ControlsLike {
@@ -47,15 +48,23 @@ const props = withDefaults(
     interactive?: boolean
     /** 读屏替代文本。canvas 对读屏不可用，这句必须有。 */
     label?: string
+    /** 剖切开关。设备没声明 `cut` 时无效（由 `cutable` 事件告知）。 */
+    cut?: boolean
+    /** 剖切位置 0..1。0 = 切得最深（露出内部），1 = 完全不切。 */
+    cutAt?: number
   }>(),
-  { subject: 'door', t: 0, focus: '', interactive: true, label: '' },
+  { subject: 'door', t: 0, focus: '', interactive: true, label: '', cut: false, cutAt: 0.5 },
 )
 
 /**
  * `snapshot` 在每次停下后给出当前帧的 PNG dataURL。
  * 打印时必须用它——canvas 在纸上什么都不打，指导书不能出现空白框。
  */
-const emit = defineEmits<{ snapshot: [dataUrl: string] }>()
+const emit = defineEmits<{
+  snapshot: [dataUrl: string]
+  /** 该设备是否支持剖切。UI 据此决定要不要显示开关，避免按场景名硬编码。 */
+  cutable: [value: boolean]
+}>()
 
 const host = ref<HTMLDivElement | null>(null)
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -78,6 +87,8 @@ let camera: PerspectiveCamera | null = null
 let controls: ControlsLike | null = null
 let envTarget: { dispose(): void } | null = null
 let observer: ResizeObserver | null = null
+/** 剖切器。`section.ts` 同样只在用到时才加载，不拖首屏。 */
+let cutter: SectionCutter | null = null
 
 /** 固定机位方向（单位向量，仰角 9°）。随动取景只改距离与目标点，不改方向。 */
 const VIEW_DIR: [number, number, number] = [0.55, 0.16, 0.82]
@@ -212,6 +223,8 @@ async function init(): Promise<void> {
     // 截图要在渲染之后读像素，不保留绘制缓冲会拿到一张全空图
     preserveDrawingBuffer: true,
   })
+  // 逐材质的 clippingPlanes 需要它打开，否则设了也不生效
+  renderer.localClippingEnabled = true
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   // ACES：没有它，金属高光会糊成一块死白，PBR 看起来还不如 Phong。这不是可选项。
   renderer.toneMapping = T.ACESFilmicToneMapping
@@ -265,6 +278,16 @@ async function init(): Promise<void> {
 
   scene.add(rig.root)
   rig.setT(props.t)
+
+  if (rig.cut) {
+    const { createSection } = await import('./devices/section')
+    cutter = createSection(rig.root, rig.cut)
+    cutter.setAt(props.cutAt)
+    cutter.setEnabled(props.cut)
+    emit('cutable', true)
+  } else {
+    emit('cutable', false)
+  }
 
   const { OrbitControls } = await import(
     'three/examples/jsm/controls/OrbitControls.js'
@@ -320,6 +343,24 @@ watch(
   (value) => setFocus(value),
 )
 
+watch(
+  () => props.cut,
+  (value) => {
+    cutter?.setEnabled(value)
+    render()
+    scheduleCapture()
+  },
+)
+
+watch(
+  () => props.cutAt,
+  (value) => {
+    cutter?.setAt(value)
+    render()
+    scheduleCapture()
+  },
+)
+
 onMounted(() => {
   // `new WebGLRenderer` 在 try 之外：WebGL 被禁用或显卡上下文创建失败时
   // 它会直接抛（"Error creating WebGL context"）。不接住的话整个组件树报错，
@@ -336,6 +377,8 @@ onBeforeUnmount(() => {
   observer = null
   controls?.dispose()
   controls = null
+  cutter?.dispose()
+  cutter = null
   rig?.dispose()
   rig = null
   scene?.clear()

@@ -421,6 +421,9 @@ export function buildCabinet(): DeviceRig {
     // 浅背板 + 浅元件：环境压到 0.8，否则断路器会烧成一块白
     envIntensity: 0.8,
     framing: { target: [0.02, 0.35, 0.04], distance: 2.62 },
+    /* 刻意**不声明**剖切：这里的元件都是实心盒（断路器、继电器、端子排），
+       切一刀只能看到盒壁，没有可读的内部结构。等把断路器内部（触点、灭弧室、
+       双金属片）建出来之后再开，否则只是一个「切开也没东西看」的开关。 */
     dispose: () => disposeTree(root),
   }
 }

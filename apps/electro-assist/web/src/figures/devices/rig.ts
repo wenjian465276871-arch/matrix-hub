@@ -34,6 +34,8 @@ import {
 } from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 
+import type { CutSpec } from './section'
+
 /** 一支设备场景的可驱动骨架。`setT` 接收 0..1 的归一化进度，内部自行分段。 */
 export interface DeviceRig {
   root: Group
@@ -63,6 +65,11 @@ export interface DeviceRig {
    * 用户一旦手动拖过视角，跟随立即停止——不能跟人抢镜头。
    */
   framingAt?: (t: number) => { target: [number, number, number]; distance: number }
+  /**
+   * 可选：剖切能力。声明了就能被切开，没声明就没有这个功能。
+   * 结构（门、柜）切开有意义；纯杆件机构（受电弓）切开只是把杆锯断，所以不声明。
+   */
+  cut?: CutSpec
   dispose: () => void
 }
 
