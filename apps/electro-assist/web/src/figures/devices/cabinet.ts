@@ -92,6 +92,12 @@ interface BreakerRig {
   windows: Mesh[]
   /** 动触点：合闸时摆向静触点。它是「手柄动了以后电才通」的可见证据。 */
   arms: Group[]
+  /** 触点压力弹簧：合闸后继续压缩的那一点，就是「超程」。 */
+  springs: Mesh[]
+  /** 双金属片的枢轴（绕下端弯，不是绕自身中心转）。 */
+  bimetals: Object3D[]
+  /** 脱扣杆的枢轴。 */
+  trips: Object3D[]
 }
 
 /**
@@ -119,6 +125,9 @@ function buildBreaker(poles: number, poleW: number, height: number): BreakerRig 
   const handles: Group[] = []
   const windows: Mesh[] = []
   const arms: Group[] = []
+  const springs: Mesh[] = []
+  const bimetals: Object3D[] = []
+  const trips: Object3D[] = []
 
   // 断路器外壳压到中浅灰：0xdfdcd5 在环境光下发白，细节（模缝、手柄槽）全丢
   const faceMat = new MeshStandardMaterial({ color: 0xc7c4bd, metalness: 0, roughness: 0.42 })
@@ -152,10 +161,38 @@ function buildBreaker(poles: number, poleW: number, height: number): BreakerRig 
        → 上端子。位置不是随手摆的，是这条路径决定的；这样剖开以后，
        一眼能顺着看明白「电从哪进来、经过什么、从哪出去」。
        动触点的落点同样反算过：臂长 60mm、摆 0.5rad，尖端正好压在静触点银点上。 */
-    // 双金属片：过载时受热弯曲，顶开脱扣杆
-    group.add(roundedBox(0.032, 0.05, 0.005, bimetalMat, x, -0.062, -0.026, 0.002))
-    // 脱扣杆
-    group.add(roundedBox(0.036, 0.006, 0.006, plateMat, x, -0.03, -0.03, 0.001))
+    /* 双金属片：下端固定、上端自由。过载时受热向脱扣杆一侧弯曲——
+       绕下端转一个很小的角度就够了，真机也就是零点几毫米的位移。 */
+    const bimetal = roundedBox(0.032, 0.05, 0.005, bimetalMat, 0, 0.025, 0, 0.002)
+    const bimetalPivot = new Group()
+    bimetalPivot.position.set(x, -0.087, -0.026)
+    bimetalPivot.add(bimetal)
+    bimetals.push(bimetalPivot)
+    group.add(bimetalPivot)
+
+    // 脱扣杆：被顶开后绕自身轴转，释放锁扣
+    const trip = roundedBox(0.036, 0.006, 0.006, plateMat, 0, 0, 0, 0.001)
+    const tripPivot = new Group()
+    tripPivot.position.set(x, -0.03, -0.03)
+    tripPivot.add(trip)
+    trips.push(tripPivot)
+    group.add(tripPivot)
+
+    /* 触点压力弹簧：合闸后还要再压一点——这一点压缩量就是「超程」。
+       没有它，动臂只是「碰到」静触点；有了它，才看得出「压紧」。
+       用螺旋管做，缩放 Y 就是压缩。 */
+    const helix: Vector3[] = []
+    for (let k = 0; k <= 36; k += 1) {
+      const a = (k / 36) * Math.PI * 2 * 3
+      helix.push(new Vector3(Math.cos(a) * 0.006, (k / 36) * 0.02 - 0.01, Math.sin(a) * 0.006))
+    }
+    const spring = new Mesh(
+      new TubeGeometry(new CatmullRomCurve3(helix), 60, 0.0011, 5, false),
+      plateMat,
+    )
+    spring.position.set(x, -0.044, 0.016)
+    springs.push(spring)
+    group.add(spring)
     // 静触点铜排 + 银点
     group.add(roundedBox(0.02, 0.04, 0.013, copperMat, x, -0.03, -0.028, 0.002))
     group.add(roundedBox(0.018, 0.008, 0.012, silverMat, x, -0.007, -0.024, 0.002))
@@ -226,7 +263,7 @@ function buildBreaker(poles: number, poleW: number, height: number): BreakerRig 
     group.add(link)
   }
 
-  return { group, handles, windows, arms }
+  return { group, handles, windows, arms, springs, bimetals, trips }
 }
 
 export function buildCabinet(): DeviceRig {
@@ -446,49 +483,66 @@ export function buildCabinet(): DeviceRig {
   root.add(wireGroup)
 
   /* ------------------------------------------------------------ 动作 */
+  /**
+   * 每台断路器只由两个量驱动：
+   * - `closed` 合闸进度（手柄 0.02–0.14、触点 0.10–0.16，触点晚于手柄）
+   * - `trip` 脱扣进度（0.90 起，热脱扣 → 触点弹开 → 手柄落到中间位）
+   *
+   * 所有零件都从这两个量算出来，不各自写一套时间，顺序才不会打架。
+   */
+  const applyBreaker = (rig: BreakerRig, closed: number, trip: number): void => {
+    // 手柄：断开 1.0 → 合闸 -0.35；脱扣后落到 0.42（中间位）
+    const rest = 1.0 - 1.35 * closed
+    for (const handle of rig.handles) handle.rotation.x = rest + (0.42 - rest) * trip
+    // 触点：合闸时压向静触点，脱扣时弹开
+    const armAngle = -0.5 * closed * (1 - trip)
+    for (const arm of rig.arms) arm.rotation.x = armAngle
+    // 弹簧压缩量 = 超程。合闸才压，脱扣立刻回弹
+    for (const spring of rig.springs) spring.scale.y = 1 - 0.18 * closed * (1 - trip)
+    // 热脱扣链：双金属片弯曲 → 顶开脱扣杆
+    for (const hinge of rig.bimetals) hinge.rotation.x = 0.12 * trip
+    for (const bar of rig.trips) bar.rotation.x = -0.18 * trip
+    // 状态窗：合闸红（带电），断开/脱扣绿（安全位）
+    const live = closed >= 0.98 && trip < 0.5
+    for (const plate of rig.windows) setLed(plate, live ? RED : GREEN, true)
+  }
+
   const setT = (t: number): void => {
     /**
-     * 段一：三极断路器合闸。
-     * 手柄从 +1.0（指向前下 = 断开）转到 -0.35（指向上后 = 闭合）——
+     * 段一~二：断路器合闸。手柄从 +1.0（指向前下 = 断开）转到 -0.35（指向上后 = 闭合）——
      * 方向不能反：现场看到手柄朝下就是断开，朝上才是合闸。
      * 行程取 1.35rad（约 77°），比真机的 ±25° 夸张——真机行程在屏幕上
      * 只有十几个像素的位移，不夸张等于没动作。
      */
-    const on = seg(t, 0.02, 0.14)
-    for (const handle of main.handles) handle.rotation.x = 1.0 - 1.35 * on
-    // 动触点比手柄晚一点合上：先扳到位、再压紧触点，这才是真机的顺序
-    const touch = seg(t, 0.1, 0.16)
-    for (const arm of main.arms) arm.rotation.x = -0.5 * touch
-    for (const plate of main.windows) setLed(plate, on >= 0.98 ? RED : GREEN, true)
+    const mainClosed = seg(t, 0.02, 0.14)
+    const mainTrip = seg(t, 0.9, 0.97)
+    applyBreaker(main, mainClosed, mainTrip)
 
-    // 段二：两只单极断路器随后合上
+    // 单极断路器随后合上
     const sp = [sp1, sp2]
     sp.forEach((breaker, i) => {
-      const p = seg(t, 0.16 + i * 0.05, 0.24 + i * 0.05)
-      for (const handle of breaker.handles) handle.rotation.x = 1.0 - 1.35 * p
-      for (const arm of breaker.arms) arm.rotation.x = -0.5 * seg(t, 0.22 + i * 0.05, 0.28 + i * 0.05)
-      for (const plate of breaker.windows) setLed(plate, p >= 0.98 ? RED : GREEN, true)
+      applyBreaker(breaker, seg(t, 0.16 + i * 0.05, 0.24 + i * 0.05), mainTrip)
     })
 
     // 段三：控制回路得电。未得电时电源灯是红的——红灯表示
     // 「主回路有电、控制回路没起来」，这是现场语义，不是「不亮」。
     setLed(powerLed, t >= 0.3 ? GREEN : RED, true)
 
-    // 段四：接触器吸合（衔铁动作 + 线圈腔可见）
-    const pulled = seg(t, 0.34, 0.5)
+    // 段四：接触器吸合（衔铁动作 + 线圈腔可见）；脱扣后释放
+    const pulled = seg(t, 0.34, 0.5) * (1 - seg(t, 0.95, 0.99))
     armature.position.z = 0.132 - 0.018 * pulled
-    setLed(contactorLed, GREEN, pulled >= 1)
+    setLed(contactorLed, GREEN, pulled >= 0.98)
 
     // 段五：继电器依次动作——触点片摆动 + 顶部灯亮
     for (let i = 0; i < relayLeds.length; i += 1) {
-      const active = t >= 0.56 + i * 0.08
+      const active = t >= 0.56 + i * 0.08 && t < 0.95
       setLed(relayLeds[i], AMBER, active)
       relayArms[i].rotation.z = active ? -0.38 : 0
     }
 
-    // 段六：运行指示
-    setLed(runLed, GREEN, t >= 0.86)
-    setLed(alarmLed, RED, false)
+    // 段六：运行指示；过载脱扣后转报警
+    setLed(runLed, GREEN, t >= 0.86 && t < 0.93)
+    setLed(alarmLed, RED, t >= 0.93)
   }
 
   const phase = (t: number): string => {
@@ -497,7 +551,9 @@ export function buildCabinet(): DeviceRig {
     if (t < 0.34) return '控制回路得电'
     if (t < 0.52) return '接触器吸合'
     if (t < 0.82) return '继电器自检'
-    return '系统就绪'
+    if (t < 0.9) return '系统就绪'
+    if (t < 0.97) return '过载脱扣'
+    return '已脱扣'
   }
 
   setT(0)
