@@ -9,6 +9,7 @@ import Annotation from './primitives/Annotation.vue'
 import Callout from './primitives/Callout.vue'
 import Checklist from './primitives/Checklist.vue'
 import Connector from './primitives/Connector.vue'
+import DeviceFigure from './primitives/DeviceFigure.vue'
 import FlowArrow from './primitives/FlowArrow.vue'
 import GateState from './primitives/GateState.vue'
 import Meter from './primitives/Meter.vue'
@@ -33,4 +34,7 @@ export const FIGURES: Record<string, Component> = {
   gate_state: GateState,
   table: Table,
   annotation: Annotation,
+  // 唯一一个内部再懒加载 Three.js 的原语：DeviceScene 里 `await import('three')`，
+  // 不进指导书页面就不下载那 191KB。
+  device_scene: DeviceFigure,
 }

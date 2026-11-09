@@ -46,6 +46,7 @@ class Primitive(str, Enum):
     gate_state = "gate_state"            # 开关/闸门状态：开/半开/关
     table = "table"                      # 表格：表头 + 行（竖线分隔单元格）
     annotation = "annotation"            # 标注示意图：编号点 + 图例
+    device_scene = "device_scene"        # 设备三维场景：受控设备 + 动作进度 + 部件高亮
 
 
 # 每个原语允许的参数键。未列出的键一律拒绝，防止 LLM 塞任意内容。
@@ -63,6 +64,9 @@ _ALLOWED_PARAMS: dict[Primitive, set[str]] = {
     Primitive.gate_state: {"state", "label", "note"},
     Primitive.table: {"headers", "rows", "label"},
     Primitive.annotation: {"title", "points", "note"},
+    # device_scene 的参数刻意只有三个：设备、进度、高亮部件。
+    # 相机、颜色、几何一律**不给模型**——那些是构建期决定的，模型碰一次就错一次。
+    Primitive.device_scene: {"subject", "t", "part"},
 }
 
 # 必填参数：缺了就不是"降级成文字"，而是渲染出一张没有信息量的空图。
@@ -74,6 +78,16 @@ _REQUIRED_PARAMS: dict[Primitive, set[str]] = {
     Primitive.gate_state: {"state"},
     Primitive.table: {"headers", "rows"},
     Primitive.annotation: {"points"},
+    Primitive.device_scene: {"subject"},
+}
+
+# 设备白名单：subject → 可高亮的部件键。
+# 这张表必须与前端 `figures/devices/*.ts` 里 `parts` 的键一一对应；
+# 模型只能在这张表里选，选错即拒绝——它没有几何信息，放任自由填就等于让它编结构。
+DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
+    "door": ("leaf_l", "leaf_r", "frame", "lamp"),
+    "pantograph": ("arms", "head", "frame", "lamp"),
+    "cabinet": ("breakers", "contactor", "relays", "lamps", "terminals", "board"),
 }
 
 # 公开给 prompt 使用：枚举值只在这里定义一次，避免"文档写一套、校验另一套"。
@@ -152,6 +166,15 @@ class MotionTrack(BaseModel):
     target: str = Field(min_length=1, max_length=16)
     anim: MotionAnim
     duration: int = Field(default=900, ge=400, le=2400)
+
+
+def device_subjects() -> dict[str, list[str]]:
+    """给 prompt 与 `/schema/visual` 共用：可用设备与可高亮部件。
+
+    和 `allowed_params` 同一个理由——枚举只在代码里定义一次，
+    否则 prompt 里写的和校验认的迟早对不上。
+    """
+    return {name: list(parts) for name, parts in DEVICE_SUBJECTS.items()}
 
 
 def allowed_params() -> dict[str, list[str]]:
@@ -247,6 +270,26 @@ class VisualSpec(BaseModel):
                     raise ValueError(
                         f"table.rows 每行必须用 | 分成 {len(headers)} 格，与 headers 对齐"
                     )
+
+        if self.primitive is Primitive.device_scene:
+            subject = self.params.get("subject")
+            if subject not in DEVICE_SUBJECTS:
+                raise ValueError(
+                    f"device_scene.subject 必须是 {sorted(DEVICE_SUBJECTS)}"
+                )
+            part = self.params.get("part")
+            if part is not None and part not in DEVICE_SUBJECTS[subject]:
+                raise ValueError(
+                    f"device_scene.part 在 {subject} 下只能是 {list(DEVICE_SUBJECTS[subject])}"
+                )
+            raw = self.params.get("t")
+            if raw is not None:
+                try:
+                    progress = float(raw)  # 模型可能给 "0.6" 这种字符串
+                except (TypeError, ValueError):
+                    raise ValueError("device_scene.t 必须是 0–1 的数值") from None
+                if not 0.0 <= progress <= 1.0:
+                    raise ValueError("device_scene.t 必须在 0–1 之间")
 
         self._check_motion()
 

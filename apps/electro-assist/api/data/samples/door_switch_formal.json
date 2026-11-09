@@ -186,16 +186,6 @@
       ],
       "figures": [
         {
-          "primitive": "step_card",
-          "params": {
-            "index": 5,
-            "action": "触发开关门并计时至完全到位",
-            "hint": "各测三次取平均；超差先查导轨异物与门机紧固"
-          },
-          "caption": "测量动作",
-          "fallback_text": "第 5 步：触发开关门并计时至完全到位，各测三次取平均，超差先查导轨异物。"
-        },
-        {
           "primitive": "meter",
           "params": { "value": 2.6, "unit": "s", "min": 2.0, "max": 3.5, "label": "开门时间" },
           "caption": "开门时间读数",
@@ -210,6 +200,12 @@
           "caption": "开门时序（示例值）",
           "fallback_text": "开门时序：0–0.4s 收到指令，0.4–1.2s 解锁启动，1.2–2.8s 匀速运行，2.8–3.2s 到位缓冲。",
           "motion": [{ "target": "segment", "anim": "pulse", "duration": 1600 }]
+        },
+        {
+          "primitive": "device_scene",
+          "params": { "subject": "door", "t": 0.55, "part": "leaf_l" },
+          "caption": "门扇开启动作（示意）",
+          "fallback_text": "双扇门先向车外退出约 55mm，再沿车体两侧滑开；图示为开启中段、左门扇半开的位置。"
         }
       ],
       "duration_s": 480
