@@ -57,6 +57,20 @@ jobs:
           grep -v '^[[:space:]]*#' "$RUNNER_TEMP/requirements.lock" > "$RUNNER_TEMP/fresh.txt"
           diff -u "$RUNNER_TEMP/committed.txt" "$RUNNER_TEMP/fresh.txt"
 
+      # 供应链门禁③：npm 锁文件不许指向国内镜像。
+      # 2026-11-09 踩过：本地 `.npmrc` 指向 npmmirror，装 three 时把 8 条 `resolved`
+      # 写成了 registry.npmmirror.com；GitHub runner 在海外，第一次侥幸拉到，
+      # 第二次直接 500（`[ER_NO_SUCH_TABLE] team_packages`），CI 红在一个和代码
+      # 毫无关系的地方。两个源的 integrity 是一致的，改写 resolved 即可——但必须有人拦。
+      - name: npm 锁文件不指向国内镜像
+        run: |
+          if grep -n -E "npmmirror\.com|npm\.taobao\.org" \
+               apps/electro-assist/web/package-lock.json; then
+            echo "::error::package-lock.json 里有国内镜像地址，海外 runner 拉不动；把 resolved 改回 registry.npmjs.org"
+            exit 1
+          fi
+          echo "锁文件来源干净"
+
       # 供应链门禁②：漏洞扫描，2026-11-06 起改为**阻断**。
       # 原先是 continue-on-error: true，理由是「已知漏洞不等于可利用，卡发布只会让
       # 团队集体忽略它」——听着对，实际代价是 starlette 0.41.3 的 7 个 CVE 在里面
