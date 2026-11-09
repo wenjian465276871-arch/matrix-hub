@@ -1,22 +1,32 @@
-/** 低压电气柜：柜体 + 元件布置 + 上电自检时序。
+/** 配电回路元件特写：断路器、接触器、继电器、指示灯的**动作**。
  *
- *  ## 为什么这个场景最重要
- *  车门看行程、受电弓看角度，都是**机电**动作；只有电气柜是纯 **电气逻辑**：
- *  合闸 → 控制回路得电 → 接触器吸合 → 继电器依次动作 → 运行指示。
- *  它的"动作"主要不是机械位移，而是**灯与触点的状态迁移**——
- *  这正是电气调试现场最需要被看见的东西。
+ *  ## 视角
+ *  柜体退成一块安装背板 + DIN 导轨，镜头推到元件上。这一页要讲的是
+ *  **断路器怎么扳、触点怎么吸、灯怎么亮**，不是柜子长什么样。
  *
- *  ## 尺寸为什么不是 800×2000
- *  标准柜是 800×2000×500，但按真实尺寸建模，内部元件（MCB 宽 18mm）
- *  在 860px 的内容区里只剩几个像素，等于没做。这里缩到 660×1500×360，
- *  元件相对放大——**演示要的是「看得清结构关系」，不是「量得准」**。
+ *  ## 断路器的动作（本页主角）
+ *  微型断路器（MCB）的手柄是绕水平轴转的拨杆：
+ *  **向上扳 = 合闸（ON），向下扳 = 断开（OFF）**，中间没有稳定位。
+ *  手柄旁有状态窗：合闸红色（带电），断开绿色（安全位）。
+ *  三极断路器的手柄由一根连杆锁在一起，必须同时动作——这是「3P」的意义，
+ *  也是现场判断「三相同步」的依据。
  *
- *  ## 柜门为什么不画
- *  门一开，2m 高的板会在画面里投下一大片阴影并挡住半个柜内，
- *  而门能提供的信息（面板指示灯）已经挪到柜体顶部横梁上。
- *  少一块板，换来整个内部清楚，这笔账划算。
+ *  ## 为什么用长焦
+ *  元件特写配中焦镜头，一块竖直背板会被透视拉成斜的，看起来像悬空。
+ *  这里 fov 收到 22°（长焦），背板接近正投影，元件更「正」。
+ *
+ *  ## 尺度
+ *  元件按真实比例放大到约 3 倍。1P MCB 实际宽 18mm，按真实尺寸
+ *  在 860px 内容区里只有几个像素。演示要看得清动作，不是量得准。
  */
-import { Group, Mesh, MeshStandardMaterial, Object3D, SphereGeometry } from 'three'
+import {
+  Group,
+  Mesh,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  SphereGeometry,
+} from 'three'
 
 import type { DeviceRig } from './rig'
 import {
@@ -27,24 +37,16 @@ import {
   roundedBox,
   seg,
   steelMaterial,
+  withEdges,
 } from './rig'
-
-/** 柜体尺寸（米）。比标准 800×2000 缩了一档，理由见文件头。 */
-const DIM = { w: 0.66, h: 1.5, d: 0.36, t: 0.018 }
 
 const OFF = 0x2b2d31
 const RED = 0xd1483f
 const GREEN = 0x2f9e6a
 const AMBER = 0xd39a2a
+const COPPER = 0xb87333
 
-/** 暗态：灯不亮时是一颗深色塑料珠，不能留自发光，否则整柜"全亮"看不出时序。 */
-function led(radius = 0.013): Mesh {
-  const mesh = new Mesh(new SphereGeometry(radius, 16, 12), lampMaterial(OFF))
-  const material = mesh.material as MeshStandardMaterial
-  material.emissiveIntensity = 0
-  return mesh
-}
-
+/** 状态窗/灯珠的开关。暗态留一颗深色，不能保留自发光，否则看不出时序。 */
 function setLed(mesh: Mesh, color: number, on: boolean): void {
   const material = mesh.material as MeshStandardMaterial
   material.color.setHex(on ? color : OFF)
@@ -52,165 +54,255 @@ function setLed(mesh: Mesh, color: number, on: boolean): void {
   material.emissiveIntensity = on ? 1.7 : 0
 }
 
+function led(radius = 0.013): Mesh {
+  const mesh = new Mesh(new SphereGeometry(radius, 16, 12), lampMaterial(OFF))
+  ;(mesh.material as MeshStandardMaterial).emissiveIntensity = 0
+  return mesh
+}
+
+/** 状态窗：一小块指示片，靠颜色 + 自发光表达通断。
+ *  用有厚度的方块而不是平面——平面在斜视下会被本体边沿吃掉一半。 */
+function windowPlate(w: number, h: number): Mesh {
+  const material = new MeshStandardMaterial({ color: OFF, metalness: 0.05, roughness: 0.35 })
+  return roundedBox(w, h, 0.01, material, 0, 0, 0, 0.002)
+}
+
+interface BreakerRig {
+  group: Group
+  handles: Group[]
+  windows: Mesh[]
+}
+
+/**
+ * 造一台微型断路器。`poles` 决定极数，多极的由一根连杆把手柄锁在一起。
+ * 结构按真实 MCB：本体 + 前置拨杆 + 状态窗 + 上下接线螺钉 + 极间连杆。
+ */
+function buildBreaker(poles: number, poleW: number, height: number): BreakerRig {
+  const group = new Group()
+  const handles: Group[] = []
+  const windows: Mesh[] = []
+
+  const faceMat = new MeshStandardMaterial({ color: 0xdfdcd5, metalness: 0, roughness: 0.42 })
+  const darkMat = new MeshStandardMaterial({ color: 0x33363b, metalness: 0.05, roughness: 0.48 })
+  const depth = 0.1
+
+  for (let i = 0; i < poles; i += 1) {
+    const x = (i - (poles - 1) / 2) * poleW
+
+    // 本体分两段，中间留一道模缝，比一整块像工业件
+    group.add(
+      roundedBox(poleW * 0.9, height * 0.58, depth, faceMat, x, height * 0.21, 0, 0.005),
+      roundedBox(poleW * 0.9, height * 0.34, depth, faceMat, x, -height * 0.3, 0, 0.005),
+    )
+
+    // 拨杆：轴心在本体前上方，杆身向上偏，绕 X 轴转就是「向上扳/向下扳」
+    const hinge = new Group()
+    hinge.position.set(x, height * 0.04, depth / 2 - 0.002)
+    hinge.add(roundedBox(poleW * 0.5, height * 0.34, 0.028, darkMat, 0, height * 0.17, 0, 0.006))
+    // 手柄顶端一道横向防滑纹，转起来更容易被看见
+    hinge.add(roundedBox(poleW * 0.56, 0.012, 0.032, chromeMaterial(), 0, height * 0.33, 0, 0.004))
+    hinge.rotation.x = 1.0
+    handles.push(hinge)
+    group.add(hinge)
+
+    // 状态窗：拨杆下方，合闸亮红（带电），断开变绿（安全）
+    const plate = windowPlate(poleW * 0.56, 0.024)
+    plate.position.set(x, -height * 0.16, depth / 2 + 0.003)
+    windows.push(plate)
+    group.add(plate)
+
+    // 上下接线螺钉
+    for (const sy of [1, -1]) {
+      const screw = new Mesh(new SphereGeometry(0.01, 12, 8), chromeMaterial())
+      screw.position.set(x, sy * height * 0.44, -0.016)
+      group.add(screw)
+    }
+  }
+
+  // 极间连杆：这根杆是「3P 必须同时动作」的视觉证据
+  if (poles > 1) {
+    group.add(
+      roundedBox(poleW * (poles - 1), 0.012, 0.014, darkMat, 0, height * 0.24, depth / 2 - 0.004, 0.004),
+    )
+  }
+
+  return { group, handles, windows }
+}
+
 export function buildCabinet(): DeviceRig {
   const root = new Group()
   const parts: Record<string, Object3D> = {}
 
-  /* 三层明度必须拉开，否则整个柜子会糊进画布底色（底色 #cfcec9）：
-     外壳亮 → 背板中深 → 元件近黑。这是这一页能不能看懂的前提。 */
-  const shellMat = paintedMaterial(0xe6e3dc)
-  const innerMat = paintedMaterial(0x9a978f)
-  const halfW = DIM.w / 2
-  const halfD = DIM.d / 2
-  const backZ = -halfD + DIM.t
-
-  /* ---------------------------------------------------------------- 柜体 */
-  const shell = new Group()
-  shell.add(
-    roundedBox(DIM.w, DIM.h, DIM.t, innerMat, 0, DIM.h / 2, -halfD + DIM.t / 2, 0.006),
-    roundedBox(DIM.t, DIM.h, DIM.d, shellMat, -halfW + DIM.t / 2, DIM.h / 2, 0, 0.006),
-    roundedBox(DIM.t, DIM.h, DIM.d, shellMat, halfW - DIM.t / 2, DIM.h / 2, 0, 0.006),
-    roundedBox(DIM.w, DIM.t, DIM.d, shellMat, 0, DIM.h - DIM.t / 2, 0, 0.006),
-    roundedBox(DIM.w, DIM.t, DIM.d, shellMat, 0, DIM.t / 2, 0, 0.006),
-    // 前缘包边：没有它，柜子像个四面透风的架子
-    roundedBox(0.026, DIM.h, 0.026, shellMat, -halfW + 0.013, DIM.h / 2, halfD - 0.013, 0.006),
-    roundedBox(0.026, DIM.h, 0.026, shellMat, halfW - 0.013, DIM.h / 2, halfD - 0.013, 0.006),
+  /* ------------------------------------------------------------ 安装背板 */
+  const board = new Group()
+  board.add(
+    roundedBox(0.92, 0.72, 0.02, paintedMaterial(0x9c9992), 0, 0.36, 0, 0.006),
+    roundedBox(0.86, 0.03, 0.014, steelMaterial(0xb6babe), 0, 0.55, 0.018, 0.004),
+    roundedBox(0.86, 0.03, 0.014, steelMaterial(0xb6babe), 0, 0.14, 0.018, 0.004),
   )
-  // 顶部横梁：面板指示灯装在这里，从正面就能看到
-  shell.add(
-    roundedBox(DIM.w - 0.05, 0.1, 0.03, paintedMaterial(0xb4b1aa), 0, DIM.h - 0.075, halfD - 0.02, 0.008),
-  )
+  parts.board = board
+  root.add(board)
 
-  parts.shell = shell
-  root.add(shell)
+  /* ------------------------------------------------------------ 三极断路器 */
+  const main = buildBreaker(3, 0.082, 0.2)
+  main.group.position.set(-0.26, 0.55, 0.07)
+  parts.breakers = main.group
+  root.add(main.group)
 
-  /* ---------------------------------------------------------------- 线槽 */
-  const ductMat = new MeshStandardMaterial({ color: 0x8e9297, metalness: 0, roughness: 0.62 })
-  const ducts = new Group()
-  for (const x of [-0.255, 0.255]) {
-    ducts.add(roundedBox(0.04, 1.15, 0.03, ductMat, x, 0.82, backZ + 0.03, 0.008))
-  }
-  ducts.add(roundedBox(0.55, 0.04, 0.03, ductMat, 0, 1.42, backZ + 0.03, 0.008))
-  root.add(ducts)
+  /* ------------------------------------------------------------ 单极断路器 */
+  const sp1 = buildBreaker(1, 0.082, 0.2)
+  sp1.group.position.set(-0.085, 0.55, 0.07)
+  const sp2 = buildBreaker(1, 0.082, 0.2)
+  sp2.group.position.set(0.01, 0.55, 0.07)
+  root.add(sp1.group, sp2.group)
 
-  /* ---------------------------------------------------------------- 断路器 */
-  const plastic = new MeshStandardMaterial({ color: 0x2f3236, metalness: 0, roughness: 0.55 })
-  const mcbFace = new MeshStandardMaterial({ color: 0xdedcd6, metalness: 0, roughness: 0.5 })
-  const breakers = new Group()
-  const handles: Group[] = []
-  const mcbLeds: Mesh[] = []
-
-  for (let i = 0; i < 3; i += 1) {
-    const x = -0.2 + i * 0.075
-    const body = roundedBox(0.056, 0.11, 0.07, mcbFace, x, 1.28, backZ + 0.05, 0.006)
-    breakers.add(body)
-    // 手柄：合闸时向下扳
-    const handle = new Group()
-    handle.add(roundedBox(0.02, 0.038, 0.022, plastic, 0, 0, 0, 0.004))
-    handle.position.set(x, 1.31, backZ + 0.09)
-    handle.rotation.x = 0.5
-    handles.push(handle)
-    breakers.add(handle)
-    const indicator = led(0.009)
-    indicator.position.set(x, 1.245, backZ + 0.09)
-    mcbLeds.push(indicator)
-    breakers.add(indicator)
-  }
-  parts.breakers = breakers
-  root.add(breakers)
-
-  /* ---------------------------------------------------------------- 接触器 */
+  /* ------------------------------------------------------------ 接触器 */
   const contactor = new Group()
+  const ctrlMat = new MeshStandardMaterial({ color: 0x33363b, metalness: 0.04, roughness: 0.52 })
+  const ctrlFace = new MeshStandardMaterial({ color: 0xd6d3cc, metalness: 0, roughness: 0.45 })
   contactor.add(
-    roundedBox(0.16, 0.18, 0.12, plastic, 0.14, 1.18, backZ + 0.07, 0.008),
-    // 顶部辅助触点块
-    roundedBox(0.06, 0.055, 0.1, mcbFace, 0.09, 1.295, backZ + 0.07, 0.005),
+    roundedBox(0.15, 0.165, 0.115, ctrlMat, 0.32, 0.53, 0.062, 0.006),
+    roundedBox(0.1, 0.058, 0.1, ctrlFace, 0.29, 0.645, 0.062, 0.005),
+    roundedBox(0.12, 0.07, 0.1, ctrlMat, 0.32, 0.425, 0.062, 0.005),
   )
-  // 衔铁：吸合时向前顶出（真实行程几毫米，这里夸大一点才看得见）
-  const armature = roundedBox(0.11, 0.055, 0.032, chromeMaterial(), 0.14, 1.1, backZ + 0.145, 0.006)
+  // 线圈：铜色，从线圈腔露出
+  contactor.add(
+    roundedBox(
+      0.082,
+      0.05,
+      0.055,
+      new MeshStandardMaterial({ color: COPPER, metalness: 0.8, roughness: 0.42 }),
+      0.32,
+      0.425,
+      0.112,
+      0.004,
+    ),
+  )
+  // 衔铁：吸合时向前顶出
+  const armature = roundedBox(0.11, 0.048, 0.03, chromeMaterial(), 0.32, 0.472, 0.132, 0.005)
   contactor.add(armature)
-  const contactorLed = led(0.012)
-  contactorLed.position.set(0.19, 1.24, backZ + 0.135)
+  const contactorLed = led(0.013)
+  contactorLed.position.set(0.385, 0.632, 0.115)
   contactor.add(contactorLed)
-
-  // 热继电器挂在接触器下方
-  contactor.add(roundedBox(0.14, 0.11, 0.1, mcbFace, 0.14, 0.98, backZ + 0.06, 0.006))
   parts.contactor = contactor
   root.add(contactor)
 
-  /* ---------------------------------------------------------------- 继电器 */
-  const relays = new Group()
+  /* ------------------------------------------------------------ 中间继电器 */
+  /* 透明外壳是关键：能看见里面的线圈和触点片在动，
+     比「一个黑盒子 + 一盏灯」有说服力得多。 */
+  const shellMat = new MeshPhysicalMaterial({
+    color: 0xdfe6ec,
+    metalness: 0,
+    roughness: 0.05,
+    transparent: true,
+    opacity: 0.24,
+    depthWrite: false,
+    clearcoat: 1,
+  })
+  const relayGroup = new Group()
   const relayLeds: Mesh[] = []
-  for (let i = 0; i < 3; i += 1) {
-    const x = -0.2 + i * 0.085
-    relays.add(roundedBox(0.055, 0.08, 0.08, plastic, x, 0.86, backZ + 0.05, 0.006))
-    const indicator = led(0.011)
-    indicator.position.set(x, 0.885, backZ + 0.095)
-    relayLeds.push(indicator)
-    relays.add(indicator)
-  }
-  parts.relays = relays
-  root.add(relays)
+  const relayArms: Mesh[] = []
+  const copperMat = new MeshStandardMaterial({ color: COPPER, metalness: 0.8, roughness: 0.45 })
 
-  /* ---------------------------------------------------------------- 端子排 */
-  const terminals = new Group()
-  const termMat = new MeshStandardMaterial({ color: 0xb0b4b9, metalness: 0.2, roughness: 0.5 })
-  for (let i = 0; i < 8; i += 1) {
-    terminals.add(roundedBox(0.036, 0.06, 0.055, termMat, -0.2 + i * 0.042, 0.42, backZ + 0.04, 0.004))
+  for (let i = 0; i < 3; i += 1) {
+    const x = -0.3 + i * 0.15
+    const cell = new Group()
+    // 底座
+    cell.add(roundedBox(0.1, 0.028, 0.09, ctrlMat, x, 0.168, 0.075, 0.004))
+    // 内部线圈
+    cell.add(roundedBox(0.062, 0.062, 0.05, copperMat, x, 0.225, 0.075, 0.004))
+    // 触点片：动作时摆一个角度
+    const arm = roundedBox(0.014, 0.062, 0.009, chromeMaterial(), x + 0.032, 0.24, 0.098, 0.002)
+    relayArms.push(arm)
+    cell.add(arm)
+    // 透明外罩。必须描一道边，否则全透明材质在浅色背板上几乎看不见，
+    // 等于白做「能看到内部」这件事。
+    cell.add(withEdges(roundedBox(0.098, 0.125, 0.09, shellMat, x, 0.235, 0.075, 0.006), 0.22))
+    // 顶部状态灯
+    const indicator = led(0.015)
+    indicator.position.set(x, 0.305, 0.075)
+    relayLeds.push(indicator)
+    cell.add(indicator)
+    relayGroup.add(cell)
   }
-  terminals.add(roundedBox(0.38, 0.032, 0.032, steelMaterial(0xa8acb0), 0, 0.42, backZ + 0.02, 0.004))
+  parts.relays = relayGroup
+  root.add(relayGroup)
+
+  /* ------------------------------------------------------------ 指示灯 */
+  const lampGroup = new Group()
+  const powerLed = led(0.026)
+  powerLed.position.set(0.17, 0.24, 0.085)
+  const runLed = led(0.026)
+  runLed.position.set(0.29, 0.24, 0.085)
+  const alarmLed = led(0.026)
+  alarmLed.position.set(0.41, 0.24, 0.085)
+  for (const lamp of [powerLed, runLed, alarmLed]) {
+    // 灯座：一段圆柱 + 一圈压边，不能只是一颗球
+    lampGroup.add(
+      roundedBox(0.056, 0.038, 0.056, ctrlMat, lamp.position.x, lamp.position.y - 0.028, lamp.position.z, 0.006),
+    )
+    lampGroup.add(
+      roundedBox(0.066, 0.01, 0.066, chromeMaterial(), lamp.position.x, lamp.position.y - 0.049, lamp.position.z, 0.004),
+    )
+  }
+  lampGroup.add(powerLed, runLed, alarmLed)
+  parts.lamps = lampGroup
+  root.add(lampGroup)
+
+  /* ------------------------------------------------------------ 端子排 */
+  const terminals = new Group()
+  const termMat = new MeshStandardMaterial({ color: 0x8d9196, metalness: 0.2, roughness: 0.55 })
+  for (let i = 0; i < 10; i += 1) {
+    terminals.add(roundedBox(0.034, 0.055, 0.05, termMat, -0.3 + i * 0.04, 0.065, 0.06, 0.003))
+  }
   parts.terminals = terminals
   root.add(terminals)
 
-  /* ---------------------------------------------------------------- 面板灯 */
-  const panel = new Group()
-  const powerLed = led(0.017)
-  powerLed.position.set(-0.075, DIM.h - 0.075, halfD - 0.004)
-  const runLed = led(0.017)
-  runLed.position.set(0, DIM.h - 0.075, halfD - 0.004)
-  const alarmLed = led(0.017)
-  alarmLed.position.set(0.075, DIM.h - 0.075, halfD - 0.004)
-  for (const lamp of [powerLed, runLed, alarmLed]) {
-    const base = roundedBox(0.046, 0.046, 0.012, chromeMaterial(), 0, 0, 0, 0.006)
-    base.position.set(lamp.position.x, lamp.position.y, lamp.position.z - 0.012)
-    panel.add(base)
-  }
-  panel.add(powerLed, runLed, alarmLed)
-  parts.panel = panel
-  root.add(panel)
-
-  /* ---------------------------------------------------------------- 动作 */
+  /* ------------------------------------------------------------ 动作 */
   const setT = (t: number): void => {
-    // 段一：三只断路器依次合闸
-    const closing = (i: number): number => seg(t, 0.03 + i * 0.03, 0.12 + i * 0.03)
+    /**
+     * 段一：三极断路器合闸。
+     * 手柄从 +1.0（指向前下 = 断开）转到 -0.35（指向上后 = 闭合）——
+     * 方向不能反：现场看到手柄朝下就是断开，朝上才是合闸。
+     * 行程取 1.35rad（约 77°），比真机的 ±25° 夸张——真机行程在屏幕上
+     * 只有十几个像素的位移，不夸张等于没动作。
+     */
+    const on = seg(t, 0.02, 0.14)
+    for (const handle of main.handles) handle.rotation.x = 1.0 - 1.35 * on
+    for (const plate of main.windows) setLed(plate, on >= 0.98 ? RED : GREEN, true)
 
-    handles.forEach((handle, i) => {
-      const p = closing(i)
-      handle.rotation.x = 0.5 - 1.0 * p
-      setLed(mcbLeds[i], GREEN, p >= 1)
+    // 段二：两只单极断路器随后合上
+    const sp = [sp1, sp2]
+    sp.forEach((breaker, i) => {
+      const p = seg(t, 0.16 + i * 0.05, 0.24 + i * 0.05)
+      for (const handle of breaker.handles) handle.rotation.x = 1.0 - 1.35 * p
+      for (const plate of breaker.windows) setLed(plate, p >= 0.98 ? RED : GREEN, true)
     })
 
-    // 段二：控制回路得电。未得电时电源灯是**红**的——这是现场的真实语义：
-    // 红灯表示「主回路有电、控制回路没起来」，不是「不亮」。
+    // 段三：控制回路得电。未得电时电源灯是红的——红灯表示
+    // 「主回路有电、控制回路没起来」，这是现场语义，不是「不亮」。
     setLed(powerLed, t >= 0.3 ? GREEN : RED, true)
 
-    // 段三：接触器吸合
+    // 段四：接触器吸合（衔铁动作 + 线圈腔可见）
     const pulled = seg(t, 0.34, 0.5)
-    armature.position.z = backZ + 0.145 - 0.014 * pulled
+    armature.position.z = 0.132 - 0.018 * pulled
     setLed(contactorLed, GREEN, pulled >= 1)
 
-    // 段四：继电器依次动作——现场听声音就是「哒、哒、哒」
+    // 段五：继电器依次动作——触点片摆动 + 顶部灯亮
     for (let i = 0; i < relayLeds.length; i += 1) {
-      setLed(relayLeds[i], AMBER, t >= 0.56 + i * 0.08)
+      const active = t >= 0.56 + i * 0.08
+      setLed(relayLeds[i], AMBER, active)
+      relayArms[i].rotation.z = active ? -0.38 : 0
     }
 
-    // 段五：运行指示
+    // 段六：运行指示
     setLed(runLed, GREEN, t >= 0.86)
     setLed(alarmLed, RED, false)
   }
 
   const phase = (t: number): string => {
-    if (t < 0.15) return '合闸送电'
+    if (t < 0.15) return '主断路器合闸'
+    if (t < 0.3) return '分路断路器合闸'
     if (t < 0.34) return '控制回路得电'
     if (t < 0.52) return '接触器吸合'
     if (t < 0.82) return '继电器自检'
@@ -224,7 +316,9 @@ export function buildCabinet(): DeviceRig {
     setT,
     parts,
     phase,
-    framing: { target: [0, 0.72, 0], distance: 2.75 },
+    // 长焦 22°：竖直背板接近正投影，不会被透视拉成斜的
+    fov: 18,
+    framing: { target: [0.02, 0.35, 0.04], distance: 2.62 },
     dispose: () => disposeTree(root),
   }
 }
