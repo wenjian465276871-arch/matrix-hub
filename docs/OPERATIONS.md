@@ -618,6 +618,12 @@ deploy job 另加 `timeout-minutes: 20`，避免 SSH 卡死时一直挂着。
 > 不是「进程没重启」——两者症状一样但处置相反：前者要换 key，后者只要重启。
 > 另外，改 `.env` 不影响已在运行的进程（`os.getenv` 在启动时就固定了），换完必须重启。
 > 建议本地用**单独一把开发者 key**，与生产解耦，将来吊销互不牵连。
+>
+> **还有一层**（同日踩到）：PowerShell 多行粘贴后 `↑` 只回放**最后一行**。若启动命令写成
+> 「$env 赋值 / uvicorn」两行，按上箭头只会重跑 uvicorn，`$env:DEEPSEEK_API_KEY` 仍是旧值——
+> 表现与「密钥没换」完全一致，于是又白查一轮。因此本地启动写成**一行分号分隔**，
+> 并在中间插一句 DeepSeek 余额查询（`/user/balance`，带 Bearer 头）：
+> 先看到余额再起服务，比事后从 401 的尾号里反推快得多。
 - ~~**GitHub secret scanning / push protection（需本人）**~~ **已确认（2026-11-07 23:50）**：仓库 `Settings → Advanced Security` 上 **Secret Protection 已启用**（按钮显示 `Disable` 即为开启），**Push protection 开关为 ON**；个人账号级 `Push protection for yourself` 亦为开启。**取证说明**：未鉴权 API 的 `security_and_analysis` 字段返回 `null`（需 admin token），所以只能由本人截图确认，无命令行证据。私有仓 `AI2Work` 不开——私有仓的 secret scanning 属 GitHub Advanced Security，需付费；要防的是公开仓。
 - ~~**卸载 nginx（需本人，观察期早已结束）**~~ **已执行（2026-11-08 00:00）**：先 `ss -lntp` 确认 80/443 只有 `docker-proxy`、nginx 为 `inactive`+`disabled`，再 `apt-get purge -y nginx nginx-common nginx-core`。实际移除 **10 个包**（含 `python3-certbot-nginx` 与 6 个 `libnginx-mod-*`）。验证：`dpkg -l | grep -c nginx` = **0**、`/healthz?scope=ready` = 200、站点页 = 200。Caddy 证书在 `caddy_data` 卷内，不受影响；`/var/www/html` 因非空被 dpkg 保留，可日后手动清理
 - **certbot.timer 保留（2026-11-08 记，计划 §9.4 #9 的偏差）**：计划写的是"stop+disable nginx/certbot，观察期后卸载"，nginx 已卸，但 `certbot.timer` 仍 `enabled`（每天 05:07 / 17:07 各跑一次）。尝试 `systemctl disable --now certbot.timer` 时被宿主安全策略拒绝（理由：关闭自动续期属于削弱安全维护机制），**未绕过**。实际影响为零——Caddy 用 `caddy_data` 卷里的自签 ACME 证书，`/etc/letsencrypt` 里那套已无人引用；它的续期即便失败也只写自己的日志。**结论：保留，不再尝试停用**；若将来要彻底清掉，需本人先在控制台确认没有其他站点依赖 Let's Encrypt 证书
