@@ -24,6 +24,7 @@ import {
   rubberMaterial,
   seg,
   steelMaterial,
+  withEdges,
 } from './rig'
 
 /** 示意尺寸（米）。改这里就能整体缩放，不散落在各处。 */
@@ -54,7 +55,7 @@ export function buildDoor(): DeviceRig {
   /* ---------------------------------------------------------------- 侧墙 */
   // 墙面压到中深灰、门扇保持亮不锈钢：真实城轨车门就是这个关系（不锈钢门 + 涂装侧墙），
   // 顺带解决「白门贴白墙」看不出形的问题。
-  const wallMat = paintedMaterial(0xb4b1a9)
+  const wallMat = paintedMaterial(0x8f8c84)
   const wallSideW = (DIM.wallW - DIM.openW) / 2
   const wallY = DIM.wallH / 2
 
@@ -96,18 +97,26 @@ export function buildDoor(): DeviceRig {
   root.add(frame)
 
   /* ---------------------------------------------------------------- 门扇 */
+  /* 门扇用**喷漆铝板**，不是裸不锈钢。
+     两条理由：① 高铁/城轨车门外表面本来就多是喷涂铝板，裸拉丝不锈钢是少数；
+     ② metalness=1 的大面在 RoomEnvironment（几个自发光矩形）里只会反射出几块
+     亮斑，出来的是一张暗灰带条纹的板，比喷漆件难看得多。
+     teardown 的金属参数是给发动机、起落架那种裸金属机构的，不是给钣金外壳的。 */
   const buildLeaf = (dir: -1 | 1) => {
     const leaf = new Group()
     const cx = (dir * DIM.leafW) / 2
     const cy = DIM.sill + DIM.leafH / 2
 
     // 外板：拉丝不锈钢，两段分缝（真门板是拼接的，整块反而假）
-    const skin = steelMaterial(0xd8dcdf)
+    const skin = paintedMaterial(0xd5d8db)
     const upperH = DIM.leafH * 0.62
     const lowerH = DIM.leafH - upperH - 0.012
+    /* 近白板材 + 浅色背景 = 轮廓消失。
+       teardown 的规则：「Watch near-white parts on a pale backdrop:
+       give them an ink outline or a darker ground」——背景已经压暗，这里再补墨线。 */
     leaf.add(
-      roundedBox(DIM.leafW, upperH, DIM.leafT, skin, 0, cy + DIM.leafH / 2 - upperH / 2, 0, 0.008, 2),
-      roundedBox(DIM.leafW, lowerH, DIM.leafT, skin, 0, cy - DIM.leafH / 2 + lowerH / 2, 0, 0.008, 2),
+      withEdges(roundedBox(DIM.leafW, upperH, DIM.leafT, skin, 0, cy + DIM.leafH / 2 - upperH / 2, 0, 0.008, 2), 0.17),
+      withEdges(roundedBox(DIM.leafW, lowerH, DIM.leafT, skin, 0, cy - DIM.leafH / 2 + lowerH / 2, 0, 0.008, 2), 0.17),
     )
 
     // 观察窗：深色玻璃 + 凸起窗框
@@ -183,7 +192,17 @@ export function buildDoor(): DeviceRig {
   /* ---------------------------------------------------------------- 地面 */
   // 接影面只铺到墙下沿：24m 的大平面会整片落进阴影相机的范围外，
   // 被判定为「全在阴影里」,得到一整块莫名其妙的灰。
-  const floor = new Mesh(new PlaneGeometry(3.4, 2.6), new ShadowMaterial({ opacity: 0.18 }))
+  /* 「A ShadowMaterial a fraction of a millimetre above the floor loses the depth
+     test — give it polygonOffset」：接影面和地面本来就共面，不加偏移会闪。 */
+  const floor = new Mesh(
+    new PlaneGeometry(3.4, 2.6),
+    new ShadowMaterial({
+      opacity: 0.18,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }),
+  )
   floor.rotation.x = -Math.PI / 2
   floor.position.y = 0
   floor.receiveShadow = true
@@ -223,7 +242,8 @@ export function buildDoor(): DeviceRig {
     setT,
     parts,
     phase,
-    framing: { target: [0, 1.05, 0], distance: 5.8 },
+    // 「The machine fills 60-70% of its viewport」
+    framing: { target: [0, 1.05, 0], distance: 5.25 },
     dispose: () => disposeTree(root),
   }
 }

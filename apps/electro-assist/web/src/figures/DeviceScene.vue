@@ -227,7 +227,10 @@ async function init(): Promise<void> {
   const { RoomEnvironment } = await import('three/examples/jsm/environments/RoomEnvironment.js')
   const env = pmrem.fromScene(new RoomEnvironment(), 0.04)
   scene.environment = env.texture
-  scene.environmentIntensity = 1.15
+  /* 金属的大面亮度几乎全来自环境图。RoomEnvironment 是中性室内，不够亮，
+     metalness=1 的门扇会直接变黑——teardown 的「metal 参数」是在它自己的
+     明亮影棚下调的，搬过来必须连环境亮度一起抬。 */
+  scene.environmentIntensity = rig.envIntensity ?? 1.25
   envTarget = env
   pmrem.dispose()
 

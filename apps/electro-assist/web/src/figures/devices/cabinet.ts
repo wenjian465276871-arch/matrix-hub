@@ -54,7 +54,8 @@ function setLed(mesh: Mesh, color: number, on: boolean): void {
   const material = mesh.material as MeshStandardMaterial
   material.color.setHex(on ? color : OFF)
   material.emissive.setHex(on ? color : 0x000000)
-  material.emissiveIntensity = on ? 1.7 : 0
+  // 「keep emissive layers under 1.0」：超过就糊成一团，看不出哪颗在亮
+  material.emissiveIntensity = on ? 0.75 : 0
 }
 
 function led(radius = 0.013): Mesh {
@@ -99,7 +100,8 @@ function buildBreaker(poles: number, poleW: number, height: number): BreakerRig 
   const handles: Group[] = []
   const windows: Mesh[] = []
 
-  const faceMat = new MeshStandardMaterial({ color: 0xdfdcd5, metalness: 0, roughness: 0.42 })
+  // 断路器外壳压到中浅灰：0xdfdcd5 在环境光下发白，细节（模缝、手柄槽）全丢
+  const faceMat = new MeshStandardMaterial({ color: 0xc7c4bd, metalness: 0, roughness: 0.42 })
   const darkMat = new MeshStandardMaterial({ color: 0x33363b, metalness: 0.05, roughness: 0.48 })
   const depth = 0.1
 
@@ -176,7 +178,7 @@ export function buildCabinet(): DeviceRig {
   /* ------------------------------------------------------------ 接触器 */
   const contactor = new Group()
   const ctrlMat = new MeshStandardMaterial({ color: 0x33363b, metalness: 0.04, roughness: 0.52 })
-  const ctrlFace = new MeshStandardMaterial({ color: 0xd6d3cc, metalness: 0, roughness: 0.45 })
+  const ctrlFace = new MeshStandardMaterial({ color: 0xbdbab3, metalness: 0, roughness: 0.45 })
   contactor.add(
     roundedBox(0.15, 0.165, 0.115, ctrlMat, 0.32, 0.53, 0.062, 0.006),
     roundedBox(0.1, 0.058, 0.1, ctrlFace, 0.29, 0.645, 0.062, 0.005),
@@ -212,7 +214,7 @@ export function buildCabinet(): DeviceRig {
     metalness: 0,
     roughness: 0.05,
     transparent: true,
-    opacity: 0.24,
+    opacity: 0.42,
     depthWrite: false,
     clearcoat: 1,
   })
@@ -416,6 +418,8 @@ export function buildCabinet(): DeviceRig {
     phase,
     // 长焦 22°：竖直背板接近正投影，不会被透视拉成斜的
     fov: 18,
+    // 浅背板 + 浅元件：环境压到 0.8，否则断路器会烧成一块白
+    envIntensity: 0.8,
     framing: { target: [0.02, 0.35, 0.04], distance: 2.62 },
     dispose: () => disposeTree(root),
   }

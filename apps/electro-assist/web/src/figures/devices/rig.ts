@@ -52,6 +52,12 @@ export interface DeviceRig {
    */
   fov?: number
   /**
+   * 可选：环境光强度。默认 1.25。
+   * 为什么要按场景分：浅色背板 + 浅色元件的场景（配电柜）在 1.25 下会整片过曝，
+   * 而深色杆件为主、需要金属感的场景（受电弓）在同样的亮度下才正常。
+   */
+  envIntensity?: number
+  /**
    * 可选：随动作进度给出取景。受电弓从 0.9m 升到 2.8m，
    * 用一套固定机位必然「升起时顶满、落下时缩成一点」，镜头必须跟着走。
    * 用户一旦手动拖过视角，跟随立即停止——不能跟人抢镜头。
@@ -158,10 +164,14 @@ function grain(): Texture {
 export function steelMaterial(color = 0xb9bdc1): MeshStandardMaterial {
   return new MeshStandardMaterial({
     color,
-    metalness: 0.94,
-    roughness: 0.42,
+    metalness: 1,
+    /* 参数来自 teardown 技能的「Taste, with numbers」：
+       「Glossy metal under a low light streaks: roughness ≥ 0.45 and
+       envMapIntensity ≈ 0.5 on big surfaces」。
+       我们原来 0.42 / 1.15 正好落在起条纹的区间，门扇上会浮出油污状高光。 */
+    roughness: 0.46,
     roughnessMap: brushed(),
-    envMapIntensity: 1.15,
+    envMapIntensity: 0.85,
   })
 }
 
@@ -193,9 +203,10 @@ export function rubberMaterial(color = 0x24262a): MeshStandardMaterial {
 export function chromeMaterial(): MeshStandardMaterial {
   return new MeshStandardMaterial({
     color: 0xd6d9dc,
-    metalness: 1.0,
-    roughness: 0.16,
-    envMapIntensity: 1.5,
+    metalness: 1,
+    // 小件（螺钉、锁钩）允许更亮，但压到 0.9 以内，再高就在浅底上炸成白点
+    roughness: 0.24,
+    envMapIntensity: 0.9,
   })
 }
 
@@ -212,7 +223,8 @@ export function glassMaterial(): MeshPhysicalMaterial {
     transparent: true,
     /* 0.55：再深就变成两块黑板。真车门玻璃的主要观感是「反射环境」而不是「深色」 */
     opacity: 0.55,
-    envMapIntensity: 2.0,
+    // 2.0 会让玻璃在浅色背板上反射成一块白斑，1.0 已经够「像玻璃」
+    envMapIntensity: 1.0,
     clearcoat: 1,
     clearcoatRoughness: 0.06,
   })
@@ -223,7 +235,9 @@ export function lampMaterial(color: number): MeshStandardMaterial {
   return new MeshStandardMaterial({
     color,
     emissive: color,
-    emissiveIntensity: 1.4,
+    // 「Bloom eats detail: keep emissive layers under 1.0」——即使现在没接 bloom，
+    // 1.4 的自发光在浅色场景里也会把灯糊成一团，看不清是哪个灯亮
+    emissiveIntensity: 0.95,
     metalness: 0,
     roughness: 0.35,
   })
