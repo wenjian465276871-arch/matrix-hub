@@ -15,15 +15,8 @@
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import DeviceScene from '../figures/DeviceScene.vue'
-
-type SceneKey = 'door' | 'pantograph' | 'cabinet'
-
-interface Readout {
-  label: string
-  value: string
-  unit?: string
-  dot?: 'ok' | 'idle' | 'warn'
-}
+import type { Readout, SceneKey } from '../lib/demoreads'
+import { cabinetReads, doorReads, pantoReads } from '../lib/demoreads'
 
 interface SceneDef {
   title: string
@@ -132,233 +125,16 @@ const cut = ref(false)
 const cutAt = ref(0.52)
 let raf = 0
 
-const ease = (v: number): number => {
-  const x = v < 0 ? 0 : v > 1 ? 1 : v
-  return x * x * (3 - 2 * x)
-}
-const span = (a: number, b: number): number => ease((t.value - a) / (b - a))
-
 const percent = computed(() => Math.round(t.value * 100))
 
-/* ------------------------------------------------------------------ 车门读数 */
+/* 读数计算在 `lib/demoreads.ts`（纯函数，可单测）。这里只把时间轴接进去。
+   抽出去的理由：它与 `figures/devices/*.ts` 共享同一套时序常量，是"改一处要改两处"
+   的副本——只有能被测试钉住，它才不会悄悄错位。 */
 
-/** 单扇行程上限 660mm：与 door.ts 的 DIM.slide 同源，改一处要改两处。 */
-const DOOR_STROKE = 660
-
-const doorReads = computed<Readout[]>(() => {
-  // 时序与 door.ts 的 setT 同源：0.02 解锁、0.08 外移、0.20 滑移、0.88 到位
-  const stroke = Math.round(span(0.2, 0.88) * DOOR_STROKE)
-  const popped = Math.round(span(0.08, 0.2) * 55)
-  // 锁闭只在解锁之前成立；门一动，锁闭信号就没了
-  const locked = t.value < 0.02
-  let current = 0.18
-  if (t.value >= 0.2 && t.value < 0.88) {
-    current = 1.05 + 2.3 * Math.exp(-3.4 * span(0.2, 0.88))
-  } else if (t.value >= 0.88) {
-    current = 0.12
-  }
-  const phase =
-    t.value < 0.02
-      ? '关闭锁定'
-      : t.value < 0.08
-        ? '门锁解锁'
-        : t.value < 0.2
-          ? '退出密封面'
-          : t.value < 0.88
-            ? '门扇开启'
-            : t.value < 0.92
-              ? '到位检测'
-              : '完全开启'
-  return [
-    { label: '动作阶段', value: phase },
-    // 「门锁」是机械状态，「锁闭信号」是电气状态。现场要先看信号再动车
-    { label: '门锁', value: locked ? '锁闭' : '已解锁', dot: locked ? 'ok' : 'idle' },
-    { label: '锁闭信号', value: locked ? '有' : '无', dot: locked ? 'ok' : 'warn' },
-    { label: '塞拉外移', value: String(popped), unit: 'mm' },
-    { label: '单扇行程', value: String(stroke), unit: 'mm' },
-    { label: '电机电流', value: current.toFixed(2), unit: 'A' },
-  ]
-})
-
-/* -------------------------------------------------------------- 受电弓读数 */
-
-/* 与 pantograph.ts 的 T / GAP_FREE / WIRE_Y 同源。改一处必须改两处，
-   否则三维演到「顶住接触线」时读数还停在 0 —— 这类错位在现场最容易被当成仪表故障。 */
-const PT = {
-  airOn: 0.04,
-  airFull: 0.12,
-  raise0: 0.12,
-  raise1: 0.54,
-  press1: 0.68,
-  hold1: 0.78,
-  lower0: 0.8,
-  lower1: 0.94,
-}
-const PT_GAP = 0.07
-const PT_TOP = 0.0855
-const PT_COMP = 0.055
-const PT_WIRE = 2.9175
-const PT_RAISE_S = 8.5
-const PT_LOWER_S = 3.5
-
-const clamp01 = (v: number): number => Math.min(1, Math.max(0, v))
-const smooth = (t: number, a: number, b: number): number => {
-  const x = clamp01((t - a) / (b - a))
-  return x * x * (3 - 2 * x)
-}
-
-/** 行程 0–1。按四段算，跟 pantograph.ts 的 setT 一一对应。 */
-function pantoP(t: number): number {
-  if (t < PT.raise0) return 0
-  if (t < PT.raise1) return 0.94 * smooth(t, PT.raise0, PT.raise1)
-  if (t < PT.press1) return 0.94 + 0.06 * smooth(t, PT.raise1, PT.press1)
-  if (t < PT.lower0) return 1
-  return 1 - clamp01((t - PT.lower0) / (PT.lower1 - PT.lower0))
-}
-
-/** 弓臂尖端的绝对高度，纯三角函数，不依赖 three。 */
-/** 角度与 pantograph.ts 同源：4°→56°、10°→62°（各扫 52°）。 */
-function pantoArmY(p: number): number {
-  const a1 = ((4 + 52 * p) * Math.PI) / 180
-  const a2 = ((10 + 52 * p) * Math.PI) / 180
-  return 0.34 + 1.55 * Math.sin(a1) + 1.35 * Math.sin(a2)
-}
-
-const pantoReads = computed<Readout[]>(() => {
-  const now = t.value
-  const p = pantoP(now)
-  const armY = pantoArmY(p)
-
-  /* 弓头高度取**滑板顶面**：现场量的是弓头到车顶的距离，不是臂尖。
-     接触线挡住弓头之后，臂还在上行、弹簧被压缩，所以要按间隙算。 */
-  const freeTop = armY + PT_GAP + PT_TOP
-  const comp = Math.min(Math.max(freeTop - PT_WIRE, 0), PT_COMP)
-  const headTop = Math.round((armY + (PT_GAP - comp) + PT_TOP) * 1000)
-
-  // 压力与压缩量成正比：碰到的瞬间是 0，压到底才是额定值
-  const contactN = Math.round(118 * Math.min(comp / 0.052, 1))
-
-  let air = 0
-  if (now >= PT.airOn) air = 0.62 * smooth(now, PT.airOn, PT.airFull)
-  if (now >= PT.lower0) air *= 1 - smooth(now, PT.lower0, PT.lower0 + 0.05)
-
-  const raising = now >= PT.raise0 && now < PT.press1
-  const lowering = now >= PT.lower0 && now < PT.lower1
-  const seconds = raising
-    ? Math.min(p / 0.94, 1) * PT_RAISE_S
-    : lowering
-      ? (1 - p) * PT_LOWER_S
-      : 0
-
-  const riseOk = now >= PT.press1 && now < PT.lower0
-  const lowOk = now < PT.raise0 || now >= PT.lower1
-
-  const phase =
-    now < PT.airOn
-      ? '落弓锁定'
-      : now < PT.raise0
-        ? '气路建压'
-        : now < PT.raise1
-          ? '升弓中'
-          : now < PT.press1
-            ? '接触压力建立'
-            : now < PT.hold1
-              ? '升弓到位'
-              : now < PT.lower0
-                ? '保压'
-                : now < PT.lower1
-                  ? '降弓中（阻尼）'
-                  : '落弓到位'
-
-  return [
-    { label: '动作阶段', value: phase },
-    { label: '弓头高度', value: String(headTop), unit: 'mm' },
-    // 只有顶到接触线之后才有压力；未接触显示 0，不编一个近似值
-    { label: '接触压力', value: String(contactN), unit: 'N' },
-    { label: '气路压力', value: air.toFixed(2), unit: 'MPa' },
-    {
-      label: raising ? '升弓计时' : lowering ? '降弓计时' : '计时',
-      value: seconds.toFixed(1),
-      unit: 's',
-    },
-    {
-      label: '到位信号',
-      value: riseOk ? '升弓到位' : lowOk ? '落弓到位' : '均无',
-      dot: riseOk || lowOk ? 'ok' : 'warn',
-    },
-  ]
-})
-
-
-/* -------------------------------------------------------------- 电气柜读数 */
-
-/** 与 cabinet.ts 的 setT 同源：0.78 脱扣、0.88 复位、0.94 再合闸。改一处要改两处。 */
-const CAB_TRIP = 0.78
-const CAB_RESET = 0.88
-const CAB_RECLOSE = 0.94
-
-const cabinetReads = computed<Readout[]>(() => {
-  const now = t.value
-  const closed = now >= 0.12
-  // 主回路带电：合闸后、脱扣前；再合闸到位后恢复
-  const live = (closed && now < 0.82) || now >= 0.99
-  // 控制回路取自断路器上游，**脱扣后仍有电**——主回路没了、控制回路还在，本身就是判据
-  const ctrlV = now >= 0.28 ? '220' : '0'
-  const pulled = (now >= 0.44 && now < 0.82) || now >= 0.97
-  const relayCount = now < 0.82 ? [0, 1, 2].filter((i) => now >= 0.48 + i * 0.06).length : now >= 0.99 ? 3 : 0
-  const running = (now >= 0.72 && now < 0.8) || now >= 0.99
-
-  const phase =
-    now < 0.13
-      ? '主断路器合闸'
-      : now < 0.26
-        ? '分路断路器合闸'
-        : now < 0.3
-          ? '控制回路得电'
-          : now < 0.46
-            ? '接触器吸合'
-            : now < 0.68
-              ? '继电器自检'
-              : now < CAB_TRIP
-                ? '系统就绪'
-                : now < CAB_RESET
-                  ? '过载脱扣'
-                  : now < CAB_RECLOSE
-                    ? '复位（手柄扳到底）'
-                    : now < 0.999
-                      ? '重新合闸'
-                      : '系统就绪'
-
-  /* 手柄位置是这一页最要紧的一条：中间位既非合闸也非断开，
-     现场见到它不能直接往上扳，必须先扳到底复位。 */
-  const handleState =
-    now < 0.12
-      ? { value: '断开位', dot: 'idle' as const }
-      : now < CAB_TRIP
-        ? { value: '合闸位', dot: 'ok' as const }
-        : now < CAB_RESET
-          ? { value: '中间位（已脱扣）', dot: 'warn' as const }
-          : now < CAB_RECLOSE
-            ? { value: '断开位（已复位）', dot: 'idle' as const }
-            : now < 0.99
-              ? { value: '合闸中', dot: 'warn' as const }
-              : { value: '合闸位', dot: 'ok' as const }
-
-  return [
-    { label: '动作阶段', value: phase },
-    { label: '主回路电压', value: live ? '380' : '0', unit: 'V' },
-    { label: '控制回路电压', value: ctrlV, unit: 'V' },
-    { label: '接触器', value: pulled ? '吸合' : '断开', dot: pulled ? 'ok' : 'idle' },
-    { label: '继电器', value: `${relayCount} / 3`, unit: '个' },
-    { label: '运行指示', value: running ? '亮' : '灭', dot: running ? 'ok' : 'idle' },
-    { label: '断路器手柄', value: handleState.value, dot: handleState.dot },
-  ]
-})
-
-const reads = computed(() => {
-  if (scene.value === 'door') return doorReads.value
-  if (scene.value === 'pantograph') return pantoReads.value
-  return cabinetReads.value
+const reads = computed<Readout[]>(() => {
+  if (scene.value === 'door') return doorReads(t.value)
+  if (scene.value === 'pantograph') return pantoReads(t.value)
+  return cabinetReads(t.value)
 })
 
 /* -------------------------------------------------------------------- 操作 */

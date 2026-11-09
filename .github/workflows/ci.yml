@@ -64,6 +64,14 @@ jobs:
         working-directory: apps/electro-assist/api
         run: python scripts/export_contract.py --check
 
+      # H13（零内部资料）的确认绑定内容：样例或知识库一改，确认即失效。
+      # 2026-11-10 评审 P3-2：这条以前只写在管理仓的文档里，改样例的人看不到它，
+      # 实际行为是"改完照常合并、确认悄悄过期"。这里把它变成机械判据——
+      # 红了不是要你改代码，是要有人补失效记录并重新取得本人确认。
+      - name: 内容未变更（H13 确认仍有效）
+        working-directory: apps/electro-assist/api
+        run: python scripts/content_fingerprint.py --check
+
       # 供应链门禁③：npm 锁文件不许指向国内镜像。
       # 2026-11-09 踩过：本地 `.npmrc` 指向 npmmirror，装 three 时把 8 条 `resolved`
       # 写成了 registry.npmmirror.com；GitHub runner 在海外，第一次侥幸拉到，
