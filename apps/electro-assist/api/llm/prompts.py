@@ -17,8 +17,9 @@ from models.visual import (
     MAX_MOTION_TRACKS,
     STATE_VALUES,
     MotionAnim,
+    MAX_DEVICE_SCENES,
     allowed_params,
-    device_subjects,
+    device_catalog,
     motion_slots,
     stroke_only_anims,
     stroke_slots,
@@ -28,9 +29,9 @@ DOC_OPEN = "<document>"
 DOC_CLOSE = "</document>"
 
 
-# 设备白名单在模块加载时从模型层取一次：枚举只在 `models/visual.py` 定义，
+# 设备表在模块加载时从模型层取一次：枚举只在 `models/visual.py` 定义，
 # prompt 这边只负责"怎么讲"，不负责"有哪些"。
-_DEVICES = device_subjects()
+_CATALOG = device_catalog()
 
 _PRIMITIVE_HINTS: dict[str, str] = {
     "status_light": f"state 只能取 {' / '.join(STATE_VALUES)}",
@@ -40,7 +41,7 @@ _PRIMITIVE_HINTS: dict[str, str] = {
     "flow_arrow": "steps 为 2–5 项，按执行先后排列",
     "table": "rows 每项是一行，用 | 分格，格数必须与 headers 相同",
     "annotation": "points 为 1–6 项，每项形如「门扇：检查间隙」",
-    "device_scene": "subject 只能取 " + " / ".join(sorted(_DEVICES)) + "；t 取 0–1（0=初始、1=动作完成），省略则 0.6；part 必须属于该 subject，可省略",
+    "device_scene": "subject / t / part 只能取下方设备表里的值；t 省略则 0.6",
 }
 
 
@@ -51,6 +52,23 @@ def _primitive_table() -> str:
         extra = f"；**{hint}**" if hint else ""
         rows.append(f"- {name}：参数 {', '.join(keys)}{extra}")
     return "\n".join(rows)
+
+
+def _device_table() -> str:
+    """设备表：subject / 所属工位 / 可指名瞬间 / 可高亮部件。
+
+    由 `models/visual.py` 生成而不是在 prompt 里写死——写死的那份迟早会和校验对不上，
+    届时模型只会一直撞 422，而报错信息里没有"该用哪个 t"。
+    """
+    lines = []
+    for name in sorted(_CATALOG):
+        info = _CATALOG[name]
+        moments = "、".join(f"{m['label']}={m['t']:.2f}" for m in info["moments"])
+        lines.append(
+            f"     · {name}（工位 {' / '.join(info['systems'])}）——"
+            f"{moments}；part 取 {' / '.join(info['parts'])}"
+        )
+    return "\n".join(lines)
 
 
 def _motion_table() -> str:
@@ -132,9 +150,12 @@ def system_prompt() -> str:
      单点强调用 callout，参数对照用 table，部位说明用 annotation；
      **表格类内容不要塞进 checklist**，两者的读法不一样。
    - device_scene 只在这**一步的重点就是设备整体动作**时用（门怎么开、弓怎么升、
-     电怎么送），`subject` 必须是当前工位对应的设备。**每份指导书最多 2 张**：
-     三维图是重资源，每步都配会让现场页面又慢又花，反而不如读数清楚。
-     纯参数读数、勾选核对仍然用 2D 原语，不要用 device_scene 代替。
+     电怎么送）。**每份指导书最多 {MAX_DEVICE_SCENES} 张**：三维图是重资源，每步都配会让
+     现场页面又慢又花，反而不如读数清楚。纯参数读数、勾选核对仍然用 2D 原语，
+     不要用 device_scene 代替。
+     `subject` 必须与本次工位一致；`t` **必须取下表列出的瞬间**，不要自己编小数——
+     编出来的 t 会让设备停在别的工步，而图上完全看不出来；`part` 决定高亮哪个部件。
+{_device_table()}
    - 清单类参数（items、terminals、pins）**直接给字符串数组**，例如 ["断电挂牌","防溜车"]；
      最多 10 项，每项不超过 40 字。不要用嵌套对象。
    - 需要强调动作时可给 `motion`（可选，最多 {MAX_MOTION_TRACKS} 条；拿不准就省略）：

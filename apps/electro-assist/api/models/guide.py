@@ -14,7 +14,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from .visual import VisualSpec
+from .visual import MAX_DEVICE_SCENES, DEVICE_SYSTEMS, Primitive, VisualSpec
 
 SCHEMA_VERSION = "1.2"
 REQUIRED_DISCLAIMER = "演示数据 · 非实际作业依据"
@@ -250,7 +250,39 @@ class Guide(BaseModel):
         used += [a.asset_id for a in self.assets]
         if len(set(used)) != len(used):
             raise ValueError("同一素材在步骤与素材区之间不能重复引用")
+        self._check_device_scenes()
         return self
+
+    def _check_device_scenes(self) -> None:
+        """三维场景的两条硬约束，与 prompt 里写的完全一致。
+
+        1）**数量**：每份最多 `MAX_DEVICE_SCENES` 张。三维图是重资源，
+           每步都配会让现场页面又慢又花，反而不如读数清楚。
+        2）**工位**：subject 必须属于本次工位对应的系统。跨系统的三维场景
+           一定是模型理解错了工位——一份车门指导书里出现受电弓，看的人
+           第一反应是「这系统不可信」，而这比少一张图糟得多。
+
+        放在模型校验里（而不是 `publish_blockers`）是因为这两条与"内容是否完整"
+        无关：草稿阶段就不该留下错误工位的图，改起来比重写一份指导书便宜。
+        """
+        scenes = [
+            (step.seq, fig)
+            for step in self.steps
+            for fig in step.figures
+            if fig.primitive is Primitive.device_scene
+        ]
+        if len(scenes) > MAX_DEVICE_SCENES:
+            raise ValueError(
+                f"device_scene 每份指导书最多 {MAX_DEVICE_SCENES} 张，当前 {len(scenes)} 张"
+            )
+        system = self.meta.system.value
+        for seq, fig in scenes:
+            subject = str(fig.params.get("subject", ""))
+            allowed = DEVICE_SYSTEMS.get(subject, frozenset())
+            if system not in allowed:
+                raise ValueError(
+                    f"第 {seq} 步的 device_scene.subject={subject} 不属于 {system} 工位"
+                )
 
     def publish_blockers(self) -> list[str]:
         """发布前必须补齐的项；空列表 = 可以发布（计划 §12.4）。

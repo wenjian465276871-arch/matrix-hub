@@ -340,3 +340,69 @@ def test_offset_past_the_end_returns_empty_page(fresh_library):
 @pytest.mark.parametrize("query", ["limit=0", "limit=51", "offset=-1"])
 def test_bad_page_params_are_422(fresh_library, query):
     assert client.get(f"/api/electro/guides?{query}").status_code == 422
+
+
+# ------------------------------------------------- 三维场景的两条硬约束
+
+def _sample_dict(name: str) -> dict:
+    return json.loads((SAMPLES / name).read_text(encoding="utf-8"))
+
+
+def _add_device_scene(guide: dict, subject: str, t: float) -> dict:
+    """往第一个还有空位的步骤里塞一张 device_scene，返回改过的副本。"""
+    for step in guide["steps"]:
+        if len(step.get("figures", [])) < 3:
+            step.setdefault("figures", []).append(
+                {
+                    "primitive": "device_scene",
+                    "params": {"subject": subject, "t": t},
+                    "caption": "设备动作示意",
+                    "fallback_text": "设备处于该步骤对应的动作位置。",
+                }
+            )
+            return guide
+    raise AssertionError("样例里没有还能放图的步骤")
+
+
+def test_device_scene_rejects_cross_system_subject():
+    """车门指导书里出现受电弓必须被拒。
+
+    这不是形式问题：跨系统的三维场景说明模型认错了工位，放上去之后
+    看的人第一反应是「这系统不可信」，比少一张图糟得多。
+    """
+    from models.guide import Guide
+
+    guide = _add_device_scene(_sample_dict("door_switch_formal.json"), "pantograph", 0.72)
+    with pytest.raises(ValueError, match="不属于 door 工位"):
+        Guide(**guide)
+
+
+def test_device_scene_count_is_capped():
+    """每份最多 2 张：三维图是重资源，每步都配会让现场页面又慢又花。"""
+    from models.guide import Guide
+    from models.visual import MAX_DEVICE_SCENES
+
+    guide = _sample_dict("door_switch_formal.json")
+    for _ in range(MAX_DEVICE_SCENES + 1):
+        guide = _add_device_scene(guide, "door", 0.55)
+    with pytest.raises(ValueError, match="最多"):
+        Guide(**guide)
+
+
+def test_samples_carry_device_scenes_for_every_subject():
+    """每台设备都要有真实样例覆盖。
+
+    device_scene 的渲染分支存在于前端，后端测试看不到；样例是唯一的
+    「这条分支真的被走过」的证据。三台设备缺一台，就等于那台没验收。
+    """
+    from models.guide import Guide
+
+    seen = {
+        fig.params.get("subject")
+        for path in SAMPLES.glob("*.json")
+        for guide in [Guide(**json.loads(path.read_text(encoding="utf-8")))]
+        for step in guide.steps
+        for fig in step.figures
+        if fig.primitive.value == "device_scene"
+    }
+    assert seen == {"door", "pantograph", "cabinet"}, f"缺少样例覆盖：{seen}"

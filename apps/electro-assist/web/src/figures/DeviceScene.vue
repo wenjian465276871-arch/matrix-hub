@@ -157,8 +157,9 @@ function resize(): void {
  * 叠加自发光则能在任何底色上被看见，也方便一键还原。
  */
 function setFocus(key: string): void {
-  if (!rig || !rigModule) return
-  const focusHex = rigModule.FOCUS
+  // `T` 只是 init() 里的局部别名；模块级持有的是 `three`，这里必须用它。
+  if (!rig || !rigModule || !three) return
+  const accent = new three.Color(rigModule.FOCUS)
   for (const [name, node] of Object.entries(rig.parts)) {
     const active = key !== '' && name === key
     node.traverse((child) => {
@@ -167,19 +168,19 @@ function setFocus(key: string): void {
       const list = Array.isArray(material) ? material : [material]
       for (const item of list) {
         const std = item as MeshStandardMaterial
-        if (!std.emissive) continue
+        if (!std.color) continue
         if (active) {
-          if (std.userData.baseEmissive === undefined) {
-            std.userData.baseEmissive = std.emissive.getHex()
-            std.userData.baseIntensity = std.emissiveIntensity
+          if (std.userData.baseColor === undefined) {
+            std.userData.baseColor = std.color.getHex()
           }
-          std.emissive.setHex(focusHex)
-          std.emissiveIntensity = 0.55
-        } else if (std.userData.baseEmissive !== undefined) {
-          std.emissive.setHex(std.userData.baseEmissive as number)
-          std.emissiveIntensity = std.userData.baseIntensity as number
-          delete std.userData.baseEmissive
-          delete std.userData.baseIntensity
+          /* 高亮走**基色混合**，不走自发光。
+             自发光对深色件（碳滑板、黑色气囊、深色缸体）等于加了一层蓝光，
+             整块件会变成塑料蓝；基色混合对深色浅色都只是"染了一点色"，
+             材质本色与明暗关系都还在。 */
+          std.color.setHex(std.userData.baseColor as number).lerp(accent, 0.18)
+        } else if (std.userData.baseColor !== undefined) {
+          std.color.setHex(std.userData.baseColor as number)
+          delete std.userData.baseColor
         }
       }
     })
