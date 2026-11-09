@@ -318,7 +318,13 @@ watch(
 )
 
 onMounted(() => {
-  void init()
+  // `new WebGLRenderer` 在 try 之外：WebGL 被禁用或显卡上下文创建失败时
+  // 它会直接抛（"Error creating WebGL context"）。不接住的话整个组件树报错，
+  // 而这里其实只需要降级成一句话。
+  void init().catch((err: unknown) => {
+    error.value = err instanceof Error ? err.message : '三维场景初始化失败'
+    loading.value = false
+  })
 })
 
 onBeforeUnmount(() => {

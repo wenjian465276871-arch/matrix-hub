@@ -87,6 +87,7 @@ onErrorCaptured((err) => {
         :params="spec.params"
         :label="spec.caption || spec.fallback_text"
         :motion="spec.motion"
+        :fallback="spec.fallback_text"
       />
       <p v-else class="figure__fallback">{{ spec.fallback_text }}</p>
     </div>
@@ -114,6 +115,7 @@ onErrorCaptured((err) => {
         :params="spec.params"
         :label="spec.caption || spec.fallback_text"
         :motion="spec.motion"
+        :fallback="spec.fallback_text"
       />
     </figure>
     <button ref="zoomClose" class="figure__zoom-close" type="button" @click="closeZoom">
