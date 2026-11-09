@@ -83,8 +83,9 @@ api/
 │   ├── knowledge/     door 11 / hvac 4 / pantograph 3 条 + eval_queries.json
 │   └── corpus/        8 份生成评测语料 + README
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
+│                      capture_generation（把一次生成输出冻成快照夹具）
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             539 条契约测试
+└── tests/             546 条契约测试；fixtures/generations/ 是生成快照夹具（模型原文）
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -120,7 +121,7 @@ main → routers → services / store / llm → core
 
 ```bash
 cd apps/electro-assist/api
-pytest tests -q --basetemp=<临时目录>   # 539 passed（约 1–1.5 分钟，starlette 1.10 的 TestClient 偏慢）
+pytest tests -q --basetemp=<临时目录>   # 546 passed（约 1–1.5 分钟，starlette 1.10 的 TestClient 偏慢）
 ruff check .                            # 只开 E9/F63/F7/F82
 # 不带 --basetemp 时退出码可能是 1：pytest 清理临时目录时一次删 200+ 文件，
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
@@ -144,6 +145,12 @@ BASE=http://127.0.0.1:5173/apps/electro-assist API=http://127.0.0.1:8001 \
 > `AXE_CHANNEL` 默认 `msedge`（本机免下载浏览器），CI 里设 `bundled` 用 Playwright 自带 chromium。
 > **它能抓的是"静默退化"**：颜色改浅一点、读屏标签漏一个，页面看着正常但键盘/读屏用户用不了。
 > 同理**不要**把它扩成 Lighthouse 那种分数门禁——分数会飘，违规列表不会。
+
+> 生成链的回归靠**生成快照夹具**（`tests/fixtures/generations/*.json`）：存的是模型原文（连 json 代码围栏都留着），
+> 测试里用假 provider 喂回去，走 `extract_json → Guide 校验 → 降级` 同一条代码路径，不触网、不花钱、
+> 结果确定。新增一份：`python scripts/capture_generation.py --case <语料名>`（一次真实调用，约 ¥0.02；
+> 用了重试的输出会被拒——夹具只收「一次就过」的样本）。没有 Key 时用 `--from-sample` 存离线快照，
+> 两者由 `source` 字段区分。**夹具红了要改校验器，不能改夹具**——否则回归网会被改成橡皮图章。
 
 > `npm run test:unit` 是 2026-11-06 建立的回归网，目的是**在拆 `NewGuideView` /
 > `GuideView` / `RunView` 这三个千行级文件之前先有行为断言**。删断言、改断言都算改测试，
