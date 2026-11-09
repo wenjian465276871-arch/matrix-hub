@@ -11,7 +11,19 @@
  *  （拉丝不锈钢外板 / 喷漆内框 / 橡胶密封 / 镀铬五金 / 深色玻璃）；
  *  ③ 分缝与层次（面板分块、窗框凸起、密封条外凸）；④ 环境反射（在 rig 里给）。
  */
-import { Group, Mesh, MeshStandardMaterial, Object3D, ShadowMaterial, CylinderGeometry, SphereGeometry, PlaneGeometry } from 'three'
+import {
+  CanvasTexture,
+  CylinderGeometry,
+  Group,
+  Mesh,
+  MeshStandardMaterial,
+  Object3D,
+  PlaneGeometry,
+  RepeatWrapping,
+  SRGBColorSpace,
+  ShadowMaterial,
+  SphereGeometry,
+} from 'three'
 
 import type { DeviceRig } from './rig'
 import {
@@ -43,6 +55,41 @@ const DIM = {
   pop: 0.055,
   slide: 0.66,
   sill: 0.03,
+}
+
+/**
+ * 同步带齿形：一格一颗齿。滚 offset.x 就是带子在跑。
+ * 齿距按 14mm 算，0.86m 的带段上大约 60 颗——和真机的 HTD 5M 皮带量级接近。
+ */
+let teethTexture: CanvasTexture | null = null
+function beltTeeth(): CanvasTexture {
+  if (teethTexture) return teethTexture.clone()
+  const size = 32
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    /* 纹理本身画成深色：材质基色是白的，最终颜色 = 基色 × 纹理。
+       若基色取近黑再把灰齿乘上去，齿纹会黑成一整条——第一版就是这么废的。 */
+    ctx.fillStyle = '#22252a'
+    ctx.fillRect(0, 0, size, size)
+    ctx.fillStyle = '#4d535a'
+    ctx.fillRect(0, 0, size * 0.42, size)
+    ctx.fillStyle = '#6b727a'
+    ctx.fillRect(0, size * 0.2, size * 0.42, size * 0.6)
+  }
+  const tex = new CanvasTexture(canvas)
+  tex.wrapS = RepeatWrapping
+  tex.wrapT = RepeatWrapping
+  tex.colorSpace = SRGBColorSpace
+  tex.repeat.set(0.86 / 0.042, 1)
+  teethTexture = tex
+  /* clone() 不会带上 upload 标记，不显式置 needsUpdate 的话纹理永远不上传，
+     材质就退回纯色——第一版整条带子发白就是这么来的。 */
+  const copy = tex.clone()
+  copy.needsUpdate = true
+  return copy
 }
 
 const LAMP_ALARM = 0xd1483f
@@ -149,6 +196,7 @@ export function buildDoor(): DeviceRig {
      参数仍是示意值，但结构关系照真件摆：电机在左端、皮带横穿门楣、
      两个携门架挂在同一条导轨上。 */
   const op = new Group()
+  const pulleys: Mesh[] = []
   const bayZ = 0.022
   const bayY = DIM.openH + headerH / 2
 
@@ -180,17 +228,43 @@ export function buildDoor(): DeviceRig {
   op.add(roundedBox(0.15, 0.12, 0.06, paintedMaterial(0x3d424a), -0.33, DIM.openH + 0.14, bayZ, 0.008))
 
   // 同步带：两条直线段 + 两端带轮
-  const beltMat = rubberMaterial(0x1b1d20)
+  /* 同步带要能在门开合时跑起来：给带面贴一张齿形纹理，靠 offset.x 滚动。
+     带轮同步自转（带子走多少 = 轮子转过多少弧长），两者速率对不上就会看出打滑。
+
+     **没有做携门架**：门扇行程 0.66m，滑到位时已经越过门楣里的导轨端头；
+     再加一个「骑在导轨上」的滚轮座，它会明摆着悬在导轨外面。
+     真机是靠墙里的门袋把门扇和携门架一起收进去的——那要连墙体一起改，
+     不是加个零件能解决的。宁可少一个零件，也不要一个看起来错的机构。
+     上下两段必须**反向**滚动——它们是同一条带子的两边，同向滚就等于两条独立的带子。 */
+  const beltMatUpper = new MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.9,
+    metalness: 0,
+    map: beltTeeth(),
+  })
+  const beltMatLower = new MeshStandardMaterial({
+    color: 0xffffff,
+    roughness: 0.9,
+    metalness: 0,
+    map: beltTeeth(),
+  })
   const beltY = DIM.openH + 0.15
   op.add(
-    roundedBox(0.86, 0.008, 0.022, beltMat, 0.09, beltY + 0.028, bayZ, 0.003),
-    roundedBox(0.86, 0.008, 0.022, beltMat, 0.09, beltY - 0.028, bayZ, 0.003),
+    roundedBox(0.86, 0.008, 0.022, beltMatUpper, 0.09, beltY + 0.028, bayZ, 0.003),
+    roundedBox(0.86, 0.008, 0.022, beltMatLower, 0.09, beltY - 0.028, bayZ, 0.003),
   )
   for (const px of [-0.34, 0.52]) {
+    /* 带轮包一层枢轴：外层负责把圆柱摆成横向（绕 Z 转 90°），
+       内层绕自己的 Y 轴自转——直接在外层上转 Y 会连带把整根轴翻掉。
+       轮面加一根标记条，否则光滑圆柱转不转看不出来。 */
+    const pivot = new Group()
+    pivot.position.set(px, beltY, bayZ)
+    pivot.rotation.z = Math.PI / 2
     const pulley = new Mesh(new CylinderGeometry(0.032, 0.032, 0.026, 18), steelMaterial(0xb4b9bf))
-    pulley.rotation.z = Math.PI / 2
-    pulley.position.set(px, beltY, bayZ)
-    op.add(pulley)
+    pulley.add(roundedBox(0.058, 0.002, 0.009, paintedMaterial(0x3a4048), 0, 0.014, 0, 0.001))
+    pivot.add(pulley)
+    pulleys.push(pulley)
+    op.add(pivot)
   }
 
   parts.motor = op
@@ -339,8 +413,16 @@ export function buildDoor(): DeviceRig {
     const slide = seg(t, 0.16, 0.86)
 
     const z = DIM.leafZ + pop * DIM.pop
-    leafL.position.set(-(DIM.leafW / 2) - slide * DIM.slide, 0, z)
-    leafR.position.set(DIM.leafW / 2 + slide * DIM.slide, 0, z)
+    const travel = slide * DIM.slide
+    leafL.position.set(-(DIM.leafW / 2) - travel, 0, z)
+    leafR.position.set(DIM.leafW / 2 + travel, 0, z)
+
+    /* 同步带跟着门扇跑。带面纹理按齿距滚动、带轮按半径自转，
+       两者速率必须一致（带子走多远 = 轮子转过多少弧长），否则一眼看出打滑。
+       上下两段的滚动方向相反：它们是同一条带子的两边。 */
+    if (beltMatUpper.map) beltMatUpper.map.offset.x = travel / 0.042
+    if (beltMatLower.map) beltMatLower.map.offset.x = -travel / 0.042
+    for (const pulley of pulleys) pulley.rotation.y = travel / 0.032
 
     // 指示灯：锁定到位才转绿。颜色 + emissive 一起改，缺一个就会在暗部发灰。
     const ok = t >= 0.88
