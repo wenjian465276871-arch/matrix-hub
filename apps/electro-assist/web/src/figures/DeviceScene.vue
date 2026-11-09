@@ -161,6 +161,7 @@ async function init(): Promise<void> {
     const builders: Record<string, () => Promise<() => DeviceRig>> = {
       door: async () => (await import('./devices/door')).buildDoor,
       pantograph: async () => (await import('./devices/pantograph')).buildPantograph,
+      cabinet: async () => (await import('./devices/cabinet')).buildCabinet,
     }
     const load = builders[props.subject]
     if (!load) throw new Error(`未注册的设备场景：${props.subject}`)

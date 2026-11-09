@@ -16,7 +16,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 import DeviceScene from '../figures/DeviceScene.vue'
 
-type SceneKey = 'door' | 'pantograph'
+type SceneKey = 'door' | 'pantograph' | 'cabinet'
 
 interface Readout {
   label: string
@@ -76,9 +76,27 @@ const SCENES: Record<SceneKey, SceneDef> = {
     ],
     note: '形体取公开的单臂受电弓通用结构（底架 + 四绝缘子 + 双下臂 + 双平衡臂 + 弓头）；<strong>全部参数为演示虚构值</strong>，不代表任何车型图纸或实测结果。',
   },
+  cabinet: {
+    title: '电气柜上电自检',
+    eyebrow: 'A2 可视化作业指导 · 三维演示',
+    subject: 'cabinet',
+    label: '低压电气柜三维示意：断路器合闸、接触器吸合、继电器依次动作，当前为上电过程中的某一时刻',
+    step: '2 / 6',
+    action: '合上主断路器，观察指示灯与接触器状态',
+    tools: '万用表',
+    criteria: ['主回路电压 380 ± 19 V', '控制回路电压 220 ± 11 V', '继电器全部吸合、运行指示为绿'],
+    hint: '这个场景里几乎没有机械位移：变化的是触点与灯。电气调试看的就是状态迁移的顺序对不对——先合闸、再得电、再吸合、最后运行指示，顺序错一步就是故障。',
+    parts: [
+      { key: 'breakers', label: '断路器' },
+      { key: 'contactor', label: '接触器' },
+      { key: 'relays', label: '继电器' },
+      { key: 'panel', label: '面板灯' },
+    ],
+    note: '形体取常见的 800×2000×500 低压配电柜布置（DIN 导轨断路器 + 接触器 + 热继电器 + 端子排 + 线槽）；<strong>全部参数为演示虚构值</strong>，不代表任何图纸或实测结果。',
+  },
 }
 
-const SCENE_KEYS: SceneKey[] = ['door', 'pantograph']
+const SCENE_KEYS: SceneKey[] = ['door', 'pantograph', 'cabinet']
 
 const scene = ref<SceneKey>('door')
 const def = computed(() => SCENES[scene.value])
@@ -157,7 +175,41 @@ const pantoReads = computed<Readout[]>(() => {
   ]
 })
 
-const reads = computed(() => (scene.value === 'door' ? doorReads.value : pantoReads.value))
+
+/* -------------------------------------------------------------- 电气柜读数 */
+
+const cabinetReads = computed<Readout[]>(() => {
+  // 第三只断路器在 0.12 合完，主回路才算真正带电
+  const mainV = t.value >= 0.12 ? '380' : '0'
+  const ctrlV = t.value >= 0.3 ? '220' : '0'
+  const pulled = t.value >= 0.5
+  const relayCount = [0, 1, 2].filter((i) => t.value >= 0.56 + i * 0.08).length
+  const running = t.value >= 0.86
+  const phase =
+    t.value < 0.15
+      ? '合闸送电'
+      : t.value < 0.34
+        ? '控制回路得电'
+        : t.value < 0.52
+          ? '接触器吸合'
+          : t.value < 0.82
+            ? '继电器自检'
+            : '系统就绪'
+  return [
+    { label: '动作阶段', value: phase },
+    { label: '主回路电压', value: mainV, unit: 'V' },
+    { label: '控制回路电压', value: ctrlV, unit: 'V' },
+    { label: '接触器', value: pulled ? '吸合' : '断开', dot: pulled ? 'ok' : 'idle' },
+    { label: '继电器', value: `${relayCount} / 3`, unit: '个' },
+    { label: '运行指示', value: running ? '亮' : '灭', dot: running ? 'ok' : 'idle' },
+  ]
+})
+
+const reads = computed(() => {
+  if (scene.value === 'door') return doorReads.value
+  if (scene.value === 'pantograph') return pantoReads.value
+  return cabinetReads.value
+})
 
 /* -------------------------------------------------------------------- 操作 */
 
