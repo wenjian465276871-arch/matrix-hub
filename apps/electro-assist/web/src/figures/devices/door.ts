@@ -117,6 +117,27 @@ export function buildDoor(): DeviceRig {
   const wallTopFront = roundedBox(DIM.openW, 0.06, 0.035, wallMat, 0, DIM.wallH - 0.03, 0.0275, 0.006)
   const wallTop = new Group()
   wallTop.add(wallTopBack, wallTopFront)
+
+  /* 门机罩：塞拉门是**外挂式**——门扇退出密封面后贴着车体外侧滑，
+     滑到位时停在侧墙前面，不会进墙里（进门袋的是内藏门，另一种门）。
+     既然如此，导轨和携门架就必须有地方待：真车是在门洞两侧各伸出一段
+     外凸的门机罩，导轨藏在罩子里，门扇从罩子下面滑过去。
+     这一段同时解决了三件事：导轨有长度、携门架不悬空、门扇滑出去不再是
+     「贴在墙上一块板」。 */
+  const houseZ = 0.14 // 罩子前脸：门扇最大外移 0.126，要留 15mm 让它从下面过
+  const houseD = houseZ + DIM.wallT / 2
+  const houseCz = (houseZ - DIM.wallT / 2) / 2
+  const houseW = wallSideW - 0.15
+  for (const dir of [-1, 1]) {
+    const hx = dir * (DIM.openW / 2 + 0.075 + houseW / 2)
+    wallTop.add(
+      roundedBox(houseW, headerH, houseD, wallMat, hx, DIM.openH + headerH / 2, houseCz, 0.01),
+    )
+    // 罩子下沿一道收边：门扇从下面滑过，没有这道边会像一块悬空的梁
+    wallTop.add(
+      roundedBox(houseW, 0.022, houseD + 0.012, steelMaterial(0xa8acb0), hx, DIM.openH + 0.011, houseCz, 0.006),
+    )
+  }
   const sill = roundedBox(DIM.openW, DIM.sill, DIM.wallT + 0.02, paintedMaterial(0xc2bfb8), 0, DIM.sill / 2, 0, 0.006)
   root.add(wallL, wallR, wallTop, sill)
 
@@ -205,12 +226,14 @@ export function buildDoor(): DeviceRig {
 
   // 导轨：横贯门楣的圆钢，携门架挂在上面
   const railMat = steelMaterial(0x9aa0a6)
-  const rail = new Mesh(new CylinderGeometry(0.011, 0.011, DIM.openW - 0.09, 14), railMat)
+  /* 导轨长度按**门扇总行程**给：门扇中心从 ±0.35 走到 ±1.01，两端各留 0.12 余量 */
+  const railLen = 2 * (DIM.leafW / 2 + DIM.slide + 0.12)
+  const rail = new Mesh(new CylinderGeometry(0.011, 0.011, railLen, 14), railMat)
   rail.rotation.z = Math.PI / 2
-  rail.position.set(0, DIM.openH + 0.062, bayZ + 0.006)
+  rail.position.set(0, DIM.openH + 0.062, bayZ + 0.02)
   op.add(rail)
   for (const rx of [-0.58, -0.2, 0.2, 0.58]) {
-    op.add(roundedBox(0.028, 0.05, 0.026, railMat, rx, DIM.openH + 0.088, bayZ + 0.006, 0.006))
+    op.add(roundedBox(0.028, 0.05, 0.026, railMat, rx, DIM.openH + 0.088, bayZ + 0.02, 0.006))
   }
 
   // 电机（带散热筋）+ 减速箱
@@ -265,6 +288,24 @@ export function buildDoor(): DeviceRig {
     pivot.add(pulley)
     pulleys.push(pulley)
     op.add(pivot)
+  }
+
+  /* 携门架：把门扇吊在导轨上的那个件。
+     导轨现在够长了（伸进两侧门机罩），所以它可以从门洞一路滑到罩子里，
+     不会出现「滚轮座悬在导轨外」——这正是上一版被迫撤掉它的原因。
+     滑块挂在导轨上、吊臂向下咬住门扇顶，随门扇行程平移。 */
+  const hangers: Group[] = []
+  const railY = DIM.openH + 0.062
+  for (const dir of [-1, 1]) {
+    const hanger = new Group()
+    // 滑块：骑在导轨上
+    hanger.add(roundedBox(0.075, 0.05, 0.055, steelMaterial(0x9aa0a6), 0, railY, bayZ + 0.02, 0.006))
+    /* 吊臂：从导轨降到门扇顶以下，进深做得够宽（0.11），
+       门扇外移 55mm 之后仍然咬得住——真机的吊臂本来就是一块带长孔的板。 */
+    hanger.add(roundedBox(0.03, 0.1, 0.11, steelMaterial(0xa8adb2), 0, railY - 0.045, 0.092, 0.005))
+    hanger.position.x = (dir * DIM.leafW) / 2
+    hangers.push(hanger)
+    op.add(hanger)
   }
 
   parts.motor = op
@@ -363,7 +404,8 @@ export function buildDoor(): DeviceRig {
   lampBulb.position.z = 0.026
   lampBulb.castShadow = false
   lampGroup.add(lampBase, lampBulb)
-  lampGroup.position.set(DIM.openW / 2 + 0.12, DIM.openH + 0.14, DIM.wallT / 2 + 0.01)
+  // 指示灯挪到门机罩前脸：原来的位置在门楣里，现在被罩子盖住了
+  lampGroup.position.set(DIM.openW / 2 + 0.25, DIM.openH + 0.13, houseZ + 0.012)
   parts.lamp = lampGroup
   root.add(lampGroup)
 
@@ -423,6 +465,9 @@ export function buildDoor(): DeviceRig {
     if (beltMatUpper.map) beltMatUpper.map.offset.x = travel / 0.042
     if (beltMatLower.map) beltMatLower.map.offset.x = -travel / 0.042
     for (const pulley of pulleys) pulley.rotation.y = travel / 0.032
+    // 携门架跟着门扇走：左扇向左、右扇向右
+    hangers[0].position.x = -DIM.leafW / 2 - travel
+    hangers[1].position.x = DIM.leafW / 2 + travel
 
     // 指示灯：锁定到位才转绿。颜色 + emissive 一起改，缺一个就会在暗部发灰。
     const ok = t >= 0.88
