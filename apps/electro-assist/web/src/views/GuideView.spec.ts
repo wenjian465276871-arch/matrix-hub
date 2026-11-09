@@ -396,3 +396,38 @@ describe('判据来源标记', () => {
     wrapper.unmount()
   })
 })
+
+describe('生成期降级提示', () => {
+  it('repairs 非空时列出每一条，并说明可以再生成', async () => {
+    mocks.getJson.mockResolvedValue({
+      ...detail(),
+      repairs: ['s04 的图示不合法，已去掉', 'steps.2 仪表无 value，动效已去掉'],
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('本次生成有 2 处图示被移除')
+    expect(wrapper.text()).toContain('s04 的图示不合法，已去掉')
+    expect(wrapper.text()).toContain('再生成一份草稿')
+    wrapper.unmount()
+  })
+
+  it('repairs 为空时不出提示条', async () => {
+    mocks.getJson.mockResolvedValue({ ...detail(), repairs: [] })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('处图示被移除')
+    wrapper.unmount()
+  })
+
+  it('字段缺失（历史数据）也不出错', async () => {
+    // 老接口不返回 repairs。前端必须按"没有降级"处理，而不是抛 undefined 访问。
+    mocks.getJson.mockResolvedValue(detail())
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).not.toContain('处图示被移除')
+    wrapper.unmount()
+  })
+})

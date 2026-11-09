@@ -36,9 +36,10 @@ def guide() -> Guide:
 
 
 def test_migrations_are_idempotent(db):
-    assert store.schema_version() == 9
+    # 最后一次迁移的版本号：加迁移就同步改这里，等于每次都要人确认一次"我知道它到了第几版"。
+    assert store.schema_version() == 10
     assert store.init_db() == []  # 第二次不应重复应用
-    assert store.schema_version() == 9
+    assert store.schema_version() == 10
 
 
 def test_save_and_read_guide(db, guide):

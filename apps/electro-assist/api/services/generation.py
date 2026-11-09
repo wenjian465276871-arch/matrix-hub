@@ -246,6 +246,9 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
             completion_tokens=draft.usage.completion_tokens,
             reasoning_tokens=draft.usage.reasoning_tokens,
             cost_micros=draft.cost_micros,
+            # 降级痕迹落库：日志只有运维看得到，作者看页面时也需要知道
+            # "这一步本来有图，是被系统移除的"。
+            repairs=draft.repairs,
         )
         log.info(
             "生成成功 job=%s guide=%s attempts=%d %.1fs ¥%.4f%s",

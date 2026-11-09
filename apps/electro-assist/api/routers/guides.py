@@ -132,7 +132,14 @@ def get_guide(guide_id: str) -> dict:
     if found is None:
         raise HTTPException(status_code=404, detail={"code": "not_found"})
     guide, status, process_id = found
-    return {"status": status, "guide": guide, "process_id": process_id}
+    # 生成期被确定性降级掉的图示（通常为空）。放在信封里而不是塞进 guide：
+    # 它是**生成过程的痕迹**，不是指导书内容，不该随内容一起被复制到新版本。
+    return {
+        "status": status,
+        "guide": guide,
+        "process_id": process_id,
+        "repairs": store.guide_repairs(guide_id),
+    }
 
 
 @router.put("/{guide_id}/assets")

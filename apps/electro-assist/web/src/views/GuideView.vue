@@ -113,6 +113,7 @@ async function load(): Promise<void> {
     guide.value = detail.guide
     guideStatus.value = detail.status
     processId.value = detail.process_id ?? null
+    repairs.value = detail.repairs ?? []
     // 归位面板的初值（哪张图在哪一步、说明写什么）由 AttachPanel 自己从 rows 推导，
     // 这里不再各自算一遍——两处各算一次是上一版的重复。
     // 发布缺口在本地先算一遍：规则与后端 `publish_blockers()` 完全一致
@@ -221,6 +222,8 @@ const publishError = ref('')
 const publishedBanner = ref('')
 const confirmOpen = ref(false)
 const blockers = ref<string[]>([])
+/** 生成期被确定性降级掉的图示说明。空数组 = 正常生成，条子不出现。 */
+const repairs = ref<string[]>([])
 
 /* 口令面板与「发布」分开：修正也要令牌，把它塞进发布面板会让人以为
  * "只有发布才要口令"，点开修正改半天再被 401 拦下。 */
@@ -386,6 +389,15 @@ restoreToken()
     </div>
     <div v-if="guideStatus === 'draft'" class="draft-banner no-print">
       <strong>草稿</strong> · 未发布，仅通过此链接可见
+    </div>
+    <!-- 生成期降级提示：不提示的话，现场只会看到"这一步没有图"，
+         而不知道本来该有、是被系统移除的。打印也带上——纸质稿同样需要这句话。 -->
+    <div v-if="repairs.length" class="degraded-banner" role="status">
+      <strong>本次生成有 {{ repairs.length }} 处图示被移除</strong>
+      <span>系统在校验时发现这些图示不合法，删掉了对应步骤的图示（正文与判据未改）。可点「再生成一份草稿」重试。</span>
+      <ul>
+        <li v-for="item in repairs" :key="item">{{ item }}</li>
+      </ul>
     </div>
     <header class="guide-head">
       <h1 class="guide-title">{{ guide.title }}</h1>
@@ -746,6 +758,28 @@ restoreToken()
   gap: 10px;
   flex-wrap: wrap;
   align-items: center;
+}
+
+.degraded-banner {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid #e8c88a;
+  border-left: 4px solid #d99a2b;
+  border-radius: var(--radius-sm);
+  background: #fdf6e7;
+  color: #6b4c12;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.degraded-banner strong {
+  display: block;
+  color: #8a5b00;
+}
+
+.degraded-banner ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
 }
 
 .revise__blockers {

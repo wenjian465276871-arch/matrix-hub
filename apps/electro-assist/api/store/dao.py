@@ -474,8 +474,14 @@ def finish_job(
     completion_tokens: int = 0,
     reasoning_tokens: int = 0,
     cost_micros: int = 0,
+    repairs: list[str] | None = None,
 ) -> dict[str, Any]:
-    """落终态。耗时由 started_at 推算，不信任调用方传进来的数字。"""
+    """落终态。耗时由 started_at 推算，不信任调用方传进来的数字。
+
+    `repairs` 是生成期被确定性降级掉的痕迹（例如"某步的图示不合法，已去掉"）。
+    存下来是因为它以前只进日志——日志在服务器上，看页面的人永远不知道
+    那一步本来应该有图。
+    """
     now = now_iso()
     with connect() as conn:
         with tx(conn):
@@ -491,7 +497,7 @@ def finish_job(
                 UPDATE jobs SET status = ?, guide_id = COALESCE(?, guide_id),
                        error_code = ?, error_detail = ?, finished_at = ?, duration_ms = ?,
                        prompt_tokens = ?, completion_tokens = ?, reasoning_tokens = ?,
-                       cost_micros = ?
+                       cost_micros = ?, repairs = ?
                 WHERE id = ?
                 """,
                 (
@@ -505,6 +511,7 @@ def finish_job(
                     completion_tokens,
                     reasoning_tokens,
                     cost_micros,
+                    json.dumps(repairs, ensure_ascii=False) if repairs else "",
                     job_id,
                 ),
             )
@@ -514,6 +521,28 @@ def finish_job(
         "finished_at": now,
         "duration_ms": duration_ms,
     }
+
+
+def guide_repairs(guide_id: str) -> list[str]:
+    """这份指导书在生成时被降级掉了什么（空 = 正常生成，或不是生成出来的）。
+
+    走 `guides.job_id → jobs.repairs`：降级发生在生成那一刻，复用它而不是
+    往 Guide 里加字段——加字段要动 schema 版本、要重刷样例，而这是**运行痕迹**，
+    不是内容。
+    """
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT j.repairs FROM guides g JOIN jobs j ON j.id = g.job_id WHERE g.id = ?",
+            (guide_id,),
+        ).fetchone()
+    if row is None or not row["repairs"]:
+        return []
+    try:
+        data = json.loads(row["repairs"])
+    except json.JSONDecodeError:
+        # 存坏了不该让详情页 500：降级说明是提示，不是内容。
+        return []
+    return [str(item) for item in data] if isinstance(data, list) else []
 
 
 def get_job(job_id: str) -> dict[str, Any] | None:

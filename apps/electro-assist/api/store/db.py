@@ -271,6 +271,20 @@ MIGRATIONS: list[tuple[int, list[str]]] = [
             "ALTER TABLE processes ADD COLUMN station TEXT NOT NULL DEFAULT ''",
         ],
     ),
+    (
+        10,
+        [
+            # 生成期的确定性降级要留痕（2026-11-10）。
+            #
+            # `_salvage` 在模型写出非法图示时会**删掉出错那一步的全部图示**，然后
+            # 让指导书照常通过——代价是现场看到"这一步没有图"，却不知道本来该有。
+            # 以前只写日志：日志在服务器上，作者看不到。
+            #
+            # 存 JSON 数组而不是逗号拼接：说明里带中文顿号与分号，拼接后再拆必然错。
+            # 空串 = 没有降级 / 不是生成出来的（seed 样例没有 job_id）。
+            "ALTER TABLE jobs ADD COLUMN repairs TEXT NOT NULL DEFAULT ''",
+        ],
+    ),
 ]
 
 

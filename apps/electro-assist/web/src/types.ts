@@ -160,6 +160,11 @@ export interface GuideDetail {
   guide: Guide
   /** 由哪份工艺生成；样例/历史数据没有来源，为 null */
   process_id: string | null
+  /**
+   * 生成期被确定性降级掉的图示说明（`_salvage` 删过什么）。
+   * 正常生成为空数组；样例与历史数据没有 job，同样为空。
+   */
+  repairs?: string[]
 }
 
 export type JobStatus = 'queued' | 'running' | 'succeeded' | 'failed' | 'timeout'

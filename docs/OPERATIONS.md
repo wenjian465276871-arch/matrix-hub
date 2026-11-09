@@ -37,7 +37,7 @@
 
 | 路径 | 内容 |
 |---|---|
-| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records/diagnose_runs/diagnose_steps/processes，8 张 + 迁移表 v9），WAL 模式 |
+| `/srv/app_data/electro.db` | 业务库（guides/jobs/usage/sessions/records/diagnose_runs/diagnose_steps/processes，8 张 + 迁移表 v10），WAL 模式 |
 | `/srv/app_data/uploads/` | 上传资产，每份一个目录（原图 + 切片 + meta.json） |
 | `/srv/app_data/caddy/` | 证书与 ACME 账户状态 |
 
