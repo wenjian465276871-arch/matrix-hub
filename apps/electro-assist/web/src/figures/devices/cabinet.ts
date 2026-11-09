@@ -20,12 +20,15 @@
  *  在 860px 内容区里只有几个像素。演示要看得清动作，不是量得准。
  */
 import {
+  CatmullRomCurve3,
   Group,
   Mesh,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   Object3D,
   SphereGeometry,
+  TubeGeometry,
+  Vector3,
 } from 'three'
 
 import type { DeviceRig } from './rig'
@@ -65,6 +68,20 @@ function led(radius = 0.013): Mesh {
 function windowPlate(w: number, h: number): Mesh {
   const material = new MeshStandardMaterial({ color: OFF, metalness: 0.05, roughness: 0.35 })
   return roundedBox(w, h, 0.01, material, 0, 0, 0, 0.002)
+}
+
+/**
+ * 一根导线。用 Catmull-Rom 过控制点，导线本来就是软的，会有自然弧垂；
+ * 用直棍折线反而不像。
+ *
+ * 走线的规矩和现场一样：从端子出来 → 进线槽 → 沿槽横走 → 再出槽到目标端子。
+ * 直接两点连线会穿过元件，一眼假。
+ */
+function wire(points: Vector3[], radius: number, material: MeshStandardMaterial): Mesh {
+  const curve = new CatmullRomCurve3(points, false, 'catmullrom', 0.35)
+  const mesh = new Mesh(new TubeGeometry(curve, 40, radius, 8, false), material)
+  mesh.castShadow = true
+  return mesh
 }
 
 interface BreakerRig {
@@ -257,6 +274,87 @@ export function buildCabinet(): DeviceRig {
   }
   parts.terminals = terminals
   root.add(terminals)
+
+
+  /* ------------------------------------------------------------ 导线 */
+  /* 配电柜最有「电气味」的东西是线。没有线，一排元件只是零件展柜。
+     走法照现场：端子出来 → 下到走线高度 → 横走 → 再上去进目标端子。
+     三相按 GB 相色：A 黄、B 绿、C 红，饱和度压一档免得花。 */
+  const phaseColors = [0xb8992a, 0x2a7d58, 0xa83c33]
+  const wireGroup = new Group()
+
+  // 3P 断路器下端子（世界坐标）= group 位置 + (极偏移, -height*0.44, -0.016)
+  const poleX = [-0.082, 0, 0.082]
+  // 接触器上端子三个位置
+  const landingX = [0.28, 0.32, 0.36]
+
+  poleX.forEach((dx, i) => {
+    const x0 = -0.26 + dx
+    const y0 = 0.462
+    const x1 = landingX[i]
+    const dropY = 0.37 - i * 0.022
+    const material = new MeshStandardMaterial({
+      color: phaseColors[i],
+      metalness: 0.05,
+      roughness: 0.62,
+    })
+    wireGroup.add(
+      wire(
+        [
+          new Vector3(x0, y0, 0.054),
+          new Vector3(x0, y0 - 0.035, 0.05),
+          new Vector3(x0, dropY, 0.05),
+          new Vector3((x0 + x1) / 2, dropY - 0.012, 0.055),
+          new Vector3(x1 - 0.03, dropY, 0.07),
+          new Vector3(x1, 0.5, 0.1),
+          new Vector3(x1, 0.605, 0.108),
+        ],
+        0.007,
+        material,
+      ),
+    )
+  })
+
+  // 控制回路：单极断路器 → 中间继电器。细、深色，不与主回路抢眼
+  const controlMat = new MeshStandardMaterial({ color: 0x3a4a5c, metalness: 0.05, roughness: 0.66 })
+  const controlRuns: [number, number][] = [
+    [-0.085, -0.3],
+    [0.01, -0.15],
+  ]
+  for (const [fromX, toX] of controlRuns) {
+    wireGroup.add(
+      wire(
+        [
+          new Vector3(fromX, 0.462, 0.054),
+          new Vector3(fromX, 0.42, 0.05),
+          new Vector3(fromX, 0.39, 0.045),
+          new Vector3(toX + 0.04, 0.36, 0.045),
+          new Vector3(toX, 0.31, 0.05),
+          new Vector3(toX, 0.24, 0.062),
+        ],
+        0.0036,
+        controlMat,
+      ),
+    )
+  }
+
+  // 接地：黄绿，从背板下沿拉到端子排
+  wireGroup.add(
+    wire(
+      [
+        // 起端压在背板左下角：接地线不会凭空出现在半空
+        new Vector3(-0.42, 0.03, 0.022),
+        new Vector3(-0.4, 0.075, 0.045),
+        new Vector3(-0.34, 0.062, 0.055),
+        new Vector3(-0.3, 0.065, 0.062),
+      ],
+      0.005,
+      new MeshStandardMaterial({ color: 0x7f9c2a, metalness: 0.05, roughness: 0.6 }),
+    ),
+  )
+
+  parts.wires = wireGroup
+  root.add(wireGroup)
 
   /* ------------------------------------------------------------ 动作 */
   const setT = (t: number): void => {
