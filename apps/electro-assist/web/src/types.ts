@@ -53,6 +53,7 @@ export type Primitive =
   | 'gate_state'
   | 'table'
   | 'annotation'
+  | 'device_scene'
 
 export type Scalar = string | number | boolean
 
