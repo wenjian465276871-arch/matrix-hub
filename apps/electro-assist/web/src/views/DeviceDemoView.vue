@@ -48,8 +48,13 @@ const SCENES: Record<SceneKey, SceneDef> = {
     step: '3 / 8',
     action: '按下开门按钮，观察双扇门动作',
     tools: '秒表、万用表',
-    criteria: ['门扇开启时间 2.5 ± 0.5 s', '全部开启后锁定信号为「有」', '全程无卡滞、无异响'],
-    hint: '三维动作、参数读数、验收判据共用同一条时间轴——这是电气调试与装配工艺的区别：装配看形状，调试看动作与量的时序耦合。',
+    criteria: [
+      '锁闭信号丢失后才允许动门（锁舌缩回是前置条件）',
+      '门扇开启时间 2.5 ± 0.5 s，全程无卡滞、无异响',
+      '塞拉外移 55 ± 3 mm，单扇行程 660 ± 5 mm',
+      '中缝间隙 ≤ 2 mm，锁钩跨缝咬合到位',
+    ],
+    hint: '前 2% 是解锁段：锁舌没缩回、锁闭信号还在，门一点都不能动——这是门控回路的硬联锁，不是流程建议。此后先退出密封面再滑移，中途锁闭信号必须一直是「无」，否则按锁闭回路故障排查。三维动作、参数读数、验收判据共用同一条时间轴：装配看形状，调试看动作与量的时序耦合。',
     parts: [
       { key: 'leaf_l', label: '左门扇' },
       { key: 'leaf_r', label: '右门扇' },
@@ -132,31 +137,37 @@ const percent = computed(() => Math.round(t.value * 100))
 const DOOR_STROKE = 660
 
 const doorReads = computed<Readout[]>(() => {
-  const stroke = Math.round(span(0.16, 0.86) * DOOR_STROKE)
-  const popped = Math.round(span(0, 0.16) * 55)
-  const locked = t.value >= 0.88
+  // 时序与 door.ts 的 setT 同源：0.02 解锁、0.08 外移、0.20 滑移、0.88 到位
+  const stroke = Math.round(span(0.2, 0.88) * DOOR_STROKE)
+  const popped = Math.round(span(0.08, 0.2) * 55)
+  // 锁闭只在解锁之前成立；门一动，锁闭信号就没了
+  const locked = t.value < 0.02
   let current = 0.18
-  if (t.value >= 0.16 && t.value < 0.86) {
-    current = 1.05 + 2.3 * Math.exp(-3.4 * span(0.16, 0.86))
-  } else if (t.value >= 0.86) {
+  if (t.value >= 0.2 && t.value < 0.88) {
+    current = 1.05 + 2.3 * Math.exp(-3.4 * span(0.2, 0.88))
+  } else if (t.value >= 0.88) {
     current = 0.12
   }
   const phase =
-    t.value < 0.03
+    t.value < 0.02
       ? '关闭锁定'
-      : t.value < 0.16
-        ? '解锁外移'
-        : t.value < 0.86
-          ? '门扇开启'
+      : t.value < 0.08
+        ? '门锁解锁'
+        : t.value < 0.2
+          ? '退出密封面'
           : t.value < 0.88
-            ? '到位检测'
-            : '完全开启'
+            ? '门扇开启'
+            : t.value < 0.92
+              ? '到位检测'
+              : '完全开启'
   return [
     { label: '动作阶段', value: phase },
-    { label: '单扇行程', value: String(stroke), unit: 'mm' },
+    // 「门锁」是机械状态，「锁闭信号」是电气状态。现场要先看信号再动车
+    { label: '门锁', value: locked ? '锁闭' : '已解锁', dot: locked ? 'ok' : 'idle' },
+    { label: '锁闭信号', value: locked ? '有' : '无', dot: locked ? 'ok' : 'warn' },
     { label: '塞拉外移', value: String(popped), unit: 'mm' },
+    { label: '单扇行程', value: String(stroke), unit: 'mm' },
     { label: '电机电流', value: current.toFixed(2), unit: 'A' },
-    { label: '锁定信号', value: locked ? '有' : '无', dot: locked ? 'ok' : 'idle' },
   ]
 })
 
