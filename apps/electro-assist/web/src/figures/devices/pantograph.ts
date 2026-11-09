@@ -210,7 +210,7 @@ export function buildPantograph(): DeviceRig {
     const hex = ok ? LAMP_OK : LAMP_LOW
     bulb.color.setHex(hex)
     bulb.emissive.setHex(hex)
-    bulb.emissiveIntensity = ok ? 1.4 : 0.05
+    bulb.emissiveIntensity = ok ? 0.95 : 0.05
   }
 
   const phase = (t: number): string => {
