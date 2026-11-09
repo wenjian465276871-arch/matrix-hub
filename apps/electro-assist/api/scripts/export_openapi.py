@@ -32,7 +32,8 @@ CURATED = {
         "/ `retention`（保留期清理状态）/ `rollback`（上次自动回滚结局，2026-11-08 加）"
     ),
     "GET /api/electro/schema/guide": "取 Guide 的 JSON Schema（schema_version 1.2）",
-    "GET /api/electro/schema/visual": "取视觉原语清单与动效槽位（13 种原语 + motion）",
+    "GET /api/electro/schema/visual":
+        "取视觉原语清单、动效槽位与三维设备目录（13 种原语 + motion + devices：部件释义 / 可指名瞬间 / 工位）",
     "POST /api/electro/schema/validate": "校验一份 Guide，返回错误列表",
     "POST /api/electro/schema/validate-visual": "只校验视觉 DSL 片段",
     "POST /api/electro/uploads": "上传工艺截图（≤5MB，限流 6/时·20/日）",

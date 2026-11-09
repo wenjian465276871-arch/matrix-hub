@@ -45,7 +45,7 @@
 | `GET` | `/api/electro/schema/guide` | 取 Guide 的 JSON Schema（schema_version 1.2） | `—` | `200 · object` |
 | `POST` | `/api/electro/schema/validate` | 校验一份 Guide，返回错误列表 | `object` | `200 · object` |
 | `POST` | `/api/electro/schema/validate-visual` | 只校验视觉 DSL 片段 | `object` | `200 · object` |
-| `GET` | `/api/electro/schema/visual` | 取视觉原语清单与动效槽位（13 种原语 + motion） | `—` | `200 · object` |
+| `GET` | `/api/electro/schema/visual` | 取视觉原语清单、动效槽位与三维设备目录（13 种原语 + motion + devices：部件释义 / 可指名瞬间 / 工位） | `—` | `200 · object` |
 | `POST` | `/api/electro/sessions` | 开始一次作业会话（绑定 guide，设备/位置选填） | `StartIn` | `201 · object` |
 | `GET` | `/api/electro/sessions/{session_id}` | 取会话状态：当前步号、指导书、已提交记录 | `—` | `200 · object` |
 | `POST` | `/api/electro/sessions/{session_id}/finish` | 结束会话（done 需全部通过 / aborted 可随时） | `FinishIn` | `200 · object` |
@@ -114,7 +114,7 @@
 - `GET /api/electro/schema/guide` — 取 Guide 的 JSON Schema（schema_version 1.2）
 - `POST /api/electro/schema/validate` — 校验一份 Guide，返回错误列表
 - `POST /api/electro/schema/validate-visual` — 只校验视觉 DSL 片段
-- `GET /api/electro/schema/visual` — 取视觉原语清单与动效槽位（13 种原语 + motion）
+- `GET /api/electro/schema/visual` — 取视觉原语清单、动效槽位与三维设备目录（13 种原语 + motion + devices：部件释义 / 可指名瞬间 / 工位）
 
 ### sessions
 

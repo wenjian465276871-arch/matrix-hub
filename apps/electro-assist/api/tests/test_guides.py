@@ -377,6 +377,35 @@ def test_device_scene_rejects_cross_system_subject():
         Guide(**guide)
 
 
+def test_device_scene_rejects_unknown_moment():
+    """t 必须是设备表里的瞬间，且在建模型时就拒，不等发布。
+
+    0–1 之间任何一个数都画得出一张好看的图，但画的是**别的工步**——
+    图、读数、判据全对，只有"这是哪一步"错了，页面上没有任何东西能暴露它。
+    """
+    from models.guide import Guide
+
+    guide = _add_device_scene(_sample_dict("door_switch_formal.json"), "door", 0.72)
+    with pytest.raises(ValueError, match="只能取设备表里的瞬间"):
+        Guide(**guide)
+
+
+def test_device_scene_snaps_t_to_nearest_moment():
+    """容差内的 t 落库前吸附到表内值：0.56 与 0.55 是同一帧。"""
+    from models.guide import Guide
+
+    guide = _add_device_scene(_sample_dict("door_switch_formal.json"), "door", 0.56)
+    parsed = Guide(**guide)
+    ts = [
+        fig.params["t"]
+        for step in parsed.steps
+        for fig in step.figures
+        if fig.primitive.value == "device_scene" and fig.params.get("subject") == "door"
+    ]
+    assert ts, "样例里应当至少有一张车门三维图"
+    assert all(t == 0.55 for t in ts), f"t 未吸附到表内值：{ts}"
+
+
 def test_device_scene_count_is_capped():
     """每份最多 2 张：三维图是重资源，每步都配会让现场页面又慢又花。"""
     from models.guide import Guide

@@ -38,7 +38,8 @@ const part = computed(() => {
   return typeof raw === 'string' ? raw : ''
 })
 
-/** 默认 0.6：停在动作中段，比 0（初始）或 1（终态）更能表达「这设备会动」。 */
+/** 默认 0.6 只在 `t` 缺失时兜底（服务端已把 `t` 列为必填，正常数据不会走到这里）：
+ *  停在动作中段，比 0（初始）或 1（终态）更能表达「这设备会动」。 */
 const initial = computed(() => {
   const raw = props.params.t
   const value = typeof raw === 'number' ? raw : Number(raw)

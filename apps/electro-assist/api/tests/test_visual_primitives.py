@@ -13,8 +13,10 @@ from llm.prompts import system_prompt
 from main import app
 from models.visual import (
     DEVICE_MOMENTS,
+    DEVICE_PART_LABELS,
     DEVICE_SUBJECTS,
     DEVICE_SYSTEMS,
+    DEVICE_T_TOLERANCE,
     MAX_DEVICE_SCENES,
     MAX_MOTION_TRACKS,
     MotionAnim,
@@ -257,11 +259,81 @@ def test_device_moments_are_ordered_and_bounded():
         assert len(moments) >= 3, f"{subject} 至少要有 3 个可指名瞬间才有得选"
 
 
+def test_device_moment_windows_do_not_overlap():
+    """相邻瞬间的间距必须大于两倍容差，否则「吸附到最近值」有两个等价的答案。
+
+    例：0.50 与 0.52 相邻、容差 0.02 时，模型给 0.51 吸附到哪个都说得通——
+    同一份指导书两次生成可能落在不同帧，`t` 就不再是"可复现"的。
+    """
+    for subject, moments in DEVICE_MOMENTS.items():
+        ts = [t for t, _, _ in moments]
+        for earlier, later in zip(ts, ts[1:]):
+            assert later - earlier > 2 * DEVICE_T_TOLERANCE, (
+                f"{subject} 的 {earlier} 与 {later} 间距小于容差窗口，吸附会有歧义"
+            )
+
+
 def test_every_device_has_parts_systems_and_moments():
     """三个来源必须一一对齐：漏一个，catalog 生成时就会 KeyError。"""
     assert set(DEVICE_SUBJECTS) == set(DEVICE_MOMENTS) == set(DEVICE_SYSTEMS)
     for subject, systems in DEVICE_SYSTEMS.items():
         assert systems, f"{subject} 没有归属工位，等于永不可用"
+
+
+def test_every_part_has_a_chinese_label():
+    """每个可高亮部件都要有释义。
+
+    只给键不给释义，`drive` / `drive2` 在模型眼里就是两个没有语义的缩写；
+    猜错会高亮到别的件上，而高亮本身"看着合理"，没人能从结果反推它理解错了。
+    """
+    for subject, parts in DEVICE_SUBJECTS.items():
+        labels = DEVICE_PART_LABELS[subject]
+        assert set(labels) == set(parts), f"{subject} 的部件与释义键不一致"
+        for key, label in labels.items():
+            assert label and len(label) <= 40, f"{subject}.{key} 的释义为空或过长"
+            assert any("\u4e00" <= ch <= "\u9fff" for ch in label), (
+                f"{subject}.{key} 的释义没有中文，等于没解释"
+            )
+
+
+def test_device_scene_t_must_be_a_known_moment():
+    """t 只认设备表里的瞬间。
+
+    0–1 之间任何一个数都能画出一张好看的图，但画的是**别的工步**——
+    图、读数、判据全对，只有"这是哪一步"错了，页面上没有任何东西能暴露它。
+    """
+    with pytest.raises(ValueError, match="只能取设备表里的瞬间"):
+        spec("device_scene", {"subject": "door", "t": 0.72}).validate_against_primitive()
+
+
+def test_device_scene_t_snaps_within_tolerance():
+    """容差内吸附到表内值：差 1% 看不出来，但同一瞬间不该落在不同帧。"""
+    visual = spec("device_scene", {"subject": "door", "t": 0.56})
+    visual.validate_against_primitive()
+    assert visual.params["t"] == 0.55
+
+
+def test_device_scene_accepts_string_t():
+    """模型经常把数字写成字符串；`"0.72"` 应当按数值处理并吸附。"""
+    visual = spec("device_scene", {"subject": "pantograph", "t": "0.72"})
+    visual.validate_against_primitive()
+    assert visual.params["t"] == 0.72
+
+
+def test_device_scene_requires_t():
+    """省略 t 等于让前端随便挑一帧，和编一个 t 是同一件事，所以必须拒。"""
+    with pytest.raises(ValueError, match="缺少必填参数"):
+        spec("device_scene", {"subject": "door"}).validate_against_primitive()
+
+
+def test_device_scene_part_error_lists_labels():
+    """part 选错时的报错必须带释义：`drive2` 这种键，只说"不在列表里"模型改不动。"""
+    visual = spec("device_scene", {"subject": "pantograph", "t": 0.72, "part": "drive3"})
+    with pytest.raises(ValueError) as err:
+        visual.validate_against_primitive()
+    message = str(err.value)
+    assert "drive=气路控制箱" in message
+    assert "升弓气囊与降弓阻尼器" in message
 
 
 def test_schema_visual_publishes_device_catalog():
@@ -271,6 +343,7 @@ def test_schema_visual_publishes_device_catalog():
     assert set(devices) == set(DEVICE_SUBJECTS)
     for subject, info in devices.items():
         assert info["parts"] == list(DEVICE_SUBJECTS[subject])
+        assert info["part_labels"] == DEVICE_PART_LABELS[subject]
         assert info["systems"] == sorted(DEVICE_SYSTEMS[subject])
         assert [m["t"] for m in info["moments"]] == [t for t, _, _ in DEVICE_MOMENTS[subject]]
 
@@ -293,7 +366,14 @@ def test_prompt_states_device_scene_cap():
 
 
 def test_device_catalog_matches_prompt_parts():
-    """catalog 里的 part 必须同时出现在 prompt 那一行里，否则模型看不到可选值。"""
+    """catalog 里的每个 part 及其释义都必须出现在 prompt 那一行里。
+
+    只对键做断言会漏掉释义：键进了 prompt、释义没进，模型看到的仍然是缩写，
+    这一条改动的价值就归零了。
+    """
     prompt = system_prompt()
     for subject, info in device_catalog().items():
-        assert " / ".join(info["parts"]) in prompt, f"{subject} 的 part 列表未进 prompt"
+        for key in info["parts"]:
+            assert f"{key}={info['part_labels'][key]}" in prompt, (
+                f"{subject}.{key} 的键或释义未进 prompt"
+            )
