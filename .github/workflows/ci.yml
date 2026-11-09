@@ -57,6 +57,13 @@ jobs:
           grep -v '^[[:space:]]*#' "$RUNNER_TEMP/requirements.lock" > "$RUNNER_TEMP/fresh.txt"
           diff -u "$RUNNER_TEMP/committed.txt" "$RUNNER_TEMP/fresh.txt"
 
+      # 前后端共享枚举（设备部件键）由后端生成、前端测试读取。
+      # 2026-11-10 评审 P2-1：此前两边各抄一份，给后端加部件键前端用例照样绿，
+      # `pantograph.lamp` 就是这样漏的（模型选了却不高亮，且不报错）。
+      - name: 前后端设备契约一致
+        working-directory: apps/electro-assist/api
+        run: python scripts/export_contract.py --check
+
       # 供应链门禁③：npm 锁文件不许指向国内镜像。
       # 2026-11-09 踩过：本地 `.npmrc` 指向 npmmirror，装 three 时把 8 条 `resolved`
       # 写成了 registry.npmmirror.com；GitHub runner 在海外，第一次侥幸拉到，

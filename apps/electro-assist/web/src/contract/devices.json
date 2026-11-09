@@ -1,0 +1,156 @@
+{
+  "_comment": "由 apps/electro-assist/api/scripts/export_contract.py 生成，不要手改。",
+  "_source": "apps/electro-assist/api/models/visual.py",
+  "devices": {
+    "cabinet": {
+      "moments": [
+        {
+          "key": "off",
+          "label": "未上电",
+          "t": 0.0
+        },
+        {
+          "key": "closing",
+          "label": "主断路器合闸",
+          "t": 0.07
+        },
+        {
+          "key": "pulled",
+          "label": "接触器吸合",
+          "t": 0.5
+        },
+        {
+          "key": "ready",
+          "label": "系统就绪",
+          "t": 0.75
+        },
+        {
+          "key": "tripped",
+          "label": "过载脱扣（手柄停在中间位）",
+          "t": 0.82
+        },
+        {
+          "key": "restored",
+          "label": "复位后重新合闸",
+          "t": 1.0
+        }
+      ],
+      "part_labels": {
+        "board": "柜内安装背板",
+        "breakers": "断路器（三极主断 + 两个单极，含灭弧室与脱扣机构）",
+        "contactor": "接触器（衔铁与主触点）",
+        "lamps": "指示灯（电源、运行、告警）",
+        "relays": "继电器组（三只，带状态灯）",
+        "terminals": "端子排（10 位）"
+      },
+      "parts": [
+        "breakers",
+        "contactor",
+        "relays",
+        "lamps",
+        "terminals",
+        "board"
+      ],
+      "systems": [
+        "door"
+      ]
+    },
+    "door": {
+      "moments": [
+        {
+          "key": "closed",
+          "label": "关闭锁定",
+          "t": 0.0
+        },
+        {
+          "key": "unlocking",
+          "label": "门锁解锁、锁舌缩回",
+          "t": 0.05
+        },
+        {
+          "key": "popping",
+          "label": "退出密封面",
+          "t": 0.14
+        },
+        {
+          "key": "opening",
+          "label": "门扇滑移中段",
+          "t": 0.55
+        },
+        {
+          "key": "open",
+          "label": "完全开启",
+          "t": 0.95
+        }
+      ],
+      "part_labels": {
+        "frame": "门框与门楣设备舱（门槛压条、密封面）",
+        "lamp": "门状态指示灯（门机罩前脸）",
+        "leaf_l": "左门扇（含门锁与携门架）",
+        "leaf_r": "右门扇（含门锁与携门架）"
+      },
+      "parts": [
+        "leaf_l",
+        "leaf_r",
+        "frame",
+        "lamp"
+      ],
+      "systems": [
+        "door"
+      ]
+    },
+    "pantograph": {
+      "moments": [
+        {
+          "key": "lowered",
+          "label": "落弓锁定",
+          "t": 0.0
+        },
+        {
+          "key": "pressurising",
+          "label": "气路建压",
+          "t": 0.08
+        },
+        {
+          "key": "raising",
+          "label": "升弓中段",
+          "t": 0.33
+        },
+        {
+          "key": "contacting",
+          "label": "接触压力建立",
+          "t": 0.61
+        },
+        {
+          "key": "raised",
+          "label": "升弓到位、保压",
+          "t": 0.72
+        },
+        {
+          "key": "lowering",
+          "label": "降弓中（阻尼限速）",
+          "t": 0.88
+        }
+      ],
+      "part_labels": {
+        "arms": "桁架臂（双下臂 + 上臂 + 平衡杆）",
+        "drive": "气路控制箱（压力表、总风管、软管）",
+        "drive2": "升弓气囊与降弓阻尼器（出力与限速两支不同的缸）",
+        "frame": "底架与绝缘子、车顶板",
+        "head": "弓头（碳滑板、弓角、悬挂弹簧）",
+        "lamp": "到位指示灯"
+      },
+      "parts": [
+        "arms",
+        "head",
+        "frame",
+        "drive",
+        "drive2",
+        "lamp"
+      ],
+      "systems": [
+        "pantograph"
+      ]
+    }
+  }
+}

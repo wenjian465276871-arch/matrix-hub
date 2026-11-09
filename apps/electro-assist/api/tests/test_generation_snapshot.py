@@ -131,9 +131,11 @@ def test_wrong_moment_is_dropped_not_misrendered():
     （会被吸附成 0.61）。第一版就是拿 0.6 当反例，测出来"没有降级"，白跑一轮——
     容差吸附把"看起来错"的值先兜住了，反例必须落在表外。
 
-    只改**第一张**三维图：`_salvage` 是一步一步试的，它只能丢掉"出问题的那一步"
-    的全部图示。两份都改就会一路试到底、最后交给模型重试——那是另一条路径，
-    由 `test_llm_runner.py` 的校验失败用例负责，这里不重复。
+    只改**第一张**三维图：两份都改会一路试到底、最后交给模型重试——那是另一条
+    路径，由 `test_llm_runner.py` 的校验失败用例负责，这里不重复。
+
+    2026-11-10 评审 P2-3 之后，`_salvage` 只丢**出错的那一张**，不再丢掉整步的图示。
+    所以这里除了断言坏图消失，还要断言同一步里那张仪表还在——否则"收窄"就等于没做。
     """
     bad_t = 0.5
     moments = [t for t, _, _ in DEVICE_MOMENTS["pantograph"]]
@@ -158,8 +160,15 @@ def test_wrong_moment_is_dropped_not_misrendered():
 
     assert provider.calls == 1, "降级能救回来的不该再花一次调用"
     assert draft.repairs, "表外的 t 必须留下降级记录"
-    assert _scenes(draft.guide) == scenes[1:], "只有出问题那一步的图被丢，其余不动"
+    assert "device_scene" in draft.repairs[0], f"降级说明没点明是哪张图：{draft.repairs}"
+    assert _scenes(draft.guide) == scenes[1:], "只该丢掉被改坏的那一张三维图"
     assert len(draft.guide.steps) == base["expect"]["steps"]
+
+    # 关键：同一步里的其它图示必须活下来（P2-3 的整个意义）。
+    touched_step = next(step for step in draft.guide.steps if step.seq == target["seq"])
+    survivors = [fig.primitive.value for fig in touched_step.figures]
+    assert "meter" in survivors, f"整步图示被一起丢掉了：{survivors}"
+
     # 正文与判据是这份指导书的实体，丢图不能连它们一起丢。
     assert all(step.action and step.criteria for step in draft.guide.steps)
 

@@ -238,7 +238,7 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
         )
 
         _record_usage(job_id, draft.model, draft.usage, draft.cost_micros)
-        store.finish_job(
+        finished = store.finish_job(
             job_id,
             "succeeded",
             guide_id=saved["id"],
@@ -250,6 +250,15 @@ def run(job_id: str, text: str, provider_factory=get_provider) -> None:
             # "这一步本来有图，是被系统移除的"。
             repairs=draft.repairs,
         )
+        if finished.get("status_preserved"):
+            # 这个任务在跑的过程中被 sweeper 收敛成 timeout 了（通常是重启）。
+            # 结果照样保存、token 照样记账，但不把状态改回 succeeded——
+            # 用户已经看到"超时"，结论不该来回跳（评审 P2-4）。
+            log.warning(
+                "任务 %s 终态已被收敛为 %s，本次结果只补记账不复活终态",
+                job_id,
+                finished["status"],
+            )
         log.info(
             "生成成功 job=%s guide=%s attempts=%d %.1fs ¥%.4f%s",
             job_id,

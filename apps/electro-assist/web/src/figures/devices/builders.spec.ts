@@ -27,38 +27,33 @@ import { buildCabinet } from './cabinet'
 import { buildDoor } from './door'
 import { buildPantograph } from './pantograph'
 import { createSection } from './section'
+// 契约文件由后端生成（`api/scripts/export_contract.py`），**不要手改**。
+// 这份 import 就是这条用例的全部意义：部件清单来自后端，而不是在这里再抄一遍。
+// 2026-11-10 评审 P2-1：上一版是硬编码数组，给后端加一个部件键它照样全绿。
+import CONTRACT from '../../contract/devices.json'
 
-/**
- * 与后端 `DEVICE_SUBJECTS` / `DEVICE_MOMENTS` 一一对应。
- *
- * 这份表是**故意重复**的：TS 侧拿不到 Python 的枚举，而"两边对不上"正是最容易
- * 悄悄发生的错误。后端改了表却忘了改前端，这条会红，比在页面上发现"点了没反应"早得多。
- */
-const DEVICES: Array<{
-  name: string
-  build: () => DeviceRig
+const BUILDERS: Record<string, () => DeviceRig> = {
+  door: buildDoor,
+  pantograph: buildPantograph,
+  cabinet: buildCabinet,
+}
+
+type ContractDevice = {
   parts: string[]
-  moments: number[]
-}> = [
-  {
-    name: 'door',
-    build: buildDoor,
-    parts: ['leaf_l', 'leaf_r', 'frame', 'lamp'],
-    moments: [0.0, 0.05, 0.14, 0.55, 0.95],
-  },
-  {
-    name: 'pantograph',
-    build: buildPantograph,
-    parts: ['arms', 'head', 'frame', 'drive', 'drive2', 'lamp'],
-    moments: [0.0, 0.08, 0.33, 0.61, 0.72, 0.88],
-  },
-  {
-    name: 'cabinet',
-    build: buildCabinet,
-    parts: ['breakers', 'contactor', 'relays', 'lamps', 'terminals', 'board'],
-    moments: [0.0, 0.07, 0.5, 0.75, 0.82, 1.0],
-  },
-]
+  part_labels: Record<string, string>
+  moments: Array<{ t: number; key: string; label: string }>
+  systems: string[]
+}
+
+const CONTRACT_DEVICES = CONTRACT.devices as unknown as Record<string, ContractDevice>
+
+const DEVICES = Object.entries(CONTRACT_DEVICES).map(([name, info]) => ({
+  name,
+  build: BUILDERS[name],
+  parts: info.parts,
+  // `t` 用后端表里的值：那正是模型能选的瞬间，也是最该保证推得动的几个点。
+  moments: info.moments.map((m) => m.t),
+}))
 
 /** 遍历整棵树找 NaN。three 里 NaN 不抛错，只会让几何体凭空消失。 */
 function assertNoNaN(rig: DeviceRig, label: string): void {
@@ -77,7 +72,25 @@ function assertNoNaN(rig: DeviceRig, label: string): void {
   expect(checked).toBeGreaterThan(10)
 }
 
-describe.each(DEVICES)('$name 设备', ({ name, build, parts, moments }) => {
+describe('契约覆盖', () => {
+  it('后端每台设备前端都有实现', () => {
+    // 后端加了第四台设备而前端没写 build，这条会红——比在页面上发现"切过去是空白"早得多。
+    for (const name of Object.keys(CONTRACT_DEVICES)) {
+      expect(BUILDERS[name], `缺少 ${name} 的构建函数`).toBeTypeOf('function')
+    }
+  })
+
+  it('后端每个部件键都有中文释义', () => {
+    // 释义是给模型看的（`drive2` 这种键只给缩写等于让它猜），缺一条等于那个键失去语义。
+    for (const [name, info] of Object.entries(CONTRACT_DEVICES)) {
+      for (const part of info.parts) {
+        expect(info.part_labels[part], `${name}.${part} 缺释义`).toBeTruthy()
+      }
+    }
+  })
+})
+
+describe.each(DEVICES)('$name 设备' , ({ name, build, parts, moments }) => {
   it('能构建出非空场景', () => {
     const rig = build()
     expect(rig.root.children.length).toBeGreaterThan(0)

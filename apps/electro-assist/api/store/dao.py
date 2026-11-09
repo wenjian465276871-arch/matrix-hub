@@ -478,9 +478,19 @@ def finish_job(
 ) -> dict[str, Any]:
     """落终态。耗时由 started_at 推算，不信任调用方传进来的数字。
 
-    `repairs` 是生成期被确定性降级掉的痕迹（例如"某步的图示不合法，已去掉"）。
-    存下来是因为它以前只进日志——日志在服务器上，看页面的人永远不知道
-    那一步本来应该有图。
+    ## 终态不复活（2026-11-10 评审 P2-4）
+
+    条件更新：只有 `queued` / `running` 的任务才改状态。否则会出现这种序列——
+    服务重启，`sweep_stale_jobs` 把还在跑的任务收敛成 `timeout`，用户已经看到
+    "超时请重试"；随后那个其实没死的 worker 回来，把状态改回 `succeeded`。
+    用户看到的结论来回跳，而 `succeeded` 还会被算进"成功"指标。
+
+    **但账不能丢**：晚到的 worker 确实花了 token。所以命中终态时走第二条更新，
+    只补记账字段（token / 成本 / 降级说明），状态、错误码、耗时一律保持原样。
+    返回里的 `status_preserved` 就是给调用方记日志用的。
+
+    `repairs` 是生成期被确定性降级掉的痕迹。存量非空时不覆盖——先落的那份才是
+    真正产出这份指导书的那次生成。
     """
     now = now_iso()
     with connect() as conn:
@@ -488,17 +498,19 @@ def finish_job(
             row = conn.execute("SELECT started_at FROM jobs WHERE id = ?", (job_id,)).fetchone()
             if row is None:
                 raise KeyError(f"job 不存在: {job_id}")
+
             duration_ms = None
             if row["started_at"]:
                 started = datetime.fromisoformat(row["started_at"])
                 duration_ms = int((datetime.fromisoformat(now) - started).total_seconds() * 1000)
-            conn.execute(
+
+            cur = conn.execute(
                 """
                 UPDATE jobs SET status = ?, guide_id = COALESCE(?, guide_id),
                        error_code = ?, error_detail = ?, finished_at = ?, duration_ms = ?,
                        prompt_tokens = ?, completion_tokens = ?, reasoning_tokens = ?,
                        cost_micros = ?, repairs = ?
-                WHERE id = ?
+                WHERE id = ? AND status IN ('queued', 'running')
                 """,
                 (
                     status,
@@ -515,11 +527,38 @@ def finish_job(
                     job_id,
                 ),
             )
+            preserved = cur.rowcount == 0
+            if preserved:
+                # 终态已由别人写下：只补账，不改结论。
+                conn.execute(
+                    """
+                    UPDATE jobs SET guide_id = COALESCE(?, guide_id),
+                           prompt_tokens = ?, completion_tokens = ?, reasoning_tokens = ?,
+                           cost_micros = ?,
+                           repairs = CASE WHEN repairs = '' THEN ? ELSE repairs END
+                    WHERE id = ?
+                    """,
+                    (
+                        guide_id,
+                        prompt_tokens,
+                        completion_tokens,
+                        reasoning_tokens,
+                        cost_micros,
+                        json.dumps(repairs, ensure_ascii=False) if repairs else "",
+                        job_id,
+                    ),
+                )
+
+            final = conn.execute(
+                "SELECT status, finished_at, duration_ms FROM jobs WHERE id = ?", (job_id,)
+            ).fetchone()
+
     return {
         "id": job_id,
-        "status": status,
-        "finished_at": now,
-        "duration_ms": duration_ms,
+        "status": final["status"],
+        "finished_at": final["finished_at"] or now,
+        "duration_ms": final["duration_ms"],
+        "status_preserved": preserved,
     }
 
 

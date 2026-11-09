@@ -190,19 +190,27 @@ def _salvage(payload: dict) -> tuple[Guide | None, list[str]]:
         except ValidationError:
             pass
 
-    # 第 3 档：逐步丢图——只丢出错那一步，别让一处坏图带走七张好图
+    # 第 3 档：逐张丢图——只丢确实不合法的那一张。
+    #
+    # 2026-11-10 评审 P2-3：上一版是"丢掉出错那一步的全部图示"。代价太大——
+    # 一张 `t` 写错的三维图，会把同一步的仪表读数、状态灯、时序图一起带走，
+    # 而那几张往往才是这一步真正的信息量。现在改成逐个试探：删一张、验一次，
+    # 过不了就放回去换下一张。图示总数 ≤20，多验几次是 CPU 上的零头。
     for step in _steps(payload):
         figures = step.get("figures")
-        if not figures:
+        if not isinstance(figures, list) or not figures:
             continue
-        step["figures"] = []
-        try:
-            guide = Guide.model_validate(payload)
-        except ValidationError:
-            step["figures"] = figures  # 不是这步的问题，放回去再试下一步
-            continue
-        notes.append(f"{step.get('id')} 的图示不合法，已去掉")
-        return guide, notes
+        for index in range(len(figures)):
+            removed = figures[index]
+            del figures[index]
+            try:
+                guide = Guide.model_validate(payload)
+            except ValidationError:
+                figures.insert(index, removed)  # 不是这张的问题，放回原位再试下一张
+                continue
+            name = removed.get("primitive") if isinstance(removed, dict) else "图示"
+            notes.append(f"{step.get('id')} 的 {name} 不合法，已去掉")
+            return guide, notes
 
     return None, notes
 

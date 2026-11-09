@@ -291,10 +291,16 @@ def test_bad_motion_is_degraded_without_retry():
 
 
 def test_broken_figure_falls_back_to_text_only():
-    """图示本身不合法 → 去掉图示，正文与判据一字不动。"""
+    """图示本身不合法 → **只去掉那一张**，同一步的其它图示与正文都保住。
+
+    2026-11-10 评审 P2-3：上一版丢掉的是"出错那一步的全部图示"，一张坏图会连
+    同一步的仪表、状态灯一起带走。现在逐张试探，所以这里特意在坏图后面放一张
+    合法图，断言它活下来。
+    """
     data = json.loads(VALID)
     data["steps"][0]["figures"] = [
-        {"primitive": "hologram", "params": {}, "fallback_text": "不存在的原语"}
+        {"primitive": "hologram", "params": {}, "fallback_text": "不存在的原语"},
+        {"primitive": "checklist", "params": {"items": ["断电验电"]}, "fallback_text": "清单"},
     ]
     provider = FakeProvider([json.dumps(data, ensure_ascii=False)])
 
@@ -302,9 +308,9 @@ def test_broken_figure_falls_back_to_text_only():
 
     assert draft.attempts == 1
     assert len(provider.calls) == 1
-    assert any("图示不合法" in note for note in draft.repairs)
-    # 只丢出错的那一步，其余图必须保住
-    assert not draft.guide.steps[0].figures
+    # 说明里要点出是哪张图，否则用户不知道该改哪儿
+    assert any("hologram" in note and "不合法" in note for note in draft.repairs)
+    assert [f.primitive.value for f in draft.guide.steps[0].figures] == ["checklist"]
     assert all(step.figures for step in draft.guide.steps[1:])
     # 降级不能碰正文：步骤数与第一段 action 原样保留
     assert len(draft.guide.steps) == len(json.loads(VALID)["steps"])

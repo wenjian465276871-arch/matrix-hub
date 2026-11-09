@@ -40,3 +40,43 @@ test('导航入口 → 三维演示：场景建起来（或明确降级），不
 
   expect(errors, `页面抛错：${errors.join(' | ')}`).toEqual([])
 })
+
+/**
+ * 操作级覆盖（2026-11-10 评审 P2-2）。
+ *
+ * 第一条用例只证明"页面能打开、画布有尺寸"——切换设备、拖时间轴、开关剖切
+ * 三件事坏了，它照样绿。可这三件正是演示当天一定会点的。
+ *
+ * 只断言"控件状态变了"，不断言画面像素：像素比对在不同机器/字体下会抖，
+ * 而控件状态 + 画布仍在，已经能抓住"点了没反应"这一类。
+ */
+test('三台设备可切换、时间轴可拖动、剖切可开关', async ({ page }) => {
+  await page.goto('./demo/device')
+  await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 })
+
+  // 1) 三台设备轮换：每次都要有画布，且标题跟着换
+  for (const title of ['受电弓升降功能检查', '配电回路上电自检', '车门开闭功能检查']) {
+    await page.getByRole('tab', { name: title }).click()
+    await expect(page.getByRole('heading', { name: title })).toBeVisible()
+    await expect(page.locator('canvas').first()).toBeVisible()
+  }
+
+  // 2) 时间轴：拖到 80%，读数要跟着走
+  const timeline = page.locator('.demo__controls input[type="range"]').first()
+  await timeline.evaluate((el) => {
+    const input = el as HTMLInputElement
+    input.value = '800'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await expect(page.locator('.demo__slider-label').first()).toContainText('时间轴 80%')
+
+  // 3) 剖切：配电柜声明了 cut，按钮应是可用的，点了要变成"关闭剖切"并出现切面滑块
+  await page.getByRole('tab', { name: '配电回路上电自检' }).click()
+  const cutButton = page.getByRole('button', { name: '剖开看内部' })
+  await expect(cutButton).toBeVisible()
+  await cutButton.click()
+  const offButton = page.getByRole('button', { name: '关闭剖切' })
+  await expect(offButton).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('.demo__slider-label', { hasText: '切面位置' })).toBeVisible()
+  await expect(page.locator('canvas').first()).toBeVisible()
+})
