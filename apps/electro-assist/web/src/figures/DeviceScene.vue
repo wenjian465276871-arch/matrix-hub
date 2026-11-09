@@ -227,7 +227,7 @@ async function init(): Promise<void> {
   scene.add(rim)
 
   const { target, distance } = rig.framing
-  camera = new T.PerspectiveCamera(34, 1, 0.1, 60)
+  camera = new T.PerspectiveCamera(rig.fov ?? 34, 1, 0.1, 60)
   const dir = new T.Vector3(VIEW_DIR[0], VIEW_DIR[1], VIEW_DIR[2]).normalize()
 
   scene.add(rig.root)
