@@ -20,6 +20,11 @@ import type { ParamValue } from '../../types'
 const props = defineProps<{
   params: Record<string, ParamValue>
   label?: string
+  /**
+   * 打印兜底文案。WebGL 不可用 / 显卡回收上下文时静态帧根本拍不出来，
+   * 纸上会只剩一个空框——指导书的图可以画不出来，但不能什么都没有。
+   */
+  fallback?: string
 }>()
 
 /** subject 已由服务端按白名单校验过，这里只做类型收敛，不再判断合法性。 */
@@ -71,6 +76,8 @@ function seek(event: Event): void {
       :src="shot"
       :alt="label || '设备三维示意'"
     />
+    <!-- 拍不出静态帧时的打印兜底：宁可给一句话，也不要留白框 -->
+    <p v-else class="device__print-text">{{ fallback || '三维图未生成，请参见本步骤的文字说明。' }}</p>
     <label class="device__scrub no-print">
       <span class="device__scrub-label">动作进度 {{ percent }}%</span>
       <input
@@ -110,7 +117,8 @@ function seek(event: Event): void {
   min-width: 0;
 }
 
-.device__print {
+.device__print,
+.device__print-text {
   display: none;
 }
 
@@ -124,6 +132,16 @@ function seek(event: Event): void {
   /* canvas 换成静态帧；进度条与提示已经在全局 .no-print 里隐藏 */
   .device :deep(.scene) {
     display: none;
+  }
+
+  .device__print-text {
+    display: block;
+    padding: 6mm 8mm;
+    border: 1px dashed var(--c-line);
+    border-radius: 6px;
+    color: var(--c-ink-2);
+    font-size: 12px;
+    line-height: 1.7;
   }
 
   .device__print {
