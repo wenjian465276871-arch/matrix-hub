@@ -67,19 +67,28 @@ const SCENES: Record<SceneKey, SceneDef> = {
     title: '受电弓升降功能检查',
     eyebrow: 'A2 可视化作业指导 · 三维演示',
     subject: 'pantograph',
-    label: '单臂受电弓三维示意：双杆机构展开，弓头上升，当前为升弓过程中的某一时刻',
+    label:
+      '单臂受电弓三维示意：气路建压、气囊缸顶起下臂、弓头升到接触线并压出接触压力，随后排气降弓、阻尼器限速',
     step: '5 / 9',
-    action: '发出升弓指令，观察弓头上升与到位信号',
+    action: '发出升弓指令，观察弓头上升、接触压力建立与到位信号；随后排气降弓，检查下降是否匀速',
     tools: '秒表、压力表',
-    criteria: ['升弓时间 8.5 ± 1.0 s', '到位后接触压力 70–120 N', '气路压力稳定在 0.5 MPa 以上'],
-    hint: '受电弓是纯转动机构：两根臂各绕一个铰点转，杆长不变。所以三维里看到的不是「拉长」，而是「转起来」——这一条错了，整台设备就假了。',
+    criteria: [
+      '升弓时间 8.5 ± 1.0 s',
+      '到位后接触压力 110 ± 15 N',
+      '气路压力稳定在 0.5 MPa 以上',
+      '降弓时间 3.5 ± 0.5 s，全程匀速、无冲击（阻尼器失效会自由落体）',
+      '升弓到位与落弓到位是两个独立信号，降弓途中两者均应丢失',
+    ],
+    hint: '受电弓是纯转动机构：两根臂各绕一个铰点转，杆长不变。所以三维里看到的不是「拉长」，而是「转起来」——这一条错了，整台设备就假了。另一条容易漏的是力的来源：气缸顶起下臂、阻尼器限制下降速度，两者是并联的两支不同的缸，不是同一个件。',
     parts: [
       { key: 'arms', label: '臂杆' },
       { key: 'head', label: '弓头' },
       { key: 'frame', label: '底架' },
+      { key: 'drive', label: '气路与阀' },
+      { key: 'drive2', label: '气缸/阻尼' },
       { key: 'lamp', label: '到位灯' },
     ],
-    note: '形体取公开的单臂受电弓通用结构（底架 + 四绝缘子 + 双下臂 + 双平衡臂 + 弓头）；<strong>全部参数为演示虚构值</strong>，不代表任何车型图纸或实测结果。',
+    note: '形体取公开的单臂受电弓通用结构（底架 + 四绝缘子 + 双下臂 + 双平衡臂 + 弓头 + 升降气缸 + 阻尼器 + 气路控制箱）；<strong>全部参数为演示虚构值</strong>，不代表任何车型图纸或实测结果。',
   },
   cabinet: {
     title: '配电回路上电自检',
@@ -173,28 +182,110 @@ const doorReads = computed<Readout[]>(() => {
 
 /* -------------------------------------------------------------- 受电弓读数 */
 
-/** 弓头高度：与 pantograph.ts 的连杆解算同源（收弓 8°/16°、到位 56°/62°），
- *  收弓约 930mm、到位约 2820mm。改角度就要同步改这两个数，否则读数和三维会对不上。 */
-const PANTO_LOW = 930
-const PANTO_RISE = 1890
+/* 与 pantograph.ts 的 T / GAP_FREE / WIRE_Y 同源。改一处必须改两处，
+   否则三维演到「顶住接触线」时读数还停在 0 —— 这类错位在现场最容易被当成仪表故障。 */
+const PT = {
+  airOn: 0.04,
+  airFull: 0.12,
+  raise0: 0.12,
+  raise1: 0.54,
+  press1: 0.68,
+  hold1: 0.78,
+  lower0: 0.8,
+  lower1: 0.94,
+}
+const PT_GAP = 0.07
+const PT_TOP = 0.0855
+const PT_COMP = 0.055
+const PT_WIRE = 2.9175
+const PT_RAISE_S = 8.5
+const PT_LOWER_S = 3.5
+
+const clamp01 = (v: number): number => Math.min(1, Math.max(0, v))
+const smooth = (t: number, a: number, b: number): number => {
+  const x = clamp01((t - a) / (b - a))
+  return x * x * (3 - 2 * x)
+}
+
+/** 行程 0–1。按四段算，跟 pantograph.ts 的 setT 一一对应。 */
+function pantoP(t: number): number {
+  if (t < PT.raise0) return 0
+  if (t < PT.raise1) return 0.94 * smooth(t, PT.raise0, PT.raise1)
+  if (t < PT.press1) return 0.94 + 0.06 * smooth(t, PT.raise1, PT.press1)
+  if (t < PT.lower0) return 1
+  return 1 - clamp01((t - PT.lower0) / (PT.lower1 - PT.lower0))
+}
+
+/** 弓臂尖端的绝对高度，纯三角函数，不依赖 three。 */
+/** 角度与 pantograph.ts 同源：4°→56°、10°→62°（各扫 52°）。 */
+function pantoArmY(p: number): number {
+  const a1 = ((4 + 52 * p) * Math.PI) / 180
+  const a2 = ((10 + 52 * p) * Math.PI) / 180
+  return 0.34 + 1.55 * Math.sin(a1) + 1.35 * Math.sin(a2)
+}
 
 const pantoReads = computed<Readout[]>(() => {
-  const p = span(0.08, 0.9)
-  const height = Math.round(PANTO_LOW + PANTO_RISE * p)
-  const seconds = (p * 8.5).toFixed(1)
-  // 接触压力只有在弓头真正贴上接触线之后才有意义，未到位显示 0 而不是编一个数
-  const pressure = t.value >= 0.9 ? String(Math.round(70 + 22 * p)) : '0'
-  const air = (0.32 + 0.2 * p).toFixed(2)
-  const ready = t.value >= 0.92
+  const now = t.value
+  const p = pantoP(now)
+  const armY = pantoArmY(p)
+
+  /* 弓头高度取**滑板顶面**：现场量的是弓头到车顶的距离，不是臂尖。
+     接触线挡住弓头之后，臂还在上行、弹簧被压缩，所以要按间隙算。 */
+  const freeTop = armY + PT_GAP + PT_TOP
+  const comp = Math.min(Math.max(freeTop - PT_WIRE, 0), PT_COMP)
+  const headTop = Math.round((armY + (PT_GAP - comp) + PT_TOP) * 1000)
+
+  // 压力与压缩量成正比：碰到的瞬间是 0，压到底才是额定值
+  const contactN = Math.round(118 * Math.min(comp / 0.052, 1))
+
+  let air = 0
+  if (now >= PT.airOn) air = 0.62 * smooth(now, PT.airOn, PT.airFull)
+  if (now >= PT.lower0) air *= 1 - smooth(now, PT.lower0, PT.lower0 + 0.05)
+
+  const raising = now >= PT.raise0 && now < PT.press1
+  const lowering = now >= PT.lower0 && now < PT.lower1
+  const seconds = raising
+    ? Math.min(p / 0.94, 1) * PT_RAISE_S
+    : lowering
+      ? (1 - p) * PT_LOWER_S
+      : 0
+
+  const riseOk = now >= PT.press1 && now < PT.lower0
+  const lowOk = now < PT.raise0 || now >= PT.lower1
+
   const phase =
-    t.value < 0.08 ? '落弓锁定' : t.value < 0.9 ? '升弓中' : t.value < 0.92 ? '到位检测' : '升弓到位'
+    now < PT.airOn
+      ? '落弓锁定'
+      : now < PT.raise0
+        ? '气路建压'
+        : now < PT.raise1
+          ? '升弓中'
+          : now < PT.press1
+            ? '接触压力建立'
+            : now < PT.hold1
+              ? '升弓到位'
+              : now < PT.lower0
+                ? '保压'
+                : now < PT.lower1
+                  ? '降弓中（阻尼）'
+                  : '落弓到位'
+
   return [
     { label: '动作阶段', value: phase },
-    { label: '弓头高度', value: String(height), unit: 'mm' },
-    { label: '已用时', value: seconds, unit: 's' },
-    { label: '接触压力', value: pressure, unit: 'N' },
-    { label: '气路压力', value: air, unit: 'MPa' },
-    { label: '到位信号', value: ready ? '有' : '无', dot: ready ? 'ok' : 'idle' },
+    { label: '弓头高度', value: String(headTop), unit: 'mm' },
+    // 只有顶到接触线之后才有压力；未接触显示 0，不编一个近似值
+    { label: '接触压力', value: String(contactN), unit: 'N' },
+    { label: '气路压力', value: air.toFixed(2), unit: 'MPa' },
+    {
+      label: raising ? '升弓计时' : lowering ? '降弓计时' : '计时',
+      value: seconds.toFixed(1),
+      unit: 's',
+    },
+    {
+      label: '到位信号',
+      value: riseOk ? '升弓到位' : lowOk ? '落弓到位' : '均无',
+      dot: riseOk || lowOk ? 'ok' : 'warn',
+    },
   ]
 })
 
