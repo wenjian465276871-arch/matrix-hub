@@ -86,7 +86,7 @@ _REQUIRED_PARAMS: dict[Primitive, set[str]] = {
 # 模型只能在这张表里选，选错即拒绝——它没有几何信息，放任自由填就等于让它编结构。
 DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
     "door": ("leaf_l", "leaf_r", "frame", "lamp"),
-    "pantograph": ("arms", "head", "frame", "lamp"),
+    "pantograph": ("arms", "head", "frame", "drive", "drive2", "lamp"),
     "cabinet": ("breakers", "contactor", "relays", "lamps", "terminals", "board"),
 }
 
