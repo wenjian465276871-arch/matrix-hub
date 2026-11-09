@@ -18,6 +18,7 @@
 import {
   BufferGeometry,
   CanvasTexture,
+  CylinderGeometry,
   EdgesGeometry,
   Group,
   LineBasicMaterial,
@@ -29,6 +30,7 @@ import {
   Object3D,
   RepeatWrapping,
   Texture,
+  Vector3,
 } from 'three'
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
 
@@ -43,6 +45,12 @@ export interface DeviceRig {
   phase: (t: number) => string
   /** 相机取景建议：不同设备的包围盒不一样，交给载荷自己报。 */
   framing: { target: [number, number, number]; distance: number }
+  /**
+   * 可选：随动作进度给出取景。受电弓从 0.9m 升到 2.8m，
+   * 用一套固定机位必然「升起时顶满、落下时缩成一点」，镜头必须跟着走。
+   * 用户一旦手动拖过视角，跟随立即停止——不能跟人抢镜头。
+   */
+  framingAt?: (t: number) => { target: [number, number, number]; distance: number }
   dispose: () => void
 }
 
@@ -221,6 +229,41 @@ export function floorMaterial(): MeshStandardMaterial {
 }
 
 /* ------------------------------------------------------------------ 几何工具 */
+
+/** 单位上向量。杆件对齐要用它做参考轴，每次 new 一个太浪费。 */
+const UP = new Vector3(0, 1, 0)
+const _seg = new Vector3()
+
+/**
+ * 造一根定长杆件。受电弓这类连杆机构的全部动作都能归结为
+ * 「两端点 + 一根杆」，所以这个函数是机构建模的主力。
+ */
+export function strut(length: number, radius: number, material: Material, segments = 12): Mesh {
+  const mesh = new Mesh(new CylinderGeometry(radius, radius, length, segments), material)
+  mesh.castShadow = true
+  mesh.receiveShadow = true
+  return mesh
+}
+
+/**
+ * 把已有杆件摆到两点之间。只改位置与朝向，不改长度——
+ * 机构的杆长是常量，动作靠铰点转动，给杆做缩放是错的。
+ *
+ * 例外是 `stretch`：像平衡杆这种按两点距离硬连的辅助杆，简化模型里两端点距离
+ * 会随姿态变化，不缩放就会出现「一根 1m 的杆摆在 2.2m 的间距上」，悬在半空。
+ * 细杆拉长看不出粗细变化，可以接受；主臂绝不能用这个开关。
+ */
+export function placeStrut(mesh: Mesh, from: Vector3, to: Vector3, stretch = false): void {
+  _seg.subVectors(to, from)
+  const length = _seg.length()
+  if (length < 1e-6) return
+  mesh.position.copy(from).addScaledVector(_seg, 0.5)
+  mesh.quaternion.setFromUnitVectors(UP, _seg.divideScalar(length))
+  if (stretch) {
+    const base = (mesh.geometry as CylinderGeometry).parameters.height || 1
+    mesh.scale.set(1, length / base, 1)
+  }
+}
 
 /**
  * 圆角方件。直角边是「CG 感」最大的来源——真实钣金件没有一条绝对锐边。
