@@ -104,6 +104,12 @@ const def = computed(() => SCENES[scene.value])
 const t = ref(0)
 const playing = ref(false)
 const focus = ref('')
+
+/* 剖切：只有设备自己声明了 `cut` 才有这个能力，界面据此显示/隐藏开关。
+   不做「按场景名硬编码」——那样一改模型就会和 UI 对不上。 */
+const cutable = ref(false)
+const cut = ref(false)
+const cutAt = ref(0.52)
 let raf = 0
 
 const ease = (v: number): number => {
@@ -264,6 +270,15 @@ function switchScene(key: SceneKey): void {
   scene.value = key
   t.value = 0
   focus.value = ''
+  cut.value = false
+}
+
+function toggleCut(): void {
+  cut.value = !cut.value
+}
+
+function seekCut(event: Event): void {
+  cutAt.value = Number((event.target as HTMLInputElement).value) / 1000
 }
 
 onBeforeUnmount(stop)
@@ -300,6 +315,9 @@ onBeforeUnmount(stop)
         :t="t"
         :focus="focus"
         :label="def.label"
+        :cut="cut"
+        :cut-at="cutAt"
+        @cutable="cutable = $event"
       />
 
       <div class="demo__controls">
@@ -316,6 +334,29 @@ onBeforeUnmount(stop)
             step="1"
             :value="Math.round(t * 1000)"
             @input="seek"
+          />
+        </label>
+      </div>
+
+      <div v-if="cutable" class="demo__controls demo__controls--cut">
+        <button
+          class="demo__ghost"
+          :class="{ 'demo__ghost--on': cut }"
+          type="button"
+          :aria-pressed="cut"
+          @click="toggleCut"
+        >
+          {{ cut ? '关闭剖切' : '剖开看内部' }}
+        </button>
+        <label v-if="cut" class="demo__slider">
+          <span class="demo__slider-label">切面位置 {{ Math.round(cutAt * 100) }}%</span>
+          <input
+            type="range"
+            min="0"
+            max="1000"
+            step="1"
+            :value="Math.round(cutAt * 1000)"
+            @input="seekCut"
           />
         </label>
       </div>
@@ -448,6 +489,16 @@ onBeforeUnmount(stop)
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.04em;
+}
+
+.demo__controls--cut {
+  margin-top: 10px;
+}
+
+/* 剖切开关的「开」态：用实心描边表示已生效，和部件高亮片区分开 */
+.demo__ghost--on {
+  border-color: var(--c-primary, #2f6fd0);
+  color: var(--c-primary, #2f6fd0);
 }
 
 .demo__controls {
@@ -654,7 +705,17 @@ onBeforeUnmount(stop)
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .demo__controls {
+  .demo__controls--cut {
+  margin-top: 10px;
+}
+
+/* 剖切开关的「开」态：用实心描边表示已生效，和部件高亮片区分开 */
+.demo__ghost--on {
+  border-color: var(--c-primary, #2f6fd0);
+  color: var(--c-primary, #2f6fd0);
+}
+
+.demo__controls {
     flex-wrap: wrap;
   }
 

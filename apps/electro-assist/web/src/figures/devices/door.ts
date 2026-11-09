@@ -61,10 +61,39 @@ export function buildDoor(): DeviceRig {
 
   const wallL = roundedBox(wallSideW, DIM.wallH, DIM.wallT, wallMat, -(DIM.openW / 2 + wallSideW / 2), wallY, 0, 0.008)
   const wallR = roundedBox(wallSideW, DIM.wallH, DIM.wallT, wallMat, DIM.openW / 2 + wallSideW / 2, wallY, 0, 0.008)
+  /* 门楣不是一整块：真实塞拉门的门机、导轨、丝杠都装在门楣里，
+     外表面只是一块可拆的检修盖板。这里把盖板「打开」——
+     后半留实墙，前上留一道压条，中间就是设备舱。
+     这么做有两个收益：① 门机默认可见，不必先剖切才能看到；② 剖切时有东西可切。 */
   const headerH = DIM.wallH - DIM.openH
-  const wallTop = roundedBox(DIM.openW, headerH, DIM.wallT, wallMat, 0, DIM.openH + headerH / 2, 0, 0.008)
+  const wallTopBack = roundedBox(DIM.openW, headerH, 0.055, wallMat, 0, DIM.openH + headerH / 2, -0.0175, 0.008)
+  const wallTopFront = roundedBox(DIM.openW, 0.06, 0.035, wallMat, 0, DIM.wallH - 0.03, 0.0275, 0.006)
+  const wallTop = new Group()
+  wallTop.add(wallTopBack, wallTopFront)
   const sill = roundedBox(DIM.openW, DIM.sill, DIM.wallT + 0.02, paintedMaterial(0xc2bfb8), 0, DIM.sill / 2, 0, 0.006)
   root.add(wallL, wallR, wallTop, sill)
+
+  /* ------------------------------------------------------- 墙板分缝与紧固件 */
+  /* 一大片纯色平板是「CG 感」最强的来源。真实侧墙由多块板拼成，
+     板与板之间有分缝，缝里能看到固定螺钉。这里只加两样最便宜的：
+     竖向分缝 + 缝内螺钉，视觉密度立刻不一样。 */
+  const seamMat = paintedMaterial(0x6f6c65)
+  for (const dir of [-1, 1]) {
+    const cx = dir * (DIM.openW / 2 + wallSideW / 2)
+    // 每侧两道竖向分缝
+    for (const off of [-wallSideW / 6, wallSideW / 6]) {
+      const seam = roundedBox(0.006, DIM.wallH - 0.02, 0.004, seamMat, cx + off, DIM.wallH / 2, DIM.wallT / 2, 0.001)
+      root.add(seam)
+      for (let i = 0; i < 5; i += 1) {
+        const screw = new Mesh(new CylinderGeometry(0.0055, 0.0055, 0.004, 10), chromeMaterial())
+        screw.rotation.x = Math.PI / 2
+        screw.position.set(cx + off, 0.22 + i * 0.46, DIM.wallT / 2 + 0.004)
+        root.add(screw)
+      }
+    }
+    // 腰线：一条水平分缝，把墙分成上下两段
+    root.add(roundedBox(wallSideW, 0.006, 0.004, seamMat, cx, 1.28, DIM.wallT / 2, 0.001))
+  }
 
   /* ---------------------------------------------------------------- 门框 */
   // 门洞四周的包边，比墙面外凸 8mm。真实件都有这道收口，缺了会像「挖了个洞」。
@@ -81,12 +110,13 @@ export function buildDoor(): DeviceRig {
   // 门框四角螺栓
   const boltGeo = new CylinderGeometry(0.009, 0.009, 0.014, 12)
   const boltMat = chromeMaterial()
-  for (const [bx, by] of [
-    [-DIM.openW / 2 + 0.05, DIM.sill + 0.05],
-    [DIM.openW / 2 - 0.05, DIM.sill + 0.05],
-    [-DIM.openW / 2 + 0.05, DIM.openH - 0.05],
-    [DIM.openW / 2 - 0.05, DIM.openH - 0.05],
-  ]) {
+  const boltSpots: [number, number][] = []
+  for (const sx of [-1, 1]) {
+    for (let i = 0; i < 5; i += 1) {
+      boltSpots.push([sx * (DIM.openW / 2 - 0.05), DIM.sill + 0.06 + i * (DIM.openH - 0.12) / 4])
+    }
+  }
+  for (const [bx, by] of boltSpots) {
     const bolt = new Mesh(boltGeo, boltMat)
     bolt.rotation.x = Math.PI / 2
     bolt.position.set(bx, by, frameZ + 0.012)
@@ -95,6 +125,76 @@ export function buildDoor(): DeviceRig {
   }
   parts.frame = frame
   root.add(frame)
+
+  // 门槛压条：一条镀铬槽，门下沿的导柱就插在这条槽里
+  root.add(
+    roundedBox(DIM.openW - 0.02, 0.006, 0.055, chromeMaterial(), 0, DIM.sill + 0.006, 0.018, 0.003),
+    roundedBox(DIM.openW - 0.02, 0.004, 0.012, rubberMaterial(0x1b1d20), 0, DIM.sill + 0.01, 0.018, 0.002),
+  )
+
+  /* 铭牌：一块小金属牌 + 两颗螺钉。细节密度就是这么一点一点堆出来的，
+     少了它，整面墙就是一块刷了漆的铁皮。 */
+  const plateX = DIM.openW / 2 + 0.3
+  root.add(roundedBox(0.12, 0.06, 0.004, steelMaterial(0xc2c7cc), plateX, 1.46, DIM.wallT / 2 + 0.003, 0.002))
+  for (const px of [plateX - 0.045, plateX + 0.045]) {
+    const rivet = new Mesh(new CylinderGeometry(0.004, 0.004, 0.003, 8), chromeMaterial())
+    rivet.rotation.x = Math.PI / 2
+    rivet.position.set(px, 1.46, DIM.wallT / 2 + 0.006)
+    root.add(rivet)
+  }
+
+  /* ---------------------------------------------------------------- 门机 */
+  /* 一套单臂式门机：电机 + 减速箱 + 同步带 + 张紧轮 + 导轨 + 携门架。
+     这是塞拉门真正的「内脏」，也是电气调试里最先要确认动作时序的部件。
+     参数仍是示意值，但结构关系照真件摆：电机在左端、皮带横穿门楣、
+     两个携门架挂在同一条导轨上。 */
+  const op = new Group()
+  const bayZ = 0.022
+  const bayY = DIM.openH + headerH / 2
+
+  // 舱底衬板：压深一档，否则门楣里是一片和墙同色的白，看不出深度
+  op.add(roundedBox(DIM.openW - 0.012, headerH - 0.012, 0.004, paintedMaterial(0x2b2e33), 0, bayY, 0.012, 0.002))
+
+  // 导轨：横贯门楣的圆钢，携门架挂在上面
+  const railMat = steelMaterial(0x9aa0a6)
+  const rail = new Mesh(new CylinderGeometry(0.011, 0.011, DIM.openW - 0.09, 14), railMat)
+  rail.rotation.z = Math.PI / 2
+  rail.position.set(0, DIM.openH + 0.062, bayZ + 0.006)
+  op.add(rail)
+  for (const rx of [-0.58, -0.2, 0.2, 0.58]) {
+    op.add(roundedBox(0.028, 0.05, 0.026, railMat, rx, DIM.openH + 0.088, bayZ + 0.006, 0.006))
+  }
+
+  // 电机（带散热筋）+ 减速箱
+  const motorMat = paintedMaterial(0x34383f)
+  const motor = new Mesh(new CylinderGeometry(0.04, 0.04, 0.15, 22), motorMat)
+  motor.rotation.z = Math.PI / 2
+  motor.position.set(-0.46, DIM.openH + 0.15, bayZ + 0.002)
+  op.add(motor)
+  for (let i = -3; i <= 3; i += 1) {
+    const fin = new Mesh(new CylinderGeometry(0.044, 0.044, 0.008, 22), steelMaterial(0x767b82))
+    fin.rotation.z = Math.PI / 2
+    fin.position.set(-0.46 + i * 0.019, DIM.openH + 0.15, bayZ + 0.002)
+    op.add(fin)
+  }
+  op.add(roundedBox(0.15, 0.12, 0.06, paintedMaterial(0x3d424a), -0.33, DIM.openH + 0.14, bayZ, 0.008))
+
+  // 同步带：两条直线段 + 两端带轮
+  const beltMat = rubberMaterial(0x1b1d20)
+  const beltY = DIM.openH + 0.15
+  op.add(
+    roundedBox(0.86, 0.008, 0.022, beltMat, 0.09, beltY + 0.028, bayZ, 0.003),
+    roundedBox(0.86, 0.008, 0.022, beltMat, 0.09, beltY - 0.028, bayZ, 0.003),
+  )
+  for (const px of [-0.34, 0.52]) {
+    const pulley = new Mesh(new CylinderGeometry(0.032, 0.032, 0.026, 18), steelMaterial(0xb4b9bf))
+    pulley.rotation.z = Math.PI / 2
+    pulley.position.set(px, beltY, bayZ)
+    op.add(pulley)
+  }
+
+  parts.motor = op
+  root.add(op)
 
   /* ---------------------------------------------------------------- 门扇 */
   /* 门扇用**喷漆铝板**，不是裸不锈钢。
@@ -158,6 +258,20 @@ export function buildDoor(): DeviceRig {
     const handle = roundedBox(0.022, 0.34, 0.03, chromeMaterial(), -dir * (DIM.leafW / 2 - 0.07), cy - 0.12, -DIM.leafT / 2 - 0.012, 0.008)
     leaf.add(handle)
 
+    /* 踢脚板：下沿一条拉丝不锈钢。真实车门一定有——那是鞋跟和搬运车最先碰到的地方。
+       顺带在下半扇留白最重的位置压一道深色，构图也不那么空。 */
+    leaf.add(
+      roundedBox(DIM.leafW - 0.03, 0.2, 0.005, paintedMaterial(0x9aa0a6), 0, cy - DIM.leafH / 2 + 0.125, DIM.leafT / 2 + 0.002, 0.003),
+    )
+    // 板面中段的一道浅分缝：整块板没有任何横向分割，看起来像塑料件
+    leaf.add(
+      roundedBox(DIM.leafW - 0.02, 0.003, 0.003, paintedMaterial(0x9ca0a3), 0, cy + 0.06, DIM.leafT / 2 + 0.001, 0.001),
+    )
+    // 下部导柱：插进门坎导轨槽，防止门扇前后摆动
+    const guide = new Mesh(new CylinderGeometry(0.011, 0.011, 0.055, 12), chromeMaterial())
+    guide.position.set(-dir * (DIM.leafW / 2 - 0.07), cy - DIM.leafH / 2 - 0.012, 0)
+    leaf.add(guide)
+
     leaf.position.set(cx, 0, DIM.leafZ)
     return leaf
   }
@@ -182,12 +296,21 @@ export function buildDoor(): DeviceRig {
   /* ---------------------------------------------------------------- 车内 */
   /* 门洞后面必须有东西。没有它，门一开就是一片背景灰，看着像对着一堵墙；
      一块深色背板就能给出门的「纵深」，成本是一个平面。 */
-  const interior = new Mesh(
-    new PlaneGeometry(DIM.openW + 0.16, DIM.openH + 0.06),
-    new MeshStandardMaterial({ color: 0x33363b, roughness: 0.92, metalness: 0 }),
-  )
+  const cabinMat = new MeshStandardMaterial({ color: 0x33363b, roughness: 0.92, metalness: 0 })
+  const interior = new Mesh(new PlaneGeometry(DIM.openW + 0.16, DIM.openH + 0.06), cabinMat)
   interior.position.set(0, DIM.openH / 2, -0.62)
   root.add(interior)
+
+  /* 只有一块背板时，门一开就是一片黑——那是「洞」，不是「车厢」。
+     补一块地板和一块顶板，纵深立刻成立：切开门能看到地面往里铺进去。 */
+  const cabinFloor = new Mesh(new PlaneGeometry(DIM.openW + 0.16, 0.66), paintedMaterial(0x5e6166))
+  cabinFloor.rotation.x = -Math.PI / 2
+  cabinFloor.position.set(0, DIM.sill + 0.004, -0.29)
+  cabinFloor.receiveShadow = true
+  const cabinCeil = new Mesh(new PlaneGeometry(DIM.openW + 0.16, 0.66), paintedMaterial(0x4a4d52))
+  cabinCeil.rotation.x = Math.PI / 2
+  cabinCeil.position.set(0, DIM.openH - 0.02, -0.29)
+  root.add(cabinFloor, cabinCeil)
 
   /* ---------------------------------------------------------------- 地面 */
   // 接影面只铺到墙下沿：24m 的大平面会整片落进阴影相机的范围外，
@@ -244,6 +367,12 @@ export function buildDoor(): DeviceRig {
     phase,
     // 「The machine fills 60-70% of its viewport」
     framing: { target: [0, 1.05, 0], distance: 5.25 },
+    /* 剖切沿 X（竖直切一刀，从右往左扫）。
+       **不能沿 Z 切**：门扇是一块薄板，切面平行于板面时，截面正好等于整张门脸
+       ——画面上只会看到两块纯色大板，比不切还难懂。剖切只有切在「薄的那一维」上
+       才有信息量：截面是一道 42mm 的薄边，旁边是 90mm 的墙体断面。
+       切面用暖灰、比漆面深一档：截面是材料本体，不该和表面同色。 */
+    cut: { axis: 'x', from: -0.9, to: 1.5, cap: 0xa79d8c },
     dispose: () => disposeTree(root),
   }
 }
