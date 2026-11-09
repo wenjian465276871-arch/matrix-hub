@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** 设备三维作业指导 · 演示页。
+/** 设备三维作业指导 · 演示页（多场景）。
  *
  *  演示什么：上面是设备三维动作，下面左边是工艺文本、右边是随动参数。
  *  要证明的是「AI 能把工艺文本变成可看的作业指导」，不是「我们会做 3D 模型」。
@@ -10,11 +10,78 @@
  *
  *  ## 数据口径
  *  所有参数都是**演示虚构值**，页面顶部与读数区都标注了这件事。
- *  形体与尺寸取公开的城轨塞拉门通用形式（门洞 1.4m、单扇 0.7m、墙厚 90mm），
+ *  形体与尺寸取公开的通用形式（门洞 1.4m、单扇 0.7m；受电弓工作高度 1.5–2.8m），
  *  不代表任何车型图纸。这条线不能含糊：演示可以虚构，但不能让人误以为是实测。
  */
 import { computed, onBeforeUnmount, ref } from 'vue'
 import DeviceScene from '../figures/DeviceScene.vue'
+
+type SceneKey = 'door' | 'pantograph'
+
+interface Readout {
+  label: string
+  value: string
+  unit?: string
+  dot?: 'ok' | 'idle'
+}
+
+interface SceneDef {
+  title: string
+  eyebrow: string
+  subject: string
+  label: string
+  step: string
+  action: string
+  tools: string
+  criteria: string[]
+  hint: string
+  parts: { key: string; label: string }[]
+  note: string
+}
+
+const SCENES: Record<SceneKey, SceneDef> = {
+  door: {
+    title: '车门开闭功能检查',
+    eyebrow: 'A2 可视化作业指导 · 三维演示',
+    subject: 'door',
+    label: '地铁塞拉门三维示意：双扇对开，当前为开启过程中的某一时刻',
+    step: '3 / 8',
+    action: '按下开门按钮，观察双扇门动作',
+    tools: '秒表、万用表',
+    criteria: ['门扇开启时间 2.5 ± 0.5 s', '全部开启后锁定信号为「有」', '全程无卡滞、无异响'],
+    hint: '三维动作、参数读数、验收判据共用同一条时间轴——这是电气调试与装配工艺的区别：装配看形状，调试看动作与量的时序耦合。',
+    parts: [
+      { key: 'leaf_l', label: '左门扇' },
+      { key: 'leaf_r', label: '右门扇' },
+      { key: 'frame', label: '门框' },
+      { key: 'lamp', label: '指示灯' },
+    ],
+    note: '形体与尺寸取自公开的城轨塞拉门通用形式；<strong>全部参数为演示虚构值</strong>，不代表任何车型图纸或实测结果。',
+  },
+  pantograph: {
+    title: '受电弓升降功能检查',
+    eyebrow: 'A2 可视化作业指导 · 三维演示',
+    subject: 'pantograph',
+    label: '单臂受电弓三维示意：双杆机构展开，弓头上升，当前为升弓过程中的某一时刻',
+    step: '5 / 9',
+    action: '发出升弓指令，观察弓头上升与到位信号',
+    tools: '秒表、压力表',
+    criteria: ['升弓时间 8.5 ± 1.0 s', '到位后接触压力 70–120 N', '气路压力稳定在 0.5 MPa 以上'],
+    hint: '受电弓是纯转动机构：两根臂各绕一个铰点转，杆长不变。所以三维里看到的不是「拉长」，而是「转起来」——这一条错了，整台设备就假了。',
+    parts: [
+      { key: 'arms', label: '臂杆' },
+      { key: 'head', label: '弓头' },
+      { key: 'frame', label: '底架' },
+      { key: 'lamp', label: '到位灯' },
+    ],
+    note: '形体取公开的单臂受电弓通用结构（底架 + 四绝缘子 + 双下臂 + 双平衡臂 + 弓头）；<strong>全部参数为演示虚构值</strong>，不代表任何车型图纸或实测结果。',
+  },
+}
+
+const SCENE_KEYS: SceneKey[] = ['door', 'pantograph']
+
+const scene = ref<SceneKey>('door')
+const def = computed(() => SCENES[scene.value])
 
 const t = ref(0)
 const playing = ref(false)
@@ -27,29 +94,72 @@ const ease = (v: number): number => {
 }
 const span = (a: number, b: number): number => ease((t.value - a) / (b - a))
 
-/** 单扇行程上限 660mm：与 door.ts 的 DIM.slide 同源，改一处要改两处。 */
-const STROKE_MAX = 660
-
-const stroke = computed(() => Math.round(span(0.16, 0.86) * STROKE_MAX))
-const popped = computed(() => Math.round(span(0, 0.16) * 55))
-const locked = computed(() => t.value >= 0.88)
 const percent = computed(() => Math.round(t.value * 100))
 
-/** 电机电流是**虚构曲线**：启动冲击后回落，只用来演示参数随动作变化这件事。 */
-const current = computed(() => {
-  if (t.value < 0.16) return 0.18
-  if (t.value >= 0.86) return 0.12
-  const p = span(0.16, 0.86)
-  return 1.05 + 2.3 * Math.exp(-3.4 * p)
+/* ------------------------------------------------------------------ 车门读数 */
+
+/** 单扇行程上限 660mm：与 door.ts 的 DIM.slide 同源，改一处要改两处。 */
+const DOOR_STROKE = 660
+
+const doorReads = computed<Readout[]>(() => {
+  const stroke = Math.round(span(0.16, 0.86) * DOOR_STROKE)
+  const popped = Math.round(span(0, 0.16) * 55)
+  const locked = t.value >= 0.88
+  let current = 0.18
+  if (t.value >= 0.16 && t.value < 0.86) {
+    current = 1.05 + 2.3 * Math.exp(-3.4 * span(0.16, 0.86))
+  } else if (t.value >= 0.86) {
+    current = 0.12
+  }
+  const phase =
+    t.value < 0.03
+      ? '关闭锁定'
+      : t.value < 0.16
+        ? '解锁外移'
+        : t.value < 0.86
+          ? '门扇开启'
+          : t.value < 0.88
+            ? '到位检测'
+            : '完全开启'
+  return [
+    { label: '动作阶段', value: phase },
+    { label: '单扇行程', value: String(stroke), unit: 'mm' },
+    { label: '塞拉外移', value: String(popped), unit: 'mm' },
+    { label: '电机电流', value: current.toFixed(2), unit: 'A' },
+    { label: '锁定信号', value: locked ? '有' : '无', dot: locked ? 'ok' : 'idle' },
+  ]
 })
 
-const phase = computed(() => {
-  if (t.value < 0.03) return '关闭锁定'
-  if (t.value < 0.16) return '解锁外移'
-  if (t.value < 0.86) return '门扇开启'
-  if (t.value < 0.88) return '到位检测'
-  return '完全开启'
+/* -------------------------------------------------------------- 受电弓读数 */
+
+/** 弓头高度：与 pantograph.ts 的连杆解算同源（收弓 8°/16°、到位 56°/62°），
+ *  收弓约 930mm、到位约 2820mm。改角度就要同步改这两个数，否则读数和三维会对不上。 */
+const PANTO_LOW = 930
+const PANTO_RISE = 1890
+
+const pantoReads = computed<Readout[]>(() => {
+  const p = span(0.08, 0.9)
+  const height = Math.round(PANTO_LOW + PANTO_RISE * p)
+  const seconds = (p * 8.5).toFixed(1)
+  // 接触压力只有在弓头真正贴上接触线之后才有意义，未到位显示 0 而不是编一个数
+  const pressure = t.value >= 0.9 ? String(Math.round(70 + 22 * p)) : '0'
+  const air = (0.32 + 0.2 * p).toFixed(2)
+  const ready = t.value >= 0.92
+  const phase =
+    t.value < 0.08 ? '落弓锁定' : t.value < 0.9 ? '升弓中' : t.value < 0.92 ? '到位检测' : '升弓到位'
+  return [
+    { label: '动作阶段', value: phase },
+    { label: '弓头高度', value: String(height), unit: 'mm' },
+    { label: '已用时', value: seconds, unit: 's' },
+    { label: '接触压力', value: pressure, unit: 'N' },
+    { label: '气路压力', value: air, unit: 'MPa' },
+    { label: '到位信号', value: ready ? '有' : '无', dot: ready ? 'ok' : 'idle' },
+  ]
 })
+
+const reads = computed(() => (scene.value === 'door' ? doorReads.value : pantoReads.value))
+
+/* -------------------------------------------------------------------- 操作 */
 
 function play(): void {
   if (playing.value) {
@@ -90,15 +200,16 @@ function reset(): void {
   t.value = 0
 }
 
-const PARTS = [
-  { key: 'leaf_l', label: '左门扇' },
-  { key: 'leaf_r', label: '右门扇' },
-  { key: 'frame', label: '门框' },
-  { key: 'lamp', label: '指示灯' },
-]
-
 function toggleFocus(key: string): void {
   focus.value = focus.value === key ? '' : key
+}
+
+function switchScene(key: SceneKey): void {
+  if (key === scene.value) return
+  stop()
+  scene.value = key
+  t.value = 0
+  focus.value = ''
 }
 
 onBeforeUnmount(stop)
@@ -107,21 +218,34 @@ onBeforeUnmount(stop)
 <template>
   <main class="demo">
     <header class="demo__head">
-      <p class="demo__eyebrow">A2 可视化作业指导 · 三维演示</p>
-      <h1 class="demo__title">车门开闭功能检查</h1>
-      <p class="demo__note">
-        形体与尺寸取自公开的城轨塞拉门通用形式；<strong>全部参数为演示虚构值</strong>，
-        不代表任何车型图纸或实测结果。
-      </p>
+      <p class="demo__eyebrow">{{ def.eyebrow }}</p>
+      <h1 class="demo__title">{{ def.title }}</h1>
+      <p class="demo__note" v-html="def.note" />
     </header>
+
+    <div class="demo__tabs" role="tablist" aria-label="设备场景">
+      <button
+        v-for="key in SCENE_KEYS"
+        :key="key"
+        class="demo__tab"
+        :class="{ 'demo__tab--on': scene === key }"
+        type="button"
+        role="tab"
+        :aria-selected="scene === key"
+        @click="switchScene(key)"
+      >
+        {{ SCENES[key].title }}
+      </button>
+    </div>
 
     <section class="demo__stage" aria-labelledby="scene-h">
       <h2 id="scene-h" class="demo__pane-title">三维作业引导（呈现）</h2>
       <DeviceScene
-        subject="door"
+        :key="scene"
+        :subject="def.subject"
         :t="t"
         :focus="focus"
-        label="地铁塞拉门三维示意：双扇对开，当前为开启过程中的某一时刻"
+        :label="def.label"
       />
 
       <div class="demo__controls">
@@ -145,7 +269,7 @@ onBeforeUnmount(stop)
       <div class="demo__parts" role="group" aria-label="部件高亮">
         <span class="demo__parts-label">部件</span>
         <button
-          v-for="part in PARTS"
+          v-for="part in def.parts"
           :key="part.key"
           class="demo__chip"
           :class="{ 'demo__chip--on': focus === part.key }"
@@ -162,14 +286,12 @@ onBeforeUnmount(stop)
       <section class="demo__pane" aria-labelledby="text-h">
         <h2 id="text-h" class="demo__pane-title">工艺文本（输入）</h2>
         <div class="demo__doc">
-          <p class="demo__doc-line"><span class="demo__k">步骤</span>3 / 8</p>
-          <p class="demo__doc-line"><span class="demo__k">动作</span>按下开门按钮，观察双扇门动作</p>
-          <p class="demo__doc-line"><span class="demo__k">工具</span>秒表、万用表</p>
+          <p class="demo__doc-line"><span class="demo__k">步骤</span>{{ def.step }}</p>
+          <p class="demo__doc-line"><span class="demo__k">动作</span>{{ def.action }}</p>
+          <p class="demo__doc-line"><span class="demo__k">工具</span>{{ def.tools }}</p>
           <p class="demo__doc-line demo__doc-line--head">验收判据</p>
           <ul class="demo__criteria">
-            <li>门扇开启时间 2.5 ± 0.5 s</li>
-            <li>全部开启后锁定信号为「有」</li>
-            <li>全程无卡滞、无异响</li>
+            <li v-for="item in def.criteria" :key="item">{{ item }}</li>
           </ul>
         </div>
         <p class="demo__hint">
@@ -181,35 +303,19 @@ onBeforeUnmount(stop)
       <section class="demo__pane" aria-labelledby="read-h">
         <h2 id="read-h" class="demo__pane-title">随动参数（虚构）</h2>
         <dl class="demo__reads">
-          <div class="demo__read">
-            <dt>动作阶段</dt>
-            <dd>{{ phase }}</dd>
-          </div>
-          <div class="demo__read">
-            <dt>单扇行程</dt>
-            <dd><span class="demo__num">{{ stroke }}</span> mm</dd>
-          </div>
-          <div class="demo__read">
-            <dt>塞拉外移</dt>
-            <dd><span class="demo__num">{{ popped }}</span> mm</dd>
-          </div>
-          <div class="demo__read">
-            <dt>电机电流</dt>
-            <dd><span class="demo__num">{{ current.toFixed(2) }}</span> A</dd>
-          </div>
-          <div class="demo__read">
-            <dt>锁定信号</dt>
+          <div v-for="item in reads" :key="item.label" class="demo__read">
+            <dt>{{ item.label }}</dt>
             <dd>
-              <span class="demo__dot" :class="locked ? 'demo__dot--ok' : 'demo__dot--idle'" />
-              {{ locked ? '有' : '无' }}
+              <span v-if="item.dot" class="demo__dot" :class="`demo__dot--${item.dot}`" />
+              <span v-else class="demo__num">{{ item.value }}</span>
+              <template v-if="!item.dot">
+                <span v-if="item.unit" class="demo__unit">{{ item.unit }}</span>
+              </template>
+              <template v-else>{{ item.value }}</template>
             </dd>
           </div>
         </dl>
-        <p class="demo__hint">
-          判据「2.5 ± 0.5 s」与「锁定信号为有」对应这几行读数。三维动作、参数读数、
-          验收判据共用同一条时间轴——这是电气调试与装配工艺的区别：装配看形状，
-          调试看动作与量的时序耦合。
-        </p>
+        <p class="demo__hint">{{ def.hint }}</p>
       </section>
     </div>
   </main>
@@ -246,9 +352,33 @@ onBeforeUnmount(stop)
   line-height: 1.7;
 }
 
-.demo__note strong {
+.demo__note :deep(strong) {
   color: var(--c-ink);
   font-weight: 500;
+}
+
+.demo__tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.demo__tab {
+  min-height: 36px;
+  padding: 0 16px;
+  border: 1px solid var(--c-line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--c-ink-2);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.demo__tab--on {
+  border-color: var(--c-primary);
+  background: var(--c-primary-soft, transparent);
+  color: var(--c-primary-ink, var(--c-primary));
 }
 
 .demo__stage {
@@ -443,6 +573,11 @@ onBeforeUnmount(stop)
   font-variant-numeric: tabular-nums;
   font-size: 16px;
   font-weight: 500;
+}
+
+.demo__unit {
+  color: var(--c-ink-2);
+  font-size: 12px;
 }
 
 .demo__dot {

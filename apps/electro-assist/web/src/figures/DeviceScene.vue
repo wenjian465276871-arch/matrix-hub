@@ -73,6 +73,28 @@ let controls: ControlsLike | null = null
 let envTarget: { dispose(): void } | null = null
 let observer: ResizeObserver | null = null
 
+/** 固定机位方向（单位向量，仰角 9°）。随动取景只改距离与目标点，不改方向。 */
+const VIEW_DIR: [number, number, number] = [0.55, 0.16, 0.82]
+/** 用户一旦拖动过视角，就停止自动跟随——镜头不能跟人抢。 */
+let userMoved = false
+
+/**
+ * 随动取景：设备高度变化大时必须跟着走。
+ * 受电弓收弓 0.9m、到位 2.8m，固定机位只能二选一——要么升起时顶出画面，
+ * 要么落下时缩成一个点。
+ */
+function followCamera(t: number): void {
+  if (!rig?.framingAt || !camera || !controls || userMoved) return
+  const frame = rig.framingAt(t)
+  controls.target.set(frame.target[0], frame.target[1], frame.target[2])
+  camera.position.set(
+    frame.target[0] + VIEW_DIR[0] * frame.distance,
+    frame.target[1] + VIEW_DIR[1] * frame.distance,
+    frame.target[2] + VIEW_DIR[2] * frame.distance,
+  )
+  controls.update()
+}
+
 function render(): void {
   if (renderer && scene && camera) renderer.render(scene, camera)
 }
@@ -134,8 +156,16 @@ async function init(): Promise<void> {
   try {
     three = await import('three')
     rigModule = await import('./devices/rig')
-    const { buildDoor } = await import('./devices/door')
-    rig = buildDoor()
+    /* 构建期白名单：subject 不是自由字符串，查到哪个建哪个。
+       与后端 `models/visual.py` 的枚举纪律一致——模型不能靠一句话让前端加载任意场景。 */
+    const builders: Record<string, () => Promise<() => DeviceRig>> = {
+      door: async () => (await import('./devices/door')).buildDoor,
+      pantograph: async () => (await import('./devices/pantograph')).buildPantograph,
+    }
+    const load = builders[props.subject]
+    if (!load) throw new Error(`未注册的设备场景：${props.subject}`)
+    const build = await load()
+    rig = build()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '3D 场景加载失败'
     loading.value = false
@@ -197,8 +227,7 @@ async function init(): Promise<void> {
 
   const { target, distance } = rig.framing
   camera = new T.PerspectiveCamera(34, 1, 0.1, 60)
-  // 俯角压到 9°：再大就会让地面占满下半屏，产品图的机位基本与主体同高
-  const dir = new T.Vector3(0.55, 0.16, 0.82).normalize()
+  const dir = new T.Vector3(VIEW_DIR[0], VIEW_DIR[1], VIEW_DIR[2]).normalize()
 
   scene.add(rig.root)
   rig.setT(props.t)
@@ -224,11 +253,17 @@ async function init(): Promise<void> {
   ctrl.maxDistance = distance * 1.5
   ctrl.enabled = props.interactive
   ctrl.addEventListener('change', render)
+  ctrl.addEventListener('start', () => {
+    userMoved = true
+  })
   controls = ctrl as unknown as ControlsLike
 
   observer = new ResizeObserver(resize)
   observer.observe(hostEl)
   resize()
+  // 初始那一帧也要跟随：watch 不是 immediate，不显式调一次的话
+  // 打开页面看到的是 framing 的固定机位，只有拖过一次时间轴才会切换。
+  followCamera(props.t)
 
   if (props.focus) setFocus(props.focus)
   loading.value = false
@@ -238,6 +273,7 @@ watch(
   () => props.t,
   (value) => {
     rig?.setT(value)
+    followCamera(value)
     render()
   },
 )
