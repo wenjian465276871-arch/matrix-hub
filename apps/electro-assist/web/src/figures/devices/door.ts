@@ -137,6 +137,41 @@ export function buildDoor(): DeviceRig {
     wallTop.add(
       roundedBox(houseW, 0.022, houseD + 0.012, steelMaterial(0xa8acb0), hx, DIM.openH + 0.011, houseCz, 0.006),
     )
+
+    /* 罩子表面：一整块光板是「未完工」的观感。真罩子由几段拼成，
+       中间还有一个检修口，四角带螺钉、下沿两个四分之一转锁扣。 */
+    const hatchX = hx - dir * 0.1
+    const hatchY = DIM.openH + headerH * 0.5
+    for (const off of [-0.36, 0.3]) {
+      wallTop.add(roundedBox(0.005, headerH - 0.02, 0.004, paintedMaterial(0x76736c), hx + off, DIM.openH + headerH / 2, houseZ, 0.001))
+    }
+    // 检修口：面板比罩子低 2mm，四周留一道缝
+    wallTop.add(roundedBox(0.34, headerH * 0.56, 0.004, paintedMaterial(0x9d9a92), hatchX, hatchY, houseZ - 0.002, 0.004))
+    const hatchScrew = new CylinderGeometry(0.005, 0.005, 0.004, 8)
+    for (const sx of [-0.14, 0.14]) {
+      for (const sy of [-0.058, 0.058]) {
+        const screw = new Mesh(hatchScrew, chromeMaterial())
+        screw.rotation.x = Math.PI / 2
+        screw.position.set(hatchX + sx, hatchY + sy, houseZ + 0.002)
+        wallTop.add(screw)
+      }
+    }
+    // 四分之一转锁扣：检修口下沿两个
+    for (const sx of [-0.12, 0.12]) {
+      const latch = new Mesh(new CylinderGeometry(0.011, 0.011, 0.007, 14), chromeMaterial())
+      latch.rotation.x = Math.PI / 2
+      latch.position.set(hatchX + sx, hatchY - 0.052, houseZ + 0.003)
+      wallTop.add(latch)
+      // 锁扣的转动标识：一道横槽
+      const slot = roundedBox(0.016, 0.003, 0.002, paintedMaterial(0x2b2e33), hatchX + sx, hatchY - 0.052, houseZ + 0.007, 0.001)
+      wallTop.add(slot)
+    }
+
+    /* 门扇顶与罩子之间的密封条：门滑开时这里会露出一条缝，
+       真机是一道贴在前沿的橡胶挡边，门扇贴着它走。 */
+    wallTop.add(
+      roundedBox(houseW - 0.02, 0.02, 0.015, rubberMaterial(0x1b1d20), hx, DIM.openH - 0.002, houseZ - 0.016, 0.004),
+    )
   }
   const sill = roundedBox(DIM.openW, DIM.sill, DIM.wallT + 0.02, paintedMaterial(0xc2bfb8), 0, DIM.sill / 2, 0, 0.006)
   root.add(wallL, wallR, wallTop, sill)
@@ -317,6 +352,8 @@ export function buildDoor(): DeviceRig {
      ② metalness=1 的大面在 RoomEnvironment（几个自发光矩形）里只会反射出几块
      亮斑，出来的是一张暗灰带条纹的板，比喷漆件难看得多。
      teardown 的金属参数是给发动机、起落架那种裸金属机构的，不是给钣金外壳的。 */
+  /** 门锁锁舌：解锁时缩回，锁闭时伸出、跨过中缝咬进对侧锁扣。 */
+  const lockBolts: Mesh[] = []
   const buildLeaf = (dir: -1 | 1) => {
     const leaf = new Group()
     const cx = (dir * DIM.leafW) / 2
@@ -387,6 +424,23 @@ export function buildDoor(): DeviceRig {
     guide.position.set(-dir * (DIM.leafW / 2 - 0.07), cy - DIM.leafH / 2 - 0.012, 0)
     leaf.add(guide)
 
+    /* 门锁：塞拉门到站锁闭靠它，不是靠指示灯。
+       左扇带锁体+锁舌，右扇带锁扣板；锁舌跨过中缝咬进对侧，才是真锁闭。
+       锁舌位置在门扇顶下方 0.12m 处——那里离中缝最近，也最容易被看见。 */
+    const lockY = cy - 0.05
+    if (dir === -1) {
+      leaf.add(roundedBox(0.07, 0.1, 0.052, paintedMaterial(0x2f343a), 0.3, lockY, DIM.leafT / 2 + 0.012, 0.006))
+      // 电磁铁线圈外壳：压在锁体上，解锁时嗡一下的就是它
+      leaf.add(roundedBox(0.05, 0.05, 0.03, paintedMaterial(0x1f2429), 0.3, lockY + 0.055, DIM.leafT / 2 + 0.01, 0.005))
+      const bolt = roundedBox(0.095, 0.028, 0.024, chromeMaterial(), 0.365, lockY, DIM.leafT / 2 + 0.03, 0.004)
+      lockBolts.push(bolt)
+      leaf.add(bolt)
+    } else {
+      // 对侧锁扣板：中间一道槽，锁舌插进去
+      leaf.add(roundedBox(0.06, 0.08, 0.016, steelMaterial(0xb0b5ba), -0.33, lockY, DIM.leafT / 2 + 0.006, 0.005))
+      leaf.add(roundedBox(0.04, 0.03, 0.01, paintedMaterial(0x1b1e22), -0.33, lockY, DIM.leafT / 2 + 0.016, 0.003))
+    }
+
     leaf.position.set(cx, 0, DIM.leafZ)
     return leaf
   }
@@ -449,10 +503,15 @@ export function buildDoor(): DeviceRig {
 
   /* ---------------------------------------------------------------- 动作 */
   const setT = (t: number): void => {
-    // 段一：解锁外移（塞拉）。真实塞拉门必须先退出密封面才能滑，不能直接平移。
-    const pop = seg(t, 0, 0.16)
+    /* 段零：解锁。**这是开门的前置条件**——锁舌没缩回，门扇一点都不能动。
+       以前从 t=0 就开始外移，等于「锁着也能开门」，现场不可能。 */
+    const unlock = seg(t, 0.02, 0.08)
+    for (const bolt of lockBolts) bolt.position.x = 0.365 - 0.065 * unlock
+
+    // 段一：解锁后才外移（塞拉）。真实塞拉门必须先退出密封面才能滑，不能直接平移。
+    const pop = seg(t, 0.08, 0.2)
     // 段二：沿车体滑移。留 0.02 重叠量，与真门一致。
-    const slide = seg(t, 0.16, 0.86)
+    const slide = seg(t, 0.2, 0.88)
 
     const z = DIM.leafZ + pop * DIM.pop
     const travel = slide * DIM.slide
@@ -469,18 +528,22 @@ export function buildDoor(): DeviceRig {
     hangers[0].position.x = -DIM.leafW / 2 - travel
     hangers[1].position.x = DIM.leafW / 2 + travel
 
-    // 指示灯：锁定到位才转绿。颜色 + emissive 一起改，缺一个就会在暗部发灰。
-    const ok = t >= 0.88
+    /* 指示灯就是**锁闭信号**：锁闭到位绿灯，一旦解锁立刻转红。
+       注意末尾是全开状态，此时门没锁，灯本来就该是红的——
+       现场判据正是「锁闭信号丢失才允许动门」，不是「开门成功变绿」。
+       颜色 + emissive 一起改，缺一个就会在暗部发灰。 */
+    const locked = t < 0.02
     const bulb = lampBulb.material as MeshStandardMaterial
-    const hex = ok ? LAMP_OK : LAMP_ALARM
+    const hex = locked ? LAMP_OK : LAMP_ALARM
     bulb.color.setHex(hex)
     bulb.emissive.setHex(hex)
   }
 
   const phase = (t: number): string => {
-    if (t < 0.03) return '关闭锁定'
-    if (t < 0.16) return '解锁外移'
-    if (t < 0.86) return '门扇开启'
+    if (t < 0.02) return '关闭锁定'
+    if (t < 0.08) return '门锁解锁'
+    if (t < 0.2) return '退出密封面'
+    if (t < 0.88) return '门扇开启'
     if (t < 0.88) return '到位检测'
     return '完全开启'
   }
