@@ -22,7 +22,7 @@ interface Readout {
   label: string
   value: string
   unit?: string
-  dot?: 'ok' | 'idle'
+  dot?: 'ok' | 'idle' | 'warn'
 }
 
 interface SceneDef {
@@ -84,8 +84,14 @@ const SCENES: Record<SceneKey, SceneDef> = {
     step: '2 / 6',
     action: '将主断路器手柄向上扳至合闸位，观察状态窗与指示灯',
     tools: '万用表',
-    criteria: ['手柄在合闸位、状态窗为红（带电）', '三极断路器同时动作，无缺相', '主回路 380 ± 19 V、控制回路 220 ± 11 V', '继电器全部吸合、运行指示为绿'],
-    hint: '断路器的方向不能说反：手柄向上是合闸、向下是断开，状态窗红色表示带电。这个场景里几乎没有机械位移——看的是触点与灯的状态迁移顺序，顺序错一步就是故障。',
+    criteria: [
+      '手柄在合闸位、状态窗为红（带电）',
+      '三极断路器同时动作，无缺相',
+      '主回路 380 ± 19 V、控制回路 220 ± 11 V',
+      '继电器全部吸合、运行指示为绿',
+      '过载脱扣后：手柄停在中间位，须先扳到底复位再合闸',
+    ],
+    hint: '断路器的方向不能说反：手柄向上是合闸、向下是断开，状态窗红色表示带电。后半段演示过载热脱扣——双金属片受热弯曲顶开脱扣杆，触点弹开、主回路失压，手柄落到既非合闸也非断开的中间位。现场见到中间位不要直接往上扳，必须先扳到底再合，否则合不上。',
     parts: [
       { key: 'breakers', label: '断路器' },
       { key: 'contactor', label: '接触器' },
@@ -186,11 +192,16 @@ const pantoReads = computed<Readout[]>(() => {
 
 const cabinetReads = computed<Readout[]>(() => {
   // 第三只断路器在 0.12 合完，主回路才算真正带电
-  const mainV = t.value >= 0.12 ? '380' : '0'
+  const closed = t.value >= 0.12
+  // 0.90 起热脱扣：双金属片弯曲 → 触点弹开 → 主回路失电
+  const tripped = t.value >= 0.97
+  const tripping = t.value >= 0.9
+  const mainV = closed && !tripped ? '380' : '0'
+  // 控制回路取自断路器上游，脱扣后仍有电——这也是现场判据：主回路没了、控制回路还在
   const ctrlV = t.value >= 0.3 ? '220' : '0'
-  const pulled = t.value >= 0.5
-  const relayCount = [0, 1, 2].filter((i) => t.value >= 0.56 + i * 0.08).length
-  const running = t.value >= 0.86
+  const pulled = t.value >= 0.5 && !tripped
+  const relayCount = tripped ? 0 : [0, 1, 2].filter((i) => t.value >= 0.56 + i * 0.08).length
+  const running = t.value >= 0.86 && !tripping
   const phase =
     t.value < 0.15
       ? '主断路器合闸'
@@ -202,7 +213,11 @@ const cabinetReads = computed<Readout[]>(() => {
             ? '接触器吸合'
             : t.value < 0.82
               ? '继电器自检'
-              : '系统就绪'
+              : t.value < 0.9
+                ? '系统就绪'
+                : t.value < 0.97
+                  ? '过载脱扣'
+                  : '已脱扣'
   return [
     { label: '动作阶段', value: phase },
     { label: '主回路电压', value: mainV, unit: 'V' },
@@ -210,6 +225,8 @@ const cabinetReads = computed<Readout[]>(() => {
     { label: '接触器', value: pulled ? '吸合' : '断开', dot: pulled ? 'ok' : 'idle' },
     { label: '继电器', value: `${relayCount} / 3`, unit: '个' },
     { label: '运行指示', value: running ? '亮' : '灭', dot: running ? 'ok' : 'idle' },
+    // 脱扣是这一页最要紧的一条：手柄停在中间位，不是断开位
+    { label: '断路器手柄', value: tripped ? '中间位（已脱扣）' : closed ? '合闸位' : '断开位', dot: tripped ? 'warn' : 'idle' },
   ]
 })
 
@@ -690,6 +707,11 @@ onBeforeUnmount(stop)
   width: 8px;
   height: 8px;
   border-radius: 50%;
+}
+
+.demo__dot--warn {
+  /* 脱扣位用琥珀色：既不是正常（绿）也不是未动作（灰） */
+  background: #c28a2a;
 }
 
 .demo__dot--ok {
