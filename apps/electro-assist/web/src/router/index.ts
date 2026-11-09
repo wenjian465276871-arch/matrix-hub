@@ -43,6 +43,12 @@ const router = createRouter({
       // B 模块：现场排查。只做检索，页面本身不引入任何模型相关代码。
       component: () => import('../views/DiagnoseView.vue'),
     },
+    {
+      path: '/demo/device',
+      name: 'device-demo',
+      // 设备三维演示：Three.js 在该页内部再动态引入，主包与首屏都不受影响。
+      component: () => import('../views/DeviceDemoView.vue'),
+    },
     { path: '/:pathMatch(.*)*', redirect: '/' },
   ],
   scrollBehavior(_to, _from, saved) {
