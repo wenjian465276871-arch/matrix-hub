@@ -12,7 +12,7 @@ from models.visual import (
     MotionAnim,
     Primitive,
     VisualSpec,
-    device_subjects,
+    device_catalog,
     motion_slots,
 )
 
@@ -37,8 +37,9 @@ def visual_primitives() -> dict[str, Any]:
             "anims": [a.value for a in MotionAnim],
             "slots": motion_slots(),
         },
-        # 三维场景的受控枚举：模型只能在这里面选，前端也按这张表分发
-        "devices": device_subjects(),
+        # 三维场景的受控枚举：部件、可指名瞬间、所属工位一起下发。
+        # 只给 subject 列表的话，调用方拿不到 t 的语义，只能自己编。
+        "devices": device_catalog(),
         "notes": [
             "params 只允许标量，键名必须在该原语的白名单内",
             "fallback_text 必填：渲染失败时降级为文字，现场必须可读",

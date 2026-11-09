@@ -12,11 +12,16 @@ from fastapi.testclient import TestClient
 from llm.prompts import system_prompt
 from main import app
 from models.visual import (
+    DEVICE_MOMENTS,
+    DEVICE_SUBJECTS,
+    DEVICE_SYSTEMS,
+    MAX_DEVICE_SCENES,
     MAX_MOTION_TRACKS,
     MotionAnim,
     Primitive,
     VisualSpec,
     allowed_params,
+    device_catalog,
     motion_slots,
 )
 
@@ -232,3 +237,63 @@ def test_meter_motion_ok_when_value_present():
     )
     visual.validate_against_primitive()
     assert visual.motion[0].target == "needle"
+
+
+# ---------------------------------------------------------------- 三维场景
+
+def test_device_moments_are_ordered_and_bounded():
+    """可指名瞬间必须是单调、去重、落在 0–1 的。
+
+    这张表是 prompt 里 `t` 的唯一来源：顺序错或越界，模型会照着表选出一个
+    前端算不出姿态的值——页面上表现为「图不动」或「停在别的工步」。
+    """
+    for subject, moments in DEVICE_MOMENTS.items():
+        ts = [t for t, _, _ in moments]
+        keys = [key for _, key, _ in moments]
+        assert ts == sorted(ts), f"{subject} 的 t 未按升序排列"
+        assert len(set(ts)) == len(ts), f"{subject} 的 t 有重复"
+        assert len(set(keys)) == len(keys), f"{subject} 的 key 有重复"
+        assert all(0.0 <= t <= 1.0 for t in ts), f"{subject} 的 t 越界"
+        assert len(moments) >= 3, f"{subject} 至少要有 3 个可指名瞬间才有得选"
+
+
+def test_every_device_has_parts_systems_and_moments():
+    """三个来源必须一一对齐：漏一个，catalog 生成时就会 KeyError。"""
+    assert set(DEVICE_SUBJECTS) == set(DEVICE_MOMENTS) == set(DEVICE_SYSTEMS)
+    for subject, systems in DEVICE_SYSTEMS.items():
+        assert systems, f"{subject} 没有归属工位，等于永不可用"
+
+
+def test_schema_visual_publishes_device_catalog():
+    with TestClient(app) as client:
+        body = client.get("/api/electro/schema/visual").json()
+    devices = body["devices"]
+    assert set(devices) == set(DEVICE_SUBJECTS)
+    for subject, info in devices.items():
+        assert info["parts"] == list(DEVICE_SUBJECTS[subject])
+        assert info["systems"] == sorted(DEVICE_SYSTEMS[subject])
+        assert [m["t"] for m in info["moments"]] == [t for t, _, _ in DEVICE_MOMENTS[subject]]
+
+
+def test_prompt_lists_every_device_moment():
+    """prompt 必须把每个设备的瞬间列全。
+
+    只写「t 取 0–1」等于让模型自己编小数：编出来的 t 会让设备停在别的工步，
+    而图上完全看不出来（图好看、读数也对，只是不是这一步）。
+    """
+    prompt = system_prompt()
+    for subject, moments in DEVICE_MOMENTS.items():
+        assert f"· {subject}（" in prompt, f"prompt 缺少设备 {subject}"
+        for _, _, label in moments:
+            assert label in prompt, f"prompt 缺少 {subject} 的瞬间「{label}」"
+
+
+def test_prompt_states_device_scene_cap():
+    assert f"最多 {MAX_DEVICE_SCENES} 张" in system_prompt()
+
+
+def test_device_catalog_matches_prompt_parts():
+    """catalog 里的 part 必须同时出现在 prompt 那一行里，否则模型看不到可选值。"""
+    prompt = system_prompt()
+    for subject, info in device_catalog().items():
+        assert " / ".join(info["parts"]) in prompt, f"{subject} 的 part 列表未进 prompt"

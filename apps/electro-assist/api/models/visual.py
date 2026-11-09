@@ -90,6 +90,51 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
     "cabinet": ("breakers", "contactor", "relays", "lamps", "terminals", "board"),
 }
 
+# 每台设备在时间轴上的「可指名瞬间」：(t, key, 屏幕上的样子)。
+#
+# t 是连续值，但工艺文本里的动作是有名字的——「升弓到位」「过载脱扣」「退出密封面」。
+# 让模型在表里挑一个已知瞬间，比让它猜一个 0–1 的小数可靠得多：猜错时图上的设备
+# 停在别的工步，而这在页面上完全看不出来（图好看、读数也对，只是不是这一步）。
+# 取值必须与 `web/src/figures/devices/*.ts` 里各设备的 setT 阈值一致。
+DEVICE_MOMENTS: dict[str, tuple[tuple[float, str, str], ...]] = {
+    "door": (
+        (0.0, "closed", "关闭锁定"),
+        (0.05, "unlocking", "门锁解锁、锁舌缩回"),
+        (0.14, "popping", "退出密封面"),
+        (0.55, "opening", "门扇滑移中段"),
+        (0.95, "open", "完全开启"),
+    ),
+    "pantograph": (
+        (0.0, "lowered", "落弓锁定"),
+        (0.08, "pressurising", "气路建压"),
+        (0.33, "raising", "升弓中段"),
+        (0.61, "contacting", "接触压力建立"),
+        (0.72, "raised", "升弓到位、保压"),
+        (0.88, "lowering", "降弓中（阻尼限速）"),
+    ),
+    "cabinet": (
+        (0.0, "off", "未上电"),
+        (0.07, "closing", "主断路器合闸"),
+        (0.5, "pulled", "接触器吸合"),
+        (0.75, "ready", "系统就绪"),
+        (0.82, "tripped", "过载脱扣（手柄停在中间位）"),
+        (1.0, "restored", "复位后重新合闸"),
+    ),
+}
+
+# subject 只能出现在哪类工位。
+# 三维场景跨系统一定是模型理解错了工位——让它渲染出来比拒掉更糟：
+# 一份车门指导书里出现受电弓，看的人第一反应是「这系统不可信」。
+DEVICE_SYSTEMS: dict[str, frozenset[str]] = {
+    "door": frozenset({"door"}),
+    "pantograph": frozenset({"pantograph"}),
+    # 配电柜（门控器供电、上电自检）属于车门系统，不是独立工位
+    "cabinet": frozenset({"door"}),
+}
+
+# 每份指导书最多几张三维图。与 prompt 里的约束同一处定义，避免"提示词说 2、代码放 5"。
+MAX_DEVICE_SCENES = 2
+
 # 公开给 prompt 使用：枚举值只在这里定义一次，避免"文档写一套、校验另一套"。
 STATE_VALUES = ("pass", "warn", "danger", "idle")
 GATE_STATES = ("open", "closed", "half")
@@ -175,6 +220,25 @@ def device_subjects() -> dict[str, list[str]]:
     否则 prompt 里写的和校验认的迟早对不上。
     """
     return {name: list(parts) for name, parts in DEVICE_SUBJECTS.items()}
+
+
+def device_catalog() -> dict[str, dict[str, object]]:
+    """给 prompt 与 `/schema/visual` 共用：每台设备的部件、可指名瞬间、所属工位。
+
+    三个字段一起发，是因为它们**缺一不可**：只给 subject 列表，模型会自己编 t；
+    只给 t，模型会把受电弓放进车门指导书。分开发就等于让调用方去拼。
+    """
+    return {
+        name: {
+            "parts": list(parts),
+            "moments": [
+                {"t": t, "key": key, "label": label}
+                for t, key, label in DEVICE_MOMENTS[name]
+            ],
+            "systems": sorted(DEVICE_SYSTEMS[name]),
+        }
+        for name, parts in DEVICE_SUBJECTS.items()
+    }
 
 
 def allowed_params() -> dict[str, list[str]]:
@@ -290,6 +354,7 @@ class VisualSpec(BaseModel):
                     raise ValueError("device_scene.t 必须是 0–1 的数值") from None
                 if not 0.0 <= progress <= 1.0:
                     raise ValueError("device_scene.t 必须在 0–1 之间")
+
 
         self._check_motion()
 

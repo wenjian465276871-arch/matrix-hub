@@ -116,6 +116,12 @@
           "caption": "状态指示",
           "fallback_text": "自检通过时指示灯常亮；出现报警指示即为异常，记录后停止。",
           "motion": [{ "target": "lamp", "anim": "pulse", "duration": 1200 }]
+        },
+        {
+          "primitive": "device_scene",
+          "params": { "subject": "cabinet", "t": 0.75, "part": "breakers" },
+          "caption": "配电回路上电自检（示意）",
+          "fallback_text": "上电自检时，三极断路器手柄均在合闸位、状态窗为红色，接触器吸合、继电器依次动作，运行指示转绿。"
         }
       ],
       "duration_s": 120

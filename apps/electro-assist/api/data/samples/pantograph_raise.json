@@ -235,6 +235,12 @@
           "motion": [{ "target": "lamp", "anim": "pulse", "duration": 1000 }]
         },
         {
+          "primitive": "device_scene",
+          "params": { "subject": "pantograph", "t": 0.72, "part": "head" },
+          "caption": "弓头升弓到位（示意）",
+          "fallback_text": "升弓到位：双下臂抬起、上臂展开，弓头碳滑板压在接触线下侧；悬挂弹簧被压缩后建立接触压力，两侧到位信号同时给出。"
+        },
+        {
           "primitive": "wiring",
           "params": {
             "terminals": "X2-1-X2-2-X2-4",
