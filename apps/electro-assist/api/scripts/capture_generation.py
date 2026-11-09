@@ -117,6 +117,7 @@ def build_fixture(
     model: str,
     usage: Usage,
     guide: Guide,
+    repairs: list[str],
     source: str,
     input_source: str,
 ) -> dict:
@@ -137,6 +138,10 @@ def build_fixture(
         "raw": raw,
         "expect": {
             "steps": len(guide.steps),
+            # 确定性降级也记下来：真实输出经常带一条挂错槽位的动效，运行器会剔掉它。
+            # 记数量而不是记原文——文案会改，改文案不该让夹具变红。
+            "repairs": len(repairs),
+            "repair_notes": repairs,
             "primitives": sorted(
                 {fig.primitive.value for step in guide.steps for fig in step.figures}
             ),
@@ -206,9 +211,16 @@ def run_live(args, out_path: Path) -> int:
         model=completion.model,
         usage=completion.usage,
         guide=draft.guide,
+        repairs=draft.repairs,
         source="model_output",
         input_source=input_source,
     )
+    if draft.repairs:
+        # 不算失败：真实模型确实会给 device_scene 挂 motion，运行器按规矩剔掉了。
+        # 但要打出来——"这份快照需要 N 处降级"是事实，藏起来就成了假干净。
+        print(f"note {len(draft.repairs)} 处降级（已记入 expect.repairs）：")
+        for note in draft.repairs:
+            print(f"     · {note}")
     write_fixture(out_path, fixture)
     report(fixture)
     return 0
@@ -244,6 +256,7 @@ def run_from_sample(args, out_path: Path) -> int:
         model="sample-snapshot",
         usage=Usage(),
         guide=guide,
+        repairs=[],
         source="sample_snapshot",
         input_source=str(sample_path),
     )

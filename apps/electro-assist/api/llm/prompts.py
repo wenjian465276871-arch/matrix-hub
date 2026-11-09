@@ -104,6 +104,13 @@ def _motion_table() -> str:
     ]
     for primitive, slots in motion_slots().items():
         lines.append(f"   - {primitive}：target 取 {', '.join(slots)}")
+    # 「没列出来」不等于「可以用」——不写这一句，模型会自己找地方挂轨道。
+    # 2026-11-09 抓的真实输出里，两个 device_scene 都被挂了 `segment` 轨道，
+    # 运行器只能按规矩剔掉（图还在，但那两次强调白写了）。
+    lines.append(
+        "   - 上面没列出的原语（含 device_scene、table、checklist）没有可动槽位，"
+        "motion 会被剔除；device_scene 要强调就靠 part 高亮。"
+    )
     return "\n".join(lines)
 
 
