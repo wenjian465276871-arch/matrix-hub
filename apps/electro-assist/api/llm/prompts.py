@@ -41,7 +41,13 @@ _PRIMITIVE_HINTS: dict[str, str] = {
     "flow_arrow": "steps 为 2–5 项，按执行先后排列",
     "table": "rows 每项是一行，用 | 分格，格数必须与 headers 相同",
     "annotation": "points 为 1–6 项，每项形如「门扇：检查间隙」",
-    "device_scene": "subject / t / part 只能取下方设备表里的值；t 省略则 0.6",
+    # 注意：这里不要再写 `**`——`_primitive_table()` 会把整段包进粗体，
+    # 嵌一层就会把后半句吞进粗体标记里，模型看到的是残缺的 Markdown。
+    "device_scene": (
+        "subject / t / part 只能取下方设备表里的值；"
+        "t 必填，必须是该设备列出的某个瞬间（容差 ±0.02，越界整份被拒）；"
+        "part 可省略（不高亮）"
+    ),
 }
 
 
@@ -55,18 +61,23 @@ def _primitive_table() -> str:
 
 
 def _device_table() -> str:
-    """设备表：subject / 所属工位 / 可指名瞬间 / 可高亮部件。
+    """设备表：subject / 所属工位 / 可指名瞬间 / 可高亮部件（带中文释义）。
 
     由 `models/visual.py` 生成而不是在 prompt 里写死——写死的那份迟早会和校验对不上，
     届时模型只会一直撞 422，而报错信息里没有"该用哪个 t"。
+
+    部件键后面必须跟中文释义：`drive` / `drive2` / `leaf_l` 这些是几何里的变量名，
+    只给键，模型是在猜缩写；给了释义，它才是在按语义选"这一步该亮哪个件"。
     """
     lines = []
     for name in sorted(_CATALOG):
         info = _CATALOG[name]
         moments = "、".join(f"{m['label']}={m['t']:.2f}" for m in info["moments"])
+        labels = info["part_labels"]
+        parts = " / ".join(f"{key}={labels[key]}" for key in info["parts"])
         lines.append(
             f"     · {name}（工位 {' / '.join(info['systems'])}）——"
-            f"{moments}；part 取 {' / '.join(info['parts'])}"
+            f"{moments}；part 取 {parts}"
         )
     return "\n".join(lines)
 

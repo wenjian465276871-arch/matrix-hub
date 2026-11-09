@@ -37,8 +37,9 @@ def visual_primitives() -> dict[str, Any]:
             "anims": [a.value for a in MotionAnim],
             "slots": motion_slots(),
         },
-        # 三维场景的受控枚举：部件、可指名瞬间、所属工位一起下发。
-        # 只给 subject 列表的话，调用方拿不到 t 的语义，只能自己编。
+        # 三维场景的受控枚举：部件（含中文释义）、可指名瞬间、所属工位一起下发。
+        # 只给 subject 列表的话，调用方拿不到 t 的语义，只能自己编；只给部件键的话，
+        # `drive` / `drive2` 在调用方眼里同样是没有语义的缩写。
         "devices": device_catalog(),
         "notes": [
             "params 只允许标量，键名必须在该原语的白名单内",

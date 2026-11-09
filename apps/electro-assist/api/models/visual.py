@@ -78,7 +78,9 @@ _REQUIRED_PARAMS: dict[Primitive, set[str]] = {
     Primitive.gate_state: {"state"},
     Primitive.table: {"headers", "rows"},
     Primitive.annotation: {"points"},
-    Primitive.device_scene: {"subject"},
+    # t 必填。省略 t 由前端挑一帧，和让模型编一个 t 是同一件事：图上停在哪个工步
+    # 没人知道。三维图唯一的价值就是"这一步设备长什么样"，这一项不能有默认值。
+    Primitive.device_scene: {"subject", "t"},
 }
 
 # 设备白名单：subject → 可高亮的部件键。
@@ -88,6 +90,36 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
     "door": ("leaf_l", "leaf_r", "frame", "lamp"),
     "pantograph": ("arms", "head", "frame", "drive", "drive2", "lamp"),
     "cabinet": ("breakers", "contactor", "relays", "lamps", "terminals", "board"),
+}
+
+# 部件的中文说明：键是英文的（`drive` / `drive2` 这类），说明是给人看的。
+#
+# 为什么要单独一张表：只给键不给释义，模型只能从名字猜——`drive` 猜成"门机驱动"
+# 还是"气路控制箱"都说得通，猜错就高亮到别的件上，而页面上高亮本身就"看着合理"，
+# 没有人能从结果反推它理解错了。写一句说明，模型选键时才是在做语义选择。
+DEVICE_PART_LABELS: dict[str, dict[str, str]] = {
+    "door": {
+        "leaf_l": "左门扇（含门锁与携门架）",
+        "leaf_r": "右门扇（含门锁与携门架）",
+        "frame": "门框与门楣设备舱（门槛压条、密封面）",
+        "lamp": "门状态指示灯（门机罩前脸）",
+    },
+    "pantograph": {
+        "arms": "桁架臂（双下臂 + 上臂 + 平衡杆）",
+        "head": "弓头（碳滑板、弓角、悬挂弹簧）",
+        "frame": "底架与绝缘子、车顶板",
+        "drive": "气路控制箱（压力表、总风管、软管）",
+        "drive2": "升弓气囊与降弓阻尼器（出力与限速两支不同的缸）",
+        "lamp": "到位指示灯",
+    },
+    "cabinet": {
+        "breakers": "断路器（三极主断 + 两个单极，含灭弧室与脱扣机构）",
+        "contactor": "接触器（衔铁与主触点）",
+        "relays": "继电器组（三只，带状态灯）",
+        "lamps": "指示灯（电源、运行、告警）",
+        "terminals": "端子排（10 位）",
+        "board": "柜内安装背板",
+    },
 }
 
 # 每台设备在时间轴上的「可指名瞬间」：(t, key, 屏幕上的样子)。
@@ -121,6 +153,11 @@ DEVICE_MOMENTS: dict[str, tuple[tuple[float, str, str], ...]] = {
         (1.0, "restored", "复位后重新合闸"),
     ),
 }
+
+# t 的容差。模型照表抄也可能写出 0.549、0.551 这种数（它习惯把连续量"算一下"），
+# 差 0.01 在图上肉眼看不出，所以容差内直接吸附到表里的值；超容差就是选错了瞬间，
+# 拒掉比画出来好——画出来没人能发现，那才是真正的失败。
+DEVICE_T_TOLERANCE = 0.02
 
 # subject 只能出现在哪类工位。
 # 三维场景跨系统一定是模型理解错了工位——让它渲染出来比拒掉更糟：
@@ -225,12 +262,14 @@ def device_subjects() -> dict[str, list[str]]:
 def device_catalog() -> dict[str, dict[str, object]]:
     """给 prompt 与 `/schema/visual` 共用：每台设备的部件、可指名瞬间、所属工位。
 
-    三个字段一起发，是因为它们**缺一不可**：只给 subject 列表，模型会自己编 t；
-    只给 t，模型会把受电弓放进车门指导书。分开发就等于让调用方去拼。
+    四个字段一起发，是因为它们**缺一不可**：只给 subject 列表，模型会自己编 t；
+    只给 t，模型会把受电弓放进车门指导书；只给部件键不给释义（`part_labels`），
+    `drive` 与 `drive2` 在模型眼里是两个没有语义的缩写。分开发就等于让调用方去拼。
     """
     return {
         name: {
             "parts": list(parts),
+            "part_labels": dict(DEVICE_PART_LABELS[name]),
             "moments": [
                 {"t": t, "key": key, "label": label}
                 for t, key, label in DEVICE_MOMENTS[name]
@@ -343,18 +382,38 @@ class VisualSpec(BaseModel):
                 )
             part = self.params.get("part")
             if part is not None and part not in DEVICE_SUBJECTS[subject]:
+                options = "、".join(
+                    f"{key}={label}"
+                    for key, label in DEVICE_PART_LABELS[subject].items()
+                )
                 raise ValueError(
-                    f"device_scene.part 在 {subject} 下只能是 {list(DEVICE_SUBJECTS[subject])}"
+                    f"device_scene.part 在 {subject} 下只能是：{options}；收到 {part}"
                 )
             raw = self.params.get("t")
-            if raw is not None:
-                try:
-                    progress = float(raw)  # 模型可能给 "0.6" 这种字符串
-                except (TypeError, ValueError):
-                    raise ValueError("device_scene.t 必须是 0–1 的数值") from None
-                if not 0.0 <= progress <= 1.0:
-                    raise ValueError("device_scene.t 必须在 0–1 之间")
-
+            if raw is None:
+                # 正常走不到：`_REQUIRED_PARAMS` 已在上面拦掉。留着是为了
+                # `validate_against_primitive()` 被单独调用时也有明确报错。
+                raise ValueError("device_scene.t 必填：必须指明这张图停在哪个瞬间")
+            try:
+                progress = float(raw)  # 模型可能给 "0.6" 这种字符串
+            except (TypeError, ValueError):
+                raise ValueError("device_scene.t 必须是 0–1 的数值") from None
+            if not 0.0 <= progress <= 1.0:
+                raise ValueError("device_scene.t 必须在 0–1 之间")
+            # 只认表里的瞬间。这是这一段唯一真正要紧的约束：0.6 就落在 0–1 之间，
+            # 也画得出一张好看的图，但它对应的是别的工步——图、读数、判据全对，
+            # 只有"这是哪一步"错了，而页面上没有任何东西能暴露这一点。
+            moments = DEVICE_MOMENTS[subject]
+            nearest_t = min(moments, key=lambda m: abs(m[0] - progress))[0]
+            if abs(nearest_t - progress) > DEVICE_T_TOLERANCE:
+                allowed = "、".join(f"{t:.2f}={label}" for t, _, label in moments)
+                raise ValueError(
+                    f"device_scene.t 在 {subject} 下只能取设备表里的瞬间"
+                    f"（容差 ±{DEVICE_T_TOLERANCE}）：{allowed}；收到 {progress}"
+                )
+            # 容差内吸附到表内值：同一瞬间差 1–2% 看不出来，但会让同一份指导书里的
+            # 两个 t 落在不同帧，打印出的静态帧和滑块读数对不上。
+            self.params["t"] = nearest_t
 
         self._check_motion()
 
