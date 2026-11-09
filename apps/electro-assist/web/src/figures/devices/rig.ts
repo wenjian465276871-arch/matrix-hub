@@ -1,0 +1,286 @@
+/** 设备 3D 场景的共用基座：PBR 材质、程序化纹理、环境光照、缓动、销毁。
+ *
+ *  ## 为什么是程序化几何 + 程序化纹理
+ *  1. **授权**：真实车门/受电弓的 CAD 不存在可再分发的自由授权版本，商业模型
+ *     明确禁止再分发源文件，与公开仓冲突。程序化生成没有这个问题。
+ *  2. **CSP**：本项目 `script-src 'self'` 无 `unsafe-eval`、`img-src 'self' data:`。
+ *     程序化几何 + CanvasTexture 不产生任何网络请求、不需要 WASM 解码器，
+ *     CSP 一行都不用改；换 GLB + DRACO 就必须放松 CSP 去换一个解码器。
+ *  3. **体积**：首屏 46KB，Three.js 本体约 140KB gzip 已是上限，再把模型塞进来
+ *     会把演示页拖到几 MB，弱网现场直接放弃。
+ *
+ *  ## 逼真度从哪来
+ *  不靠贴图和模型精度，靠三件事：**环境反射（IBL）+ 材质分区 + 软阴影**。
+ *  金属要有东西可反射才像金属，这是 Web 端逼真度最大的单点收益，
+ *  比把面数翻十倍有效得多。所以这里用 RoomEnvironment 生成 PMREM 环境图，
+ *  零外部文件却能得到接近产品渲染图的高光。
+ */
+import {
+  BufferGeometry,
+  CanvasTexture,
+  EdgesGeometry,
+  Group,
+  LineBasicMaterial,
+  LineSegments,
+  Material,
+  Mesh,
+  MeshPhysicalMaterial,
+  MeshStandardMaterial,
+  Object3D,
+  RepeatWrapping,
+  Texture,
+} from 'three'
+import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js'
+
+/** 一支设备场景的可驱动骨架。`setT` 接收 0..1 的归一化进度，内部自行分段。 */
+export interface DeviceRig {
+  root: Group
+  /** 0 = 初始状态，1 = 动作结束。外部时间轴 scrub 直接喂这个。 */
+  setT: (t: number) => void
+  /** 可点选/高亮的部件，键名与 DSL 的 `part` 枚举一一对应。 */
+  parts: Record<string, Object3D>
+  /** 当前所处阶段（用于外部状态条显示）。 */
+  phase: (t: number) => string
+  /** 相机取景建议：不同设备的包围盒不一样，交给载荷自己报。 */
+  framing: { target: [number, number, number]; distance: number }
+  dispose: () => void
+}
+
+/** 高亮用的强调色。与前端主色同族，避免出现第六套配色。 */
+export const FOCUS = 0x2f6fd0
+
+/* ---------------------------------------------------------------- 程序化纹理 */
+
+/** 确定性伪随机：同一份代码每次构建纹理一致，截图可复现。 */
+function lcg(seed: number): () => number {
+  let s = seed >>> 0
+  return () => {
+    s = (s * 1664525 + 1013904223) >>> 0
+    return s / 4294967296
+  }
+}
+
+/**
+ * 拉丝金属的粗糙度纹理：一个方向上的细密条纹。
+ * 真实不锈钢的拉丝是轧制留下的，方向高度一致，所以只沿 U 抖。
+ * 只作 roughnessMap 用——当颜色贴图会立刻显假。
+ */
+function brushedRoughness(): Texture {
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    const rand = lcg(20261109)
+    ctx.fillStyle = '#8a8a8a'
+    ctx.fillRect(0, 0, size, size)
+    for (let y = 0; y < size; y += 1) {
+      const v = 128 + Math.round((rand() - 0.5) * 46)
+      ctx.fillStyle = `rgb(${v},${v},${v})`
+      ctx.fillRect(0, y, size, 1)
+    }
+    // 几道深浅不匀的长纹，模拟轧制纹路的不均匀
+    for (let i = 0; i < 7; i += 1) {
+      const y = Math.floor(rand() * size)
+      const alpha = 0.06 + rand() * 0.1
+      ctx.fillStyle = `rgba(60,60,60,${alpha.toFixed(3)})`
+      ctx.fillRect(0, y, size, 1 + Math.floor(rand() * 2))
+    }
+  }
+  const tex = new CanvasTexture(canvas)
+  tex.wrapS = RepeatWrapping
+  tex.wrapT = RepeatWrapping
+  tex.repeat.set(3, 6)
+  tex.anisotropy = 4
+  return tex
+}
+
+/** 磨砂表面的细微颗粒。橡胶、喷塑件用它，比纯 flat 有质感。 */
+function grainRoughness(): Texture {
+  const size = 128
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    const rand = lcg(77031)
+    const img = ctx.createImageData(size, size)
+    for (let i = 0; i < size * size; i += 1) {
+      const v = 150 + Math.round((rand() - 0.5) * 70)
+      img.data[i * 4] = v
+      img.data[i * 4 + 1] = v
+      img.data[i * 4 + 2] = v
+      img.data[i * 4 + 3] = 255
+    }
+    ctx.putImageData(img, 0, 0)
+  }
+  const tex = new CanvasTexture(canvas)
+  tex.wrapS = RepeatWrapping
+  tex.wrapT = RepeatWrapping
+  tex.repeat.set(8, 8)
+  return tex
+}
+
+/* -------------------------------------------------------------------- 材质库 */
+
+let sharedBrushed: Texture | null = null
+let sharedGrain: Texture | null = null
+
+function brushed(): Texture {
+  if (!sharedBrushed) sharedBrushed = brushedRoughness()
+  return sharedBrushed
+}
+
+function grain(): Texture {
+  if (!sharedGrain) sharedGrain = grainRoughness()
+  return sharedGrain
+}
+
+/**
+ * 拉丝不锈钢。车门外板最常见的表面，也是全场景最贵的材质——
+ * metalness 拉满后完全靠环境图成像，所以必须有 environment 才有金属味。
+ */
+export function steelMaterial(color = 0xb9bdc1): MeshStandardMaterial {
+  return new MeshStandardMaterial({
+    color,
+    metalness: 0.94,
+    roughness: 0.42,
+    roughnessMap: brushed(),
+    envMapIntensity: 1.15,
+  })
+}
+
+/** 喷漆铝板：车内壁、门框。半哑光，反射柔和。
+ *  `metalness` 取 0 不是偷懒：漆膜是电介质，PBR 里中间值只会得到「脏金属」的观感。
+ *  纪律——金属度只在 0 和 1 之间选，同一条约束见 steel / chrome / rubber。 */
+export function paintedMaterial(color = 0xd9d7d1): MeshStandardMaterial {
+  return new MeshStandardMaterial({
+    color,
+    metalness: 0,
+    roughness: 0.58,
+    roughnessMap: grain(),
+    envMapIntensity: 0.85,
+  })
+}
+
+/** 橡胶密封条：几乎全漫反射，深色，不能有任何金属度。 */
+export function rubberMaterial(color = 0x24262a): MeshStandardMaterial {
+  return new MeshStandardMaterial({
+    color,
+    metalness: 0.0,
+    roughness: 0.96,
+    roughnessMap: grain(),
+    envMapIntensity: 0.3,
+  })
+}
+
+/** 镀铬五金（锁钩、把手、导轨）。低粗糙度，高对比高光。 */
+export function chromeMaterial(): MeshStandardMaterial {
+  return new MeshStandardMaterial({
+    color: 0xd6d9dc,
+    metalness: 1.0,
+    roughness: 0.16,
+    envMapIntensity: 1.5,
+  })
+}
+
+/**
+ * 观察窗玻璃。刻意**不用** transmission：真透射材质每帧要多渲染一遍场景，
+ * 中低端机上直接把帧率砍半。这里用「低不透明度 + 高环境反射 + 深色底」骗过去，
+ * 在静态观察角度下和真玻璃几乎分不出来。
+ */
+export function glassMaterial(): MeshPhysicalMaterial {
+  return new MeshPhysicalMaterial({
+    color: 0x3a4a55,
+    metalness: 0,
+    roughness: 0.08,
+    transparent: true,
+    /* 0.55：再深就变成两块黑板。真车门玻璃的主要观感是「反射环境」而不是「深色」 */
+    opacity: 0.55,
+    envMapIntensity: 2.0,
+    clearcoat: 1,
+    clearcoatRoughness: 0.06,
+  })
+}
+
+/** 指示灯。emissive 让它在任何光照下都自发光，不需要额外的 bloom 后处理。 */
+export function lampMaterial(color: number): MeshStandardMaterial {
+  return new MeshStandardMaterial({
+    color,
+    emissive: color,
+    emissiveIntensity: 1.4,
+    metalness: 0,
+    roughness: 0.35,
+  })
+}
+
+/** 地面：只用来接阴影，本身不可见（页面色透上来），避免出现「悬浮模型」。 */
+export function floorMaterial(): MeshStandardMaterial {
+  return new MeshStandardMaterial({ color: 0x9a9a96, roughness: 0.95, metalness: 0 })
+}
+
+/* ------------------------------------------------------------------ 几何工具 */
+
+/**
+ * 圆角方件。直角边是「CG 感」最大的来源——真实钣金件没有一条绝对锐边。
+ * radius 控制在 6–14mm，segments 2–3，够用又不爆面数。
+ */
+export function roundedBox(
+  w: number,
+  h: number,
+  d: number,
+  material: Material,
+  x = 0,
+  y = 0,
+  z = 0,
+  radius = 0.01,
+  segments = 2,
+): Mesh {
+  const r = Math.min(radius, w / 2.05, h / 2.05, d / 2.05)
+  const mesh = new Mesh(new RoundedBoxGeometry(w, h, d, segments, r), material)
+  mesh.position.set(x, y, z)
+  mesh.castShadow = true
+  mesh.receiveShadow = true
+  return mesh
+}
+
+/** 技术插图档的墨线包边（可选）。逼真模式下默认不用，只在「图解模式」打开。 */
+export function withEdges(mesh: Mesh, opacity = 0.32): Mesh {
+  const edges = new EdgesGeometry(mesh.geometry as BufferGeometry, 26)
+  const lines = new LineSegments(
+    edges,
+    new LineBasicMaterial({ color: 0x14161a, transparent: true, opacity }),
+  )
+  lines.renderOrder = 1
+  mesh.add(lines)
+  return mesh
+}
+
+/* -------------------------------------------------------------------- 缓动 */
+
+/** smoothstep：起止都平缓，比线性更像机械动作。入参自动夹到 0..1。 */
+export function smooth(v: number): number {
+  const t = v < 0 ? 0 : v > 1 ? 1 : v
+  return t * t * (3 - 2 * t)
+}
+
+/** 取 [a, b] 区间内的归一化进度并平滑。a >= b 时退化成阶跃，避免除零。 */
+export function seg(t: number, a: number, b: number): number {
+  if (b <= a) return t >= b ? 1 : 0
+  return smooth((t - a) / (b - a))
+}
+
+/* -------------------------------------------------------------------- 销毁 */
+
+/** 释放整棵树的几何与材质。canvas 里的东西 GC 收不到，必须手动。 */
+export function disposeTree(root: Object3D): void {
+  root.traverse((obj) => {
+    const holder = obj as Mesh | LineSegments
+    if (holder.geometry) holder.geometry.dispose()
+    const material = holder.material as Material | Material[] | undefined
+    if (!material) return
+    if (Array.isArray(material)) material.forEach((m) => m.dispose())
+    else material.dispose()
+  })
+}
