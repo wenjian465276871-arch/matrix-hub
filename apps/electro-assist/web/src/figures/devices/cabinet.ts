@@ -21,6 +21,7 @@
  */
 import {
   CatmullRomCurve3,
+  CylinderGeometry,
   Group,
   Mesh,
   MeshPhysicalMaterial,
@@ -89,46 +90,124 @@ interface BreakerRig {
   group: Group
   handles: Group[]
   windows: Mesh[]
+  /** 动触点：合闸时摆向静触点。它是「手柄动了以后电才通」的可见证据。 */
+  arms: Group[]
 }
 
 /**
  * 造一台微型断路器。`poles` 决定极数，多极的由一根连杆把手柄锁在一起。
- * 结构按真实 MCB：本体 + 前置拨杆 + 状态窗 + 上下接线螺钉 + 极间连杆。
+ *
+ * ## 为什么是空壳 + 内部机构
+ * 上一版是实心盒，切开只看到盒壁——剖切对断路器毫无意义。真机内部有四样东西，
+ * 而且它们**恰好是电气调试最关心的**：
+ * - 灭弧室：一叠钢片，负责把分断时的电弧拉长冷却
+ * - 动静触点：手柄扳到位，触点才闭合；触点不到位就是「手柄合了但没通」
+ * - 双金属片：过载时受热弯曲，顶开脱扣杆（本模型只做静态呈现）
+ * - 手柄轴与联动杠杆：把拨杆的角度传成触点的位移
+ *
+ * ## 外壳做成六片薄壁
+ * 左右侧板 + 上下盖 + 前后盖。这样剖切去掉前盖后，内部机构是**露出来**的，
+ * 而不是被一块实心体挡着。
+ *
+ * ## 手柄与状态窗不参与裁剪
+ * 它们挂在 `cutKeep` 组下：剖切时外壳被切开，手柄仍然完整地扳动。
+ * 这是剖视图的常规画法（切外壳、留机构），不是取巧——否则刀一落，
+ * 这个场景的主角（手柄）就没了。
  */
 function buildBreaker(poles: number, poleW: number, height: number): BreakerRig {
   const group = new Group()
   const handles: Group[] = []
   const windows: Mesh[] = []
+  const arms: Group[] = []
 
   // 断路器外壳压到中浅灰：0xdfdcd5 在环境光下发白，细节（模缝、手柄槽）全丢
   const faceMat = new MeshStandardMaterial({ color: 0xc7c4bd, metalness: 0, roughness: 0.42 })
   const darkMat = new MeshStandardMaterial({ color: 0x33363b, metalness: 0.05, roughness: 0.48 })
   const depth = 0.1
+  const w = poleW * 0.9
+  const shellT = 0.005
+
+  // 内部件材质。区别于外壳：铜排、银触点、钢片、双金属各一种
+  const copperMat = new MeshStandardMaterial({ color: COPPER, metalness: 0.85, roughness: 0.38 })
+  const silverMat = new MeshStandardMaterial({ color: 0xcfd3d6, metalness: 0.95, roughness: 0.22 })
+  const plateMat = new MeshStandardMaterial({ color: 0x7c8188, metalness: 0.9, roughness: 0.5 })
+  const bimetalMat = new MeshStandardMaterial({ color: 0xa9743c, metalness: 0.75, roughness: 0.45 })
 
   for (let i = 0; i < poles; i += 1) {
     const x = (i - (poles - 1) / 2) * poleW
 
-    // 本体分两段，中间留一道模缝，比一整块像工业件
+    /* ---- 外壳：六片薄壁，围出一个能装机构的空腔 ---- */
     group.add(
-      roundedBox(poleW * 0.9, height * 0.58, depth, faceMat, x, height * 0.21, 0, 0.005),
-      roundedBox(poleW * 0.9, height * 0.34, depth, faceMat, x, -height * 0.3, 0, 0.005),
+      roundedBox(shellT, height, depth, faceMat, x - w / 2, 0, 0, 0.002),
+      roundedBox(shellT, height, depth, faceMat, x + w / 2, 0, 0, 0.002),
+      roundedBox(w, shellT, depth, faceMat, x, height / 2 - shellT / 2, 0, 0.002),
+      roundedBox(w, shellT, depth, faceMat, x, -height / 2 + shellT / 2, 0, 0.002),
+      // 前盖：剖切默认就切在它前面，去掉它才看得到内部
+      roundedBox(w * 0.92, height, 0.006, faceMat, x, 0, depth / 2 - 0.003, 0.002),
+      roundedBox(w, height, 0.006, faceMat, x, 0, -depth / 2 + 0.003, 0.002),
     )
 
-    // 拨杆：轴心在本体前上方，杆身向上偏，绕 X 轴转就是「向上扳/向下扳」
+    /* ---- 内部机构 ----
+       按**真实电流路径**从下往上排：下端子 → 双金属片 → 静触点 → 电弧区（灭弧室）
+       → 上端子。位置不是随手摆的，是这条路径决定的；这样剖开以后，
+       一眼能顺着看明白「电从哪进来、经过什么、从哪出去」。
+       动触点的落点同样反算过：臂长 60mm、摆 0.5rad，尖端正好压在静触点银点上。 */
+    // 双金属片：过载时受热弯曲，顶开脱扣杆
+    group.add(roundedBox(0.032, 0.05, 0.005, bimetalMat, x, -0.062, -0.026, 0.002))
+    // 脱扣杆
+    group.add(roundedBox(0.036, 0.006, 0.006, plateMat, x, -0.03, -0.03, 0.001))
+    // 静触点铜排 + 银点
+    group.add(roundedBox(0.02, 0.04, 0.013, copperMat, x, -0.03, -0.028, 0.002))
+    group.add(roundedBox(0.018, 0.008, 0.012, silverMat, x, -0.007, -0.024, 0.002))
+    // 灭弧室：一叠钢片，压住触点上方
+    for (let k = 0; k < 7; k += 1) {
+      group.add(roundedBox(w - 0.02, 0.0038, 0.032, plateMat, x, 0.004 + k * 0.0048, -0.018, 0.001))
+    }
+    // 上引排：从灭弧室顶接到上端子
+    group.add(roundedBox(0.014, 0.028, 0.011, copperMat, x, 0.055, -0.028, 0.002))
+    // 软连接：动触点臂到下端子的铜编织带，三股
+    for (let k = -1; k <= 1; k += 1) {
+      const braid = new Mesh(new CylinderGeometry(0.0022, 0.0022, 0.052, 6), copperMat)
+      braid.position.set(x + k * 0.005, -0.075, -0.008)
+      braid.rotation.x = 0.35
+      group.add(braid)
+    }
+
+    /* ---- 动触点臂：绕下端铰点摆，合闸时压到静触点银点上 ---- */
+    const arm = new Group()
+    arm.position.set(x, -0.06, 0.005)
+    arm.add(roundedBox(0.016, 0.06, 0.014, copperMat, 0, 0.03, 0, 0.002))
+    arm.add(roundedBox(0.018, 0.009, 0.013, silverMat, 0, 0.058, 0, 0.002))
+    arms.push(arm)
+    group.add(arm)
+
+    /* ---- 手柄轴：把拨杆的角度传进壳里 ---- */
+    const shaft = new Mesh(new CylinderGeometry(0.006, 0.006, w - 0.008, 12), darkMat)
+    shaft.rotation.z = Math.PI / 2
+    shaft.position.set(x, height * 0.04, depth / 2 - 0.012)
+    group.add(shaft)
+
+    /* ---- 手柄与状态窗：挂在 cutKeep 下，刀落下时它们保持完整 ---- */
+    const front = new Group()
+    front.userData.cutKeep = true
+
     const hinge = new Group()
     hinge.position.set(x, height * 0.04, depth / 2 - 0.002)
-    hinge.add(roundedBox(poleW * 0.5, height * 0.34, 0.028, darkMat, 0, height * 0.17, 0, 0.006))
+    hinge.add(roundedBox(poleW * 0.46, height * 0.34, 0.028, darkMat.clone(), 0, height * 0.17, 0, 0.006))
     // 手柄顶端一道横向防滑纹，转起来更容易被看见
-    hinge.add(roundedBox(poleW * 0.56, 0.012, 0.032, chromeMaterial(), 0, height * 0.33, 0, 0.004))
+    hinge.add(roundedBox(poleW * 0.52, 0.012, 0.032, chromeMaterial(), 0, height * 0.33, 0, 0.004))
     hinge.rotation.x = 1.0
     handles.push(hinge)
-    group.add(hinge)
+    front.add(hinge)
 
-    // 状态窗：拨杆下方，合闸亮红（带电），断开变绿（安全）
+    /* 状态窗**不**挂 cutKeep：它长在前盖上，前盖被切掉时应当跟着消失。
+       只留手柄完整——手柄是动作的主角，窗是面板上的贴片。 */
     const plate = windowPlate(poleW * 0.56, 0.024)
     plate.position.set(x, -height * 0.16, depth / 2 + 0.003)
     windows.push(plate)
     group.add(plate)
+
+    group.add(front)
 
     // 上下接线螺钉
     for (const sy of [1, -1]) {
@@ -138,14 +217,16 @@ function buildBreaker(poles: number, poleW: number, height: number): BreakerRig 
     }
   }
 
-  // 极间连杆：这根杆是「3P 必须同时动作」的视觉证据
+  /* 极间连杆：这根杆是「3P 必须同时动作」的视觉证据。
+     它和手柄一样长在前面，所以同样挂 cutKeep——剖切把手柄留下、却把连杆切掉，
+     3P 就退化成三个独立的单极，正好把这一页要讲的点弄丢了。 */
   if (poles > 1) {
-    group.add(
-      roundedBox(poleW * (poles - 1), 0.012, 0.014, darkMat, 0, height * 0.24, depth / 2 - 0.004, 0.004),
-    )
+    const link = roundedBox(poleW * (poles - 1) + 0.026, 0.013, 0.015, darkMat.clone(), 0, height * 0.19, depth / 2 - 0.005, 0.004)
+    link.userData.cutKeep = true
+    group.add(link)
   }
 
-  return { group, handles, windows }
+  return { group, handles, windows, arms }
 }
 
 export function buildCabinet(): DeviceRig {
@@ -159,6 +240,7 @@ export function buildCabinet(): DeviceRig {
     roundedBox(0.86, 0.03, 0.014, steelMaterial(0xb6babe), 0, 0.55, 0.018, 0.004),
     roundedBox(0.86, 0.03, 0.014, steelMaterial(0xb6babe), 0, 0.14, 0.018, 0.004),
   )
+  board.userData.cutKeep = true
   parts.board = board
   root.add(board)
 
@@ -203,6 +285,7 @@ export function buildCabinet(): DeviceRig {
   const contactorLed = led(0.013)
   contactorLed.position.set(0.385, 0.632, 0.115)
   contactor.add(contactorLed)
+  contactor.userData.cutKeep = true
   parts.contactor = contactor
   root.add(contactor)
 
@@ -244,6 +327,7 @@ export function buildCabinet(): DeviceRig {
     cell.add(indicator)
     relayGroup.add(cell)
   }
+  relayGroup.userData.cutKeep = true
   parts.relays = relayGroup
   root.add(relayGroup)
 
@@ -265,6 +349,7 @@ export function buildCabinet(): DeviceRig {
     )
   }
   lampGroup.add(powerLed, runLed, alarmLed)
+  lampGroup.userData.cutKeep = true
   parts.lamps = lampGroup
   root.add(lampGroup)
 
@@ -274,6 +359,7 @@ export function buildCabinet(): DeviceRig {
   for (let i = 0; i < 10; i += 1) {
     terminals.add(roundedBox(0.034, 0.055, 0.05, termMat, -0.3 + i * 0.04, 0.065, 0.06, 0.003))
   }
+  terminals.userData.cutKeep = true
   parts.terminals = terminals
   root.add(terminals)
 
@@ -355,6 +441,7 @@ export function buildCabinet(): DeviceRig {
     ),
   )
 
+  wireGroup.userData.cutKeep = true
   parts.wires = wireGroup
   root.add(wireGroup)
 
@@ -369,6 +456,9 @@ export function buildCabinet(): DeviceRig {
      */
     const on = seg(t, 0.02, 0.14)
     for (const handle of main.handles) handle.rotation.x = 1.0 - 1.35 * on
+    // 动触点比手柄晚一点合上：先扳到位、再压紧触点，这才是真机的顺序
+    const touch = seg(t, 0.1, 0.16)
+    for (const arm of main.arms) arm.rotation.x = -0.5 * touch
     for (const plate of main.windows) setLed(plate, on >= 0.98 ? RED : GREEN, true)
 
     // 段二：两只单极断路器随后合上
@@ -376,6 +466,7 @@ export function buildCabinet(): DeviceRig {
     sp.forEach((breaker, i) => {
       const p = seg(t, 0.16 + i * 0.05, 0.24 + i * 0.05)
       for (const handle of breaker.handles) handle.rotation.x = 1.0 - 1.35 * p
+      for (const arm of breaker.arms) arm.rotation.x = -0.5 * seg(t, 0.22 + i * 0.05, 0.28 + i * 0.05)
       for (const plate of breaker.windows) setLed(plate, p >= 0.98 ? RED : GREEN, true)
     })
 
@@ -421,9 +512,12 @@ export function buildCabinet(): DeviceRig {
     // 浅背板 + 浅元件：环境压到 0.8，否则断路器会烧成一块白
     envIntensity: 0.8,
     framing: { target: [0.02, 0.35, 0.04], distance: 2.62 },
-    /* 刻意**不声明**剖切：这里的元件都是实心盒（断路器、继电器、端子排），
-       切一刀只能看到盒壁，没有可读的内部结构。等把断路器内部（触点、灭弧室、
-       双金属片）建出来之后再开，否则只是一个「切开也没东西看」的开关。 */
+    /* 剖切沿 Z（从前往后切）：断路器外壳是六片薄壁，去掉前盖就露出
+       灭弧室、动静触点、双金属片、手柄轴——这一刀切下去是有东西看的。
+       默认位置落在前盖前面：外壳被切开，内部机构完整保留。
+       其余元件（接触器、继电器、端子排、导线）挂 cutKeep，不参与裁剪，
+       否则接触器那种实心盒会被切成一块黑板，反而挡视线。 */
+    cut: { axis: 'z', from: -0.02, to: 0.1, cap: 0x4a433a },
     dispose: () => disposeTree(root),
   }
 }

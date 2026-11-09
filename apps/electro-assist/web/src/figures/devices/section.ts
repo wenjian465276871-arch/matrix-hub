@@ -134,8 +134,21 @@ export function createSection(root: Object3D, spec: CutSpec): SectionCutter {
   const allMats = new Set<Material>()
   const solids: Mesh[] = []
 
+  /** 挂在 `userData.cutKeep` 下的零件不参与裁剪，也不做封盖。
+   *  这是剖视图的常规画法：切外壳、留机构。断路器的手柄、接触器、继电器
+   *  都靠它躲开这一刀——否则刀一落，这些场景的主角就没了。 */
+  const isKept = (obj: Object3D): boolean => {
+    let node: Object3D | null = obj
+    while (node) {
+      if (node.userData?.cutKeep === true) return true
+      node = node.parent
+    }
+    return false
+  }
+
   root.traverse((obj) => {
     const holder = obj as Mesh
+    if (isKept(holder)) return
     const raw = holder.material as Material | Material[] | undefined
     if (!raw) return
     for (const material of Array.isArray(raw) ? raw : [raw]) {
