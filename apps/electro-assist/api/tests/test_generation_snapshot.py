@@ -14,8 +14,8 @@
 
 ## 两类断言
 
-- 正向：夹具必须**原样通过**（零降级、零重试），且产出的步骤/图示/三维参数
-  与冻结时一致。任何一项变了，都说明契约动了，人必须来看一眼。
+- 正向：夹具必须**一次通过**（一次调用、降级处数与冻结时一致），且产出的
+  步骤/图示/三维参数与冻结时一致。任何一项变了，都说明契约动了，人必须来看一眼。
 - 反向：把夹具里的 `t` 改成一个表外的值（0.5），必须被拦下来。这一条同时锁住了
   当前取舍——拦下之后的结局是**这张图被丢掉**，而不是"画一张停在别的工步的图"。
 
@@ -80,10 +80,14 @@ def test_fixture_dir_is_not_empty():
 
 @pytest.mark.parametrize("path", FIXTURES, ids=lambda p: p.stem)
 def test_snapshot_passes_untouched(path: Path):
-    """夹具必须原样通过：零降级、零重试、产出一致。
+    """夹具必须一次通过：一次调用、降级处数与冻结时一致、产出一致。
 
-    只要这一条红了，就说明有人把校验线画到了真实模型够不着的地方——
-    要么改校验器，要么重新抓一份夹具，**不能**改夹具来迁就校验器。
+    为什么允许"有降级"：真实模型经常给 `device_scene` 挂 `motion`，那个原语没有
+    可动槽位，运行器会按规矩剔掉——这是**设计内的确定性降级**，不是失败。
+    夹具记下当时的处数，改一条规则就多一处，红得正好。
+
+    只要这一条红了，要么是有人把校验线画到了真实模型够不着的地方，要么是
+    降级路径变了——两种都得有人来看，**不能**改夹具来迁就。
     """
     fixture = _load(path)
     provider = SnapshotProvider(fixture["raw"], Usage(**fixture["usage"]))
@@ -91,9 +95,9 @@ def test_snapshot_passes_untouched(path: Path):
 
     assert provider.calls == 1, "一次通过的输出不该触发第二次调用"
     assert draft.attempts == 1
-    assert draft.repairs == [], f"夹具被降级了：{draft.repairs}"
-
     expect = fixture["expect"]
+    assert len(draft.repairs) == expect.get("repairs", 0), f"降级处数变了：{draft.repairs}"
+
     assert len(draft.guide.steps) == expect["steps"]
     assert sorted(
         {fig.primitive.value for step in draft.guide.steps for fig in step.figures}
@@ -127,29 +131,34 @@ def test_wrong_moment_is_dropped_not_misrendered():
     （会被吸附成 0.61）。第一版就是拿 0.6 当反例，测出来"没有降级"，白跑一轮——
     容差吸附把"看起来错"的值先兜住了，反例必须落在表外。
 
-    注意代价：被丢的是**那一步的全部图示**，不只三维图。若将来希望"先让模型
-    重试一次再考虑丢图"，这条会红——那是有意的：行为变了就得有人重新决定。
+    只改**第一张**三维图：`_salvage` 是一步一步试的，它只能丢掉"出问题的那一步"
+    的全部图示。两份都改就会一路试到底、最后交给模型重试——那是另一条路径，
+    由 `test_llm_runner.py` 的校验失败用例负责，这里不重复。
     """
     bad_t = 0.5
     moments = [t for t, _, _ in DEVICE_MOMENTS["pantograph"]]
     assert min(abs(bad_t - t) for t in moments) > DEVICE_T_TOLERANCE, "反例落在容差里了"
 
     base = _load(FIXTURE_DIR / "pantograph_raise.json")
+    scenes = base["expect"]["device_scenes"]
+    assert scenes, "夹具里没有三维场景，这条用例测不到东西"
+    target = scenes[0]
+
     payload = json.loads(extract_json(base["raw"]))
     touched = 0
     for step in payload.get("steps", []):
         for figure in step.get("figures", []):
-            if figure.get("primitive") == "device_scene":
+            if figure.get("primitive") == "device_scene" and step.get("seq") == target["seq"]:
                 figure["params"]["t"] = bad_t
                 touched += 1
-    assert touched, "夹具里没有三维场景，这条用例测不到东西"
+    assert touched == 1, f"第 {target['seq']} 步应当正好一张三维图"
 
     provider = SnapshotProvider(json.dumps(payload, ensure_ascii=False))
     draft = generate_guide(provider, base["input"])
 
     assert provider.calls == 1, "降级能救回来的不该再花一次调用"
     assert draft.repairs, "表外的 t 必须留下降级记录"
-    assert _scenes(draft.guide) == [], "表外的 t 不能渲染成图"
+    assert _scenes(draft.guide) == scenes[1:], "只有出问题那一步的图被丢，其余不动"
     assert len(draft.guide.steps) == base["expect"]["steps"]
     # 正文与判据是这份指导书的实体，丢图不能连它们一起丢。
     assert all(step.action and step.criteria for step in draft.guide.steps)
