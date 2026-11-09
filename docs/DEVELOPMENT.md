@@ -127,7 +127,7 @@ ruff check .                            # 只开 E9/F63/F7/F82
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
 
 cd ../web
-npm run test:unit        # 组件单测（vitest + happy-dom），167 条，约 18s
+npm run test:unit        # 组件单测（vitest + happy-dom），186 条，约 18s
 npm run test:cov         # 同上 + 覆盖率门禁（低于阈值会以非零退出）
 npm run build            # vue-tsc + vite
 npm run check:inline     # 产物内联 script 断言；CI 在 build 之后跑（失败=构建红）
