@@ -128,10 +128,11 @@ function seek(event: Event): void {
 
   .device__print {
     display: block;
+    /* 固定高度 + object-fit: contain 才能保比例。
+       只写 max-height 时，img 的固有宽度（1402px）会先被 max-width 压到 100%，
+       再被 max-height 压高度，两个约束互相打架，图就被横向拉扁。 */
     width: 100%;
-    /* 限高：A4 内容区里一张满宽 3:2 图约 11cm 高，加上题注容易顶到下一页 */
-    max-height: 95mm;
-    height: auto;
+    height: 95mm;
     object-fit: contain;
     border: 1px solid var(--c-line);
     border-radius: 6px;
