@@ -597,7 +597,10 @@ export function buildCabinet(): DeviceRig {
     fov: 18,
     // 浅背板 + 浅元件：环境压到 0.8，否则断路器会烧成一块白
     envIntensity: 0.8,
-    framing: { target: [0.02, 0.35, 0.04], distance: 2.62 },
+    /* 元件特写：六个元件都算"要看的"，背板不算。 */
+  focus: ['breakers', 'contactor', 'relays', 'lamps', 'terminals'],
+  fitMargin: 1.18,
+  framing: { target: [0.02, 0.35, 0.04], distance: 2.62 },
     /* 剖切沿 Z（从前往后切）：断路器外壳是六片薄壁，去掉前盖就露出
        灭弧室、动静触点、双金属片、手柄轴——这一刀切下去是有东西看的。
        默认位置落在前盖前面：外壳被切开，内部机构完整保留。

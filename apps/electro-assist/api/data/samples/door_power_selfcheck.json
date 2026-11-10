@@ -35,7 +35,13 @@
           "params": {"index": 1, "action": "断电、挂牌、复测无压", "hint": "先隔离再动手"},
           "caption": "步骤示意",
           "fallback_text": "第 1 步：断开蓄电池开关、挂牌，并复测进线端无残余电压。"
-        }
+        },
+          {
+            "primitive": "device_scene",
+            "params": {"subject": "warning_sign", "t": 0.82, "part": "plate"},
+            "caption": "隔离点挂牌（示意）",
+            "fallback_text": "断电后在门边操作把手上挂「禁止合闸，有人工作」标示牌，牌面朝向作业面。"
+          }
       ],
       "duration_s": 180
     },
@@ -91,7 +97,13 @@
           "caption": "输入电压示例",
           "fallback_text": "输入电压示例读数 110 V，允许范围 77–137.5 V。",
           "motion": [{ "target": "needle", "anim": "draw", "duration": 900 }]
-        }
+        },
+          {
+            "primitive": "device_scene",
+            "params": {"subject": "multimeter", "t": 0.78, "part": "screen"},
+            "caption": "万用表测输入电压（示意）",
+            "fallback_text": "档位置于直流电压档，红表笔接电源正极、黑表笔接公共端；两根笔都搭稳后读数才成立，之前显示 OL。"
+          }
       ],
       "duration_s": 180
     },

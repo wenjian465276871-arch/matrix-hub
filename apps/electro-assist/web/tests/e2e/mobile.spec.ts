@@ -36,10 +36,20 @@ test('窄屏 / 键盘顶升 / 表格堆叠 / 点击放大 / 仍要提交', async
   await page.goto('./')
   await page.locator('.guide-card').filter({ hasText: '开关门' }).first().click()
   await expect(page.getByRole('heading', { level: 1 })).toContainText('开关门')
+
+  // 2026-11-10 起是「一步一屏」：表格在第 7 步，必须先进那一页。
+  // 顺带把翻页本身也验了——封面目录跳步 → 圆点回封面。
+  await page.locator('.cover__toc-item').filter({ hasText: '锁闭到位与门扇间隙' }).click()
+  await expect(page.locator('.pager__count')).toContainText(/8\s*\/\s*9/)
   await expect(page.locator('.fig-table__stack')).toBeVisible()
   await expect(page.locator('.fig-table__svg').first()).toBeHidden()
   // 标签来自表头，不是写死的
   await expect(page.locator('.fig-table__stack td').first()).toHaveAttribute('data-label', '标准')
+
+  // 回封面再进 A1：开始引导的按钮只在封面。
+  // 窄屏没有圆点（1080px 以下换成下拉），所以走 select——这也顺带验了窄屏的跳页入口。
+  await page.getByLabel('跳转到页').selectOption('0')
+  await expect(page.locator('.pager__count')).toContainText(/1\s*\/\s*9/)
 
   // ---------- 进 A1，走到有数值判据的第 2 步 ----------
   await page.getByRole('button', { name: '开始引导作业' }).click()

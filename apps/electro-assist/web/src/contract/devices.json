@@ -99,6 +99,98 @@
         "door"
       ]
     },
+    "feeler_gauge": {
+      "moments": [
+        {
+          "key": "fanned",
+          "label": "展开选片（0.50 mm）",
+          "t": 0.0
+        },
+        {
+          "key": "aligned",
+          "label": "片端对准门缝",
+          "t": 0.35
+        },
+        {
+          "key": "inserted",
+          "label": "塞尺插入门缝",
+          "t": 0.62
+        },
+        {
+          "key": "sliding",
+          "label": "沿缝滑动检查",
+          "t": 0.82
+        },
+        {
+          "key": "withdrawn",
+          "label": "抽出并判定",
+          "t": 1.0
+        }
+      ],
+      "part_labels": {
+        "blades": "塞尺片（0.50 mm 单片，含厚度刻字）",
+        "case": "尺壳与铆轴（其余叠片）",
+        "gap": "门缝（被测间隙）",
+        "seal": "门框密封面（橡胶条与压紧面）"
+      },
+      "parts": [
+        "blades",
+        "case",
+        "gap",
+        "seal"
+      ],
+      "systems": [
+        "door"
+      ]
+    },
+    "multimeter": {
+      "moments": [
+        {
+          "key": "dialed",
+          "label": "档位置于直流电压档",
+          "t": 0.0
+        },
+        {
+          "key": "probe_plus",
+          "label": "红表笔搭上正极端子",
+          "t": 0.3
+        },
+        {
+          "key": "probe_minus",
+          "label": "黑表笔搭上负极端子",
+          "t": 0.55
+        },
+        {
+          "key": "reading",
+          "label": "读数稳定（24.1 V）",
+          "t": 0.78
+        },
+        {
+          "key": "withdrawn",
+          "label": "撤笔、读数保持",
+          "t": 1.0
+        }
+      ],
+      "part_labels": {
+        "body": "表体与黄色护套（手持式数字万用表）",
+        "dial": "档位旋钮（本图停在直流电压档）",
+        "probes": "红黑表笔（表笔线、笔身、探针）",
+        "screen": "液晶读数（含单位与小数点）",
+        "terminals": "被测端子排（正极、负极、编号）"
+      },
+      "parts": [
+        "body",
+        "dial",
+        "screen",
+        "probes",
+        "terminals"
+      ],
+      "systems": [
+        "door",
+        "hvac",
+        "pantograph"
+      ]
+    },
     "pantograph": {
       "moments": [
         {
@@ -149,6 +241,99 @@
         "lamp"
       ],
       "systems": [
+        "pantograph"
+      ]
+    },
+    "torque_wrench": {
+      "moments": [
+        {
+          "key": "seated",
+          "label": "套筒套入螺栓",
+          "t": 0.0
+        },
+        {
+          "key": "snug",
+          "label": "预紧、扳手贴平",
+          "t": 0.42
+        },
+        {
+          "key": "loaded",
+          "label": "施力、刻度接近设定值",
+          "t": 0.7
+        },
+        {
+          "key": "clicked",
+          "label": "到扭矩咔嗒脱扣",
+          "t": 0.86
+        },
+        {
+          "key": "marked",
+          "label": "复检并做防松标记",
+          "t": 1.0
+        }
+      ],
+      "part_labels": {
+        "bolt": "门机安装螺栓（六角头）",
+        "bracket": "安装座与螺纹孔",
+        "socket": "套筒（方孔与六角口）",
+        "window": "刻度窗与指针（设定值 25 N·m）",
+        "wrench": "力矩扳手本体与手柄（预置式，到值咔嗒）"
+      },
+      "parts": [
+        "wrench",
+        "socket",
+        "bolt",
+        "bracket",
+        "window"
+      ],
+      "systems": [
+        "door",
+        "pantograph"
+      ]
+    },
+    "warning_sign": {
+      "moments": [
+        {
+          "key": "crooked",
+          "label": "牌已挂在把手上、尚未摆正",
+          "t": 0.0
+        },
+        {
+          "key": "seated",
+          "label": "挂绳滑入把手内侧",
+          "t": 0.35
+        },
+        {
+          "key": "released",
+          "label": "牌面离手、下垂",
+          "t": 0.6
+        },
+        {
+          "key": "settled",
+          "label": "摆动收住、牌面摆正",
+          "t": 0.82
+        },
+        {
+          "key": "checked",
+          "label": "挂牌到位、牌面朝向作业面",
+          "t": 1.0
+        }
+      ],
+      "part_labels": {
+        "cord": "挂绳与挂环",
+        "door": "门体与门边（被隔离的设备）",
+        "handle": "隔离点操作把手（挂牌处）",
+        "plate": "牌面（禁止合闸 有人工作，白底红字）"
+      },
+      "parts": [
+        "plate",
+        "cord",
+        "handle",
+        "door"
+      ],
+      "systems": [
+        "door",
+        "hvac",
         "pantograph"
       ]
     }

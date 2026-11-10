@@ -14,8 +14,10 @@
  * 而页面要 WebGL。纯函数没有这个负担。
  */
 
-export type ReadoutDot = 'ok' | 'idle' | 'warn'
+import { PANO_T, airState, phase as airPhase, travel, type PantoMode } from './panto-air'
+import { PGAP, WIRE_Y, armY, compression } from './panto-kin'
 
+export type ReadoutDot = 'ok' | 'idle' | 'warn'
 export interface Readout {
   label: string
   value: string
@@ -32,6 +34,9 @@ const ease = (v: number): number => {
 
 /** 把 [a, b] 区间映射成 0–1 的平滑进度。 */
 const span = (t: number, a: number, b: number): number => ease((t - a) / (b - a))
+
+/** 与 `span` 同义，但参数顺序是 (t, a, b)——工具类读数（警示牌/塞尺/扭矩）按这个写法。 */
+const smooth = (t: number, a: number, b: number): number => ease((t - a) / (b - a))
 
 /* ------------------------------------------------------------------ 车门 */
 
@@ -77,69 +82,52 @@ export function doorReads(t: number): Readout[] {
 
 /* -------------------------------------------------------------- 受电弓 */
 
-/** 与 `devices/pantograph.ts` 的 `T` 同源。改一处必须改两处。 */
-export const PT = {
-  airOn: 0.04,
-  airFull: 0.12,
-  raise0: 0.12,
-  raise1: 0.54,
-  press1: 0.68,
-  hold1: 0.78,
-  lower0: 0.8,
-  lower1: 0.94,
-} as const
+/* 几何常量与时间轴都从唯一来源取：`panto-kin`（杆长/摆角/接触线）与
+   `panto-air`（气路时序/ADD）。这里不再写第二份副本——
+   2026-11-10 重做受电弓时，"读数说差 42mm、画面已顶到线"就是这么来的。 */
 
-/** 弓头与接触线之间的初始间隙（m），与 `pantograph.ts` 的 `GAP_FREE` 同源。 */
-export const PT_GAP = 0.07
-/** 弓头滑板厚度（m）。 */
-export const PT_TOP = 0.0855
+/** 时间轴。名字沿用 `PT`：现场口径就叫"PT 时序"，且测试按它取样。 */
+export const PT = PANO_T
+
+/** 弓头与接触线之间的自由间隙（m），来自 `panto-kin`。 */
+export const PT_GAP = PGAP.free
+/** 弓头托架原点到滑板顶面的高度（m）。 */
+export const PT_TOP = PGAP.headTop
 /** 弹簧最大压缩量（m）。 */
-export const PT_COMP = 0.055
-/** 接触线高度（m）。 */
-export const PT_WIRE = 2.9175
+export const PT_COMP = PGAP.maxComp
+/** 接触线高度（m）：由满行程自由顶面反推，不写死。 */
+export const PT_WIRE = WIRE_Y
 /** 额定升弓 / 降弓时间（s）：与页面验收判据的 8.5 ± 1.0 / 3.5 ± 0.5 同源。 */
 export const PT_RAISE_S = 8.5
 export const PT_LOWER_S = 3.5
 /** 接触压力额定值（N）：判据写 110 ± 15，这里取 118 作为压缩到底的峰值。 */
 export const PT_CONTACT_MAX = 118
 
-const smooth = (t: number, a: number, b: number): number => ease((t - a) / (b - a))
-
-/** 行程 0–1。按四段算，跟 `pantograph.ts` 的 `setT` 一一对应。 */
-export function pantoP(t: number): number {
-  if (t < PT.raise0) return 0
-  if (t < PT.raise1) return 0.94 * smooth(t, PT.raise0, PT.raise1)
-  if (t < PT.press1) return 0.94 + 0.06 * smooth(t, PT.raise1, PT.press1)
-  if (t < PT.lower0) return 1
-  return 1 - clamp01((t - PT.lower0) / (PT.lower1 - PT.lower0))
+/** 行程 0–1。直接取气路模块的 `travel`，两种工况共用一条曲线。 */
+export function pantoP(t: number, mode: PantoMode = 'normal'): number {
+  return travel(t, mode)
 }
 
-/** 弓臂尖端的绝对高度，纯三角函数，不依赖 three。角度同源：4°→56°、10°→62°。 */
-export function pantoArmY(p: number): number {
-  const a1 = ((4 + 52 * p) * Math.PI) / 180
-  const a2 = ((10 + 52 * p) * Math.PI) / 180
-  return 0.34 + 1.55 * Math.sin(a1) + 1.35 * Math.sin(a2)
-}
+/** 弓臂尖端的绝对高度。纯三角函数，与三维同源。 */
+export const pantoArmY = armY
 
-export function pantoReads(t: number): Readout[] {
-  const p = pantoP(t)
-  const armY = pantoArmY(p)
+export function pantoReads(t: number, mode: PantoMode = 'normal'): Readout[] {
+  const p = travel(t, mode)
+  const tipY = armY(p)
+  const comp = compression(p)
 
   /* 弓头高度取**滑板顶面**：现场量的是弓头到车顶的距离，不是臂尖。
      接触线挡住弓头之后，臂还在上行、弹簧被压缩，所以要按间隙算。 */
-  const freeTop = armY + PT_GAP + PT_TOP
-  const comp = Math.min(Math.max(freeTop - PT_WIRE, 0), PT_COMP)
-  const headTop = Math.round((armY + (PT_GAP - comp) + PT_TOP) * 1000)
+  const headTop = Math.round((tipY + (PGAP.free - comp) + PGAP.headTop) * 1000)
 
   // 压力与压缩量成正比：碰到的瞬间是 0，压到底才是额定值
-  const contactN = Math.round(PT_CONTACT_MAX * Math.min(comp / 0.052, 1))
+  const contactN = Math.round(PT_CONTACT_MAX * Math.min(comp / PGAP.maxComp, 1))
 
-  let air = 0
-  if (t >= PT.airOn) air = 0.62 * smooth(t, PT.airOn, PT.airFull)
-  if (t >= PT.lower0) air *= 1 - smooth(t, PT.lower0, PT.lower0 + 0.05)
+  const air = airState(t, mode)
 
   const raising = t >= PT.raise0 && t < PT.press1
-  const lowering = t >= PT.lower0 && t < PT.lower1
+  const lowering =
+    t >= PT.lower0 && (mode === 'add' ? t < PANO_T.addLanded : t < PT.lower1)
   const seconds = raising
     ? Math.min(p / 0.94, 1) * PT_RAISE_S
     : lowering
@@ -147,31 +135,35 @@ export function pantoReads(t: number): Readout[] {
       : 0
 
   const riseOk = t >= PT.press1 && t < PT.lower0
-  const lowOk = t < PT.raise0 || t >= PT.lower1
+  const lowOk = t < PT.raise0 || (mode === 'add' ? t >= PANO_T.addLanded : t >= PT.lower1)
 
+  /* 阶段名：正常工况沿用原来那套（测试与判据都按这几句核对）；
+     ADD 工况直接用气路模块的说法，因为那一段的"证据"就是压差与快排。 */
   const phase =
-    t < PT.airOn
-      ? '落弓锁定'
-      : t < PT.raise0
-        ? '气路建压'
-        : t < PT.raise1
-          ? '升弓中'
-          : t < PT.press1
-            ? '接触压力建立'
-            : t < PT.hold1
-              ? '升弓到位'
-              : t < PT.lower0
-                ? '保压'
-                : t < PT.lower1
-                  ? '降弓中（阻尼）'
-                  : '落弓到位'
+    mode === 'add' && t >= PT.lower0
+      ? airPhase(t, mode)
+      : t < PT.airOn
+        ? '落弓锁定'
+        : t < PT.raise0
+          ? '气路建压'
+          : t < PT.raise1
+            ? '升弓中'
+            : t < PT.press1
+              ? '接触压力建立'
+              : t < PT.hold1
+                ? '升弓到位'
+                : t < PT.lower0
+                  ? '保压'
+                  : t < PT.lower1
+                    ? '降弓中（阻尼）'
+                    : '落弓到位'
 
   return [
     { label: '动作阶段', value: phase },
     { label: '弓头高度', value: String(headTop), unit: 'mm' },
     // 只有顶到接触线之后才有压力；未接触显示 0，不编一个近似值
     { label: '接触压力', value: String(contactN), unit: 'N' },
-    { label: '气路压力', value: air.toFixed(2), unit: 'MPa' },
+    { label: '气路压力', value: air.bag.toFixed(2), unit: 'MPa' },
     {
       label: raising ? '升弓计时' : lowering ? '降弓计时' : '计时',
       value: seconds.toFixed(1),
@@ -249,10 +241,155 @@ export function cabinetReads(t: number): Readout[] {
   ]
 }
 
-export type SceneKey = 'door' | 'pantograph' | 'cabinet'
+/* ------------------------------------------------------- 工具四台（2026-11-10） */
 
-export function readoutsFor(scene: SceneKey, t: number): Readout[] {
+/** 与 `devices/multimeter.ts` 的 setT 同源：0.12 档位、0.30 红笔、0.55 黑笔、0.58 读数。 */
+export const MM = { dial: 0.12, red: 0.3, black: 0.55, read: 0.58, settle: 0.7 } as const
+
+export function multimeterReads(t: number): Readout[] {
+  const dialed = t >= MM.dial
+  const red = t >= MM.red
+  const black = t >= MM.black
+  const reading = t >= MM.read
+  const value = !reading ? '—' : t >= MM.settle ? '110.3' : '109.8'
+  const phase =
+    t < MM.dial
+      ? '档位置于直流电压档'
+      : t < MM.red
+        ? '红表笔接近正极端子'
+        : t < MM.black
+          ? '黑表笔接近公共端'
+          : t < MM.read
+            ? '等待读数建立'
+            : t < 0.9
+              ? '读数稳定'
+              : '撤笔、读数保持'
+
+  return [
+    { label: '动作阶段', value: phase },
+    { label: '档位', value: dialed ? 'V⎓ 直流' : 'OFF', dot: dialed ? 'ok' : 'idle' },
+    { label: '红表笔', value: red ? '正极端子' : '未接', dot: red ? 'ok' : 'idle' },
+    { label: '黑表笔', value: black ? '公共端' : '未接', dot: black ? 'ok' : 'idle' },
+    { label: '读数', value, unit: reading ? 'V' : undefined, dot: reading ? 'ok' : 'idle' },
+    // 判据是演示虚构值：110 ± 5.5V（与样例「输入电压 110V」同源）
+    {
+      label: '判定',
+      value: reading ? '在 110±5.5V 内' : '等待读数',
+      dot: reading ? 'ok' : 'idle',
+    },
+  ]
+}
+
+/** 与 `devices/warning_sign.ts` 同源：0.40 绳到位、0.62 离手、0.82 摆正。 */
+export const SIGN = { seated: 0.4, released: 0.62, settled: 0.82 } as const
+
+export function signReads(t: number): Readout[] {
+  const settled = t >= SIGN.settled
+  const phase =
+    t < SIGN.seated
+      ? '牌已挂上、尚未摆正'
+      : t < SIGN.released
+        ? '挂绳滑入把手内侧'
+        : t < SIGN.settled
+          ? '牌面离手、摆动中'
+          : '挂牌到位、牌面摆正'
+  // 摆角只作展示：0.42rad ≈ 24°，摆正后归零
+  const tilt = Math.round((24 * (1 - smooth(t, 0, 0.4)) + (t < 0.62 ? 0 : 4 * Math.exp(-9 * (t - 0.62)))) * 10) / 10
+
+  return [
+    { label: '动作阶段', value: phase },
+    { label: '挂牌点', value: '门边操作把手' },
+    { label: '牌面朝向', value: settled ? '朝向作业面' : '偏转', dot: settled ? 'ok' : 'warn' },
+    { label: '摆角', value: String(tilt), unit: '°' },
+    { label: '状态', value: settled ? '已挂牌' : '未摆正', dot: settled ? 'ok' : 'warn' },
+  ]
+}
+
+/** 与 `devices/feeler_gauge.ts` 同源：0.32 选片完成、0.35 对缝、0.62 插入、0.82 滑动。 */
+export const FEEL = { fold: 0.32, align: 0.35, inserted: 0.62, slid: 0.82 } as const
+
+export function feelerReads(t: number): Readout[] {
+  const phase =
+    t < FEEL.fold
+      ? '展开选片、翻成竖直'
+      : t < FEEL.align
+        ? '片端对准门缝'
+        : t < FEEL.inserted
+          ? '插入门缝'
+          : t < FEEL.slid
+            ? '沿缝滑动找最紧处'
+            : t < 0.92
+              ? '抽出塞尺'
+              : '读出片厚、判定间隙'
+  const depth = Math.round(
+    25 * smooth(t, FEEL.align, FEEL.inserted) * (1 - smooth(t, 0.9, 1)),
+  )
+  const slide = Math.round(55 * smooth(t, FEEL.inserted, FEEL.slid) * (1 - smooth(t, 0.9, 1)))
+
+  return [
+    { label: '动作阶段', value: phase },
+    // 不写具体片厚：样例的判据是 2.0mm，写 0.50 就成了"图上的实测值"
+    { label: '塞尺', value: phase === '展开选片、翻成竖直' ? '叠片中' : '单片已翻出' },
+    { label: '插入深度', value: String(depth), unit: 'mm' },
+    { label: '沿缝滑动', value: String(slide), unit: 'mm' },
+    // 只演示 0.50 一片：真实现场是"进得去/进不去"两片夹逼，这里不编第二个数
+    { label: '判定', value: depth > 0 ? '该片能入、沿缝滑动无阻滞' : '未插入', dot: depth > 0 ? 'ok' : 'idle' },
+  ]
+}
+
+/** 与 `devices/torque_wrench.ts` 同源：0.42 落位、0.70 到位前、0.86 咔嗒。 */
+export const TQ = { seated: 0.42, loaded: 0.7, clicked: 0.86 } as const
+export const TQ_TARGET = 25
+
+export function torqueReads(t: number): Readout[] {
+  const seated = t >= TQ.seated
+  const torque = Math.round(
+    TQ_TARGET * Math.min(1, smooth(t, TQ.seated, TQ.loaded) * 0.94 + (t >= 0.78 ? 0.06 : 0)),
+  )
+  const clicked = t >= TQ.clicked
+  const phase =
+    t < TQ.seated
+      ? '套筒套入螺栓'
+      : t < TQ.loaded
+        ? '施力、刻度上升'
+        : t < TQ.clicked
+          ? '到值前最后一段'
+          : t < 0.92
+            ? '咔嗒脱扣、手柄回弹'
+            : '复检并做防松标记'
+
+  return [
+    { label: '动作阶段', value: phase },
+    { label: '设定扭矩', value: String(TQ_TARGET), unit: 'N·m' },
+    { label: '当前扭矩', value: String(torque), unit: 'N·m' },
+    { label: '套筒', value: seated ? '已落位' : '悬空', dot: seated ? 'ok' : 'warn' },
+    {
+      label: '状态',
+      value: clicked ? '已脱扣（咔嗒）' : '施力中',
+      dot: clicked ? 'ok' : 'idle',
+    },
+  ]
+}
+
+export type SceneKey =
+  | 'door'
+  | 'pantograph'
+  | 'cabinet'
+  | 'multimeter'
+  | 'warning_sign'
+  | 'feeler_gauge'
+  | 'torque_wrench'
+
+export function readoutsFor(
+  scene: SceneKey,
+  t: number,
+  mode: PantoMode = 'normal',
+): Readout[] {
   if (scene === 'door') return doorReads(t)
-  if (scene === 'pantograph') return pantoReads(t)
-  return cabinetReads(t)
+  if (scene === 'pantograph') return pantoReads(t, mode)
+  if (scene === 'cabinet') return cabinetReads(t)
+  if (scene === 'multimeter') return multimeterReads(t)
+  if (scene === 'warning_sign') return signReads(t)
+  if (scene === 'feeler_gauge') return feelerReads(t)
+  return torqueReads(t)
 }

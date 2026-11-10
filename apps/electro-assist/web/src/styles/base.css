@@ -117,6 +117,17 @@ h3 {
   min-height: calc(100dvh - var(--nav-h));
 }
 
+/* 宽版：整页阅读器专用（路由 meta.wide）。内容列 860px 是"读物"的宽度，
+   而整页三维场景需要的是宽度本身——两者不能共用一套栅格。
+
+   选择器写成两个类（0,2,0）不是啰嗦：`@media (min-width: 640px) .container`
+   在后面又把 padding 设回 32/24/80，同权重会被它盖掉——实测整页阅读器因此
+   向下溢出 32px，三维画面底部被切。 */
+.container.container--wide {
+  max-width: none;
+  padding: 0;
+}
+
 .page-head {
   margin-bottom: 20px;
 }

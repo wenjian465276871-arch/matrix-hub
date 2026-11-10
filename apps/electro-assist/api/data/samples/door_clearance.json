@@ -34,7 +34,13 @@
           "params": {"index": 1, "action": "确认无电并设置警示", "hint": "先挂牌再动手"},
           "caption": "步骤示意",
           "fallback_text": "第 1 步：确认无电、设置警示后，方可开始检查。"
-        }
+        },
+          {
+            "primitive": "device_scene",
+            "params": {"subject": "warning_sign", "t": 0.82, "part": "plate"},
+            "caption": "警示牌挂牌位置（示意）",
+            "fallback_text": "牌挂在门边操作把手上，牌面朝向作业面；挂绳绕过把手并回到穿线孔。挂在别处不算隔离到位。"
+          }
       ],
       "duration_s": 120
     },
@@ -76,7 +82,13 @@
           "params": {"terminals": "1-2-3", "wire_color": "棕/蓝/黄绿", "note": "仅示意端子顺序"},
           "caption": "端子顺序示意",
           "fallback_text": "端子顺序为 1、2、3，对应线色棕、蓝、黄绿。"
-        }
+        },
+          {
+            "primitive": "device_scene",
+            "params": {"subject": "feeler_gauge", "t": 0.62, "part": "blades"},
+            "caption": "塞尺插入门缝（示意）",
+            "fallback_text": "塞尺翻出一片、竖直插入门缝并沿缝滑动，以最紧处为准；能入的最厚一片即间隙下限。"
+          }
       ],
       "duration_s": 300
     },

@@ -81,7 +81,7 @@ function skipToMain(): void {
     </div>
   </header>
 
-  <main id="main" class="container" tabindex="-1">
+  <main id="main" class="container" :class="{ 'container--wide': route.meta.wide }" tabindex="-1">
     <RouterView />
   </main>
 

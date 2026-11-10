@@ -17,6 +17,9 @@ const router = createRouter({
       // 详情页懒加载：首屏（列表）不需要指导书渲染代码。
       component: () => import('../views/GuideView.vue'),
       props: true,
+      // 整页阅读器要吃掉视口宽度：三维场景在 860px 内容列里只能到 320px 宽，
+      // 那还不如一张图。宽版只对这一页开放，不改成全站默认。
+      meta: { wide: true },
     },
     {
       path: '/run/:sid',

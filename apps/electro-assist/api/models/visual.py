@@ -90,6 +90,12 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
     "door": ("leaf_l", "leaf_r", "frame", "lamp"),
     "pantograph": ("arms", "head", "frame", "drive", "drive2", "lamp"),
     "cabinet": ("breakers", "contactor", "relays", "lamps", "terminals", "board"),
+    # 以下四台是「工具 + 作业动作」：指导书里出现频率最高的四件手动作业，
+    # 此前只有 2D 原语（meter / torque_gauge / checklist），看不出"手怎么动"。
+    "multimeter": ("body", "dial", "screen", "probes", "terminals"),
+    "warning_sign": ("plate", "cord", "handle", "door"),
+    "feeler_gauge": ("blades", "case", "gap", "seal"),
+    "torque_wrench": ("wrench", "socket", "bolt", "bracket", "window"),
 }
 
 # 部件的中文说明：键是英文的（`drive` / `drive2` 这类），说明是给人看的。
@@ -119,6 +125,32 @@ DEVICE_PART_LABELS: dict[str, dict[str, str]] = {
         "lamps": "指示灯（电源、运行、告警）",
         "terminals": "端子排（10 位）",
         "board": "柜内安装背板",
+    },
+    "multimeter": {
+        "body": "表体与黄色护套（手持式数字万用表）",
+        "dial": "档位旋钮（本图停在直流电压档）",
+        "screen": "液晶读数（含单位与小数点）",
+        "probes": "红黑表笔（表笔线、笔身、探针）",
+        "terminals": "被测端子排（正极、负极、编号）",
+    },
+    "warning_sign": {
+        "plate": "牌面（禁止合闸 有人工作，白底红字）",
+        "cord": "挂绳与挂环",
+        "handle": "隔离点操作把手（挂牌处）",
+        "door": "门体与门边（被隔离的设备）",
+    },
+    "feeler_gauge": {
+        "blades": "塞尺片（0.50 mm 单片，含厚度刻字）",
+        "case": "尺壳与铆轴（其余叠片）",
+        "gap": "门缝（被测间隙）",
+        "seal": "门框密封面（橡胶条与压紧面）",
+    },
+    "torque_wrench": {
+        "wrench": "力矩扳手本体与手柄（预置式，到值咔嗒）",
+        "socket": "套筒（方孔与六角口）",
+        "bolt": "门机安装螺栓（六角头）",
+        "bracket": "安装座与螺纹孔",
+        "window": "刻度窗与指针（设定值 25 N·m）",
     },
 }
 
@@ -152,6 +184,34 @@ DEVICE_MOMENTS: dict[str, tuple[tuple[float, str, str], ...]] = {
         (0.82, "tripped", "过载脱扣（手柄停在中间位）"),
         (1.0, "restored", "复位后重新合闸"),
     ),
+    "multimeter": (
+        (0.0, "dialed", "档位置于直流电压档"),
+        (0.3, "probe_plus", "红表笔搭上正极端子"),
+        (0.55, "probe_minus", "黑表笔搭上负极端子"),
+        (0.78, "reading", "读数稳定（24.1 V）"),
+        (1.0, "withdrawn", "撤笔、读数保持"),
+    ),
+    "warning_sign": (
+        (0.0, "crooked", "牌已挂在把手上、尚未摆正"),
+        (0.35, "seated", "挂绳滑入把手内侧"),
+        (0.6, "released", "牌面离手、下垂"),
+        (0.82, "settled", "摆动收住、牌面摆正"),
+        (1.0, "checked", "挂牌到位、牌面朝向作业面"),
+    ),
+    "feeler_gauge": (
+        (0.0, "fanned", "展开选片（0.50 mm）"),
+        (0.35, "aligned", "片端对准门缝"),
+        (0.62, "inserted", "塞尺插入门缝"),
+        (0.82, "sliding", "沿缝滑动检查"),
+        (1.0, "withdrawn", "抽出并判定"),
+    ),
+    "torque_wrench": (
+        (0.0, "seated", "套筒套入螺栓"),
+        (0.42, "snug", "预紧、扳手贴平"),
+        (0.7, "loaded", "施力、刻度接近设定值"),
+        (0.86, "clicked", "到扭矩咔嗒脱扣"),
+        (1.0, "marked", "复检并做防松标记"),
+    ),
 }
 
 # t 的容差。模型照表抄也可能写出 0.549、0.551 这种数（它习惯把连续量"算一下"），
@@ -167,10 +227,21 @@ DEVICE_SYSTEMS: dict[str, frozenset[str]] = {
     "pantograph": frozenset({"pantograph"}),
     # 配电柜（门控器供电、上电自检）属于车门系统，不是独立工位
     "cabinet": frozenset({"door"}),
+    # 工具类跟着人走：万用表、警示牌三个系统都用；塞尺只量门缝（空调/受电弓没有这道工序）；
+    # 力矩扳手在车门门机与受电弓底架螺栓上都用。
+    "multimeter": frozenset({"door", "hvac", "pantograph"}),
+    "warning_sign": frozenset({"door", "hvac", "pantograph"}),
+    "feeler_gauge": frozenset({"door"}),
+    "torque_wrench": frozenset({"door", "pantograph"}),
 }
 
 # 每份指导书最多几张三维图。与 prompt 里的约束同一处定义，避免"提示词说 2、代码放 5"。
-MAX_DEVICE_SCENES = 2
+#
+# 2026-11-10 由 2 提到 3：新增的四台都是"手怎么动"的工具场景，一份 8 步指导书里
+# 「挂牌 → 测量 → 复紧」正好三处，卡在 2 会让模型被迫丢掉其中一处最该看动作的步骤。
+# 代价可控：三维组件是动态 import + 按页挂载（翻页阅读器只挂当前页与左右各一页），
+# 不在首屏，也不在 DOM 里堆一叠 canvas。
+MAX_DEVICE_SCENES = 3
 
 # 公开给 prompt 使用：枚举值只在这里定义一次，避免"文档写一套、校验另一套"。
 STATE_VALUES = ("pass", "warn", "danger", "idle")

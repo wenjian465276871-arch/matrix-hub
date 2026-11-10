@@ -136,6 +136,12 @@ test('打印时表格换真表格、表头随分页重复', async ({ page }) => 
   await page.goto('./guide/g_door_switch_formal_001')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
+  // 表格在图示里、图示在第 7 步；一步一屏之后要先进那一页才有这张表。
+  // 必须等翻页真的落位（页码变了、表格挂上了）再切打印媒体——否则测的是上一页。
+  await page.locator('.cover__toc-item').filter({ hasText: '锁闭到位与门扇间隙' }).click()
+  await expect(page.locator('.pager__count')).toContainText(/8\s*\/\s*9/)
+  await expect(page.locator('.fig-table__svg').first()).toBeAttached()
+
   await page.emulateMedia({ media: 'print' })
   const printed = await page.evaluate(() => {
     const svg = document.querySelector('.fig-table__svg')

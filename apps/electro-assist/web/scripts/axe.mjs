@@ -65,9 +65,15 @@ const pages = [
 const BASE_PATH = new URL(BASE).pathname.replace(/\/+$/, '')
 const expectPath = (path) => (BASE_PATH + path).replace(/\/+$/, '') || '/'
 
+//
+// `compact` 是 2026-11-10 加的：指导书在「宽而矮」的窗口（≥900 宽 且 ≤700 高）
+// 会切换成沉浸态——标题浮在画布上、右栏变抽屉、判据压到底部一条。
+// 那是**另一套布局**，前两个视口（844 / 900 高）都不触发，等于新布局永远在盲区。
+// 加这一个视口，扫描从 16 次变 24 次（+约 9s），换来沉浸态进 CI。
 const viewports = [
   ['mobile', { width: 390, height: 844 }],
   ['desktop', { width: 1280, height: 900 }],
+  ['compact', { width: 1100, height: 560 }],
 ]
 
 const startedAt = Date.now()

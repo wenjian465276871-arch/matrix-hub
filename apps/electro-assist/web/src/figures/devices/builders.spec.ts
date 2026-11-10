@@ -25,7 +25,11 @@ import { describe, expect, it } from 'vitest'
 import type { DeviceRig } from './rig'
 import { buildCabinet } from './cabinet'
 import { buildDoor } from './door'
+import { buildFeelerGauge } from './feeler_gauge'
+import { buildMultimeter } from './multimeter'
 import { buildPantograph } from './pantograph'
+import { buildTorqueWrench } from './torque_wrench'
+import { buildWarningSign } from './warning_sign'
 import { createSection } from './section'
 // 契约文件由后端生成（`api/scripts/export_contract.py`），**不要手改**。
 // 这份 import 就是这条用例的全部意义：部件清单来自后端，而不是在这里再抄一遍。
@@ -36,6 +40,10 @@ const BUILDERS: Record<string, () => DeviceRig> = {
   door: buildDoor,
   pantograph: buildPantograph,
   cabinet: buildCabinet,
+  multimeter: buildMultimeter,
+  warning_sign: buildWarningSign,
+  feeler_gauge: buildFeelerGauge,
+  torque_wrench: buildTorqueWrench,
 }
 
 type ContractDevice = {

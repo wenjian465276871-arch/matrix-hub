@@ -407,7 +407,7 @@ def test_device_scene_snaps_t_to_nearest_moment():
 
 
 def test_device_scene_count_is_capped():
-    """每份最多 2 张：三维图是重资源，每步都配会让现场页面又慢又花。"""
+    """每份最多 `MAX_DEVICE_SCENES` 张：三维图是重资源，每步都配会让现场页面又慢又花。"""
     from models.guide import Guide
     from models.visual import MAX_DEVICE_SCENES
 
@@ -419,12 +419,22 @@ def test_device_scene_count_is_capped():
 
 
 def test_samples_carry_device_scenes_for_every_subject():
-    """每台设备都要有真实样例覆盖。
+    """每台设备都要有真实样例覆盖（扭矩扳手除外，理由见下）。
 
     device_scene 的渲染分支存在于前端，后端测试看不到；样例是唯一的
-    「这条分支真的被走过」的证据。三台设备缺一台，就等于那台没验收。
+    「这条分支真的被走过」的证据。缺一台，就等于那台没验收。
+
+    ## 为什么 `torque_wrench` 被豁免
+    样例第 4 步的判据是 **0.8 N·m**（门机罩盖小螺钉），而力矩扳手场景演的是
+    预置式大扳手（刻度窗 10–50 N·m、目标 25 N·m）。两者放在同一页，图与判据
+    差一个量级——正是本项目最怕的「图好看、读数也对，只是不是这一步」。
+    宁可在演示页单独展示这台工具，也不往指导书里塞一张自相矛盾的图。
+
+    豁免必须显式列出（而不是"少一个不管"）：新增一台设备而忘了配样例时，
+    这条用例仍会红。
     """
     from models.guide import Guide
+    from models.visual import DEVICE_SUBJECTS
 
     seen = {
         fig.params.get("subject")
@@ -434,4 +444,6 @@ def test_samples_carry_device_scenes_for_every_subject():
         for fig in step.figures
         if fig.primitive.value == "device_scene"
     }
-    assert seen == {"door", "pantograph", "cabinet"}, f"缺少样例覆盖：{seen}"
+    demo_only = {"torque_wrench"}
+    assert seen - demo_only == set(DEVICE_SUBJECTS) - demo_only, f"缺少样例覆盖：{set(DEVICE_SUBJECTS) - seen}"
+    assert seen <= set(DEVICE_SUBJECTS), f"样例里出现了未注册的设备：{seen - set(DEVICE_SUBJECTS)}"

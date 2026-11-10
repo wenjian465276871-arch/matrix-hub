@@ -137,6 +137,45 @@ describe('GuideView 加载', () => {
   })
 })
 
+describe('GuideView 顶栏翻页', () => {
+  function twoSteps() {
+    const first = detail().guide.steps[0]
+    return {
+      steps: [
+        first,
+        { ...first, id: 's2', seq: 2, title: '测量关门时间' },
+      ],
+    }
+  }
+
+  it('点「下一页」页码与正文一起走', async () => {
+    mocks.getJson.mockResolvedValue(detail(twoSteps(), 'published'))
+    const wrapper = mountView()
+    await flushPromises()
+
+    // 封面 + 2 步 = 3 页，起始在封面
+    expect(wrapper.get('.pager__count').text().replace(/\s+/g, '')).toBe('1/3')
+    await wrapper.get('button[aria-label="下一页"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('.pager__count').text().replace(/\s+/g, '')).toBe('2/3')
+    // 第 2 页是第 1 步：正文要跟着换，不能只换页码
+    expect(wrapper.findAll('.step__title').map((n) => n.text())).toContain('检查门锁闭合')
+    wrapper.unmount()
+  })
+
+  it('页码控件的读屏名称用步骤标题，不是"第 N 个点"', async () => {
+    mocks.getJson.mockResolvedValue(detail(twoSteps(), 'published'))
+    const wrapper = mountView()
+    await flushPromises()
+
+    const labels = wrapper.findAll('.pager__dot').map((n) => n.attributes('aria-label'))
+    expect(labels[0]).toBe('封面')
+    expect(labels[1]).toContain('检查门锁闭合')
+    wrapper.unmount()
+  })
+})
+
 describe('GuideView 发布缺口（publish_blockers 的前端镜像）', () => {
   it('草稿里步骤缺验收判据时，页面上提前显示缺口', async () => {
     mocks.getJson.mockResolvedValue(detail())

@@ -80,3 +80,60 @@ test('三台设备可切换、时间轴可拖动、剖切可开关', async ({ pa
   await expect(page.locator('.demo__slider-label', { hasText: '切面位置' })).toBeVisible()
   await expect(page.locator('canvas').first()).toBeVisible()
 })
+
+/**
+ * 受电弓的第三种工况（ADD 自动降弓）与标注开关。
+ *
+ * 为什么要单独立一条：这两个控件只在受电弓出现，别的设备没有——
+ * 也就是说"整站回归"跑十遍也不会碰到它们。而 ADD 关系到气路三件（滑板破裂、
+ * 压力开关断开、快排阀排气）能不能在画面上讲清楚，是本轮的核心交付，
+ * 不能只靠肉眼看截图。
+ */
+test('受电弓可切 ADD 工况、标注可开关、读数跟着工况走', async ({ page }) => {
+  await page.goto('./demo/device')
+  await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 })
+
+  await page.getByRole('tab', { name: '受电弓升降功能检查' }).click()
+  await expect(page.getByRole('button', { name: '正常升降弓' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+
+  // 1) 标注层是第二块 canvas：默认显示，点一下要能关掉
+  const annot = page.locator('.scene__annot')
+  await expect(annot).toHaveCount(1)
+  await page.getByRole('button', { name: '隐藏标注' }).click()
+  await expect(page.getByRole('button', { name: '显示标注' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  )
+
+  // 2) 切到 ADD：时间轴复位、阶段名进入 ADD 分支
+  await page.getByRole('button', { name: 'ADD 自动降弓' }).click()
+  await expect(page.getByRole('button', { name: 'ADD 自动降弓' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+  await expect(page.locator('.demo__slider-label').first()).toContainText('时间轴 0%')
+
+  const timeline = page.locator('.demo__controls input[type="range"]').first()
+  // 升到位
+  await timeline.evaluate((el) => {
+    const input = el as HTMLInputElement
+    input.value = '700'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  // 0.68–0.78 是"升弓到位"（开关闭合），0.78 之后才是保压
+  await expect(page.locator('.demo__read').filter({ hasText: '动作阶段' })).toContainText(
+    '升弓到位',
+  )
+  // 破裂之后：快排阀排气、弓头更快落下
+  await timeline.evaluate((el) => {
+    const input = el as HTMLInputElement
+    input.value = '860'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  await expect(page.locator('.demo__read').filter({ hasText: '动作阶段' })).toContainText('快排阀排气')
+  await expect(page.locator('.demo__read').filter({ hasText: '气路压力' })).not.toContainText('0.62')
+  await expect(page.locator('canvas').first()).toBeVisible()
+})

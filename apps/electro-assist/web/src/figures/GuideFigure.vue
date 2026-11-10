@@ -31,6 +31,10 @@ watch(
    390 高的横屏里图示被压到约 93px，看不清指针与刻度；给一个全屏层看原尺寸。
    焦点纪律与抽屉一致：开层→焦点进关闭键、Tab 不出层、Esc 关、关完还回触发键。 */
 const zoomed = ref(false)
+/** 三维走"放大同一实例"（fixed），二维走弹层（重新渲染 SVG 很便宜）。
+ *  为什么不能统一用弹层：弹层里是**新挂载的第二个组件**，对三维等于重建
+ *  整个 WebGL 场景——1–2 秒空白，还多占一个上下文（浏览器有上限）。 */
+const isScene = computed(() => props.spec.primitive === 'device_scene')
 const zoomTrigger = ref<HTMLButtonElement | null>(null)
 const zoomClose = ref<HTMLButtonElement | null>(null)
 
@@ -41,10 +45,13 @@ async function openZoom(): Promise<void> {
   zoomClose.value?.focus()
 }
 
-function closeZoom(): void {
+async function closeZoom(): Promise<void> {
   if (!zoomed.value) return
   zoomed.value = false
   document.documentElement.classList.remove('is-figure-zoom')
+  // 触发按钮上有 `v-if="!zoomed"`：关闭的这一刻它才被重新挂载，
+  // 同步 focus 拿到的是旧引用（已卸载的节点），焦点会掉到 body。
+  await nextTick()
   zoomTrigger.value?.focus()
 }
 
@@ -74,7 +81,16 @@ onErrorCaptured((err) => {
 </script>
 
 <template>
-  <figure class="figure">
+  <!-- 放大态必须自己带 dialog 语义：二维走真弹层，三维是同一个 figure 改成
+       position:fixed，没有 role 的话读屏完全不知道"页面进入了另一种状态"。 -->
+  <figure
+    class="figure"
+    :class="{ 'figure--zoomed': zoomed && isScene }"
+    :role="zoomed && isScene ? 'dialog' : undefined"
+    :aria-modal="zoomed && isScene ? 'true' : undefined"
+    :aria-label="zoomed && isScene ? `${spec.caption || '图示'}放大` : undefined"
+    @keydown="zoomed && isScene ? onZoomKeydown($event) : undefined"
+  >
     <figcaption v-if="spec.caption" class="figure__caption">{{ spec.caption }}</figcaption>
     <!-- 2026-11-07：8 步 / 20 图的正式案例 TBT 531ms、Perf 87（目标 ≥90）。
          只让「画布」参与 content-visibility，题注留在外面——实测整块跳过会把
@@ -93,14 +109,33 @@ onErrorCaptured((err) => {
     </div>
     <p v-if="failed" class="figure__pending">{{ reason }} · 已降级为文字</p>
 
-    <!-- 只在横屏短高出现：竖屏的图够大，多一个按钮只是噪音 -->
-    <button ref="zoomTrigger" class="figure__zoom" type="button" @click="openZoom">
-      点击放大
+    <button
+      v-if="zoomed && isScene"
+      ref="zoomClose"
+      class="figure__zoom-close figure__zoom-close--scene"
+      type="button"
+      @click="closeZoom"
+    >
+      关闭放大
+    </button>
+
+    <!-- 三维图**任何尺寸下都给**这个入口：它是这一页的核心，
+         矮窗口里塞进版面必然看不清读数（510px 高的窗口画布只有 140px）。
+         二维图只在横屏短高出现——竖屏的 SVG 已经够大，多一个按钮是噪音。 -->
+    <button
+      v-if="!zoomed"
+      ref="zoomTrigger"
+      class="figure__zoom"
+      :class="{ 'figure__zoom--scene': isScene }"
+      type="button"
+      @click="openZoom"
+    >
+      {{ isScene ? '放大看' : '点击放大' }}
     </button>
   </figure>
 
   <div
-    v-if="zoomed"
+    v-if="zoomed && !isScene"
     class="figure__zoom-layer no-print"
     role="dialog"
     aria-modal="true"
@@ -166,6 +201,71 @@ onErrorCaptured((err) => {
   .figure__zoom {
     display: inline-flex;
   }
+}
+
+/* 三维始终显示入口：它是这一步的核心，不是配图 */
+.figure__zoom--scene {
+  display: inline-flex;
+}
+
+/* ---------- 三维放大：放大同一个实例（fixed），不重新挂载 ---------- */
+
+.figure--zoomed {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  margin: 0;
+  /* 双保险：父级若还有 max-height（StepPage 的 58vh），这里必须顶回去，
+     否则"全屏"只剩一条横带。 */
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  max-height: none;
+  min-height: 0;
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--c-bg);
+  /* 一条缝都不能留：留了就是"放大后还能看到下面那半截页面" */
+  overflow: hidden;
+}
+
+.figure--zoomed .figure__caption {
+  flex: 0 0 auto;
+}
+
+.figure--zoomed .figure__canvas {
+  flex: 1 1 auto;
+  min-height: 0;
+  content-visibility: visible;
+}
+
+/* flex 链要一路通到底：canvas → device → scene。
+   断在任何一级，`.scene` 就拿不到确定高度，三维退回 3:2 自然高度，
+   "放大"只放大一块白边（2026-11-10 在步骤页踩过同一个坑）。 */
+.figure--zoomed .figure__canvas :deep(.device) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.figure--zoomed .figure__canvas :deep(.device > .scene) {
+  flex: 1 1 auto;
+  height: auto;
+  aspect-ratio: auto;
+  min-height: 0;
+}
+
+.figure--zoomed .figure__canvas :deep(.device__controls),
+.figure--zoomed .figure__canvas :deep(.device__note) {
+  flex: 0 0 auto;
+}
+
+.figure__zoom-close--scene {
+  flex: 0 0 auto;
+  align-self: center;
 }
 
 .figure__zoom-layer {

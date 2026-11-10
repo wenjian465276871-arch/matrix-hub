@@ -1,23 +1,16 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import GuideFigure from '../figures/GuideFigure.vue'
+import StepPager from '../components/guide/StepPager.vue'
+import PagerNav from '../components/guide/PagerNav.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import AttachPanel from '../components/guide/AttachPanel.vue'
 import EditPanel from '../components/guide/EditPanel.vue'
 import { announce } from '../lib/announce'
 import { ApiError, getJson, postJson } from '../lib/http'
 import { writeStoredJob } from '../lib/jobhandoff'
-import type {
-  AssetRef,
-  Criterion,
-  Guide,
-  GuideDetail,
-  GuideStatus,
-  Provenance,
-  PublishResult,
-  SessionSnapshot,
-} from '../types'
+import { pageCount, pageLabels } from '../lib/paging'
+import type { AssetRef, Guide, GuideDetail, GuideStatus, PublishResult, SessionSnapshot } from '../types'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
@@ -62,23 +55,38 @@ function assetUrl(asset: AssetRef): string {
 /* 草稿素材归位已拆到 components/guide/AttachPanel.vue（2026-11-06）。
  * 那块只改"图放哪"，不改步骤文字与判据——判据能被改一个字，超差就能变合格。 */
 
-function criterionValue(c: Criterion): string {
-  if (c.type === 'range') return `${c.min ?? '—'} ~ ${c.max ?? '—'}`
-  if (c.type === 'enum') return (c.options ?? []).join(' / ')
-  if (c.type === 'manual') return '人工确认'
-  return '记录'
+/* ---------- 分页阅读（2026-11-10）----------
+ * 一步一屏，左右滑动/按钮/键盘翻页。判据与图的分页排版在 `StepPage.vue`，
+ * 翻页与滚动同步在 `StepPager.vue`，纯计算在 `lib/paging.ts`。
+ * 这一层只保留"整页的东西"：状态条、草稿管理、封面动作。 */
+const page = ref(0)
+/** 子组件通过 defineExpose 暴露的两个动作：跳页与"打印前铺开全部页" */
+const pager = ref<{ goTo: (index: number) => void; preparePrint: () => Promise<void> } | null>(null)
+const printing = ref(false)
+
+/** 打印前必须把全部页铺开：只打当前页，纸上就是残缺的指导书。 */
+async function printGuide(): Promise<void> {
+  if (printing.value) return
+  printing.value = true
+  try {
+    await pager.value?.preparePrint()
+    window.print()
+  } finally {
+    printing.value = false
+  }
 }
 
-/** 判据来源标签。行号内部 0 基、显示 1 基，与识别确认页同一口径。 */
-function provenanceText(p: Provenance): string {
-  const tag = p.flag === 'ok' ? '有据' : '待核'
-  if (p.line === null || p.line === undefined) return `${tag} · 见原图`
-  return `${tag} · 第 ${p.line + 1} 行`
+function goStep(seq: number): void {
+  pager.value?.goTo(seq)
 }
 
-// 模板里拿不到 window（Vue 只白名单了 Math/Date/JSON 等），必须在这里包一层。
-function printGuide(): void {
-  window.print()
+/** 顶栏页码控件用的页名与页数：与 StepPager 内部同一套纯函数，不会各算一套。 */
+const hasTail = computed(() => Boolean(guide.value?.assets?.length))
+const labels = computed(() => pageLabels(guide.value?.steps ?? [], hasTail.value))
+const pageTotal = computed(() => pageCount(guide.value?.steps.length ?? 0, hasTail.value))
+
+function goPage(index: number): void {
+  pager.value?.goTo(index)
 }
 
 const starting = ref(false)
@@ -382,7 +390,35 @@ restoreToken()
     <button class="btn" type="button" @click="load">重试</button>
   </div>
 
-  <article v-else-if="guide" class="card">
+  <article v-else-if="guide" class="card reader">
+    <!-- 顶栏常驻：翻到第几步都看得见自己在读哪份、是哪个工位。
+         打印时保留标题（纸质稿要有抬头），只藏按钮与返回链接。 -->
+    <header class="reader__bar" :aria-label="`阅读器工具栏，第 ${page + 1} 页，共 ${pageTotal} 页`">
+      <RouterLink class="reader__back no-print" to="/">‹ 列表</RouterLink>
+      <h1 class="reader__title">{{ guide.title }}</h1>
+      <div class="reader__tags">
+        <span class="tag">{{ SYSTEM_LABEL[guide.meta.system] ?? guide.meta.system }}</span>
+        <span v-if="guide.meta.station" class="tag tag--plain">工位 {{ guide.meta.station }}</span>
+        <span class="tag tag--plain">{{ guide.steps.length }} 步</span>
+      </div>
+      <span class="reader__spacer" />
+      <!-- 翻页控件与标题同一行：上一版是第二级工具栏，53px 垂直空间白白吃掉 -->
+      <PagerNav
+        v-if="!editing"
+        class="no-print"
+        :current="page"
+        :labels="labels"
+        @go="goPage"
+      />
+      <button class="btn reader__print no-print" type="button" :disabled="printing" @click="printGuide">
+        <span v-if="printing">正在准备…</span>
+        <template v-else>
+          <span class="reader__print-long">打印 / 导出 PDF</span>
+          <span class="reader__print-short">打印</span>
+        </template>
+      </button>
+    </header>
+
     <div v-if="publishedBanner" class="published-banner no-print">
       <strong>已发布</strong> · {{ publishedBanner }}
       <RouterLink class="published-banner__link" to="/">去列表看</RouterLink>
@@ -394,92 +430,184 @@ restoreToken()
          而不知道本来该有、是被系统移除的。打印也带上——纸质稿同样需要这句话。 -->
     <div v-if="repairs.length" class="degraded-banner" role="status">
       <strong>本次生成有 {{ repairs.length }} 处图示被移除</strong>
-      <span>系统在校验时发现这些图示不合法，删掉了对应步骤的图示（正文与判据未改）。可点「再生成一份草稿」重试。</span>
+      <span>系统在校验时发现这些图示不合法，删掉了对应步骤的图示（正文与判据未改）。可回到封面「再生成一份草稿」重试。</span>
       <ul>
         <li v-for="item in repairs" :key="item">{{ item }}</li>
       </ul>
     </div>
-    <header class="guide-head">
-      <h1 class="guide-title">{{ guide.title }}</h1>
-      <p class="guide-summary">{{ guide.summary }}</p>
-      <div class="meta-row">
-        <span class="tag">{{ SYSTEM_LABEL[guide.meta.system] ?? guide.meta.system }}</span>
-        <span v-if="guide.meta.station" class="tag tag--plain">工位 {{ guide.meta.station }}</span>
-        <span class="tag tag--plain">{{ guide.steps.length }} 步</span>
-        <span class="tag tag--plain">{{ guide.meta.model }}</span>
-        <span>{{ new Date(guide.meta.generated_at).toLocaleString('zh-CN') }}</span>
-      </div>
-      <p class="disclaimer">
-        {{ guide.disclaimers.join(' · ') }}
-      </p>
-      <div class="meta-row no-print">
-        <button class="btn btn--primary" type="button" :disabled="starting" @click="startRun">
-          {{ starting ? '正在创建会话…' : '开始引导作业' }}
-        </button>
-        <button class="btn" type="button" @click="printGuide">打印 / 导出 PDF</button>
-        <button
-          v-if="processId"
-          class="btn"
-          type="button"
-          :disabled="regenerating"
-          title="用同一份工艺文本再生成一份草稿；与首次生成共用配额"
-          @click="regenerate"
-        >
-          {{ regenerating ? '正在提交…' : '再生成一份草稿' }}
-        </button>
-      </div>
-      <p v-if="startError" class="start-error no-print">{{ startError }}</p>
-      <p v-if="regenError" class="start-error no-print">{{ regenError }}</p>
-    </header>
 
-    <!-- 草稿控制条：修正 / 发布。已发布的内容不显示，避免"看起来能改"。 -->
-    <section v-if="guideStatus === 'draft' && !editing" class="revise no-print">
-      <div class="revise__row">
-        <button class="btn" type="button" @click="startEdit">修正内容</button>
-        <button
-          class="btn btn--primary"
-          type="button"
-          :disabled="!canPublish || publishBusy"
-          :aria-describedby="!canPublish ? 'blockers' : undefined"
-          @click="openPublish"
-        >
-          发布到列表
-        </button>
-        <span v-if="token" class="revise__token">口令已生效</span>
-      </div>
+    <!-- 编辑态整块换成修正面板：旁边还摆着旧的那份，容易对着旧值核对 -->
+    <EditPanel
+      v-if="editing"
+      :guide-id="props.id"
+      :guide="guide"
+      :token="token"
+      @saved="onEditSaved"
+      @unchanged="onEditUnchanged"
+      @cancel="onEditCancel"
+      @auth-expired="onEditAuthExpired"
+    />
 
-      <ul v-if="blockers.length" id="blockers" class="revise__blockers">
-        <li v-for="item in blockers" :key="item">{{ item }}</li>
-      </ul>
-      <p v-if="blockers.length" class="revise__hint">
-        草稿允许留空，但发布前每一步都要有验收判据——否则现场照着做，没有"做到什么程度算对"的依据。
-      </p>
+    <StepPager
+      v-else
+      ref="pager"
+      v-model:current="page"
+      :guide-id="props.id"
+      :steps="guide.steps"
+      :status="guideStatus"
+      :numbers="assetNumbers"
+      :tail="Boolean(guide.assets?.length)"
+    >
+      <!-- ---------------- 封面 ---------------- -->
+      <template #cover>
+        <div class="cover">
+          <p class="cover__eyebrow">可视化作业指导 · 共 {{ guide.steps.length }} 步</p>
+          <p class="cover__title">{{ guide.title }}</p>
+          <p class="cover__summary">{{ guide.summary }}</p>
 
-      <p v-if="reviseMsg" class="revise__ok">{{ reviseMsg }}</p>
+          <div class="meta-row">
+            <span class="tag tag--plain">{{ guide.steps.length }} 个步骤</span>
+            <span class="tag tag--plain">{{ guide.meta.model }}</span>
+            <span>{{ new Date(guide.meta.generated_at).toLocaleString('zh-CN') }}</span>
+          </div>
 
-      <div v-if="publishOpen" class="publish">
-        <p class="publish__warn">
-          发布后不能修改，会立刻出现在公开列表里。确认内容已过专业复核。
-        </p>
-        <p v-if="publishError" class="publish__error">{{ publishError }}</p>
+          <p class="disclaimer">{{ guide.disclaimers.join(' · ') }}</p>
 
-        <div class="publish__actions">
-          <button
-            class="btn btn--primary"
-            type="button"
-            :disabled="publishBusy"
-            @click="confirmOpen = true"
-          >
-            确认发布
-          </button>
-          <button class="btn" type="button" @click="publishOpen = false">取消</button>
+          <div class="meta-row no-print">
+            <button class="btn btn--primary" type="button" :disabled="starting" @click="startRun">
+              {{ starting ? '正在创建会话…' : '开始引导作业' }}
+            </button>
+            <button class="btn" type="button" @click="goStep(1)">从第 1 步看起</button>
+            <button class="btn" type="button" :disabled="printing" @click="printGuide">
+              {{ printing ? '正在准备打印…' : '打印 / 导出 PDF' }}
+            </button>
+            <button
+              v-if="processId"
+              class="btn"
+              type="button"
+              :disabled="regenerating"
+              title="用同一份工艺文本再生成一份草稿；与首次生成共用配额"
+              @click="regenerate"
+            >
+              {{ regenerating ? '正在提交…' : '再生成一份草稿' }}
+            </button>
+          </div>
+          <p v-if="startError" class="start-error no-print">{{ startError }}</p>
+          <p v-if="regenError" class="start-error no-print">{{ regenError }}</p>
+
+          <!-- 目录：翻页的替代入口。滑不动的设备（鼠标、无触摸的工控机）靠它跳步 -->
+          <nav class="cover__toc no-print" aria-label="步骤目录">
+            <p class="block-label">步骤目录（点击跳到该步）</p>
+            <ol class="cover__toc-list">
+              <li v-for="step in guide.steps" :key="step.id">
+                <button class="cover__toc-item" type="button" @click="goStep(step.seq)">
+                  <span class="cover__toc-seq">{{ String(step.seq).padStart(2, '0') }}</span>
+                  <span class="cover__toc-title">{{ step.title }}</span>
+                  <span class="cover__toc-meta">{{ step.criteria.length }} 条判据</span>
+                </button>
+              </li>
+            </ol>
+          </nav>
+
+          <AttachPanel
+            v-if="guideStatus === 'draft' && flatAssets.length"
+            v-model:message="attachMsg"
+            :guide-id="props.id"
+            :rows="flatAssets"
+            :numbers="assetNumbers"
+            :steps="guide.steps"
+            @saved="load"
+          />
+
+          <!-- 草稿控制条：修正 / 发布。已发布的内容不显示，避免"看起来能改"。 -->
+          <section v-if="guideStatus === 'draft' && !editing" class="revise no-print">
+            <div class="revise__row">
+              <button class="btn" type="button" @click="startEdit">修正内容</button>
+              <button
+                class="btn btn--primary"
+                type="button"
+                :disabled="!canPublish || publishBusy"
+                :aria-describedby="!canPublish ? 'blockers' : undefined"
+                @click="openPublish"
+              >
+                发布到列表
+              </button>
+              <span v-if="token" class="revise__token">口令已生效</span>
+            </div>
+
+            <ul v-if="blockers.length" id="blockers" class="revise__blockers">
+              <li v-for="item in blockers" :key="item">{{ item }}</li>
+            </ul>
+            <p v-if="blockers.length" class="revise__hint">
+              草稿允许留空，但发布前每一步都要有验收判据——否则现场照着做，没有"做到什么程度算对"的依据。
+            </p>
+
+            <p v-if="reviseMsg" class="revise__ok">{{ reviseMsg }}</p>
+
+            <div v-if="publishOpen" class="publish">
+              <p class="publish__warn">
+                发布后不能修改，会立刻出现在公开列表里。确认内容已过专业复核。
+              </p>
+              <p v-if="publishError" class="publish__error">{{ publishError }}</p>
+
+              <div class="publish__actions">
+                <button
+                  class="btn btn--primary"
+                  type="button"
+                  :disabled="publishBusy"
+                  @click="confirmOpen = true"
+                >
+                  确认发布
+                </button>
+                <button class="btn" type="button" @click="publishOpen = false">取消</button>
+              </div>
+            </div>
+          </section>
+
         </div>
-      </div>
-    </section>
+      </template>
 
-    <!-- 口令面板：修正与发布共用。放在控制条之外，因为 401 可能发生在**编辑态内部**——
-         若把它关在 `!editing` 的控制条里，用户会看到"请重新验证口令"却找不到输入框。 -->
-    <div v-if="passcodeOpen && guideStatus === 'draft'" class="publish no-print">
+      <!-- ---------------- 尾页：未归位的现场素材 ---------------- -->
+      <template #tail>
+        <div class="tail">
+          <p class="tail__title">现场素材</p>
+          <p class="tail__hint">未归入具体步骤的照片，编号与正文一致。</p>
+          <div class="asset-row">
+            <figure v-for="asset in guide.assets" :key="asset.asset_id" class="asset">
+              <img
+                class="asset__img"
+                :src="assetUrl(asset)"
+                :alt="asset.caption"
+                loading="lazy"
+                decoding="async"
+              />
+              <figcaption class="asset__cap">
+                图 {{ assetNumbers[asset.asset_id] }} · {{ asset.caption }}
+              </figcaption>
+            </figure>
+          </div>
+        </div>
+      </template>
+    </StepPager>
+
+  <!-- 口令弹层：修正与发布共用。
+       两条硬约束：
+       ① 必须能盖在任何状态之上——401 可能发生在编辑态内部，也可能发生在翻页器里；
+          放在页面流里，用户会看到"请重新验证口令"却因为翻页器占满一屏而找不到输入框。
+       ② 不放进封面插槽：编辑态下翻页器整块不渲染，插槽里的东西会一起消失。 -->
+  <div
+    v-if="passcodeOpen && guideStatus === 'draft'"
+    class="sheet no-print"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="passcode-title"
+    @keydown.esc="
+      passcodeOpen = false;
+      pending = null
+    "
+  >
+    <div class="sheet__panel publish">
+      <h2 id="passcode-title" class="sheet__title">验证口令</h2>
       <p class="publish__warn">{{ passcodeHint }}</p>
       <p v-if="passcodeError" class="publish__error">{{ passcodeError }}</p>
 
@@ -511,138 +639,8 @@ restoreToken()
         </button>
       </div>
     </div>
+  </div>
 
-    <!-- 修正面板：只改文字与判据值，不能加步骤、不能换判据类型 -->
-    <EditPanel
-      v-if="editing"
-      :guide-id="props.id"
-      :guide="guide"
-      :token="token"
-      @saved="onEditSaved"
-      @unchanged="onEditUnchanged"
-      @cancel="onEditCancel"
-      @auth-expired="onEditAuthExpired"
-    />
-
-    <AttachPanel
-      v-if="guideStatus === 'draft' && flatAssets.length"
-      v-model:message="attachMsg"
-      :guide-id="props.id"
-      :rows="flatAssets"
-      :numbers="assetNumbers"
-      :steps="guide.steps"
-      @saved="load"
-    />
-
-    <!-- 编辑态隐藏正文：同一份内容在页面上只出现一次，
-         否则改完一处、旁边还摆着旧的那份，容易对着旧值核对。 -->
-    <template v-if="!editing">
-    <section v-for="step in guide.steps" :key="step.id" class="step">
-      <div class="step__head">
-        <span class="step__seq">{{ String(step.seq).padStart(2, '0') }}</span>
-        <h2 class="step__title">{{ step.title }}</h2>
-      </div>
-      <p class="step__action">{{ step.action }}</p>
-
-      <div v-if="step.safety.length" class="step__block">
-        <p class="block-label">安全</p>
-        <ul class="safety">
-          <li v-for="s in step.safety" :key="s">{{ s }}</li>
-        </ul>
-      </div>
-
-      <div v-if="step.tools.length" class="step__block">
-        <p class="block-label">工具</p>
-        <div class="tool-list">
-          <span v-for="t in step.tools" :key="t" class="tag tag--plain">{{ t }}</span>
-        </div>
-      </div>
-
-      <div v-if="step.criteria.length" class="step__block">
-        <p class="block-label">验收判据</p>
-        <div class="criteria">
-          <div v-for="c in step.criteria" :key="c.id" class="criterion">
-            <span class="criterion__label">{{ c.label }}</span>
-            <span class="criterion__tail">
-              <span class="criterion__value">
-                {{ criterionValue(c) }}<span v-if="c.unit" class="criterion__unit">{{ c.unit }}</span>
-              </span>
-              <!-- 有据/待核：只有服务端定位到了原文才出现。**没有这个标记不代表数值错**，
-                   只代表没有证据链（手写输入的指导书就没有），所以不显示"无据"占位。 -->
-              <span
-                v-if="c.provenance"
-                class="criterion__src"
-                :class="`criterion__src--${c.provenance.flag ?? 'ok'}`"
-                :title="c.provenance.raw_text || '原文片段未保留'"
-                >{{ provenanceText(c.provenance) }}</span
-              >
-            </span>
-          </div>
-        </div>
-      </div>
-
-      <div v-if="step.figures.length" class="step__block">
-        <p class="block-label">图示</p>
-        <GuideFigure v-for="(fig, i) in step.figures" :key="`${step.id}-fig-${i}`" :spec="fig" />
-      </div>
-
-      <!-- 三级降级的第三级（计划 §2.1）：既没有原语图示、也没有现场素材时，
-           必须**显式**说明原因并给出补救动作，不能靠"这块不渲染"静默跳过。
-           现场照着文字做完一步、才发现本该有张接线图，是这套系统最不该出现的失败。 -->
-      <div v-else-if="!step.assets?.length" class="step__block step__empty">
-        <p class="block-label">图示</p>
-        <p class="step__empty-text">
-          本步暂无可视化图示，也未附现场素材。
-          <template v-if="guideStatus === 'draft'">
-            可上传照片或截图后在草稿页补到本步；补齐前请以下方文字与验收判据为准。
-          </template>
-          <template v-else>请以下方文字与验收判据为准；如需配图，请对照现场资料。</template>
-        </p>
-      </div>
-
-      <div v-if="step.assets?.length" class="step__block">
-        <p class="block-label">现场素材</p>
-        <div class="asset-row">
-          <figure v-for="asset in step.assets" :key="asset.asset_id" class="asset">
-            <img
-              class="asset__img"
-              :src="assetUrl(asset)"
-              :alt="asset.caption"
-              loading="lazy"
-              decoding="async"
-            />
-            <figcaption class="asset__cap">
-              图 {{ assetNumbers[asset.asset_id] }} · {{ asset.caption }}
-            </figcaption>
-          </figure>
-        </div>
-      </div>
-
-      <div v-if="step.duration_s" class="step__block">
-        <p class="block-label">预计耗时</p>
-        <p class="step__duration">{{ Math.max(1, Math.round(step.duration_s / 60)) }} 分钟</p>
-      </div>
-    </section>
-
-    <section v-if="guide.assets?.length" class="guide-assets">
-      <h2 class="guide-assets__title">现场素材</h2>
-      <p class="guide-assets__hint">未归入具体步骤的照片，编号与正文一致。</p>
-      <div class="asset-row">
-        <figure v-for="asset in guide.assets" :key="asset.asset_id" class="asset">
-          <img
-            class="asset__img"
-            :src="assetUrl(asset)"
-            :alt="asset.caption"
-            loading="lazy"
-            decoding="async"
-          />
-          <figcaption class="asset__cap">
-            图 {{ assetNumbers[asset.asset_id] }} · {{ asset.caption }}
-          </figcaption>
-        </figure>
-      </div>
-    </section>
-    </template>
 
     <!-- 发布二次确认：不可逆动作不放行到"点一下就走" -->
     <ConfirmDialog
@@ -722,19 +720,19 @@ restoreToken()
   font-size: 13px;
 }
 
-.guide-assets {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid var(--c-line);
+.tail {
+  height: 100%;
+  overflow-y: auto;
+  padding: 26px 30px 40px;
 }
 
-.guide-assets__title {
+.tail__title {
   margin: 0 0 4px;
-  font-size: 16px;
+  font-size: 18px;
 }
 
-.guide-assets__hint {
-  margin: 0 0 12px;
+.tail__hint {
+  margin: 0 0 14px;
   color: var(--c-ink-3);
   font-size: 13px;
 }
@@ -862,6 +860,262 @@ restoreToken()
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+
+/* ---------- 口令弹层 ---------- */
+
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(12, 14, 18, 0.5);
+}
+
+.sheet__panel {
+  width: min(440px, 100%);
+  margin: 0;
+  background: var(--c-surface);
+}
+
+.sheet__title {
+  margin: 0 0 8px;
+  font-size: 17px;
+}
+
+/* ---------- 整页阅读器（2026-11-10）----------
+ * 高度按视口算：一屏就是一页，翻页只换内容，不带着整页滚。
+ * `--nav-h` 是顶部导航条，扣掉它剩下的才是"一屏"。
+ * 页脚留在下方（滚一下能看到）——它不是作业内容，不该占掉现场的可视高度。 */
+.reader {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - var(--nav-h));
+  min-height: 420px;
+  overflow: hidden;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--c-surface);
+}
+
+.reader__bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--c-line);
+}
+
+.reader__back {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  color: var(--c-ink-2);
+  font-size: 13px;
+}
+
+.reader__title {
+  margin: 0;
+  min-width: 0;
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.reader__tags {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 6px;
+}
+
+.reader__spacer {
+  flex: 1 1 auto;
+}
+
+/* 按钮文案不许换行：390px 下"打印"被挤成两行过（2026-11-10 视觉验收） */
+.reader__print {
+  white-space: nowrap;
+}
+
+/* 草稿/发布/降级三条横幅：都在页轨之外，翻到哪一页都看得见 */
+.reader .draft-banner,
+.reader .published-banner,
+.reader .degraded-banner {
+  flex: 0 0 auto;
+  margin: 10px 14px 0;
+}
+
+/* ---------- 封面 ---------- */
+
+.cover {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 30px 32px 44px;
+  max-width: 940px;
+  margin: 0 auto;
+}
+
+.cover__eyebrow {
+  margin: 0;
+  color: var(--c-primary);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+}
+
+.cover__title {
+  margin: 0;
+  font-size: 30px;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.cover__summary {
+  margin: 0;
+  max-width: 64ch;
+  color: var(--c-ink-2);
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.cover__toc {
+  margin-top: 4px;
+}
+
+.cover__toc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+.cover__toc-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--tap);
+  padding: 8px 12px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cover__toc-item:hover {
+  border-color: var(--c-primary-line);
+  background: var(--c-primary-soft);
+}
+
+.cover__toc-seq {
+  flex: 0 0 auto;
+  color: var(--c-primary);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.cover__toc-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}
+
+.cover__toc-meta {
+  flex: 0 0 auto;
+  color: var(--c-ink-3);
+  font-size: 12px;
+}
+
+.reader__print-short {
+  display: none;
+}
+
+/* 窄屏：工具栏要装下「返回 + 标题 + 箭头 + 页码 + 跳页 + 打印」。
+   390px 下长文案会把打印按钮挤出屏幕（用户 2026-11-10 截图），
+   所以换短文案、缩箭头、去掉计数（下拉里已经有页码）。 */
+@media (max-width: 720px) {
+  .reader__tags {
+    display: none;
+  }
+
+  .reader__bar {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .reader__back {
+    padding: 0 4px;
+  }
+
+  .reader__title {
+    font-size: 14px;
+  }
+
+  .reader__print {
+    padding: 0 10px;
+  }
+
+  .reader__print-long {
+    display: none;
+  }
+
+  .reader__print-short {
+    display: inline;
+  }
+
+  .cover {
+    padding: 20px 18px 32px;
+  }
+
+  .cover__title {
+    font-size: 23px;
+  }
+
+  .cover__summary {
+    font-size: 15px;
+  }
+}
+
+@media print {
+  /* 打印必须还原成文档流：100dvh 会把内容裁到一屏 */
+  .reader {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .reader__bar {
+    padding: 0 0 10px;
+    border-bottom: 1px solid #999;
+  }
+
+  .cover,
+  .tail {
+    height: auto;
+    overflow: visible;
+    padding: 0;
+    max-width: none;
+  }
 }
 
 </style>

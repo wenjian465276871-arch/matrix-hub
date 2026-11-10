@@ -12,7 +12,8 @@
     "test:unit:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:a11y": "node scripts/axe.mjs",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
     "three": "^0.186.1",

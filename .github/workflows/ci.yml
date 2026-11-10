@@ -190,6 +190,15 @@ jobs:
         working-directory: apps/electro-assist/web
         run: npm run check:inline
 
+      # 首屏体积门禁（决策 #50，2026-11-10）。「CSS 预算 14KB」在文档里写了好几轮，
+      # 但**从来没有任何脚本检查过**——撞线时靠人临时敲 `gzip -c` 才发现。
+      # 这一条把预算变成会红的东西：
+      #   首屏 CSS 6kB / 首屏 JS 50kB / 单路由 CSS 6kB（gzip -6，kB=1000，与 vite build 同口径）
+      # 负例已验：预算调 1kB → exit 1；塞一份 144kB 假 CSS → exit 1；dist 缺失 → exit 2。
+      - name: 首屏体积门禁（阻断）
+        working-directory: apps/electro-assist/web
+        run: npm run check:bundle
+
       # 配额放开到 50：E2E 每个会话就是一次真实生成入口调用，16 条用例里
       # smoke / landscape / mobile 各建 1 个会话，正好撞上生产配额（2 次/小时）。
       # 这只影响 CI 的临时库，生产配额不受影响。

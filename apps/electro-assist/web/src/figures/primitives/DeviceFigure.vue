@@ -4,16 +4,19 @@
  *  `registry.ts` 里所有原语都吃同一组 props（`params` / `label` / `motion`），
  *  而 `DeviceScene` 要的是 `subject` / `t` / `focus`。这一层只做翻译，不加逻辑。
  *
- *  ## 为什么要给滑块
- *  三维图的价值在「看动作」，静态一帧只剩一张透视渲染图。
- *  指导书里的 3D 默认停在 `t` 指定的那一帧（通常是动作中段），
- *  想看全过程就拖这条时间轴——拖动比自动播放好：
- *  现场的人要停在某一瞬间反复看，自动播完反而要等它重来。
+ *  ## 为什么有「播放 / 复位」+
+ *  三维图的价值在「看动作」，静态一帧只剩一张透视渲染图。指导书里的 3D 默认停在
+ *  `t` 指定的那一帧（通常是动作中段）——第一次看到的人不知道"动起来是什么样"。
+ *  所以给三个入口：**播放动作**（从当前跑到终态）、**复位**（回到这一步的那一帧）、
+ *  时间轴拖动（停在任意瞬间反复看）。三者共用同一个 `progress`。
+ *
+ *  与「三维演示」页同一套交互（用户 2026-11-10 反馈：指导书里只能拖、不能播放）。
+ *  播放时长按剩余进度算，总时长 4.6s——和演示页一致，翻到那一步不看也知道大概多久。
  *
  *  ## 打印
- *  滑块与提示在打印版里必须消失，只留下三维图的那一帧。
+ *  按钮、滑块与提示在打印版里必须消失，只留下三维图的那一帧。
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import DeviceScene from '../DeviceScene.vue'
 import type { ParamValue } from '../../types'
 
@@ -57,8 +60,55 @@ watch(initial, (value) => {
 const percent = computed(() => Math.round(progress.value * 100))
 
 function seek(event: Event): void {
+  stop()
   progress.value = Number((event.target as HTMLInputElement).value) / 1000
 }
+
+/* ---------------- 播放 / 复位 ---------------- */
+
+/** 总时长与演示页一致（`DeviceDemoView` 的 4600ms）：同一台设备在两页上手感相同。 */
+const DURATION_MS = 4600
+const playing = ref(false)
+let raf = 0
+
+function stop(): void {
+  playing.value = false
+  if (raf) cancelAnimationFrame(raf)
+  raf = 0
+}
+
+function play(): void {
+  if (playing.value) {
+    stop()
+    return
+  }
+  // 已经到终态时从头播：不这么做，第二次点"播放"什么都不会发生
+  if (progress.value >= 0.999) progress.value = 0
+  playing.value = true
+  const from = progress.value
+  const start = performance.now()
+  const duration = Math.max((1 - from) * DURATION_MS, 120)
+  const tick = (now: number): void => {
+    const p = Math.min(1, (now - start) / duration)
+    progress.value = from + (1 - from) * p
+    if (p < 1) {
+      raf = requestAnimationFrame(tick)
+    } else {
+      playing.value = false
+      raf = 0
+    }
+  }
+  raf = requestAnimationFrame(tick)
+}
+
+/** 复位 = 回到这一步在指导书里被指定的那一帧（不是 0）。
+ *  回到 0 会把"这一步该看哪个瞬间"抹掉，那正是这张图存在的理由。 */
+function reset(): void {
+  stop()
+  progress.value = initial.value
+}
+
+onBeforeUnmount(stop)
 </script>
 
 <template>
@@ -79,18 +129,26 @@ function seek(event: Event): void {
     />
     <!-- 拍不出静态帧时的打印兜底：宁可给一句话，也不要留白框 -->
     <p v-else class="device__print-text">{{ fallback || '三维图未生成，请参见本步骤的文字说明。' }}</p>
-    <label class="device__scrub no-print">
-      <span class="device__scrub-label">动作进度 {{ percent }}%</span>
-      <input
-        type="range"
-        min="0"
-        max="1000"
-        step="1"
-        :value="Math.round(progress * 1000)"
-        @input="seek"
-      />
-    </label>
-    <p class="device__note no-print">拖动可查看动作全过程；结构示意，参数为演示虚构值。</p>
+    <div class="device__controls no-print">
+      <button class="device__btn device__btn--play" type="button" @click="play">
+        {{ playing ? '暂停' : '播放动作' }}
+      </button>
+      <button class="device__btn" type="button" :disabled="progress === initial" @click="reset">
+        复位
+      </button>
+      <label class="device__scrub">
+        <span class="device__scrub-label">时间轴 {{ percent }}%</span>
+        <input
+          type="range"
+          min="0"
+          max="1000"
+          step="1"
+          :value="Math.round(progress * 1000)"
+          @input="seek"
+        />
+      </label>
+    </div>
+    <p class="device__note no-print">结构示意，参数为演示虚构值；拖动可停在任意瞬间。</p>
   </div>
 </template>
 
@@ -99,11 +157,45 @@ function seek(event: Event): void {
   margin: 0;
 }
 
+.device__controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.device__btn {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.device__btn--play {
+  border-color: var(--c-primary-line);
+  background: var(--c-primary-soft);
+  color: var(--c-primary-ink);
+  font-weight: 600;
+}
+
+.device__btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
 .device__scrub {
+  flex: 1 1 160px;
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
+  min-width: 0;
 }
 
 .device__scrub-label {
