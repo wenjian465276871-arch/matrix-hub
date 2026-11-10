@@ -327,13 +327,16 @@ function drawAnnotations(): void {
     let x = ax + 18
     if (ax > annotW * 0.58) x = ax - 18 - w
     x = Math.min(Math.max(x, 6), annotW - w - 6)
-    let y = ay - h / 2
+    /* 锚点掉在画面下三分之一时，标签往**上**放。
+       只做"重叠就下移"会把底架附近那几个标签一路推到画面外——
+       气囊/阻尼器/快排阀/气阀板的锚点全在底架，实测第一版就是这么丢的。 */
+    let y = ay > annotH * 0.62 ? ay - h - 12 : ay - h / 2
     for (let guard = 0; guard < 6; guard += 1) {
       const hit = placed.find(
         (p2) => x < p2.x + p2.w + 6 && x + w + 6 > p2.x && y < p2.y + p2.h + 6 && y + h + 6 > p2.y,
       )
       if (!hit) break
-      y = hit.y + hit.h + 6
+      y = ay > annotH * 0.62 ? hit.y - h - 6 : hit.y + hit.h + 6
     }
     y = Math.min(Math.max(y, 6), annotH - h - 6)
     placed.push({ text: item.text, note: item.note, ax, ay, x, y, w, h })
