@@ -174,9 +174,26 @@ jobs:
         working-directory: apps/electro-assist/web
         run: npm audit
 
+      # 2026-11-11：**不再用 `--with-deps`**。
+      # 三次 run（43037415579 / 43039625203 / 43041779580）都死在同一个地方：
+      #   E: Failed to fetch ... Temporary failure resolving 'security.ubuntu.com'
+      # 而且换到 ubuntu-24.04 也一样——runner 上 azure.archive / archive /
+      # security.ubuntu.com 三个域全部 DNS 不解析，只有 packages.microsoft.com 通。
+      # 这是跑不出 E2E 的死路，不是版本问题。
+      # 改为只装浏览器本体（不碰 apt）：GitHub 的镜像已预装 Chrome，它需要的
+      # 系统库（libnss3 / atk / cups / gbm …）本来就在。装完立刻起一次 headless，
+      # 起不来就当场报缺哪个库——**快速失败**，而不是 10 分钟后说"安装退出码 100"。
       - name: 安装浏览器
         working-directory: apps/electro-assist/web
-        run: npx playwright install --with-deps chromium
+        run: |
+          npx playwright install chromium
+          node -e "
+            const { chromium } = require('playwright');
+            chromium.launch().then(async (b) => {
+              console.log('chromium ok:', b.version());
+              await b.close();
+            }).catch((e) => { console.error(e.message); process.exit(1); });
+          "
 
       # 组件单测 + 覆盖率门禁（vitest + happy-dom）。放在构建之前：它比 E2E 快一个数量级，
       # 坏了要第一时间看到，而不是等浏览器装完、服务起完才发现。
