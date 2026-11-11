@@ -16,22 +16,22 @@
     "check:bundle": "node scripts/check-bundle.mjs"
   },
   "dependencies": {
-    "three": "^0.186.1",
-    "vue": "^3.5.13",
+    "three": "^0.187.0",
+    "vue": "^3.5.45",
     "vue-router": "^4.5.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1",
+    "@playwright/test": "^1.65.0",
     "@types/three": "^0.187.0",
     "@vitejs/plugin-vue": "^5.2.1",
     "@vitest/coverage-v8": "^5.1.0",
     "@vue/test-utils": "^2.5.1",
     "axe-core": "^4.14.0",
     "happy-dom": "^21.0.4",
-    "typescript": "~5.7.2",
+    "typescript": "~5.9.3",
     "vite": "^6.4.5",
     "vitest": "^5.1.0",
-    "vue-tsc": "^3.3.13"
+    "vue-tsc": "^3.3.14"
   },
   "overrides": {
     "minimatch": "^11.0.5"
