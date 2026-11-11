@@ -4,7 +4,14 @@ import LibraryView from '../views/LibraryView.vue'
 const router = createRouter({
   history: createWebHistory('/apps/electro-assist/'),
   routes: [
-    { path: '/', name: 'library', component: LibraryView },
+    {
+      path: '/',
+      name: 'library',
+      component: LibraryView,
+      // 作业库也是两栏工作台（目录 + 列表）：860 的内容列装不下，
+      // 否则右侧会空出一大条，与指导书页的三栏语言断层。
+      meta: { wide: true, ownFoot: true },
+    },
     {
       path: '/new',
       name: 'new',
@@ -12,24 +19,30 @@ const router = createRouter({
       component: () => import('../views/NewGuideView.vue'),
     },
     {
-      path: '/guide/:id/explore',
-      name: 'guide-explore',
-      // 探索台（三栏 + 轨迹）：与阅读器同一份数据、同一套加载逻辑，只换版式。
-      // 单独成路由是为了让两种版式并存、可对比——确认后再决定谁做默认。
-      component: () => import('../views/GuideView.vue'),
-      props: true,
-      // 三栏栅格需要整幅宽度：外壳的 .container 默认 860px，会把中栏压成一条缝。
-      meta: { wide: true },
-    },
-    {
       path: '/guide/:id',
       name: 'guide',
-      // 详情页懒加载：首屏（列表）不需要指导书渲染代码。
+      // 指导书**默认就是探索台版式**（2026-11-11 本人裁决：不再有"点阅读进度
+      // 才进得来"的第二套风格）。同一份数据、同一套加载逻辑，只换排布。
       component: () => import('../views/GuideView.vue'),
       props: true,
-      // 整页阅读器要吃掉视口宽度：三维场景在 860px 内容列里只能到 320px 宽，
-      // 那还不如一张图。宽版只对这一页开放，不改成全站默认。
-      meta: { wide: true },
+      // 三栏栅格需要整幅宽度；同时**不要页脚**：工作台是 100dvh 定高的，
+      // 页脚会把文档撑得比视口高 80px，右侧多出一条永远滚不动的滚动条。
+      meta: { wide: true, ownFoot: true },
+    },
+    {
+      path: '/guide/:id/read',
+      name: 'guide-read',
+      // 分页阅读器保留为**打印/草稿编辑**工作台：纸上要一步一页，
+      // 编辑要能看到全篇字段。它是"另一种介质"，不是另一种风格，
+      // 界面上只有探索台的「打印视图」入口指向这里。
+      component: () => import('../views/GuideView.vue'),
+      props: true,
+      meta: { wide: true, ownFoot: true },
+    },
+    {
+      // 旧链接兼容：曾经 /explore 是探索台，现在它就是默认页。
+      path: '/guide/:id/explore',
+      redirect: (to) => ({ name: 'guide', params: { id: to.params.id } }),
     },
     {
       path: '/run/:sid',

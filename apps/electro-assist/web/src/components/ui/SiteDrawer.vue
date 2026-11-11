@@ -83,6 +83,9 @@ onBeforeUnmount(() => {
           <RouterLink class="drawer__link" to="/diagnose">故障排查</RouterLink>
           <RouterLink class="drawer__link" to="/demo/device">三维演示</RouterLink>
           <a class="drawer__link" href="/">返回门户</a>
+          <!-- 工作台页面（指导书/作业库）不再渲染页脚，隐私入口收到这里，
+               否则那几页上它就没有了。 -->
+          <RouterLink class="drawer__link" to="/privacy">隐私与数据</RouterLink>
         </nav>
 
         <div class="drawer__foot">

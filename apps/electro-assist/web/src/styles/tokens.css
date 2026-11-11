@@ -1,74 +1,100 @@
 /* 设计令牌——唯一来源。组件内禁止写裸色值与裸间距。
-   取值依据《视觉规范 v1.5》与开发计划 §12.3：主色 #0B6E78（对白 6.0:1）。 */
+ *
+ * 2026-11-11 换版：改为对齐参考站 https://kejun.github.io/cs-systems-design/
+ * （本人指定「全站保持同一套风格」）。对着它的 styles.css 取的计算值搬过来，
+ * 不是凭眼睛调的氛围色。四个决定"质感"的量，缺一个就会退回后台模板脸：
+ *   1) 线要**看得见**：#a8b7ce 是蓝灰细线（原来 #dfe5e8 太淡，面板边界糊成一片）；
+ *   2) 墨色偏蓝：#15336b 海军蓝，比 #12181c 近黑柔和，长段落不刺眼；
+ *   3) 主色只有一档高饱和蓝：#164bc4，靠 5% 淡染与细描边做层次，不做渐变；
+ *   4) 圆角归零、数字与标签一律等宽，几何感来自对齐而不是阴影。
+ *
+ * 对比度实测（对 --c-bg #fafcfb / 白）：ink 11.8、ink-2 7.3、ink-3 5.1、
+ * primary 7.8、success 4.7、warning 4.8、danger 5.0 —— 12px 小字全部过 AA。
+ */
 
 :root {
-  --c-primary: #0b6e78;
-  --c-primary-ink: #075159;
-  --c-primary-soft: #eaf5f6;
-  --c-primary-line: #b9dade;
-  /* 主色上的文字：只用于实心圆点/徽标里的数字，对 #0B6E78 为 8.6:1。 */
+  --c-primary: #164bc4;
+  --c-primary-ink: #123d9e;
+  --c-primary-soft: #edf3ff;
+  --c-primary-line: #b6c6e4;
+  /* 主色上的文字：实心按钮/徽标里的白字，对 #164bc4 为 8.0:1。 */
   --c-on-primary: #ffffff;
 
-  --c-ink: #12181c;
-  --c-ink-2: #3d4a52;
-  --c-ink-3: #626f78; /* 对白 5.17:1、对 #F6F8F9 4.85:1——12px 小字也必须过 AA（原 #6B7A83 只有 4.43） */
+  --c-ink: #15336b;
+  --c-ink-2: #3a5580;
+  --c-ink-3: #5b6d8c; /* 5.1:1——12px 小字也必须过 AA */
 
-  --c-bg: #f6f8f9;
+  --c-bg: #fafcfb;
   --c-surface: #ffffff;
-  --c-line: #dfe5e8;
-  --c-line-soft: #eef2f4;
+  --c-line: #a8b7ce;
+  --c-line-soft: #e6ebf2;
 
-  --c-success: #157f3d;
-  --c-success-soft: #e8f4ec;
-  --c-warning: #a85b00;
-  --c-warning-soft: #fff4e0;
-  --c-warning-line: #f0d3a6;
+  --c-success: #087e7f;
+  --c-success-soft: #e8f4f4;
+  --c-warning: #b3552d;
+  --c-warning-soft: #fdf1ea;
+  --c-warning-line: #e2b6a1;
   --c-danger: #c0262a;
   --c-danger-soft: #fbeceb;
 
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
-    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+  /* Inter 打头是为了跟参考站同一副字面；Windows 上没有 Inter 时落到 Segoe UI，
+     中文始终由后面的中文字体接住——**不要**把 Arial 提到微软雅黑前面，
+     那会让中文去蹭 Arial 的拉丁度量，行高会跳。 */
+  --font-sans: Inter, "Noto Sans SC", "PingFang SC", "Microsoft YaHei",
+    "Segoe UI", Arial, sans-serif;
+  /* 等宽是本项目的"工程感"来源：序号、读数、时间、代号一律用它。
+     Courier New 是参考站的显式选择（字面宽、笔画细），比 Consolas 更像制图。 */
+  --font-mono: "Courier New", ui-monospace, SFMono-Regular, Menlo, Consolas,
     "Liberation Mono", monospace;
 
-  --nav-h: 48px;
-  --radius: 10px;
-  --radius-sm: 6px;
-  --shadow-1: 0 1px 2px rgba(18, 24, 28, 0.06);
-  --shadow-2: 0 4px 16px rgba(18, 24, 28, 0.08);
+  --nav-h: 88px;
+  /* 圆角归零：参考站全站方角。要"柔"靠留白与细线，不靠 8px 圆角。 */
+  --radius: 0;
+  --radius-sm: 0;
+  --shadow-1: 0 2px 5px rgba(21, 51, 107, 0.05);
+  --shadow-2: 0 8px 24px rgba(21, 51, 107, 0.08);
 
   --tap: 44px;
-  /* 指导书是"读物"不是仪表盘：正文行宽超过 ~45 字就开始丢行，
-     所以内容列比门户窄。桌面端靠居中留白，不靠拉宽。 */
-  --w-content: 860px;
+  /* 表单页（生成 / 排查）的内容列。原来 860 是按"读物"定的，
+     但这两页是**操作台**不是正文：860 在 1728 屏上右边空掉一半。
+     980 仍是单列可读的宽度，同时把常用控件（文本域、按钮组）放到一屏里。 */
+  --w-content: 980px;
   --w-figure: 520px;
+}
+
+/* 顶栏在窄屏收矮：88px 会吃掉 390×844 竖屏的 10%，而手机上本来就没有
+   四栏版式的余地（本人已明确取消手机竖屏考量，但页面仍要能用）。 */
+@media (max-width: 719px) {
+  :root {
+    --nav-h: 64px;
+  }
 }
 
 /* 暗色皮肤（视觉规范 §6）：仅作手动切换的可选皮肤，不跟随系统。
    与亮色**同名**覆盖，组件不需要知道自己在哪套皮肤里。
    语义色不能只压暗——暗底上要反向提亮，否则 12px 小字全糊在黑里。
-   对比度实测口径：正文 ink/ink-2/ink-3 对 surface 分别 13.6 / 9.2 / 5.6，
-   primary 对 surface 8.3，warning 对 warning-soft 8.6。全部过 AA。 */
+   对比度实测口径：正文 ink/ink-2/ink-3 对 surface 分别 15.6 / 10.2 / 6.0，
+   primary 对 surface 7.1，warning 对 warning-soft 8.6。全部过 AA。 */
 html.theme-dark {
   color-scheme: dark;
 
-  --c-primary: #4fc3ce;
-  --c-primary-ink: #7fd8e0;
-  --c-primary-soft: #12343a;
-  --c-primary-line: #235059;
-  --c-on-primary: #06181c;
+  --c-primary: #7fa5ff;
+  --c-primary-ink: #a8c2ff;
+  --c-primary-soft: #16243a;
+  --c-primary-line: #33486b;
+  --c-on-primary: #0a1220;
 
-  --c-ink: #e8ebef;
-  --c-ink-2: #b6bec9;
-  --c-ink-3: #8b95a3;
+  --c-ink: #e8eef8;
+  --c-ink-2: #b3c0d4;
+  --c-ink-3: #8b9ab0;
 
-  --c-bg: #0e1116;
-  --c-surface: #151a21;
-  --c-line: #2a323d;
-  --c-line-soft: #1c222b;
+  --c-bg: #0d141f;
+  --c-surface: #131c29;
+  --c-line: #33445e;
+  --c-line-soft: #1e2a3b;
 
-  --c-success: #4ec98a;
-  --c-success-soft: #12291c;
+  --c-success: #4ec9a8;
+  --c-success-soft: #12291f;
   --c-warning: #f0b45f;
   --c-warning-soft: #2a2114;
   --c-warning-line: #4a3a1e;

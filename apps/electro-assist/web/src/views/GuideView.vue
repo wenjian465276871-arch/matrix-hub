@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import StepPager from '../components/guide/StepPager.vue'
 import PagerNav from '../components/guide/PagerNav.vue'
@@ -14,14 +14,17 @@ import { announce } from '../lib/announce'
 import { ApiError, getJson, postJson } from '../lib/http'
 import { writeStoredJob } from '../lib/jobhandoff'
 import { pageCount, pageLabels } from '../lib/paging'
+import { resetTopBar, setTopBar } from '../composables/useTopBar'
+import type { TopBarAction } from '../composables/useTopBar'
 import type { AssetRef, Guide, GuideDetail, GuideStatus, PublishResult, SessionSnapshot } from '../types'
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
 const route = useRoute()
 
-/** 探索台版式：同一份数据换一种排布，草稿编辑与打印仍走阅读器。 */
-const explore = computed(() => route.name === 'guide-explore')
+/** 版式开关：只有 /guide/:id/read 走分页阅读器（打印与草稿编辑），
+ *  其余（含默认的 /guide/:id）都是探索台。 */
+const explore = computed(() => route.name !== 'guide-read')
 
 function gotoStep(index: number): void {
   const max = (guide.value?.steps.length ?? 1) - 1
@@ -124,6 +127,25 @@ async function startRun(): Promise<void> {
   }
 }
 
+/** 顶栏动作：探索台不带自己的头，这两个入口要由外层给。
+ *  为什么是「打印视图」而不是直接 window.print()：纸上要一步一页铺开，
+ *  那是阅读器的能力（StepPager.preparePrint），不在探索台里重复实现一遍。 */
+const barActions = computed<TopBarAction[]>(() => {
+  if (!guide.value) return []
+  return [
+    {
+      label: starting.value ? '正在创建…' : '开始作业',
+      onClick: () => void startRun(),
+      disabled: starting.value,
+      primary: true,
+    },
+    {
+      label: '打印视图',
+      onClick: () => void router.push({ name: 'guide-read', params: { id: props.id } }),
+    },
+  ]
+})
+
 async function load(): Promise<void> {
   ctrl?.abort()
   ctrl = new AbortController()
@@ -165,7 +187,29 @@ async function load(): Promise<void> {
 
 onMounted(load)
 watch(() => props.id, load)
-onBeforeUnmount(() => ctrl?.abort())
+/* 阅读器（/read）也要投稿：顶栏是全站唯一那条，页面自己不画头。
+   探索台由 GuideExplorer 自己投稿，这里只管阅读器分支——按 explore 分流，
+   两边同时写会把标题刷来刷去。 */
+watchEffect(() => {
+  if (explore.value) return
+  if (!guide.value) return
+  setTopBar({
+    kicker: '打印视图',
+    title: guide.value.title,
+    progress: { label: '页码', value: page.value + 1, total: pageTotal.value },
+    actions: [
+      {
+        label: '返回探索台',
+        onClick: () => void router.push({ name: 'guide', params: { id: props.id } }),
+      },
+    ],
+  })
+})
+
+onBeforeUnmount(() => {
+  ctrl?.abort()
+  resetTopBar()
+})
 
 /* ---------- 草稿修正（决策 #35）----------
  * 只改文字与判据**值**：不能加步骤、不能换判据类型、不能新增判据。
@@ -408,6 +452,7 @@ restoreToken()
     :guide="guide"
     :page="page"
     :asset-numbers="assetNumbers"
+    :actions="barActions"
     @go="gotoStep"
   />
 
@@ -431,9 +476,6 @@ restoreToken()
         :labels="labels"
         @go="goPage"
       />
-      <RouterLink class="btn reader__switch no-print" :to="`/guide/${props.id}/explore`">
-        探索台
-      </RouterLink>
       <button class="btn reader__print no-print" type="button" :disabled="printing" @click="printGuide">
         <span v-if="printing">正在准备…</span>
         <template v-else>
@@ -947,10 +989,15 @@ restoreToken()
   font-size: 13px;
 }
 
+/* 书名已经在顶栏上了，这里退成面包屑：13px、灰、不加粗。
+   h1 语义保留（读屏与打印都要它），但不再和顶栏抢"抬头"。 */
 .reader__title {
   margin: 0;
   min-width: 0;
-  font-size: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  color: var(--c-ink-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

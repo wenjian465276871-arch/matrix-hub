@@ -5,12 +5,14 @@
  *  左目录 / 中舞台 / 右详解 / 底轨迹，四块都是细线面板，序号用等宽字体，
  *  当前步用主色描边而不是填充——填充会把"可点"和"已选"混成一件事。
  *
- *  为什么先做成独立路由（/guide/:id/explore）而不直接替换阅读器：
- *  阅读器承载分页、打印铺页、草稿编辑三件事，换版式会一起动摇。
- *  先让本人比对两种版式，确认后再决定谁做默认。
+ *  2026-11-11 第二版（本人裁决）：**这就是指导书的默认版式**，不再有"点阅读进度
+ *  才进得来"的第二套风格。原来本组件自带的 88px 头已删除，内容改为投稿给
+ *  全站唯一的 TopBar（composables/useTopBar）——页面自己再画一条头，
+ *  就又会回到"两条栏叠着"的老样子。
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import GuideFigure from '../../figures/GuideFigure.vue'
+import { resetTopBar, setTopBar, type TopBarAction } from '../../composables/useTopBar'
 import { criterionValue, provenanceText } from '../../lib/criterionfmt'
 import type { AssetRef, Criterion, Guide, Step, VisualSpec } from '../../types'
 
@@ -20,6 +22,8 @@ const props = defineProps<{
   page: number
   /** 素材编号表：与阅读器同一份，打印/对照时编号不会各算一套 */
   assetNumbers: Record<string, number>
+  /** 顶栏动作由外层给：开始作业/打印要碰路由与会话状态，不该由版式组件持有 */
+  actions?: TopBarAction[]
 }>()
 
 const emit = defineEmits<{ go: [index: number] }>()
@@ -196,44 +200,38 @@ watch(
 )
 
 onMounted(() => window.addEventListener('keydown', onKey))
-onBeforeUnmount(() => window.removeEventListener('keydown', onKey))
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKey)
+  // 离开时把顶栏还回路由标题：不还的话，回到作业库还挂着上一本书的书名。
+  resetTopBar()
+})
 
 const pad = (n: number): string => String(n).padStart(2, '0')
+
+/* ---------------------------------------------------------------- 顶栏投稿 */
+/* 顶栏是全站唯一的那一条（App.vue 渲染）。这里只投稿，不画头。
+ * 依赖里带上 actions：外层可能在数据加载完之后才把「开始作业」塞进来。 */
+watch(
+  [() => props.guide.title, () => props.page, () => props.actions],
+  () => {
+    setTopBar({
+      kicker: '正在查看',
+      title: props.guide.title,
+      progress: { label: '阅读进度', value: props.page + 1, total: total.value },
+      actions: props.actions ?? [],
+    })
+  },
+  { immediate: true },
+)
+
 </script>
 
 <template>
   <div class="ex">
-    <!-- 顶条：品牌 / 正在读 / 系统与工位 / 进度 -->
-    <header class="ex__bar">
-      <RouterLink class="ex__back" :to="`/guide/${guide.id}`" title="切回分页阅读器">
-        ‹ 阅读器
-      </RouterLink>
-      <div class="ex__brand">
-        <b>ELECTRO <em>EXPLORER</em></b>
-        <small>电气调试 · 交互式作业指导</small>
-      </div>
-      <!-- 页面级标题只能是指导书名：屏幕阅读器的 h1 是"这份文档是什么"。
-           当前步骤是 h2（在舞台里），两处都放 h1 会让标题导航出现重复项。 -->
-      <div class="ex__now">
-        <small>正在查看 <span>{{ pad(page + 1) }} / {{ pad(total) }}</span></small>
-        <h1>{{ guide.title }}</h1>
-      </div>
-      <div class="ex__parts">
-        <button class="is-active" type="button">
-          <span>{{ pad(step?.seq ?? 0) }}</span>当前步骤
-        </button>
-        <button type="button" @click="go(0)">
-          <span>01</span>从头开始
-        </button>
-      </div>
-      <div class="ex__prog">
-        <div>
-          <small>阅读进度</small>
-          <strong>{{ page + 1 }} / {{ total }}</strong>
-        </div>
-        <div class="ex__track"><span :style="{ width: `${((page + 1) / total) * 100}%` }" /></div>
-      </div>
-    </header>
+    <!-- 页面级 h1 只能有一处：视觉上书名在顶栏，但**顶栏是全区共用的**，
+         它不能在不同页面变 h1/h2。所以这里留一个只给读屏的 h1，
+         路由切换后的焦点归位（router/index.ts 找 main h1）也靠它。 -->
+    <h1 class="sr-only">{{ guide.title }}</h1>
 
     <div class="ex__grid" :class="{ 'trace-collapsed': !traceOpen }">
       <!-- 左：步骤目录 -->
@@ -326,7 +324,12 @@ const pad = (n: number): string => String(n).padStart(2, '0')
             </p>
             <h2 id="ex-stage-title">{{ step?.title ?? '' }}</h2>
           </div>
-          <span class="scene-index" aria-hidden="true">{{ pad(step?.seq ?? 0) }}</span>
+          <!-- 大号序号用水印**图形**而不是文字节点：它是纯装饰（序号在眉标、
+               轨迹表里都有），而 56px 的极淡主色做文字节点过不了 3:1。
+               写成 SVG 后语义上确实不是文本，读屏与 axe 都不再把它当正文。 -->
+          <svg class="scene-index" viewBox="0 0 150 64" aria-hidden="true" focusable="false">
+            <text x="148" y="52" text-anchor="end">{{ pad(step?.seq ?? 0) }}</text>
+          </svg>
         </div>
 
         <div class="diagram">
@@ -513,18 +516,19 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 </template>
 
 <style scoped>
-/* 版式令牌只在本组件内生效：三栏宽度与参考站一致（258/1fr/310），
-   行高与字号按本项目的 12–14px 体系取值，不照搬对方的 88px 顶条。 */
+/* 版式令牌只在本组件内生效：三栏宽度与参考站一致（258/1fr/310）。
+   2026-11-11：本条不再自带顶栏——顶栏是全站唯一那条（TopBar），
+   原来那 120 行 .ex__bar 已随模板一起删掉。 */
 .ex {
-  --ex-side: 250px;
-  --ex-inspect: 316px;
+  --ex-side: 258px;
+  --ex-inspect: 310px;
   --ex-gap: 12px;
   --ex-ink: var(--c-ink);
   --ex-muted: var(--c-ink-3);
   display: flex;
   flex-direction: column;
   gap: var(--ex-gap);
-  padding: 12px 14px;
+  padding: 14px;
   background: var(--c-bg);
   /* 定高而不是"至少一屏"：参考站的做法是四块面板撑满视口、各自内部滚动。
      用 min-height 时底部轨迹会被顶到折叠线以下——第一版就是这么丢的。 */
@@ -533,140 +537,14 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   overflow: hidden;
 }
 
-/* ---------------------------------------------------------------- 顶条 */
-.ex__bar {
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 10px 14px;
-  border: 1px solid var(--c-line);
-  background: var(--c-surface);
-  flex: none;
-}
-.ex__back {
-  font-size: 13px;
-  color: var(--c-primary);
-  text-decoration: none;
-  white-space: nowrap;
-}
-.ex__brand b {
-  display: block;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-  font-size: 15px;
-  letter-spacing: 1px;
-  color: var(--c-ink);
-}
-.ex__brand em {
-  font-style: italic;
-  color: var(--c-primary);
-}
-.ex__brand small {
-  display: block;
-  white-space: nowrap;
-  font-size: 11px;
-  letter-spacing: 1.4px;
-  color: var(--ex-muted);
-  margin-top: 2px;
-}
-.ex__now {
-  border-left: 1px solid var(--c-line);
-  padding-left: 16px;
-  min-width: 0;
-  flex: 1;
-  overflow: hidden;
-}
-.ex__now small {
-  display: flex;
-  gap: 14px;
-  font-size: 11px;
-  color: var(--ex-muted);
-  margin-bottom: 3px;
-}
-.ex__now small span {
-  font-family: var(--font-mono);
-}
-.ex__now h1 {
-  margin: 0;
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--c-ink);
-}
-.ex__parts {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-.ex__parts button {
-  background: transparent;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-size: 12px;
-  color: var(--c-ink-3);
-  padding: 5px 8px;
-  border: 1px solid transparent;
-}
-.ex__parts span {
-  display: grid;
-  place-items: center;
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--c-line);
-  font-family: var(--font-mono);
-  font-size: 12px;
-}
-.ex__parts .is-active span {
-  background: var(--c-primary);
-  border-color: var(--c-primary);
-  color: var(--c-on-primary);
-}
-.ex__parts .is-active {
-  color: var(--c-primary);
-}
-.ex__prog {
-  border-left: 1px solid var(--c-line);
-  padding-left: 16px;
-  min-width: 140px;
-}
-.ex__prog > div:first-child {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-}
-.ex__prog small {
-  font-size: 11px;
-  color: var(--ex-muted);
-}
-.ex__prog strong {
-  font-family: var(--font-mono);
-  font-size: 13px;
-}
-.ex__track {
-  height: 5px;
-  background: var(--c-line-soft);
-  margin-top: 8px;
-}
-.ex__track span {
-  display: block;
-  height: 100%;
-  background: var(--c-primary);
-  transition: width 0.3s;
-}
-
 /* ---------------------------------------------------------------- 栅格 */
 .ex__grid {
   display: grid;
   gap: var(--ex-gap);
   grid-template-columns: var(--ex-side) minmax(0, 1fr) var(--ex-inspect);
-  /* 底轨从 196 收到 188：这一步只为了把 8px 让给图示，
-     不是压缩轨迹表本身——它现在正好显示 5–6 行。 */
-  grid-template-rows: minmax(360px, 1fr) 188px;
+  /* 底轨 250（与参考站同值）：表头 26 + 5 行 ×30 + 页脚 30 + 工具栏 44 = 250，
+     刚好一屏看完 5 步不滚动。7 步的指导书会滚动——那是"当前行自动滚入"负责的事。 */
+  grid-template-rows: minmax(380px, 1fr) 252px;
   /* min-height: 0 与 flex: 1 必须留在 .ex__grid 本体上。
      2026-11-11 把它们误挪进下面的 .trace-collapsed 块，结果是
      栅格容器被内容撑到 1119px（应 902），整页溢出、图片按宽度铺成 681 高被裁。 */
@@ -674,10 +552,18 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   flex: 1;
 }
 
-/* 收起底轨：图示多拿 148px。
-   默认展开——本人给的版式里轨迹表是露出来的，收起是"看得更大"的主动选择。 */
+/* 收起底轨：图示多拿 166px。
+   默认展开——轨迹表是"我在整份流程的哪儿"的唯一视图，收起是主动选择。
+   注意：2.1:1 的图在这是**宽度受限**的，多给高度不会让它变大；
+   真正"看得更大"靠图右上角的「放大看」（全屏按原分辨率铺）。 */
 .ex__grid.trace-collapsed {
-  grid-template-rows: minmax(360px, 1fr) 38px;
+  grid-template-rows: minmax(380px, 1fr) 46px;
+}
+/* 收起时辅图列一起让位：主图是 2.1:1，多给高度它不会变大（宽度才是瓶颈），
+   所以真正让图变大的是**把辅图那 220px 拿回来**（850 → 1078 宽）。
+   这是"收起轨迹，放大图示"这个名字该有的效果；不这么做，按钮只兑现了一半。 */
+.ex__grid.trace-collapsed .diagram__aids {
+  display: none;
 }
 .panel {
   border: 1px solid var(--c-line);
@@ -691,18 +577,18 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   overflow: hidden;
 }
 .panel-head {
-  height: 44px;
+  height: 52px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--c-line-soft);
 }
 .panel-head h2 {
   margin: 0;
-  font-size: 14px;
-  letter-spacing: 0.6px;
+  font-size: 16px;
+  letter-spacing: 1px;
   font-weight: 650;
   color: var(--c-ink);
 }
@@ -907,12 +793,12 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 
 /* ---------------------------------------------------------------- 中栏 */
 .stage-toolbar {
-  height: 40px;
+  height: 52px;
   flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 14px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--c-line-soft);
 }
 .view-tabs {
@@ -922,8 +808,10 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 .view-tabs button {
   background: var(--c-surface);
   font-size: 12px;
-  padding: 5px 9px;
-  color: var(--c-ink-3);
+  padding: 6px 11px;
+  color: var(--c-ink-2);
+  border: 0;
+  cursor: pointer;
 }
 .view-tabs button[aria-selected='true'] {
   background: var(--c-primary);
@@ -932,19 +820,21 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 /* 只有一种图时不给页签：两个按钮里有一个永远 disabled，是噪音 */
 .view-static {
   font-size: 12px;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.6px;
   color: var(--c-ink-3);
 }
 .model-label {
   font-size: 11px;
+  letter-spacing: 0.4px;
   color: var(--ex-muted);
+  white-space: nowrap;
 }
 .scene-heading {
   position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 7px 16px 5px;
+  padding: 14px 22px 8px;
   flex: none;
 }
 .scene-heading__main {
@@ -952,12 +842,13 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   flex: 1;
 }
 .eyebrow {
-  margin: 0 0 2px;
+  margin: 0 0 5px;
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
+  font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.6px;
+  letter-spacing: 1.4px;
   color: var(--c-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -967,41 +858,62 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   color: var(--c-line);
 }
 .eyebrow-sub {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
+  letter-spacing: 0.2px;
   color: var(--c-ink-3);
 }
 .scene-heading h2 {
   margin: 0;
-  font-size: 17px;
-  line-height: 1.3;
-  letter-spacing: 0.2px;
-  font-weight: 650;
+  font-size: 21px;
+  line-height: 1.28;
+  letter-spacing: 0.7px;
+  font-weight: 600;
   color: var(--c-ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* 大号序号退成右上角的水印：52px 时它自己就占 80px 高，把图示挤到 100px。
-   34px 仍是大字号（≥24px），按 3:1 的要求给 ink-3（5.2:1）。 */
+/* 大号序号是水印不是标题：参考站给到 56px / 字距 -4px / 主色 16% 淡染。
+   它必须在图示**上层之外的角落**，且不参与点击（pointer-events: none）。 */
 .scene-index {
   position: absolute;
-  top: 4px;
-  right: 14px;
-  font-family: var(--font-mono);
-  font-size: 34px;
-  line-height: 1;
-  letter-spacing: -2px;
-  color: var(--c-ink-3);
+  top: 6px;
+  right: 18px;
+  width: 150px;
+  height: 64px;
   pointer-events: none;
+  user-select: none;
 }
+.scene-index text {
+  font-family: var(--font-mono);
+  font-size: 56px;
+  letter-spacing: -4px;
+  fill: color-mix(in srgb, var(--c-primary) 16%, var(--c-surface));
+}
+/* 舞台底：等轴测网格。参考站用两道 30°/150° 渐变叠出"斜向菱形格"，
+   这是整页"工程制图"气质的来源——纯白底会让透明背景的渲染图浮不起来。 */
 .diagram {
   flex: 1;
   min-height: 0;
   display: flex;
   align-items: stretch;
   justify-content: center;
-  padding: 4px 12px 2px;
+  padding: 6px 14px 4px;
   overflow: hidden;
+  background-image:
+    linear-gradient(
+      30deg,
+      transparent 49.4%,
+      color-mix(in srgb, var(--c-line) 26%, transparent) 50%,
+      transparent 50.6%
+    ),
+    linear-gradient(
+      150deg,
+      transparent 49.4%,
+      color-mix(in srgb, var(--c-line) 26%, transparent) 50%,
+      transparent 50.6%
+    );
+  background-size: 36px 62px;
 }
 .diagram__stack {
   width: 100%;
@@ -1036,9 +948,13 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   border: 1px solid var(--c-line);
   margin: 0;
 }
-/* 图片自带影棚背景，给一层细边框把它和面板"隔"开，而不是浮在白纸上 */
+/* 主图不再描边：图是透明背景的渲染片（2026-11-11 重烘），描边会画出
+   一整块"空框"——框住的是舞台不是设备。三维画布自带底色，单独给它描边。 */
 .diagram__main :deep(figure) {
-  border: 1px solid var(--c-line);
+  border: 0;
+  /* base.css 给 .figure 留了 12px 内边距（阅读器里图要离文字远一点）。
+     舞台里这 24×24 是纯损耗——四周本来就有面板与舞台的留白。 */
+  padding: 0;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -1077,8 +993,25 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   height: 100%;
   object-fit: contain;
 }
-.diagram__stack :deep(.figure__cap) {
+/* 图注压到一行 22px：它只说"这张画的是什么"（弓头与滑板），
+   不是标题。原来这里的选择器写错了类名（.figure__cap），注脚按默认行高
+   吃掉 48px，实测画布只剩 365/413——图小一圈的元凶之一。 */
+.diagram__stack :deep(.figure__caption) {
   flex: none;
+  margin: 0 0 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.6px;
+  line-height: 1.5;
+  color: var(--c-ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 舞台里的图必须首屏就画：content-visibility:auto 会在滚动时重算高度，
+   在这里只会制造抖动，省不下什么。 */
+.diagram__stack :deep(.figure__canvas) {
+  content-visibility: visible;
 }
 
 /* 三维在探索台里必须"塞满"而不是守 3:2：DeviceScene 的 .scene 默认 aspect-ratio: 3/2，
@@ -1096,6 +1029,7 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   height: auto;
   aspect-ratio: auto;
   min-height: 0;
+  border: 1px solid var(--c-line);
 }
 .diagram__main :deep(.device__controls) {
   flex: none;
@@ -1141,27 +1075,28 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 .scene-caption {
   flex: none;
   display: flex;
-  gap: 10px;
-  margin: 0 12px 10px;
-  padding: 8px 10px;
+  gap: 12px;
+  margin: 0 18px 14px;
+  padding: 12px;
   border: 1px solid var(--c-line-soft);
   background: var(--c-surface);
   box-shadow: var(--shadow-1);
 }
 .step-chip {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   flex: none;
   display: grid;
   place-items: center;
   background: var(--c-primary);
   color: var(--c-on-primary);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
 }
 .scene-caption strong {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--c-ink);
+  letter-spacing: 0.2px;
 }
 .scene-caption p {
   margin: 3px 0 0;
@@ -1326,26 +1261,37 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 }
 
 /* ---------------------------------------------------------------- 底栏 */
+/* 2026-11-11 修：原来这里把 `.trace-scroll` 和 `.trace-toggle` 写在同一个
+   选择器组里，收起时**整块表格容器被刷成了按钮样式**（描边 + 3px 内边距），
+   表格还留在 42px 的行高里，看起来像一条断层。收起就是收起：表格与页脚
+   一起消失，只留工具栏，开关自己留在原位。 */
 .ex__trace.is-collapsed .trace-scroll,
-.ex__trace.is-collapsed .trace-toggle {
-  margin-left: auto;
-  margin-right: 10px;
-  padding: 3px 8px;
-  border: 1px solid var(--c-line);
-  background: var(--c-surface);
-  color: var(--c-ink-2);
-  font-size: 11px;
-  white-space: nowrap;
-}
-.trace-toggle:hover {
-  color: var(--c-primary);
-  border-color: var(--c-primary-line);
-}
-.flow-foot {
+.ex__trace.is-collapsed .flow-foot {
   display: none;
 }
 .ex__trace.is-collapsed .flow-toolbar {
   border-bottom: none;
+  height: 100%;
+}
+.ex__trace.is-collapsed .trace-toggle {
+  margin-left: auto;
+}
+.trace-toggle {
+  margin-left: auto;
+  margin-right: 4px;
+  padding: 5px 9px;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  color: var(--c-ink-2);
+  font-size: 11px;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.trace-toggle:hover {
+  color: var(--c-primary);
+  border-color: var(--c-primary-line);
+  background: var(--c-primary-soft);
 }
 .ex__trace {
   grid-column: 2 / 4;
@@ -1356,13 +1302,14 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 12px;
+  padding: 0 14px;
+  min-height: 44px;
   border-bottom: 1px solid var(--c-line-soft);
 }
 .flow-toolbar h2 {
   margin: 0;
-  font-size: 14px;
-  letter-spacing: 0.6px;
+  font-size: 15px;
+  letter-spacing: 0.8px;
   white-space: nowrap;
 }
 .flow-toolbar h2 span {
@@ -1370,6 +1317,7 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   font-size: 12px;
   color: var(--ex-muted);
   margin-left: 8px;
+  letter-spacing: 0;
 }
 .controls {
   display: flex;
@@ -1378,22 +1326,24 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 }
 .controls button {
   background: var(--c-surface);
-  height: 28px;
-  min-width: 30px;
-  padding: 0 9px;
+  height: 30px;
+  min-width: 32px;
+  padding: 0 10px;
   border: 1px solid var(--c-line);
   font-size: 12px;
   color: var(--c-ink);
+  cursor: pointer;
 }
 .controls .play-button {
   background: var(--c-primary);
   border-color: var(--c-primary);
   color: var(--c-on-primary);
-  min-width: 80px;
+  min-width: 86px;
 }
 .controls button:disabled {
   color: var(--c-ink-3);
   border-color: var(--c-line-soft);
+  background: var(--c-surface);
 }
 .trace-scroll {
   flex: 1;
@@ -1414,13 +1364,16 @@ th {
   font-size: 10px;
   letter-spacing: 1px;
   font-weight: 500;
-  padding: 6px 8px;
+  padding: 5px 9px;
   border-bottom: 1px solid var(--c-line-soft);
   white-space: nowrap;
 }
+/* 行高 31（= 12px 字 + 2×3 内边距 + 行高）：5 步必须一屏看完。
+   34 是"好看"的高度，但 5 行就会把第 5 步推到滚动线以下，
+   而"我在整份流程的哪儿"正是这张表唯一的作用。 */
 td {
   font-size: 12px;
-  padding: 6px 8px;
+  padding: 3px 9px;
   border-bottom: 1px solid var(--c-line-soft);
   color: var(--c-ink-3);
   white-space: nowrap;
@@ -1433,11 +1386,6 @@ tbody tr:hover {
 }
 tbody tr.current {
   background: var(--c-primary-soft);
-  color: var(--c-ink);
-}
-/* td 自己带颜色，会盖过 tr 的继承；当前行必须整行都提到 ink，
-   否则 primary-soft 上的 ink-3 在暗色下只有 3.4:1。 */
-tbody tr.current td {
   color: var(--c-ink);
 }
 /* td 自己带颜色，会盖过 tr 的继承；当前行必须整行都提到 ink，
@@ -1487,7 +1435,7 @@ tbody tr.done {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 5px 12px;
+  padding: 2px 14px;
   border-top: 1px solid var(--c-line-soft);
   font-size: 11px;
   color: var(--ex-muted);
@@ -1508,18 +1456,6 @@ tbody tr.done {
   }
   .scene-heading {
     padding: 5px 16px 3px;
-  }
-}
-
-/* 1440 / 1366 的工位电脑：左右两栏各收 30px，中栏多出 60px 给三维。
-   侧栏收到 228 / 286 仍能放下目录标题与判据，只是行更长。 */
-@media (max-width: 1550px) {
-  .ex {
-    --ex-side: 228px;
-    --ex-inspect: 286px;
-  }
-  .diagram__aids {
-    width: 184px;
   }
 }
 

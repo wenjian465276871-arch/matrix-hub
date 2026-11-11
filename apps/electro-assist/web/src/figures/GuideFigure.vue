@@ -35,6 +35,10 @@ const zoomed = ref(false)
  *  为什么不能统一用弹层：弹层里是**新挂载的第二个组件**，对三维等于重建
  *  整个 WebGL 场景——1–2 秒空白，还多占一个上下文（浏览器有上限）。 */
 const isScene = computed(() => props.spec.primitive === 'device_scene')
+/** 烘焙图（照片级渲染）与三维同等对待：都是"看不清就废了"的主图。
+ *  2026-11-11 本人明确要求：实物图也要能像三维那样"放大看"。
+ *  它走弹层（就是一张 <img>，重挂载零成本）。 */
+const isBaked = computed(() => props.spec.primitive === 'baked_figure')
 const zoomTrigger = ref<HTMLButtonElement | null>(null)
 const zoomClose = ref<HTMLButtonElement | null>(null)
 
@@ -119,43 +123,80 @@ onErrorCaptured((err) => {
       关闭放大
     </button>
 
-    <!-- 三维图**任何尺寸下都给**这个入口：它是这一页的核心，
+    <!-- 三维图与烘焙实物图**任何尺寸下都给**这个入口：它们是这一页的核心，
          矮窗口里塞进版面必然看不清读数（510px 高的窗口画布只有 140px）。
-         二维图只在横屏短高出现——竖屏的 SVG 已经够大，多一个按钮是噪音。 -->
+         纯 2D 图元只在横屏短高出现——竖屏的 SVG 已经够大，多一个按钮是噪音。 -->
     <button
-      v-if="!zoomed"
+      v-if="!zoomed && (isScene || isBaked)"
       ref="zoomTrigger"
       class="figure__zoom"
-      :class="{ 'figure__zoom--scene': isScene }"
+      :class="isScene ? 'figure__zoom--scene' : 'figure__zoom--baked'"
       type="button"
       @click="openZoom"
     >
-      {{ isScene ? '放大看' : '点击放大' }}
+      放大看
+    </button>
+    <button
+      v-else-if="!zoomed"
+      ref="zoomTrigger"
+      class="figure__zoom"
+      type="button"
+      @click="openZoom"
+    >
+      点击放大
     </button>
   </figure>
 
   <div
     v-if="zoomed && !isScene"
     class="figure__zoom-layer no-print"
+    :class="{ 'figure__zoom-layer--baked': isBaked }"
     role="dialog"
     aria-modal="true"
     :aria-label="`${spec.caption || '图示'}放大`"
     @keydown="onZoomKeydown"
   >
-    <figure class="figure__zoom-panel">
-      <figcaption v-if="spec.caption" class="figure__zoom-caption">{{ spec.caption }}</figcaption>
-      <component
-        :is="component"
-        v-if="component && !failed"
-        :params="spec.params"
-        :label="spec.caption || spec.fallback_text"
-        :motion="spec.motion"
-        :fallback="spec.fallback_text"
-      />
-    </figure>
-    <button ref="zoomClose" class="figure__zoom-close" type="button" @click="closeZoom">
-      关闭
-    </button>
+    <!-- 实物图：整页显示，图按可用空间等比放到最大。
+         不做深色遮罩——纸面底色和页面一致，看起来像"把这张图翻到全屏"，
+         而不是"弹了一个灯箱"；深底还会让透明背景的渲染图边缘发灰。 -->
+    <template v-if="isBaked">
+      <div class="zoom-frame">
+        <div class="zoom-frame__bar">
+          <span class="zoom-frame__label">{{ spec.caption || '步骤图示' }}</span>
+          <span class="zoom-frame__hint">Esc 关闭 · 滚轮可继续缩放浏览器</span>
+        </div>
+        <div class="zoom-frame__body">
+          <component
+            :is="component"
+            v-if="component && !failed"
+            :params="spec.params"
+            :label="spec.caption || spec.fallback_text"
+            :motion="spec.motion"
+            :fallback="spec.fallback_text"
+          />
+        </div>
+      </div>
+      <button ref="zoomClose" class="figure__zoom-close figure__zoom-close--baked" type="button" @click="closeZoom">
+        关闭放大
+      </button>
+    </template>
+
+    <template v-else>
+      <figure class="figure__zoom-panel">
+        <figcaption v-if="spec.caption" class="figure__zoom-caption">{{ spec.caption }}</figcaption>
+        <component
+          :is="component"
+          v-if="component && !failed"
+          :params="spec.params"
+          :label="spec.caption || spec.fallback_text"
+          :motion="spec.motion"
+          :fallback="spec.fallback_text"
+        />
+      </figure>
+      <button ref="zoomClose" class="figure__zoom-close" type="button" @click="closeZoom">
+        关闭
+      </button>
+    </template>
   </div>
 </template>
 
@@ -204,8 +245,95 @@ onErrorCaptured((err) => {
 }
 
 /* 三维始终显示入口：它是这一步的核心，不是配图 */
-.figure__zoom--scene {
+.figure__zoom--scene,
+.figure__zoom--baked {
   display: inline-flex;
+}
+
+/* ---------- 实物图放大：整页铺开 ---------- */
+
+/* 选择器写成复合类（0,2,0）：单类会被后面那条 `.figure__zoom-layer`
+   的深色遮罩按"后出现者胜"盖掉——实测背景仍是 rgba(12,14,18,.82)。 */
+.figure__zoom-layer.figure__zoom-layer--baked {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0;
+  background: var(--c-bg);
+}
+
+.zoom-frame {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  /* 不画整圈边框：图只有 1330 原生宽，画个 1700 的框等于框住一圈空白，
+     越看越像"图没铺满"。只留一条分隔线把工具条和画面切开。 */
+  border: 0;
+  border-bottom: 1px solid var(--c-line-soft);
+  background: var(--c-bg);
+}
+
+.zoom-frame__bar {
+  flex: none;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-surface);
+}
+
+.zoom-frame__label {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.6px;
+  color: var(--c-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zoom-frame__hint {
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  color: var(--c-ink-3);
+  white-space: nowrap;
+}
+
+/* 图的容器要能"吃掉"剩余高度：img 的 height:100% 只有在父级高度可解析时才算数。 */
+.zoom-frame__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px;
+}
+
+/* 放大态：按可用空间等比放到最大（含 1.2–1.3 倍上采样）。
+   为什么不再坚持 1:1：本人要的是"能看清、够大"，1330px 的原图在 1728 屏上
+   1:1 只剩两边各 200px 白边，视觉上就是"没放大"；这种量级的上采样在
+   高质量渲染图上没有可见损失（不是放大照片）。 */
+.zoom-frame__body :deep(.baked) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.figure__zoom-close--baked {
+  flex: none;
+  align-self: center;
+  margin: 12px 0 16px;
+  min-height: 40px;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  color: var(--c-ink);
 }
 
 /* ---------- 三维放大：放大同一个实例（fixed），不重新挂载 ---------- */

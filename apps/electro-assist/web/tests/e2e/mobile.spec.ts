@@ -37,6 +37,11 @@ test('窄屏 / 键盘顶升 / 表格堆叠 / 点击放大 / 仍要提交', async
   await page.locator('.guide-card').filter({ hasText: '开关门' }).first().click()
   await expect(page.getByRole('heading', { level: 1 })).toContainText('开关门')
 
+  // 2026-11-11 起 /guide/:id 默认是探索台（三栏），分页阅读器在 /read。
+  // 本用例要验的是阅读器里的图表堆叠与翻页，所以从探索台的「打印视图」进。
+  await page.getByRole('button', { name: '打印视图' }).click()
+  await expect(page.locator('.cover__toc-item').first()).toBeVisible()
+
   // 2026-11-10 起是「一步一屏」：表格在第 7 步，必须先进那一页。
   // 顺带把翻页本身也验了——封面目录跳步 → 圆点回封面。
   await page.locator('.cover__toc-item').filter({ hasText: '锁闭到位与门扇间隙' }).click()

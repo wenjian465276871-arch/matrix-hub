@@ -15,8 +15,8 @@ body {
   background: var(--c-bg);
   color: var(--c-ink);
   font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 24px;
+  font-size: 14px;
+  line-height: 1.7;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -49,63 +49,12 @@ h3 {
   font-weight: 600;
 }
 
-/* ---------- 骨架 ---------- */
-
-.site-nav {
-  position: sticky;
-  top: 0;
-  z-index: 30;
-  height: var(--nav-h);
-  background: #12181c;
-  color: #fff;
-}
-
-.nav-inner {
-  max-width: var(--w-content);
-  height: 100%;
-  margin: 0 auto;
-  padding: 0 16px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.brand {
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  /* 导航项一律不换行：换行会让 48px 的导航条变成两行，页面首屏整体下移。 */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.brand:hover {
-  color: #fff;
-  text-decoration: none;
-}
-
-/* 窄屏用短标题：四个导航项在 390px 下塞不下完整品牌名。 */
-.brand-short {
-  display: none;
-}
-
-.nav-spacer {
-  flex: 1;
-}
-
-.nav-link {
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 13px;
-  padding: 8px 4px;
-  white-space: nowrap;
-}
-
-.nav-link:hover {
-  color: #fff;
-  text-decoration: none;
-}
+/* ---------- 骨架 ----------
+ * 导航条已由 components/shell/TopBar.vue 接管（88px 单条，参考站同构）。
+ * 这里**不能再留** `.brand` / `.nav-link` 之类的全局类：TopBar 的 scoped
+ * 样式只加属性选择器、不影响类名，全局 `.brand{color:#fff}` 会把白底上的
+ * 品牌名刷成白色看不见。删掉是必须的，不是清理洁癖。
+ */
 
 .container {
   max-width: var(--w-content);
@@ -128,18 +77,26 @@ h3 {
   padding: 0;
 }
 
+/* 文档页的抬头（生成 / 排查 / 运行 / 记录）：等宽眉标 + 26px 标题 + 一句说明，
+   下面压一条细线。它替代不了面板头，但能让"表单页"和"面板页"共用同一套骨相。 */
 .page-head {
-  margin-bottom: 20px;
+  margin: 0 0 14px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--c-line);
 }
 
 .page-title {
-  font-size: 24px;
+  font-size: 26px;
+  letter-spacing: 0.8px;
+  font-weight: 600;
 }
 
 .page-sub {
   margin: 6px 0 0;
-  color: var(--c-ink-2);
-  font-size: 14px;
+  max-width: 76ch;
+  color: var(--c-ink-3);
+  font-size: 13px;
+  line-height: 1.75;
 }
 
 .site-foot {
@@ -151,6 +108,47 @@ h3 {
 }
 
 /* ---------- 组件 ---------- */
+
+/* 面板：全站唯一的"纸面块"。四边 1px 蓝灰线 + 白底 + 方角，
+   内部自己滚动。指导书的三栏、作业库的两栏都用它——面板语言统一了，
+   页面之间才不会有"换了一个产品"的感觉。 */
+.panel {
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-head {
+  height: 52px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--c-line-soft);
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 16px;
+  letter-spacing: 1px;
+  font-weight: 650;
+  color: var(--c-ink);
+  white-space: nowrap;
+}
+
+.panel-head h2 span {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--c-ink-3);
+  margin-left: 8px;
+}
 
 .card {
   background: var(--c-surface);
@@ -164,28 +162,35 @@ h3 {
   gap: 16px;
 }
 
+/* 列表项而不是卡片：卡片一多就满屏圆角方块的堆叠感，而这几份指导书之间
+   是**同一条流水线上的并列项**，用细线分隔更像目录。左侧 2px 主色在
+   hover/当前项出现，是"我读的是这一行"的唯一提示。 */
 .guide-card {
   display: block;
-  padding: 20px;
+  padding: 16px 18px;
   color: inherit;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  border-bottom: 1px solid var(--c-line-soft);
+  border-left: 2px solid transparent;
+  transition: background 0.15s ease, border-left-color 0.15s ease;
 }
 
 .guide-card:hover {
-  border-color: var(--c-primary-line);
-  box-shadow: var(--shadow-2);
+  background: var(--c-primary-soft);
+  border-left-color: var(--c-primary);
   text-decoration: none;
 }
 
 .guide-card__title {
-  font-size: 18px;
+  font-size: 16px;
+  letter-spacing: 0.3px;
   color: var(--c-ink);
 }
 
 .guide-card__summary {
-  margin: 8px 0 0;
+  margin: 6px 0 0;
   color: var(--c-ink-2);
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.7;
 }
 
 .meta-row {
@@ -193,7 +198,7 @@ h3 {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 12px;
   font-size: 12px;
   color: var(--c-ink-3);
 }
@@ -201,13 +206,15 @@ h3 {
 .tag {
   display: inline-flex;
   align-items: center;
-  height: 22px;
-  padding: 0 8px;
+  height: 20px;
+  padding: 0 7px;
   border: 1px solid var(--c-primary-line);
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--c-primary-soft);
   color: var(--c-primary-ink);
-  font-size: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.4px;
   white-space: nowrap;
 }
 
@@ -292,8 +299,13 @@ html.theme-dark .btn--warn:hover {
   background: #f6c37a;
 }
 
+/* 禁用态不用 opacity：0.55 的半透明主色按钮会褪成一块浅蓝，
+   白字压在上面等于看不清，视觉上也像"没加载完"。
+   换成明确的"不可用"三件套：浅底、灰字、灰边。 */
 .btn:disabled {
-  opacity: 0.55;
+  background: var(--c-line-soft);
+  border-color: var(--c-line-soft);
+  color: var(--c-ink-3);
   cursor: not-allowed;
 }
 
@@ -786,30 +798,6 @@ html.theme-dark .btn--warn:hover {
 }
 
 /* ---------- 响应式 ---------- */
-
-@media (max-width: 480px) {
-  /* 390px 下四个导航项会挤成两行；缩字号与间距，优先保住 48px 单行。 */
-  .nav-inner {
-    gap: 10px;
-  }
-
-  .brand {
-    font-size: 14px;
-  }
-
-  .brand-full {
-    display: none;
-  }
-
-  .brand-short {
-    display: inline;
-  }
-
-  .nav-link {
-    font-size: 12px;
-    padding: 8px 2px;
-  }
-}
 
 @media (min-width: 640px) {
   .container {

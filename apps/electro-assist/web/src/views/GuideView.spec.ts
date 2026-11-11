@@ -45,10 +45,13 @@ vi.mock('../lib/http', () => ({
 }))
 
 /* useRoute 现在是必需的：同一份数据按路由名分派"阅读器 / 探索台"两种版式。
-   默认给 guide（阅读器），需要探索台的用例再覆盖。 */
+   2026-11-11 起**默认路由已经是探索台**，阅读器挪到 /guide/:id/read，
+   所以这里默认给 guide-read —— 本文件锁的是阅读器的行为（判据来源、
+   降级提示、草稿缺口），它们都只存在于阅读器里。 */
+const routeState = vi.hoisted(() => ({ name: 'guide-read' }))
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mocks.push }),
-  useRoute: () => ({ name: 'guide' }),
+  useRoute: () => routeState,
 }))
 vi.mock('../lib/announce', () => ({ announce: mocks.announce }))
 vi.mock('../lib/jobhandoff', () => ({ writeStoredJob: mocks.writeStoredJob }))
@@ -105,6 +108,7 @@ function mountView() {
 }
 
 beforeEach(() => {
+  routeState.name = 'guide-read'
   sessionStorage.clear()
   Object.values(mocks).forEach((fn) => fn.mockReset())
 })

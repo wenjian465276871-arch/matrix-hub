@@ -323,7 +323,9 @@ onBeforeUnmount(stop)
 </script>
 
 <template>
-  <main class="demo">
+  <!-- 外层已有 <main id="main">（App.vue）：这里再来一个 main 会造成两个 main 地标，
+       axe 报 landmark-no-duplicate-main。演示区自己是一个具名 region 就够了。 -->
+  <section class="demo" aria-label="三维设备演示">
     <header class="demo__head">
       <p class="demo__eyebrow">{{ def.eyebrow }}</p>
       <h1 class="demo__title">{{ def.title }}</h1>
@@ -485,7 +487,7 @@ onBeforeUnmount(stop)
         <p class="demo__hint">{{ def.hint }}</p>
       </section>
     </div>
-  </main>
+  </section>
 </template>
 
 <style scoped>

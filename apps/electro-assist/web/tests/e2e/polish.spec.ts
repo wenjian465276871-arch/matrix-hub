@@ -133,7 +133,8 @@ test('列表每页 12，点「加载更多」追加并保留焦点', async ({ pa
 })
 
 test('打印时表格换真表格、表头随分页重复', async ({ page }) => {
-  await page.goto('./guide/g_door_switch_formal_001')
+  // 打印相关的断言都落在分页阅读器上（/read），探索台不铺页。
+  await page.goto('./guide/g_door_switch_formal_001/read')
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
 
   // 表格在图示里、图示在第 7 步；一步一屏之后要先进那一页才有这张表。

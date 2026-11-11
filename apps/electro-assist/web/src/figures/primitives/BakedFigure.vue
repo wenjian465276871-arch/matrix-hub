@@ -51,13 +51,12 @@ function onError(): void {
 </template>
 
 <style scoped>
-/* 图本身是 3:2 的深底渲染，圆角与其它图元一致即可。
-   背景色兜底：图还没下载完时不该闪一块白。 */
+/* 图是**透明背景**的渲染片（2026-11-11 重烘）：贴在纸面上，网格底纹能透过来，
+   不再是一块黑砖。所以这里不能给背景色——给了就等于又把黑框贴回去。 */
 .baked {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: 6px;
-  background: #16181a;
+  background: transparent;
 }
 </style>
