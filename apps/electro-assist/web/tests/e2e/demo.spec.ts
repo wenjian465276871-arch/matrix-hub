@@ -74,7 +74,12 @@ test('三台设备可切换、时间轴可拖动、剖切可开关', async ({ pa
   await page.getByRole('tab', { name: '配电回路上电自检' }).click()
   const cutButton = page.getByRole('button', { name: '剖开看内部' })
   await expect(cutButton).toBeVisible()
-  await cutButton.click()
+  // force 不是偷懒：CI 的软件 WebGL 里切完设备后画布还在重排，
+  // 按钮的盒子有一段时间在动，Playwright 的"stable"检查会一直等到 30 秒超时
+  // （run 43050254650 就是这么挂的）。本用例要验的是"点了会切状态"，
+  // 不是点击物理；force 仍会先把元素滚进视口再按当前盒子派发。
+  await cutButton.scrollIntoViewIfNeeded()
+  await cutButton.click({ force: true })
   const offButton = page.getByRole('button', { name: '关闭剖切' })
   await expect(offButton).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.demo__slider-label', { hasText: '切面位置' })).toBeVisible()
