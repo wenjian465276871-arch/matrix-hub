@@ -38,6 +38,10 @@ test('暗色下 A1 出现逃生条，一键切回亮色', async ({ page }) => {
   await page.goto('./')
 
   await page.locator('.guide-card').filter({ hasText: '开关门' }).first().click()
+
+  // 2026-11-11：/guide/:id 默认是探索台，分页阅读器在 /read。
+  // 本用例验的是阅读器里的流程，从探索台顶栏的「打印视图」进去。
+  await page.getByRole('button', { name: '打印视图' }).click()
   await page.getByRole('button', { name: '开始引导作业' }).click()
   await expect(page).toHaveURL(/\/run\/s_/)
 

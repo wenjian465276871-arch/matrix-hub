@@ -75,6 +75,10 @@ h3 {
 .container.container--wide {
   max-width: none;
   padding: 0;
+  /* 宽版是"工作台"，高度由内部（.ex / .lib）自己算。
+     留着 min-height: 100dvh - nav 的话，作业库把页脚也算进去后就多滚 44px
+     （实测 scrollHeight 764 vs 视口 720）。 */
+  min-height: 0;
 }
 
 /* 文档页的抬头（生成 / 排查 / 运行 / 记录）：等宽眉标 + 26px 标题 + 一句说明，
@@ -101,10 +105,17 @@ h3 {
 
 .site-foot {
   border-top: 1px solid var(--c-line);
-  padding: 20px 16px 40px;
+  /* 压成 44px 一条：它现在是工作台版式的一部分（作业库要在一屏里放下它），
+     不是文档末尾的大留白。--foot-h 与这里的实际高度必须对得上。 */
+  height: var(--foot-h, 44px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 16px;
   color: var(--c-ink-3);
-  font-size: 13px;
-  text-align: center;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 /* ---------- 组件 ---------- */

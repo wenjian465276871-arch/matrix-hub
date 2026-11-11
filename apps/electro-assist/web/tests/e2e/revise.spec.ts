@@ -61,7 +61,8 @@ test.describe('草稿修正', () => {
     const snapshot = JSON.parse(await probe.text()) as { status: string }
     test.skip(snapshot.status !== 'draft', '这份已经是发布状态，改不了')
 
-    await page.goto(`./guide/${DRAFT_ID}`)
+    // 草稿编辑只在阅读器（/read）里：探索台不承载长表单。
+    await page.goto(`./guide/${DRAFT_ID}/read`)
     await expect(page.locator('.draft-banner')).toBeVisible()
 
     // 口令是修正的前置：没有令牌先展开口令面板，验完自动进编辑态

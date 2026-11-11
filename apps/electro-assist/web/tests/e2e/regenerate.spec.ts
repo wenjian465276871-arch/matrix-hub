@@ -26,6 +26,10 @@ test('有工艺来源时可以从详情页重新生成', async ({ page }) => {
 
   await page.goto('./')
   await page.locator('.guide-card').first().click()
+
+  // 2026-11-11：/guide/:id 默认是探索台，分页阅读器在 /read。
+  // 本用例验的是阅读器里的流程，从探索台顶栏的「打印视图」进去。
+  await page.getByRole('button', { name: '打印视图' }).click()
   const button = page.getByRole('button', { name: '再生成一份草稿' })
   await expect(button).toBeVisible()
 

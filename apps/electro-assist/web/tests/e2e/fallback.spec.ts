@@ -20,6 +20,10 @@ test('无图示且无素材的步骤显示占位说明', async ({ page }) => {
   await page.goto('./')
   await page.locator('.guide-card').first().click()
 
+  // 2026-11-11：/guide/:id 默认是探索台，分页阅读器在 /read。
+  // 本用例验的是阅读器里的流程，从探索台顶栏的「打印视图」进去。
+  await page.getByRole('button', { name: '打印视图' }).click()
+
   const empty = page.locator('.step__empty').first()
   await expect(empty).toBeVisible()
   await expect(empty).toContainText('本步暂无可视化图示')

@@ -10,7 +10,9 @@ const router = createRouter({
       component: LibraryView,
       // 作业库也是两栏工作台（目录 + 列表）：860 的内容列装不下，
       // 否则右侧会空出一大条，与指导书页的三栏语言断层。
-      meta: { wide: true, ownFoot: true },
+      // **保留页脚**：隐私与数据这条法律入口原来只在页脚，去掉就没地方点了
+      // （E2E 有用例盯着；抽屉里那条是补充，不是替代）。
+      meta: { wide: true },
     },
     {
       path: '/new',

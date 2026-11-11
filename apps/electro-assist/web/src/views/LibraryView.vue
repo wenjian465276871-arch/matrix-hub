@@ -284,7 +284,9 @@ onBeforeUnmount(() => {
   grid-template-columns: 258px minmax(0, 1fr);
   gap: 12px;
   padding: 14px;
-  height: calc(100dvh - var(--nav-h));
+  /* 减掉页脚那一条（--foot-h 在 base.css 定义）：不减的话文档比视口高
+     40 多像素，右侧多一条永远滚不动的滚动条。 */
+  height: calc(100dvh - var(--nav-h) - var(--foot-h, 44px));
   min-height: 560px;
   overflow: hidden;
 }

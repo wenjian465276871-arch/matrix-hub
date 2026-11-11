@@ -356,7 +356,9 @@ const pad2 = (n: number): string => String(n).padStart(2, '0')
   font: inherit;
   width: 33px;
   height: 33px;
-  display: none;
+  /* 任意宽度都显示：抽屉里装着外观开关与隐私入口，
+     只在窄屏给入口，等于宽屏用户永远换不了皮肤。 */
+  display: grid;
   place-items: center;
   border: 1px solid var(--c-line);
   font-size: 20px;
@@ -383,19 +385,27 @@ const pad2 = (n: number): string => String(n).padStart(2, '0')
   .portal {
     display: none;
   }
+  /* 只把文字**视觉隐藏**，不能 display:none：后者会把"三维演示"从
+     可访问名里抹掉，读屏与 E2E 都只能读到一个孤零零的"04"
+     （run 43043951927 的 demo 用例就是这么挂的：找不到名为"三维演示"的链接）。 */
   .part em {
-    display: none;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
   .part {
-    padding: 6px 4px;
+    position: relative;
+    padding: 6px 6px;
   }
 }
 @media (max-width: 1240px) {
   .parts {
     display: none;
-  }
-  .more {
-    display: grid;
   }
 }
 @media (max-width: 860px) {
@@ -406,6 +416,54 @@ const pad2 = (n: number): string => String(n).padStart(2, '0')
     min-width: 0;
   }
 }
+/* 横屏短高：顶栏压成一行，副标题让位给内容高度。 */
+@media (max-height: 560px) {
+  .topbar {
+    gap: 14px;
+    padding: 0 14px;
+  }
+  .brand__mark {
+    width: 28px;
+    height: 32px;
+  }
+  .brand__text small {
+    display: none;
+  }
+  .brand__text b {
+    font-size: 15px;
+  }
+  .now small {
+    display: none;
+  }
+  .now strong {
+    font-size: 15px;
+  }
+}
+
+/* 横屏短高：顶栏压成一行，副标题让位给内容高度。 */
+@media (max-height: 560px) {
+  .topbar {
+    gap: 14px;
+    padding: 0 14px;
+  }
+  .brand__mark {
+    width: 28px;
+    height: 32px;
+  }
+  .brand__text small {
+    display: none;
+  }
+  .brand__text b {
+    font-size: 15px;
+  }
+  .now small {
+    display: none;
+  }
+  .now strong {
+    font-size: 15px;
+  }
+}
+
 @media (max-width: 719px) {
   .topbar {
     gap: 12px;
