@@ -51,6 +51,11 @@ test('导航入口 → 三维演示：场景建起来（或明确降级），不
  * 而控件状态 + 画布仍在，已经能抓住"点了没反应"这一类。
  */
 test('三台设备可切换、时间轴可拖动、剖切可开关', async ({ page }) => {
+  /* 30 → 60 秒：这条要**连切三次设备**，每次都要等 DeviceScene 重新建 WebGL 场景。
+     CI runner 没有 GPU（软件渲染），单次切换实测 8–10 秒，加上时间轴与剖切，
+     总时长稳定超过默认的 30 秒——run 43078126053 就是这么挂的（挂在最后一步
+     `locator.evaluate`，因为剩余预算只剩几秒）。断言一条没删，只放宽时限。 */
+  test.setTimeout(60_000)
   await page.goto('./demo/device')
   await expect(page.locator('canvas').first()).toBeVisible({ timeout: 20_000 })
 
