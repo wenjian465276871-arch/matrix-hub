@@ -1,1 +1,0 @@
-{"failed": true, "at": "2026-11-08T19:46:23+08:00", "reason": "postdeploy_5xx", "detail": "回滚后 6 次健康复查仍未通过（ratio=6/6）", "from_tag": "new123", "to_tag": "prev456", "internal_debug_path": "/root/不该透出.log"}
