@@ -67,7 +67,9 @@ test.describe('草稿修正', () => {
 
     // 口令是修正的前置：没有令牌先展开口令面板，验完自动进编辑态
     await page.getByRole('button', { name: '修正内容' }).click()
-    await page.getByLabel('口令').fill(PASSCODE)
+    // exact 必须开：口令弹层自己是 aria-labelledby="passcode-title"（名字"验证口令"），
+    // 也会被 getByLabel('口令') 命中，strict mode 直接报 "resolved to 2 elements"。
+    await page.getByLabel('口令', { exact: true }).fill(PASSCODE)
     await page.getByRole('button', { name: '验证口令' }).click()
 
     const title = page.getByLabel('标题', { exact: true })
