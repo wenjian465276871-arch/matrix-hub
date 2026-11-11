@@ -78,8 +78,11 @@ test('三台设备可切换、时间轴可拖动、剖切可开关', async ({ pa
   // 按钮的盒子有一段时间在动，Playwright 的"stable"检查会一直等到 30 秒超时
   // （run 43050254650 就是这么挂的）。本用例要验的是"点了会切状态"，
   // 不是点击物理；force 仍会先把元素滚进视口再按当前盒子派发。
-  await cutButton.scrollIntoViewIfNeeded()
-  await cutButton.click({ force: true })
+  // 不用 locator.click：CI 的软件渲染下这页的画布/按钮盒子一直在微动
+  // （两次 run 都是"waiting for element to be stable"到 30 秒超时，
+  //  scrollIntoViewIfNeeded 也一样等它稳定）。本用例要验的是**状态切换**，
+  // 元素可见性上一行 `toBeVisible()` 已经验过了，这里直接在 DOM 上派发点击。
+  await cutButton.evaluate((el) => (el as HTMLButtonElement).click())
   const offButton = page.getByRole('button', { name: '关闭剖切' })
   await expect(offButton).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.demo__slider-label', { hasText: '切面位置' })).toBeVisible()

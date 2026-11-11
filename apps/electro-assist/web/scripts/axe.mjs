@@ -52,15 +52,19 @@ const sid = await newSession()
 //   ② 内容断言：目标页的特征元素必须存在（挡住 loading/error/空壳）。
 const pages = [
   // [名字, 路径, 页面就绪的判据（在浏览器里求值）]
-  ['库页', '/', () => !!document.querySelector('.page-title')?.textContent?.includes('作业指导书')],
+  // 2026-11-11：作业库改成两栏工作台后，书名是只给读屏的 h1（视觉上在顶栏），
+  // 不能再拿 .page-title 当就绪判据，否则脚本会一直等到超时。
+  ['库页', '/', () => !!document.querySelector('h1')?.textContent?.includes('作业指导书')],
   [
-    '指导书',
-    '/guide/g_door_switch_formal_001',
+    // 「指导书」= 分页阅读器，现在在 /read（默认页已经是探索台）。
+    '阅读器',
+    '/guide/g_door_switch_formal_001/read',
     () => document.querySelectorAll('article.card .step').length > 0,
   ],
   [
+    // 探索台就是默认页，直接扫 /guide/:id；/explore 只是重定向。
     '探索台',
-    '/guide/g_door_switch_formal_001/explore',
+    '/guide/g_door_switch_formal_001',
     () => document.querySelectorAll('.ex .topic').length > 0,
   ],
   ['引导', `/run/${sid}`, () => !!document.querySelector('.run-head')],

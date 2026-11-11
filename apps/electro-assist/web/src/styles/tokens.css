@@ -31,7 +31,9 @@
 
   --c-success: #087e7f;
   --c-success-soft: #e8f4f4;
-  --c-warning: #b3552d;
+  /* #b3552d 在 --c-warning-soft（#fdf1ea）上只有 4.46:1，差 0.04 过不了 AA——
+     免责声明条就是这么被 axe 抓住的。压到 #a94a22：纸上 5.69、警示底 5.15。 */
+  --c-warning: #a94a22;
   --c-warning-soft: #fdf1ea;
   --c-warning-line: #e2b6a1;
   --c-danger: #c0262a;
