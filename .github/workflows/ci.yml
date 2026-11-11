@@ -129,7 +129,14 @@ jobs:
   e2e:
     name: E2E 冒烟
     needs: test
-    runs-on: ubuntu-latest
+    # 2026-11-11：钉 24.04，不跟 ubuntu-latest。
+    # 起因：ubuntu-latest 已迁到 Ubuntu 26（resolute），Playwright 的
+    # `--with-deps` 要 apt 装一批字体包（fonts-wqy-zenhei / xfonts-*），
+    # 而 security.ubuntu.com 上解析不了 → `Temporary failure resolving`，
+    # 连挂两次（run 43037415579 / 43039625203，各 10 分半，全部死在装浏览器）。
+    # 这条 job 需要的是**可复现的 apt 源**，不是最新发行版；
+    # test / build 两条不碰 apt，继续跟 latest。
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
