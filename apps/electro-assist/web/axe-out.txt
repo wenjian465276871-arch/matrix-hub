@@ -1,0 +1,261 @@
+
+> electro-assist-web@0.1.0 test:a11y
+> node scripts/axe.mjs
+
+扫描 30 次（5 页 × 3 视口 × 2 皮肤），耗时 36.0s
+  ✗ dark/desktop 探索台：1 处 —— color-contrast
+{
+  "scannedAt": "2026-11-11T08:47:06.753Z",
+  "total": 1,
+  "rows": [
+    {
+      "theme": "light",
+      "viewport": "mobile",
+      "page": "库页",
+      "path": "/",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "mobile",
+      "page": "指导书",
+      "path": "/guide/g_door_switch_formal_001",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "mobile",
+      "page": "探索台",
+      "path": "/guide/g_door_switch_formal_001/explore",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "mobile",
+      "page": "引导",
+      "path": "/run/s_1d5aec8a778c4c1e",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "mobile",
+      "page": "排查",
+      "path": "/diagnose",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "mobile",
+      "page": "库页",
+      "path": "/",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "mobile",
+      "page": "指导书",
+      "path": "/guide/g_door_switch_formal_001",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "mobile",
+      "page": "探索台",
+      "path": "/guide/g_door_switch_formal_001/explore",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "mobile",
+      "page": "引导",
+      "path": "/run/s_1d5aec8a778c4c1e",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "mobile",
+      "page": "排查",
+      "path": "/diagnose",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "page": "库页",
+      "path": "/",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "page": "指导书",
+      "path": "/guide/g_door_switch_formal_001",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "page": "探索台",
+      "path": "/guide/g_door_switch_formal_001/explore",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "page": "引导",
+      "path": "/run/s_1d5aec8a778c4c1e",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "desktop",
+      "page": "排查",
+      "path": "/diagnose",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "page": "库页",
+      "path": "/",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "page": "指导书",
+      "path": "/guide/g_door_switch_formal_001",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "page": "探索台",
+      "path": "/guide/g_door_switch_formal_001/explore",
+      "count": 1,
+      "violations": [
+        {
+          "id": "color-contrast",
+          "impact": "serious",
+          "nodes": 2,
+          "target": ".current > td:nth-child(3)",
+          "help": "Elements must meet minimum color contrast ratio thresholds"
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "page": "引导",
+      "path": "/run/s_1d5aec8a778c4c1e",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "desktop",
+      "page": "排查",
+      "path": "/diagnose",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "compact",
+      "page": "库页",
+      "path": "/",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "compact",
+      "page": "指导书",
+      "path": "/guide/g_door_switch_formal_001",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "compact",
+      "page": "探索台",
+      "path": "/guide/g_door_switch_formal_001/explore",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "compact",
+      "page": "引导",
+      "path": "/run/s_1d5aec8a778c4c1e",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "light",
+      "viewport": "compact",
+      "page": "排查",
+      "path": "/diagnose",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "compact",
+      "page": "库页",
+      "path": "/",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "compact",
+      "page": "指导书",
+      "path": "/guide/g_door_switch_formal_001",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "compact",
+      "page": "探索台",
+      "path": "/guide/g_door_switch_formal_001/explore",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "compact",
+      "page": "引导",
+      "path": "/run/s_1d5aec8a778c4c1e",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "theme": "dark",
+      "viewport": "compact",
+      "page": "排查",
+      "path": "/diagnose",
+      "count": 0,
+      "violations": []
+    }
+  ]
+}
+✗ 可访问性违规 1 处

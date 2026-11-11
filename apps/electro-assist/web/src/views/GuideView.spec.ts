@@ -44,7 +44,12 @@ vi.mock('../lib/http', () => ({
   putJson: mocks.putJson,
 }))
 
-vi.mock('vue-router', () => ({ useRouter: () => ({ push: mocks.push }) }))
+/* useRoute 现在是必需的：同一份数据按路由名分派"阅读器 / 探索台"两种版式。
+   默认给 guide（阅读器），需要探索台的用例再覆盖。 */
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: mocks.push }),
+  useRoute: () => ({ name: 'guide' }),
+}))
 vi.mock('../lib/announce', () => ({ announce: mocks.announce }))
 vi.mock('../lib/jobhandoff', () => ({ writeStoredJob: mocks.writeStoredJob }))
 

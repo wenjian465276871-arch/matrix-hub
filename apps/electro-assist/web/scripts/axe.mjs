@@ -58,6 +58,11 @@ const pages = [
     '/guide/g_door_switch_formal_001',
     () => document.querySelectorAll('article.card .step').length > 0,
   ],
+  [
+    '探索台',
+    '/guide/g_door_switch_formal_001/explore',
+    () => document.querySelectorAll('.ex .topic').length > 0,
+  ],
   ['引导', `/run/${sid}`, () => !!document.querySelector('.run-head')],
   ['排查', '/diagnose', () => !!document.querySelector('.page-title')?.textContent?.includes('故障排查')],
 ]

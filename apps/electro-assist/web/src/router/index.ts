@@ -12,6 +12,16 @@ const router = createRouter({
       component: () => import('../views/NewGuideView.vue'),
     },
     {
+      path: '/guide/:id/explore',
+      name: 'guide-explore',
+      // 探索台（三栏 + 轨迹）：与阅读器同一份数据、同一套加载逻辑，只换版式。
+      // 单独成路由是为了让两种版式并存、可对比——确认后再决定谁做默认。
+      component: () => import('../views/GuideView.vue'),
+      props: true,
+      // 三栏栅格需要整幅宽度：外壳的 .container 默认 860px，会把中栏压成一条缝。
+      meta: { wide: true },
+    },
+    {
       path: '/guide/:id',
       name: 'guide',
       // 详情页懒加载：首屏（列表）不需要指导书渲染代码。

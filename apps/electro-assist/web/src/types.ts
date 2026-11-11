@@ -54,6 +54,7 @@ export type Primitive =
   | 'table'
   | 'annotation'
   | 'device_scene'
+  | 'baked_figure'
 
 export type Scalar = string | number | boolean
 

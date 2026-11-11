@@ -16,7 +16,8 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import GuideFigure from '../../figures/GuideFigure.vue'
-import type { AssetRef, Criterion, Provenance, Step } from '../../types'
+import { criterionValue, provenanceText } from '../../lib/criterionfmt'
+import type { AssetRef, Step } from '../../types'
 
 /* ---------------- 沉浸态（2026-11-10 决策 #51） ----------------
  *
@@ -91,19 +92,8 @@ function assetUrl(asset: AssetRef): string {
   return `/api/electro/uploads/${asset.asset_id}/${asset.asset_id}.png`
 }
 
-function criterionValue(c: Criterion): string {
-  if (c.type === 'range') return `${c.min ?? '—'} ~ ${c.max ?? '—'}`
-  if (c.type === 'enum') return (c.options ?? []).join(' / ')
-  if (c.type === 'manual') return '人工确认'
-  return '记录'
-}
-
-/** 判据来源标签。行号内部 0 基、显示 1 基，与识别确认页同一口径。 */
-function provenanceText(p: Provenance): string {
-  const tag = p.flag === 'ok' ? '有据' : '待核'
-  if (p.line === null || p.line === undefined) return `${tag} · 见原图`
-  return `${tag} · 第 ${p.line + 1} 行`
-}
+/* 判据的显示口径见 lib/criterionfmt.ts：探索台要渲染同一批判据，
+   两处各写一份就会出现 `0.5 ~ 1.5` 与 `0.5-1.5` 这种"看起来数据不一致"。 */
 
 /* 图示分两栏：三维是「主图」，占左栏并吃满高度；其余 2D 原语退到右栏。
  *

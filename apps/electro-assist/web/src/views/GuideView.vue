@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import StepPager from '../components/guide/StepPager.vue'
 import PagerNav from '../components/guide/PagerNav.vue'
 import ConfirmDialog from '../components/ui/ConfirmDialog.vue'
 import AttachPanel from '../components/guide/AttachPanel.vue'
 import EditPanel from '../components/guide/EditPanel.vue'
+/* 探索台异步加载：它的 scoped CSS 有 7KB，直接 import 会并进 GuideView 的路由包，
+   把单路由 CSS 预算（6KB）顶穿。异步后 CSS 跟着独立 chunk 走，
+   只在真正打开 /explore 时下载。 */
+const GuideExplorer = defineAsyncComponent(() => import('../components/guide/GuideExplorer.vue'))
 import { announce } from '../lib/announce'
 import { ApiError, getJson, postJson } from '../lib/http'
 import { writeStoredJob } from '../lib/jobhandoff'
@@ -14,6 +18,15 @@ import type { AssetRef, Guide, GuideDetail, GuideStatus, PublishResult, SessionS
 
 const props = defineProps<{ id: string }>()
 const router = useRouter()
+const route = useRoute()
+
+/** 探索台版式：同一份数据换一种排布，草稿编辑与打印仍走阅读器。 */
+const explore = computed(() => route.name === 'guide-explore')
+
+function gotoStep(index: number): void {
+  const max = (guide.value?.steps.length ?? 1) - 1
+  page.value = Math.min(Math.max(index, 0), Math.max(max, 0))
+}
 
 const SYSTEM_LABEL: Record<string, string> = {
   door: '车门',
@@ -390,6 +403,14 @@ restoreToken()
     <button class="btn" type="button" @click="load">重试</button>
   </div>
 
+  <GuideExplorer
+    v-else-if="guide && explore"
+    :guide="guide"
+    :page="page"
+    :asset-numbers="assetNumbers"
+    @go="gotoStep"
+  />
+
   <article v-else-if="guide" class="card reader">
     <!-- 顶栏常驻：翻到第几步都看得见自己在读哪份、是哪个工位。
          打印时保留标题（纸质稿要有抬头），只藏按钮与返回链接。 -->
@@ -410,6 +431,9 @@ restoreToken()
         :labels="labels"
         @go="goPage"
       />
+      <RouterLink class="btn reader__switch no-print" :to="`/guide/${props.id}/explore`">
+        探索台
+      </RouterLink>
       <button class="btn reader__print no-print" type="button" :disabled="printing" @click="printGuide">
         <span v-if="printing">正在准备…</span>
         <template v-else>
