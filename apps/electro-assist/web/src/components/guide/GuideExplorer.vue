@@ -69,23 +69,43 @@ const shown = computed(() => {
 })
 
 /* ---------------------------------------------------------------- 中：舞台 */
-/* 主图 = 三维场景或烘焙图（"这台设备长什么样"），辅图 = 仪表/接线/清单这类原语
-   （"这一步看哪个数"）。阅读器里主图只有 device_scene，是因为那时还没有烘焙图；
-   探索台把 baked_figure 一并算作主图，否则离线的五张主图会全被塞进辅图带子。 */
-const isHero = (p: VisualSpec): boolean =>
-  p.primitive === 'device_scene' || p.primitive === 'baked_figure'
+/* 舞台里"主图"分两类，各自吃满同一块地方：
+   - still：烘焙图（看这一帧的画质）
+   - scene：可交互三维（拖时间轴、播放、放大看）
+   两者都有时用页签切换，而不是并排——并排时每张只剩一半宽，两个都看不清。
+   2026-11-11 本人明确：实物渲染图与三维画面都要保留，且都要尽可能大。 */
+type StageView = 'still' | 'scene'
 
-/* 没有三维/烘焙图的步骤（比如"作业前安全确认"只有一张清单图），
-   把第一张 2D 图提为主图——否则它会被塞进 196px 的辅图列，一张清单缩成邮票。 */
-const heroFigures = computed(() => {
-  const figs = step.value?.figures ?? []
-  const heroes = figs.filter(isHero)
-  return heroes.length ? heroes : figs.slice(0, 1)
+const figures = computed<VisualSpec[]>(() => step.value?.figures ?? [])
+
+const viewGroups = computed<{ id: StageView; label: string; figs: VisualSpec[] }[]>(() => {
+  const out: { id: StageView; label: string; figs: VisualSpec[] }[] = []
+  const still = figures.value.filter((f) => f.primitive === 'baked_figure')
+  const scene = figures.value.filter((f) => f.primitive === 'device_scene')
+  if (still.length) out.push({ id: 'still', label: '实物示意图', figs: still })
+  if (scene.length) out.push({ id: 'scene', label: '三维动作', figs: scene })
+  return out
 })
-const aidFigures = computed(() => {
-  const figs = step.value?.figures ?? []
-  return figs.filter(isHero).length ? figs.filter((f) => !isHero(f)) : figs.slice(1)
-})
+
+const view = ref<StageView>('still')
+/** 当前步没有这个视图时回落到第一个可用视图：切到"三维动作"再翻到只有烘焙图的步骤，
+ *  不该出现一块空白。 */
+const activeView = computed(
+  () => viewGroups.value.find((g) => g.id === view.value) ?? viewGroups.value[0],
+)
+
+/* 既没有烘焙图也没有三维的步骤（比如"作业前安全确认"只有一张清单图），
+   把第一张 2D 图提为主图——否则它会被塞进 168px 的辅图列，一张清单缩成邮票。 */
+const heroFigures = computed<VisualSpec[]>(() =>
+  viewGroups.value.length ? (activeView.value?.figs ?? []) : figures.value.slice(0, 1),
+)
+const aidFigures = computed<VisualSpec[]>(() =>
+  viewGroups.value.length
+    ? figures.value.filter(
+        (f) => f.primitive !== 'baked_figure' && f.primitive !== 'device_scene',
+      )
+    : figures.value.slice(1),
+)
 const assets = computed<AssetRef[]>(() => step.value?.assets ?? [])
 
 function assetUrl(asset: AssetRef): string {
@@ -152,6 +172,11 @@ function onKey(e: KeyboardEvent): void {
    不滚的话"当前在哪"这条信息等于没给。
    **不能用 scrollIntoView**：它会把整个 window 一起滚走，页面一打开就停在半截
    （1100×560 实测：顶部条被滚没了）。这里只动容器自己的 scrollTop。 */
+/** 底轨是否展开。收起时把 148px 让给图示（487 → 635），默认展开。
+ *  为什么给这个开关：车间大屏上"图更大"和"看到全流程"是两个真实需求，
+ *  而它们抢的是同一块垂直空间，让本人一键切换比替他挑一个更合适。 */
+const traceOpen = ref(true)
+
 const currentRow = ref<HTMLElement | null>(null)
 const traceBox = ref<HTMLElement | null>(null)
 watch(
@@ -210,7 +235,7 @@ const pad = (n: number): string => String(n).padStart(2, '0')
       </div>
     </header>
 
-    <div class="ex__grid">
+    <div class="ex__grid" :class="{ 'trace-collapsed': !traceOpen }">
       <!-- 左：步骤目录 -->
       <aside class="panel ex__side" aria-label="步骤目录">
         <div class="panel-head">
@@ -236,6 +261,7 @@ const pad = (n: number): string => String(n).padStart(2, '0')
               type="button"
               :class="{ active: index === page, done: index < page }"
               :aria-current="index === page ? 'step' : undefined"
+              :title="s.title"
               @click="go(index)"
             >
               <span class="topic-dot" aria-hidden="true" />
@@ -263,30 +289,44 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 
       <!-- 中：步骤舞台 -->
       <section class="panel ex__stage" aria-labelledby="ex-stage-title">
+        <!-- 顶行：看哪一种图。实物示意图与三维动作各自吃满同一块舞台，
+             而不是并排各占一半——两个都看不清等于两个都没有。 -->
         <div class="stage-toolbar">
-          <div class="view-tabs" role="tablist" aria-label="视图">
-            <button type="button" role="tab" aria-selected="true">步骤图示</button>
-            <button type="button" role="tab" aria-selected="false" disabled title="待做：全部步骤的图放在一张画布上">
-              全览
+          <div v-if="viewGroups.length > 1" class="view-tabs" role="tablist" aria-label="图示种类">
+            <button
+              v-for="g in viewGroups"
+              :key="g.id"
+              type="button"
+              role="tab"
+              :aria-selected="activeView?.id === g.id"
+              @click="view = g.id"
+            >
+              {{ g.label }}
             </button>
           </div>
+          <span v-else class="view-static">步骤图示</span>
           <span class="model-label">图示为自动生成，非实测照片</span>
         </div>
 
+        <!-- 标题压到两行：眉标（步骤 / 性质 / 工具 / 耗时）＋ 标题。
+             原来标题 23px 加一个 52px 的序号占掉 80px，图示只剩 100px——
+             那才是"画面太小"的根因，不是图本身的问题。 -->
         <div class="scene-heading">
-          <div>
+          <div class="scene-heading__main">
             <p class="eyebrow">
-              STEP {{ pad(step?.seq ?? 0) }} · {{ step ? kindOf(step) : '—' }}
+              <span>STEP {{ pad(step?.seq ?? 0) }} · {{ step ? kindOf(step) : '—' }}</span>
+              <template v-if="step?.tools.length">
+                <span class="eyebrow-sep" aria-hidden="true">|</span>
+                <span class="eyebrow-sub">工具 {{ step.tools.join('、') }}</span>
+              </template>
+              <template v-if="step && minutesOf(step) !== null">
+                <span class="eyebrow-sep" aria-hidden="true">|</span>
+                <span class="eyebrow-sub">预计 {{ minutesOf(step) }} 分钟</span>
+              </template>
             </p>
             <h2 id="ex-stage-title">{{ step?.title ?? '' }}</h2>
           </div>
           <span class="scene-index" aria-hidden="true">{{ pad(step?.seq ?? 0) }}</span>
-        </div>
-
-        <div v-if="step?.tools.length" class="scenario-row">
-          <span>工具</span>
-          <button v-for="t in step.tools" :key="t" type="button" class="is-static">{{ t }}</button>
-          <span v-if="minutesOf(step) !== null" class="scenario-time">预计 {{ minutesOf(step) }} 分钟</span>
         </div>
 
         <div class="diagram">
@@ -321,7 +361,7 @@ const pad = (n: number): string => String(n).padStart(2, '0')
           <span class="step-chip">{{ pad(step?.seq ?? 0) }}</span>
           <div>
             <strong>作业动作</strong>
-            <p>{{ step?.action ?? '' }}</p>
+            <p :title="step?.action">{{ step?.action ?? '' }}</p>
           </div>
         </div>
       </section>
@@ -405,9 +445,17 @@ const pad = (n: number): string => String(n).padStart(2, '0')
       </aside>
 
       <!-- 底：步骤轨迹 -->
-      <section class="panel ex__trace" aria-label="步骤轨迹">
+      <section class="panel ex__trace" :class="{ 'is-collapsed': !traceOpen }" aria-label="步骤轨迹">
         <div class="flow-toolbar">
           <h2>步骤轨迹 <span>{{ pad(page + 1) }} / {{ pad(total) }}</span></h2>
+          <button
+            class="trace-toggle"
+            type="button"
+            :aria-expanded="traceOpen"
+            @click="traceOpen = !traceOpen"
+          >
+            {{ traceOpen ? '收起轨迹，放大图示' : '展开轨迹表' }}
+          </button>
           <div class="controls">
             <button type="button" :disabled="page === 0" title="上一步（←）" @click="prev">‹</button>
             <button class="play-button" type="button" :disabled="page >= total - 1" @click="next">
@@ -616,14 +664,28 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   display: grid;
   gap: var(--ex-gap);
   grid-template-columns: var(--ex-side) minmax(0, 1fr) var(--ex-inspect);
-  grid-template-rows: minmax(320px, 1fr) 196px;
+  /* 底轨从 196 收到 188：这一步只为了把 8px 让给图示，
+     不是压缩轨迹表本身——它现在正好显示 5–6 行。 */
+  grid-template-rows: minmax(360px, 1fr) 188px;
+  /* min-height: 0 与 flex: 1 必须留在 .ex__grid 本体上。
+     2026-11-11 把它们误挪进下面的 .trace-collapsed 块，结果是
+     栅格容器被内容撑到 1119px（应 902），整页溢出、图片按宽度铺成 681 高被裁。 */
   min-height: 0;
   flex: 1;
+}
+
+/* 收起底轨：图示多拿 148px。
+   默认展开——本人给的版式里轨迹表是露出来的，收起是"看得更大"的主动选择。 */
+.ex__grid.trace-collapsed {
+  grid-template-rows: minmax(360px, 1fr) 38px;
 }
 .panel {
   border: 1px solid var(--c-line);
   background: var(--c-surface);
   min-width: 0;
+  /* grid item 默认 min-height:auto：图一高就把行撑破，舞台跟着长高、整页溢出。
+     必须是 0，让"内容超了就内部滚动/收缩"，而不是"内容多高舞台就多高"。 */
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -722,7 +784,6 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 .topic {
   width: 100%;
   background: transparent;
-  background: transparent;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -750,7 +811,11 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   flex: 1;
 }
 .topic strong {
-  display: block;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   font-size: 13px;
   font-weight: 600;
   line-height: 1.4;
@@ -842,7 +907,7 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 
 /* ---------------------------------------------------------------- 中栏 */
 .stage-toolbar {
-  height: 44px;
+  height: 40px;
   flex: none;
   display: flex;
   align-items: center;
@@ -864,67 +929,70 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   background: var(--c-primary);
   color: var(--c-on-primary);
 }
-.view-tabs button:disabled {
-  opacity: 0.45;
+/* 只有一种图时不给页签：两个按钮里有一个永远 disabled，是噪音 */
+.view-static {
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: var(--c-ink-3);
 }
 .model-label {
   font-size: 11px;
   color: var(--ex-muted);
 }
 .scene-heading {
+  position: relative;
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  padding: 12px 20px 6px;
+  padding: 7px 16px 5px;
+  flex: none;
+}
+.scene-heading__main {
+  min-width: 0;
+  flex: 1;
 }
 .eyebrow {
-  margin: 0 0 5px;
-  font-family: var(--font-mono);
+  margin: 0 0 2px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-size: 11px;
-  letter-spacing: 1.3px;
+  letter-spacing: 0.6px;
   color: var(--c-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.eyebrow-sep {
+  color: var(--c-line);
+}
+.eyebrow-sub {
+  font-family: var(--font-mono);
+  color: var(--c-ink-3);
 }
 .scene-heading h2 {
   margin: 0;
-  font-size: 23px;
-  line-height: 1.25;
-  letter-spacing: 0.4px;
-  font-weight: 600;
+  font-size: 17px;
+  line-height: 1.3;
+  letter-spacing: 0.2px;
+  font-weight: 650;
   color: var(--c-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
+/* 大号序号退成右上角的水印：52px 时它自己就占 80px 高，把图示挤到 100px。
+   34px 仍是大字号（≥24px），按 3:1 的要求给 ink-3（5.2:1）。 */
 .scene-index {
+  position: absolute;
+  top: 4px;
+  right: 14px;
   font-family: var(--font-mono);
-  font-size: 52px;
-  line-height: 0.9;
-  letter-spacing: -3px;
-  /* 不能用 --c-line 当"水印"：#dfe5e8 对白只有 1.2:1，axe 直接判违规。
-     52px 的装饰数字也是可见文字，按大字号 3:1 的要求给 ink-3。 */
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -2px;
   color: var(--c-ink-3);
-}
-.scenario-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin: 2px 20px 0;
-  font-size: 11px;
-}
-.scenario-row > span:first-child {
-  color: var(--ex-muted);
-  margin-right: 2px;
-}
-.scenario-row button {
-  border: 1px solid var(--c-line);
-  padding: 3px 7px;
-  font-size: 12px;
-  color: var(--c-ink-2);
-  background: var(--c-surface);
-  cursor: default;
-}
-.scenario-time {
-  margin-left: auto;
-  color: var(--ex-muted);
+  pointer-events: none;
 }
 .diagram {
   flex: 1;
@@ -932,7 +1000,7 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   display: flex;
   align-items: stretch;
   justify-content: center;
-  padding: 8px 16px;
+  padding: 4px 12px 2px;
   overflow: hidden;
 }
 .diagram__stack {
@@ -953,7 +1021,9 @@ const pad = (n: number): string => String(n).padStart(2, '0')
    会把主图压到 190px 高（3:2 的图只剩 285px 宽），还不如阅读器里的缩略图。 */
 .diagram__aids {
   flex: none;
-  width: 196px;
+  /* 220 而不是更窄：主图的宽度受高度限制（730 < 1150），辅图加宽**不损失主图**，
+     而 168px 下清单类 SVG 每行只有五六个字，等于不可读。 */
+  width: 220px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -979,6 +1049,9 @@ const pad = (n: number): string => String(n).padStart(2, '0')
    （高度 467px）会把 260px 的舞台撑出滚动条，画面被裁掉下半截。 */
 .diagram__stack :deep(.figure__canvas) {
   flex: 1;
+  /* height: 100% 是给图片用的基准：img 的 height:100% 只有在父级高度可解析时才算数，
+     否则回退到按宽度铺开（1200×800 的图在 1022 宽处变成 681 高，超出 537 的舞台）。 */
+  height: 100%;
   min-height: 0;
   display: flex;
   align-items: center;
@@ -991,14 +1064,56 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 .diagram__main :deep(svg) {
   max-height: 100%;
 }
-.diagram__stack :deep(.baked) {
-  width: auto;
-  max-width: 100%;
-  max-height: 100%;
+/* 必须 width/height 都写满再 contain，不能靠 max-width + max-height：
+   百分比 max-height 在"高度由 flex 解算"的父级里解析成 auto，于是 1200×800 的图
+   按宽度铺成 1022×681，超出 537 的舞台被裁掉下沿（1920 实测）。
+   写满 + object-fit: contain 是唯一不依赖父级高度可解析性的做法。 */
+/* 特异性要压过 BakedFigure 自己的 `.baked`（也是 width:100% + height:auto，
+   同为 0,2,0，而组件 CSS 后插入会赢）。所以这里用三级选择器，并且必须写死
+   height:100% + object-fit: contain——百分比 max-height 在"高度由 flex 解算"的
+   父级里解析成 auto，图会按宽度铺成 1022×681，超出 537 的舞台被裁掉下沿（1920 实测）。 */
+.diagram__main :deep(.figure__canvas .baked) {
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 .diagram__stack :deep(.figure__cap) {
   flex: none;
+}
+
+/* 三维在探索台里必须"塞满"而不是守 3:2：DeviceScene 的 .scene 默认 aspect-ratio: 3/2，
+   宽 900 时高 600，比舞台还高，下沿（读数与控制条）会被裁掉。
+   flex 链要一路通到 .scene，断在任何一级都拿不到确定高度。 */
+.diagram__main :deep(.device) {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.diagram__main :deep(.device > .scene) {
+  flex: 1 1 auto;
+  height: auto;
+  aspect-ratio: auto;
+  min-height: 0;
+}
+.diagram__main :deep(.device__controls) {
+  flex: none;
+  margin-top: 6px;
+}
+.diagram__main :deep(.device__note) {
+  flex: none;
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.4;
+  /* 舞台高度就是"画面"，这句提示留一行即可，不换行 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* 三维的"放大看"入口：舞台已经很大，但全屏仍是要给的能力（本人明确要求） */
+.diagram__main :deep(.figure__zoom) {
+  background: var(--c-surface);
 }
 .diagram__assets {
   display: flex;
@@ -1021,13 +1136,14 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   color: var(--ex-muted);
   margin-top: 4px;
 }
+/* 作业动作卡：原来 padding 10 + 不截断，一条长动作能占 90px。
+   压到两行、完整文本走 title —— 详细描述在右栏"说明"页签里另有全文。 */
 .scene-caption {
   flex: none;
-  margin-top: 8px;
   display: flex;
   gap: 10px;
-  margin: 0 14px 12px;
-  padding: 10px;
+  margin: 0 12px 10px;
+  padding: 8px 10px;
   border: 1px solid var(--c-line-soft);
   background: var(--c-surface);
   box-shadow: var(--shadow-1);
@@ -1048,10 +1164,15 @@ const pad = (n: number): string => String(n).padStart(2, '0')
   color: var(--c-ink);
 }
 .scene-caption p {
-  margin: 4px 0 0;
+  margin: 3px 0 0;
   font-size: 12px;
-  line-height: 1.75;
+  line-height: 1.6;
   color: var(--c-ink-2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 /* ---------------------------------------------------------------- 右栏 */
@@ -1205,6 +1326,27 @@ const pad = (n: number): string => String(n).padStart(2, '0')
 }
 
 /* ---------------------------------------------------------------- 底栏 */
+.ex__trace.is-collapsed .trace-scroll,
+.ex__trace.is-collapsed .trace-toggle {
+  margin-left: auto;
+  margin-right: 10px;
+  padding: 3px 8px;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  color: var(--c-ink-2);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.trace-toggle:hover {
+  color: var(--c-primary);
+  border-color: var(--c-primary-line);
+}
+.flow-foot {
+  display: none;
+}
+.ex__trace.is-collapsed .flow-toolbar {
+  border-bottom: none;
+}
 .ex__trace {
   grid-column: 2 / 4;
 }
@@ -1358,17 +1500,55 @@ tbody tr.done {
   list-style: none;
 }
 
+/* 1366×768 这类矮屏：底轨 188 占掉三分之一强，图示只剩 175px。
+   矮屏把底轨收到 150（仍显示 3 行），标题行的眉标也跟着收一行高度。 */
+@media (max-height: 820px) {
+  .ex__grid {
+    grid-template-rows: minmax(320px, 1fr) 150px;
+  }
+  .scene-heading {
+    padding: 5px 16px 3px;
+  }
+}
+
+/* 1440 / 1366 的工位电脑：左右两栏各收 30px，中栏多出 60px 给三维。
+   侧栏收到 228 / 286 仍能放下目录标题与判据，只是行更长。 */
+@media (max-width: 1550px) {
+  .ex {
+    --ex-side: 228px;
+    --ex-inspect: 286px;
+  }
+  .diagram__aids {
+    width: 184px;
+  }
+}
+
+/* 1440 / 1366 的工位电脑：左右两栏各收 30px，中栏多出 60px 给三维。
+   侧栏收到 228 / 286 仍能放下目录标题与判据，只是行更长。 */
+@media (max-width: 1550px) {
+  .ex {
+    --ex-side: 228px;
+    --ex-inspect: 286px;
+  }
+  .diagram__aids {
+    width: 184px;
+  }
+}
+
 /* ---------------------------------------------------------------- 自适应 */
-/* 两栏时三行放不进一屏：改成"自然高度 + 整页滚动"。
-   定高 + overflow:hidden 会把第三条轨迹直接裁掉（1100×560 实测）。 */
-@media (max-width: 1190px) {
+/* 本页面只服务两种屏：车间大屏（1920 及以上）与工位电脑（1440 / 1280）。
+   工人作业时不许带手机，所以**不做手机竖屏适配**（2026-11-11 本人明确）。
+   下面这个两栏降级不是移动端方案，而是 1280 笔记本 / 1024 投影的最小可用形态：
+   三栏在 1180 以下会窄到读不出目录标题，且整页放不进一屏，改为自然高度 + 整页滚动。
+   定高 + overflow:hidden 会把底部轨迹裁掉（1100×560 实测）。 */
+@media (max-width: 1180px) {
   .ex {
     height: auto;
     overflow: visible;
   }
   .ex__grid {
     grid-template-columns: 220px minmax(0, 1fr);
-    grid-template-rows: minmax(420px, 62vh) 300px 260px;
+    grid-template-rows: minmax(440px, 66vh) 300px 260px;
   }
   .ex__side {
     grid-row: 1 / 3;
@@ -1387,43 +1567,9 @@ tbody tr.done {
   .ex__now {
     min-width: 0;
   }
-}
-@media (max-width: 780px) {
-  .ex {
-    padding: 8px;
-  }
-  .ex__bar {
-    flex-wrap: wrap;
-    gap: 10px;
-  }
-  .ex__prog {
-    display: none;
-  }
-  .ex__grid {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-  }
-  /* 手机上目录与底部轨迹表信息重复，且 260px 的定高会把筛选行切一半。
-     直接不收目录：底部轨迹表本来就能点行跳转。 */
-  .ex__side {
-    display: none;
-  }
-  .ex__stage {
-    min-height: 460px;
-  }
-  .ex__trace {
-    height: 240px;
-  }
-  .scene-heading h2 {
-    font-size: 19px;
-  }
-  .scene-index {
-    font-size: 40px;
-  }
   .cell-name,
   .cell-crit {
-    max-width: 140px;
+    max-width: 180px;
   }
 }
 </style>

@@ -254,6 +254,16 @@
           },
           "caption": "读数示例",
           "fallback_text": "升弓时间示例读数 6.4 s，允许范围 5.0–8.0 s；过慢多为气路节流或压力不足。"
+        },
+        {
+          "primitive": "device_scene",
+          "params": {
+            "subject": "pantograph",
+            "t": 0.33,
+            "part": "arms"
+          },
+          "caption": "升弓中段（可交互三维）",
+          "fallback_text": "升弓中段：气囊经钢索带动下臂绕底架铰点抬起，上臂展开把弓头送向接触线；可拖时间轴看任意瞬间。"
         }
       ],
       "duration_s": null
