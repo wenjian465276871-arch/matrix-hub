@@ -1,0 +1,1 @@
+{"last_error_at": "2026-11-11T14:40:31+08:00", "last_error": "RuntimeError: database is locked", "consecutive_failures": 3}

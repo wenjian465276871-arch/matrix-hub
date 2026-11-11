@@ -6,6 +6,7 @@
  */
 import type { Component } from 'vue'
 import Annotation from './primitives/Annotation.vue'
+import BakedFigure from './primitives/BakedFigure.vue'
 import Callout from './primitives/Callout.vue'
 import Checklist from './primitives/Checklist.vue'
 import Connector from './primitives/Connector.vue'
@@ -37,4 +38,5 @@ export const FIGURES: Record<string, Component> = {
   // 唯一一个内部再懒加载 Three.js 的原语：DeviceScene 里 `await import('three')`，
   // 不进指导书页面就不下载那 191KB。
   device_scene: DeviceFigure,
+  baked_figure: BakedFigure,
 }

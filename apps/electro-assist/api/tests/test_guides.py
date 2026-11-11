@@ -436,14 +436,28 @@ def test_samples_carry_device_scenes_for_every_subject():
     from models.guide import Guide
     from models.visual import DEVICE_SUBJECTS
 
-    seen = {
-        fig.params.get("subject")
-        for path in SAMPLES.glob("*.json")
-        for guide in [Guide(**json.loads(path.read_text(encoding="utf-8")))]
-        for step in guide.steps
-        for fig in step.figures
-        if fig.primitive.value == "device_scene"
-    }
+    # 2026-11-11 政策变更：指导书主图改用**烘焙图**（baked_figure），
+    # 实时三维只保留在演示页。所以"样例覆盖"不能再只数 device_scene——
+    # 一台设备的图，要么是实时三维，要么是烘焙图，两者都算覆盖。
+    # 烘焙图的设备由路径第二段给出：/figures/pantograph/step1.webp → pantograph。
+    live = set()
+    baked = set()
+    for path in SAMPLES.glob("*.json"):
+        guide = Guide(**json.loads(path.read_text(encoding="utf-8")))
+        for step in guide.steps:
+            for fig in step.figures:
+                if fig.primitive.value == "device_scene":
+                    live.add(fig.params.get("subject"))
+                elif fig.primitive.value == "baked_figure":
+                    parts = str(fig.params.get("src", "")).split("/")
+                    if len(parts) > 2:
+                        baked.add(parts[2])
+
+    seen = live | baked
     demo_only = {"torque_wrench"}
-    assert seen - demo_only == set(DEVICE_SUBJECTS) - demo_only, f"缺少样例覆盖：{set(DEVICE_SUBJECTS) - seen}"
+    assert seen - demo_only == set(DEVICE_SUBJECTS) - demo_only, (
+        f"缺少样例覆盖：{set(DEVICE_SUBJECTS) - seen}"
+    )
     assert seen <= set(DEVICE_SUBJECTS), f"样例里出现了未注册的设备：{seen - set(DEVICE_SUBJECTS)}"
+    # device_scene 这个原语本身不能变成死代码：至少还得有一份样例用它
+    assert live, "所有样例都不再用 device_scene，实时三维原语失去样例覆盖"

@@ -481,6 +481,37 @@ async function init(): Promise<void> {
        在控制台里改 `mesh.visible` 之类不会自己刷新——2026-11-10 排查
        「隐藏部件后截图完全没变」时发现的：15 张隔离截图 md5 全同。 */
     ;(window as unknown as { __rigRender?: () => void }).__rigRender = render
+
+    /* 导出 glb：给离线烘焙（Blender）用，**只在开发服务器里存在**。
+       为什么挂在 DEV 分支：`import.meta.env.DEV` 在构建时被替换成常量 false，
+       整段连同那条动态 import 一起被摇掉——生产包里不会多出 40kB 的导出器，
+       也不会有任何人能在线上把场景抠出去。 */
+    if (import.meta.env.DEV) {
+      // 量包围盒要用 three 的 Box3；不给出口就得在页面上手搓矩阵，容易算错
+      ;(window as unknown as { __three?: unknown }).__three = three
+      ;(window as unknown as { __exportGlb?: (t?: number) => Promise<string> }).__exportGlb =
+        async (t?: number) => {
+          const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
+          // 先摆到目标姿态再导出：几何是参数化的，姿态由 setT 决定，不摆就是落弓位
+          rig!.setT(typeof t === 'number' ? t : props.t)
+          rig!.root.updateMatrixWorld(true)
+          const data = await new GLTFExporter().parseAsync(rig!.root, {
+            binary: true,
+            // 隐藏件不导出：ADD 工况下断成两截的滑板此刻是 visible=false，
+            // 带出去会在 Blender 里和整根滑板重叠
+            onlyVisible: true,
+            maxTextureSize: 2048,
+          })
+          const bytes = new Uint8Array(data as ArrayBuffer)
+          // 分块转 base64：一次性展开 400 万个参数会爆调用栈
+          let bin = ''
+          const CHUNK = 0x8000
+          for (let i = 0; i < bytes.length; i += CHUNK) {
+            bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+          }
+          return btoa(bin)
+        }
+    }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '3D 场景加载失败'
     loading.value = false

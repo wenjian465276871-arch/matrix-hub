@@ -377,3 +377,105 @@ def test_device_catalog_matches_prompt_parts():
             assert f"{key}={info['part_labels'][key]}" in prompt, (
                 f"{subject}.{key} 的键或释义未进 prompt"
             )
+
+
+# ---------------------------------------------------------------- baked_figure
+
+def _baked(**over):
+    """一条合法的烘焙图规格，测试里按需覆盖字段。"""
+    base = {
+        "primitive": "baked_figure",
+        "params": {"src": "/figures/pantograph/step1.webp", "alt": "受电弓落弓状态"},
+        "caption": "作业准备",
+        "fallback_text": "受电弓落弓状态。",
+    }
+    base.update(over)
+    return base
+
+
+def test_baked_figure_accepts_site_relative_image():
+    spec = VisualSpec(**_baked())
+    spec.validate_against_primitive()
+    assert spec.params["src"].startswith("/figures/")
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        "figures/pantograph/step1.webp",          # 缺前导斜杠：拼上 BASE_URL 会变成相对路径
+        "https://cdn.example.com/step1.webp",     # 外链：CSP 是 default-src 'self'，加载不出来
+        "/figures/../../etc/passwd",              # 目录穿越
+        "/figures/pantograph/step1.svg",          # 只允许位图
+        "/static/step1.webp",                     # 不在 /figures/ 下
+    ],
+)
+def test_baked_figure_rejects_bad_src(src):
+    with pytest.raises(ValueError):
+        VisualSpec(**_baked(params={"src": src, "alt": "x"})).validate_against_primitive()
+
+
+def test_baked_figure_requires_alt():
+    """图片必须有替代文字：图是内容不是装饰，读屏用户靠它知道画面里是什么。"""
+    with pytest.raises(ValueError):
+        VisualSpec(**_baked(params={"src": "/figures/a.webp", "alt": "   "})).validate_against_primitive()
+    with pytest.raises(ValueError):
+        VisualSpec(**_baked(params={"src": "/figures/a.webp"})).validate_against_primitive()
+
+
+def test_baked_figure_rejects_unknown_params():
+    """尺寸、滤镜、背景一律不给：那是构建期决定的，模型碰一次就错一次。"""
+    with pytest.raises(ValueError):
+        VisualSpec(
+            **_baked(params={"src": "/figures/a.webp", "alt": "x", "width": 800})
+        ).validate_against_primitive()
+
+
+# ---------------------------------------------------------------- baked_figure
+
+def _baked(**over):
+    """一条合法的烘焙图规格，测试里按需覆盖字段。"""
+    base = {
+        "primitive": "baked_figure",
+        "params": {"src": "/figures/pantograph/step1.webp", "alt": "受电弓落弓状态"},
+        "caption": "作业准备",
+        "fallback_text": "受电弓落弓状态。",
+    }
+    base.update(over)
+    return base
+
+
+def test_baked_figure_accepts_site_relative_image():
+    spec = VisualSpec(**_baked())
+    spec.validate_against_primitive()
+    assert spec.params["src"].startswith("/figures/")
+
+
+@pytest.mark.parametrize(
+    "src",
+    [
+        "figures/pantograph/step1.webp",          # 缺前导斜杠：拼上 BASE_URL 会变成相对路径
+        "https://cdn.example.com/step1.webp",     # 外链：CSP 是 default-src 'self'，加载不出来
+        "/figures/../../etc/passwd",              # 目录穿越
+        "/figures/pantograph/step1.svg",          # 只允许位图
+        "/static/step1.webp",                     # 不在 /figures/ 下
+    ],
+)
+def test_baked_figure_rejects_bad_src(src):
+    with pytest.raises(ValueError):
+        VisualSpec(**_baked(params={"src": src, "alt": "x"})).validate_against_primitive()
+
+
+def test_baked_figure_requires_alt():
+    """图片必须有替代文字：图是内容不是装饰，读屏用户靠它知道画面里是什么。"""
+    with pytest.raises(ValueError):
+        VisualSpec(**_baked(params={"src": "/figures/a.webp", "alt": "   "})).validate_against_primitive()
+    with pytest.raises(ValueError):
+        VisualSpec(**_baked(params={"src": "/figures/a.webp"})).validate_against_primitive()
+
+
+def test_baked_figure_rejects_unknown_params():
+    """尺寸、滤镜、背景一律不给：那是构建期决定的，模型碰一次就错一次。"""
+    with pytest.raises(ValueError):
+        VisualSpec(
+            **_baked(params={"src": "/figures/a.webp", "alt": "x", "width": 800})
+        ).validate_against_primitive()

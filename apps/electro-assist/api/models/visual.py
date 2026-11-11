@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import re
 from enum import Enum
 from typing import Union
 
@@ -28,6 +29,10 @@ MAX_LIST_ITEM_CHARS = 40
 
 # 动效上限：一张图最多 3 条轨道。再多就不是"强调"，是交通信号灯。
 MAX_MOTION_TRACKS = 3
+
+# 烘焙图只允许站内静态路径。外链一律拒绝：CSP 是 default-src 'self'，
+# 放进去也加载不出来，不如在写入时就拦掉。
+BAKED_SRC_RE = re.compile(r"^/figures/[A-Za-z0-9._/-]+\.(webp|jpg|jpeg|png)$")
 
 
 class Primitive(str, Enum):
@@ -47,6 +52,7 @@ class Primitive(str, Enum):
     table = "table"                      # 表格：表头 + 行（竖线分隔单元格）
     annotation = "annotation"            # 标注示意图：编号点 + 图例
     device_scene = "device_scene"        # 设备三维场景：受控设备 + 动作进度 + 部件高亮
+    baked_figure = "baked_figure"        # 离线烘焙的静态图：指导书主图（画质优先，不可交互）
 
 
 # 每个原语允许的参数键。未列出的键一律拒绝，防止 LLM 塞任意内容。
@@ -67,6 +73,8 @@ _ALLOWED_PARAMS: dict[Primitive, set[str]] = {
     # device_scene 的参数刻意只有三个：设备、进度、高亮部件。
     # 相机、颜色、几何一律**不给模型**——那些是构建期决定的，模型碰一次就错一次。
     Primitive.device_scene: {"subject", "t", "part"},
+    # 只给路径与替代文字。尺寸/滤镜/背景一律不给——那是构建期决定的。
+    Primitive.baked_figure: {"src", "alt"},
 }
 
 # 必填参数：缺了就不是"降级成文字"，而是渲染出一张没有信息量的空图。
@@ -81,6 +89,7 @@ _REQUIRED_PARAMS: dict[Primitive, set[str]] = {
     # t 必填。省略 t 由前端挑一帧，和让模型编一个 t 是同一件事：图上停在哪个工步
     # 没人知道。三维图唯一的价值就是"这一步设备长什么样"，这一项不能有默认值。
     Primitive.device_scene: {"subject", "t"},
+    Primitive.baked_figure: {"src", "alt"},
 }
 
 # 设备白名单：subject → 可高亮的部件键。
@@ -399,6 +408,18 @@ class VisualSpec(BaseModel):
         missing = _REQUIRED_PARAMS.get(self.primitive, set()) - set(self.params)
         if missing:
             raise ValueError(f"{self.primitive.value} 缺少必填参数: {sorted(missing)}")
+
+        if self.primitive is Primitive.baked_figure:
+            src = self.params.get("src")
+            alt = self.params.get("alt")
+            if not isinstance(src, str) or not BAKED_SRC_RE.match(src):
+                raise ValueError(
+                    "baked_figure.src 必须是 /figures/ 下的静态路径（.webp/.jpg/.png）"
+                )
+            if ".." in src:
+                raise ValueError("baked_figure.src 不能包含 ..")
+            if not isinstance(alt, str) or not alt.strip():
+                raise ValueError("baked_figure.alt 不能为空：图片必须有替代文字")
 
         if self.primitive is Primitive.status_light:
             state = self.params.get("state")

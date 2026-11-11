@@ -22,7 +22,12 @@
         "升弓区域无人员与异物",
         "车辆断电挂牌、防溜车到位"
       ],
-      "tools": ["绝缘手套", "验电器", "接地线", "警示带"],
+      "tools": [
+        "绝缘手套",
+        "验电器",
+        "接地线",
+        "警示带"
+      ],
       "criteria": [
         {
           "id": "power_off",
@@ -54,6 +59,15 @@
       ],
       "figures": [
         {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/pantograph/step1.webp",
+            "alt": "受电弓落弓状态全机：底架与三个支撑绝缘子、折叠的双下臂与上臂、弓头搁在弓装配上，接触线位于其上方"
+          },
+          "caption": "作业准备：受电弓落弓状态",
+          "fallback_text": "受电弓落弓状态：双臂折叠、弓头落在弓装配上，接触线在弓头上方。"
+        },
+        {
           "primitive": "checklist",
           "params": {
             "items": [
@@ -74,8 +88,15 @@
       "seq": 2,
       "title": "检查弓头外观与碳滑板厚度",
       "action": "目视检查弓头框架无变形、无裂纹，碳滑板安装牢固、磨耗均匀；用卡尺在滑板两端与中部各测一次剩余厚度，取最小值记录。",
-      "safety": ["登顶作业须系挂安全带", "工具系防坠绳，禁止抛掷"],
-      "tools": ["游标卡尺", "手电", "安全带"],
+      "safety": [
+        "登顶作业须系挂安全带",
+        "工具系防坠绳，禁止抛掷"
+      ],
+      "tools": [
+        "游标卡尺",
+        "手电",
+        "安全带"
+      ],
       "criteria": [
         {
           "id": "strip_thickness",
@@ -98,6 +119,15 @@
       ],
       "figures": [
         {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/pantograph/step2.webp",
+            "alt": "受电弓弓头俯视：两根碳滑板与四只弓角，滑板侧面有磨耗到限标记"
+          },
+          "caption": "弓头与碳滑板",
+          "fallback_text": "弓头由两根碳滑板与四只弓角组成，滑板侧面有磨耗到限标记。"
+        },
+        {
           "primitive": "meter",
           "params": {
             "value": 32,
@@ -108,7 +138,13 @@
           },
           "caption": "读数示例",
           "fallback_text": "碳滑板剩余厚度示例读数 32 mm，允许范围 25–40 mm；低于下限必须更换。",
-          "motion": [{ "target": "needle", "anim": "draw", "duration": 900 }]
+          "motion": [
+            {
+              "target": "needle",
+              "anim": "draw",
+              "duration": 900
+            }
+          ]
         }
       ],
       "duration_s": null
@@ -118,8 +154,14 @@
       "seq": 3,
       "title": "测量升弓气路静态压力",
       "action": "在升弓气路测试口接压力表，确认总风压力达到工作范围后静置 3 分钟，记录压力值并观察压降；压力不足时不得强行升弓。",
-      "safety": ["带压拆接表计须先泄压", "压力表量程须覆盖工作压力"],
-      "tools": ["压力表（0–1.0 MPa）", "生料带"],
+      "safety": [
+        "带压拆接表计须先泄压",
+        "压力表量程须覆盖工作压力"
+      ],
+      "tools": [
+        "压力表（0–1.0 MPa）",
+        "生料带"
+      ],
       "criteria": [
         {
           "id": "air_pressure",
@@ -137,10 +179,22 @@
           "unit": null,
           "min": null,
           "max": null,
-          "options": ["正常", "渗漏"]
+          "options": [
+            "正常",
+            "渗漏"
+          ]
         }
       ],
       "figures": [
+        {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/pantograph/step3.webp",
+            "alt": "升弓气路控制阀板：过滤阀、两位五通电磁阀、两只精密调压阀、压力表与快排电磁阀集中安装在一块竖板上"
+          },
+          "caption": "升弓气路控制阀板",
+          "fallback_text": "升弓气路集中在气阀板上：过滤、调压、压力表与快排电磁阀都在这一块板上。"
+        },
         {
           "primitive": "meter",
           "params": {
@@ -161,8 +215,13 @@
       "seq": 4,
       "title": "测量升弓时间",
       "action": "在司机台发出升弓指令，用秒表记录从指令发出到升弓到位信号点亮的时间；连续测三次取平均值，三次均应在范围内。",
-      "safety": ["升弓过程中任何人不得进入弓网区域", "试验前确认受电弓上方无障碍物"],
-      "tools": ["秒表"],
+      "safety": [
+        "升弓过程中任何人不得进入弓网区域",
+        "试验前确认受电弓上方无障碍物"
+      ],
+      "tools": [
+        "秒表"
+      ],
       "criteria": [
         {
           "id": "raise_time",
@@ -175,6 +234,15 @@
         }
       ],
       "figures": [
+        {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/pantograph/step4.webp",
+            "alt": "升弓过程中：下臂抬起、上臂展开，弓头接近接触线"
+          },
+          "caption": "升弓过程（中位）",
+          "fallback_text": "升弓过程中，下臂绕底架铰点抬起，上臂展开把弓头送向接触线。"
+        },
         {
           "primitive": "meter",
           "params": {
@@ -195,8 +263,13 @@
       "seq": 5,
       "title": "确认升弓到位信号与弓网接触状态",
       "action": "确认司机台升弓到位指示灯点亮、无故障报警；目视检查弓头与接触网接触无偏斜、无异常放电痕迹，异物排除后记录结论。",
-      "safety": ["确认接触网仍处于停电接地状态", "禁止在带电状态下靠近弓网"],
-      "tools": ["手电"],
+      "safety": [
+        "确认接触网仍处于停电接地状态",
+        "禁止在带电状态下靠近弓网"
+      ],
+      "tools": [
+        "手电"
+      ],
       "criteria": [
         {
           "id": "raise_signal",
@@ -205,7 +278,10 @@
           "unit": null,
           "min": null,
           "max": null,
-          "options": ["正常", "异常"]
+          "options": [
+            "正常",
+            "异常"
+          ]
         },
         {
           "id": "contact_ok",
@@ -228,17 +304,29 @@
       ],
       "figures": [
         {
-          "primitive": "status_light",
-          "params": { "state": "pass", "label": "升弓到位" },
-          "caption": "状态指示",
-          "fallback_text": "升弓到位时，司机台指示灯点亮并给出到位信号。",
-          "motion": [{ "target": "lamp", "anim": "pulse", "duration": 1000 }]
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/pantograph/step5.webp",
+            "alt": "升弓到位：弓头碳滑板压在接触线下侧，悬挂弹簧被压缩以建立接触压力"
+          },
+          "caption": "弓头与接触网接触状态",
+          "fallback_text": "升弓到位后，碳滑板压在接触线下方，悬挂弹簧压缩建立接触压力。"
         },
         {
-          "primitive": "device_scene",
-          "params": { "subject": "pantograph", "t": 0.72, "part": "head" },
-          "caption": "弓头升弓到位（示意）",
-          "fallback_text": "升弓到位：双下臂抬起、上臂展开，弓头碳滑板压在接触线下侧；悬挂弹簧被压缩后建立接触压力，两侧到位信号同时给出。"
+          "primitive": "status_light",
+          "params": {
+            "state": "pass",
+            "label": "升弓到位"
+          },
+          "caption": "状态指示",
+          "fallback_text": "升弓到位时，司机台指示灯点亮并给出到位信号。",
+          "motion": [
+            {
+              "target": "lamp",
+              "anim": "pulse",
+              "duration": 1000
+            }
+          ]
         },
         {
           "primitive": "wiring",
@@ -254,5 +342,8 @@
       "duration_s": null
     }
   ],
-  "disclaimers": ["演示数据 · 非实际作业依据", "AI 辅助整理，需专业人员复核"]
+  "disclaimers": [
+    "演示数据 · 非实际作业依据",
+    "AI 辅助整理，需专业人员复核"
+  ]
 }

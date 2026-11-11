@@ -75,6 +75,8 @@ const HEAD_Z = 0.43
 /** 底架梁中心高度：绝缘子 400mm + 60mm 垫板 */
 const INS_H = 0.4
 const DECK_Y = INS_H + 0.06
+/** 下臂根部**弧形调整板**的半径。钢索锚点就在这块板的弧上（见 setT）。 */
+const ARC_R = 0.17
 
 const deg = (v: number): number => (v * Math.PI) / 180
 
@@ -232,32 +234,38 @@ function cylinderActuator(opts: {
 }
 
 /**
- * 空气弹簧（气囊）。3 道波纹的橡胶波纹管，剖掉 1/4 露出内腔与活塞。
- * 充气鼓起 → 顶起下臂，这是"升弓"的唯一动力源。
+ * 空气弹簧（气囊气缸）。**气囊本体定长，只有活塞杆伸缩**。
+ * 上一版把整根波纹管按两点距离缩放：升弓时它被拉成 0.9m 长的一根细肠子，
+ * 还从车顶面下一直穿到臂上（底座写在 y=0.04，比车顶还低）——这是画面上最假的一处。
+ * 真机的气囊是短粗的一段（Ø200×220 量级），行程靠中间的活塞杆给出。
  */
 function airSpring(len: number, color: number, plateMat: Material, inner: Material): Linear {
   const group = new Group()
+  const L = len
   const profile: Vector2[] = []
   const steps = 30
   for (let i = 0; i <= steps; i += 1) {
     const y = i / steps
     const wave = 0.5 + 0.5 * Math.cos(y * Math.PI * 2 * 3)
     const mouth = Math.min(1, Math.min(y, 1 - y) * 10)
-    profile.push(new Vector2(0.078 + 0.022 * wave * mouth + 0.004, y))
+    profile.push(new Vector2(0.088 + 0.026 * wave * mouth + 0.004, y * L))
   }
   const shell = new Mesh(
     new LatheGeometry(profile, 26, deg(18), deg(270)),
     new MeshStandardMaterial({ color, metalness: 0, roughness: 0.94, side: DoubleSide }),
   )
   shell.castShadow = true
-  shell.scale.y = len
-  const bladder = new Mesh(new CylinderGeometry(0.062, 0.07, 1, 20, 1, true), inner)
-  bladder.scale.y = len * 0.94
-  bladder.position.y = len * 0.47
-  const foot = new Mesh(new CylinderGeometry(0.104, 0.104, 0.022, 22), plateMat)
-  foot.position.y = 0.011
-  const cap = new Mesh(new CylinderGeometry(0.092, 0.092, 0.02, 22), plateMat)
-  group.add(shell, bladder, foot, cap)
+  const bladder = new Mesh(new CylinderGeometry(0.072, 0.08, 1, 20, 1, true), inner)
+  bladder.scale.y = L * 0.92
+  bladder.position.y = L * 0.48
+  const foot = new Mesh(new CylinderGeometry(0.118, 0.118, 0.024, 22), plateMat)
+  foot.position.y = -0.012
+  const cap = new Mesh(new CylinderGeometry(0.104, 0.104, 0.022, 22), plateMat)
+  cap.position.y = L + 0.011
+  // 活塞杆：从气囊顶盖伸出去，行程全在这根杆上
+  const rod = new Mesh(new CylinderGeometry(0.028, 0.028, 1, 14), chromeMaterial())
+  const eye = roundedBox(0.075, 0.055, 0.06, plateMat, 0, 0, 0, 0.008)
+  group.add(shell, bladder, foot, cap, rod, eye)
 
   const dir = new Vector3()
   return {
@@ -267,10 +275,10 @@ function airSpring(len: number, color: number, plateMat: Material, inner: Materi
       const l = dir.length()
       if (l < 1e-4) return
       placeAxis(group, from, to)
-      shell.scale.y = l
-      bladder.scale.y = l * 0.9
-      bladder.position.y = l * 0.46
-      cap.position.y = l
+      const rodLen = Math.max(l - L, 0.02)
+      rod.scale.y = rodLen
+      rod.position.y = L + rodLen / 2
+      eye.position.y = l
     },
   }
 }
@@ -381,8 +389,9 @@ export function buildPantograph(): DeviceRig {
 
   /* ---------------------------------------------------------------- 材质 */
   /* 纪律：`metalness` 只在 0 与 1 之间选。臂与底架是喷漆件 → 0（见文件头）。 */
-  const armPaint = new MeshStandardMaterial({ color: 0x7f858b, metalness: 0, roughness: 0.46 })
-  const armDark = paintedMaterial(0x5c6268)
+  /* 臂色：0x7f858b 在渲染里读成"接近白"，实拍 CRH380A 的铝合金臂是中灰。压一档到 0x6e747a */
+  const armPaint = new MeshStandardMaterial({ color: 0x6e747a, metalness: 0, roughness: 0.46 })
+  const armDark = paintedMaterial(0x51565c)
   const frameMat = paintedMaterial(0x7a352a)
   const fitting = steelMaterial(0x9aa0a6)
   const chrome = chromeMaterial()
@@ -391,15 +400,20 @@ export function buildPantograph(): DeviceRig {
   const carbon = new MeshStandardMaterial({ color: 0x3a3d42, metalness: 0.08, roughness: 0.66 })
   /* 釉面陶瓷：粗糙度必须压到 0.5 以上。0.34 时环境反射太强，一堆薄伞裙会读成
        "铜线圈"而不是瓷瓶——这是连续两轮截图里最扎眼的一处。 */
-  const ceramic = new MeshStandardMaterial({ color: 0x6b4238, metalness: 0, roughness: 0.55 })
+  const ceramic = new MeshStandardMaterial({ color: 0x5d372e, metalness: 0, roughness: 0.52 })
 
   /* ---------------------------------------------------------------- 车顶 */
   const roof = new Group()
-  const roofSlab = roundedBox(2.9, 0.08, 2.2, paintedMaterial(0x6c7176), 0, -0.05, 0, 0.01)
+  const roofSlab = roundedBox(2.9, 0.13, 2.2, paintedMaterial(0x6c7176), 0, -0.075, 0, 0.012)
   roofSlab.receiveShadow = true
   roof.add(roofSlab)
   for (const z of [-0.82, 0.82]) {
     roof.add(roundedBox(2.2, 0.014, 0.5, paintedMaterial(0x7d8287), -0.1, -0.004, z, 0.006))
+  }
+  /* 车顶钣金拼缝：真车顶是几块板拼的，缝里是暗的。
+     没有这几道缝，车顶就是一块 2.9×2.2 的白板——它现在占画面面积最大，最伤真实感。 */
+  for (const x of [-0.34, 0.3, 0.86]) {
+    roof.add(roundedBox(0.014, 0.008, 2.16, paintedMaterial(0x4e5358), x, -0.003, 0, 0.002))
   }
   for (const x of [-0.62, 0.42]) {
     for (const z of [-0.82, 0.82]) {
@@ -424,6 +438,7 @@ export function buildPantograph(): DeviceRig {
     roofBox.add(gland)
   }
   roof.add(roofBox)
+  roof.name = 'panto-roof'
   root.add(roof)
 
   /* ---------------------------------------------------------- 支撑绝缘子 */
@@ -441,13 +456,21 @@ export function buildPantograph(): DeviceRig {
     core.position.y = INS_H / 2
     core.castShadow = true
     post.add(core)
-    /* 伞裙厚度必须 ≥ 间距，否则看到的是"一圈圈弹簧"而不是绝缘子——这个坑 2026-11-10 踩过一次，
-       这轮把 400mm 高的绝缘子重做时又差点踩回去（12 道 × 0.03 间距 + 0.012 厚度）。 */
-    for (let i = 0; i < 8; i += 1) {
-      const skirt = new Mesh(new CylinderGeometry(0.058, 0.078, 0.036, 18), ceramic)
+    /* 伞裙：**薄而宽、边沿锐、间隙深**。这三点合起来才是瓷绝缘子。
+       我在这上面来回改了三次，规律很清楚：
+       - 厚 + 间隙小 → 一摞铜钱（第一版）
+       - 锥套 + 叠压  → 一根弹簧（上一版，更糟）
+       - 薄 + 宽 + 深缝 → 才有"瓷"的硬边和暗影
+       400mm 支持绝缘子大致 9 片伞、伞径 Ø170、伞厚 14mm、间距 38mm。 */
+    for (let i = 0; i < 9; i += 1) {
+      const skirt = new Mesh(new CylinderGeometry(0.086, 0.086, 0.014, 22), ceramic)
       skirt.position.y = 0.045 + i * 0.038
       skirt.castShadow = true
       post.add(skirt)
+      // 伞根倒角：没有它，伞片像插在柱子上的垫圈
+      const fillet = new Mesh(new CylinderGeometry(0.05, 0.062, 0.022, 20), ceramic)
+      fillet.position.y = skirt.position.y + 0.008
+      post.add(fillet)
     }
     for (const [y, r] of [[0.01, 0.05], [INS_H - 0.01, 0.05]] as const) {
       const flange = new Mesh(new CylinderGeometry(r, r, 0.02, 16), fitting)
@@ -489,6 +512,13 @@ export function buildPantograph(): DeviceRig {
     pin.position.set(x, PDIM.pivotY, PDIM.pivotZ)
     chassis.add(pin)
   }
+  /* 下导杆的底架支座：从纵梁外伸一块凸耳板，导杆下耳板铰在这里。
+     实物上它铰在底架凸耳上；没有这块板，下导杆下端就是悬空的。 */
+  for (const sx of [-1, 1]) {
+    chassis.add(
+      roundedBox(0.24, 0.11, 0.075, armDark, sx * 0.565, DECK_Y + 0.07, LOWER_ROD.base.z, 0.006),
+    )
+  }
   /* 3 个橡胶减振器：落弓时受电弓靠在它们上面（实机就是三个）。
      位置避开了气囊与阻尼器的行程。 */
   for (const [x, z] of [
@@ -508,18 +538,18 @@ export function buildPantograph(): DeviceRig {
     cradle.rotation.x = deg(12)
     chassis.add(cradle)
   }
-  /* 3 个**电源引线连接点**：铜排从底架接到车顶接线盒，是"取到的电怎么下去"的答案。 */
+  /* 3 个**电源引线连接点**：铜排从底架接到车顶接线盒，是"取到的电怎么下去"的答案。
+     位置挪到**后梁外侧**（z≈-0.85）：原来放在 z=0.72，正好在前横梁与臂的行程里，
+     三根铜编织带像三根木棍插在底架中间。 */
   for (const x of [-0.28, 0, 0.28]) {
     const stud = new Mesh(new CylinderGeometry(0.018, 0.018, 0.05, 12), copper)
-    stud.position.set(x, DECK_Y + 0.075, 0.72)
+    stud.position.set(x, DECK_Y + 0.075, -0.86)
     chassis.add(stud)
     const nut = new Mesh(new CylinderGeometry(0.026, 0.026, 0.012, 6), fitting)
-    nut.position.set(x, DECK_Y + 0.1, 0.72)
+    nut.position.set(x, DECK_Y + 0.1, -0.86)
     chassis.add(nut)
-    // 引线从底架落到车顶：只是一小段落差，电缆进了车顶线槽再走去接线盒
-    chassis.add(
-      braid(new Vector3(x, DECK_Y + 0.04, 0.72), new Vector3(x, 0.02, 0.78), 0.05, copper),
-    )
+    // 引线从底架落到车顶：给足垂度，一根笔直的竖线在画面上就是一根杆
+    chassis.add(braid(new Vector3(x, DECK_Y + 0.04, -0.88), new Vector3(x, 0.02, -0.98), 0.12, copper))
   }
   /* 2 个**空气管路接口**：车顶管路从这里进底架，再分给气囊与 ADD。 */
   for (const x of [-0.18, 0.18]) {
@@ -542,7 +572,9 @@ export function buildPantograph(): DeviceRig {
   const panelX = 0.96
   const panelY = 0.28
   const panelZ = 0.46
-  drive.add(roundedBox(0.03, 0.42, 0.62, paintedMaterial(0x6a7076), panelX, panelY, panelZ, 0.008))
+  const panelFace = roundedBox(0.03, 0.42, 0.62, paintedMaterial(0x6a7076), panelX, panelY, panelZ, 0.008)
+  panelFace.name = 'panto-panel-face'
+  drive.add(panelFace)
   /* 支架：板不是浮在车顶上的——两根立柱落到车顶，一根横撑连回底架。 */
   for (const z of [panelZ - 0.24, panelZ + 0.24]) {
     drive.add(roundedBox(0.07, panelY + 0.2, 0.04, frameMat, panelX - 0.02, (panelY + 0.2) / 2, z, 0.005))
@@ -742,21 +774,62 @@ export function buildPantograph(): DeviceRig {
       ),
     )
   }
+  drive.name = 'panto-panel'
   parts.drive = drive
   root.add(drive)
 
   /* ------------------------------------------------------- 气囊 / 阻尼器 */
   const plateMat = paintedMaterial(0x4a5058)
   const innerMat = rubberMaterial(0x2a2e33)
-  const bags = [
-    airSpring(0.2, 0x3a3f45, plateMat, innerMat),
-    airSpring(0.2, 0x3a3f45, plateMat, innerMat),
-  ]
+  /* 升弓气囊做成**卧式**：真机（DSA-350 / TSG19A 一脉）是"气囊胀大 → 推动导盘 →
+     导盘上的钢索绕过下臂根部的定滑轮 → 把下臂拉起来"。
+     上一版把它做成竖着装在下臂 32% 处的长杆，底座还写在车顶面以下（y=0.04），
+     结果是一根 0.9m 长的细肠子从车顶穿出来顶到臂上——三处都错。 */
+  const bag = airSpring(0.22, 0x3a3f45, plateMat, innerMat)
+  const BAG_Y = DECK_Y + 0.14
+  const BAG_Z0 = -0.6
+
+  const driveMech = new Group()
+  driveMech.add(bag.group)
+  /* 气囊支座：两道抱箍把它架在底架上。没有它，气囊是一段悬空的圆筒——
+     上一版它更糟，整根从车顶面以下穿上来。 */
+  for (const z of [BAG_Z0 + 0.04, BAG_Z0 + 0.2]) {
+    driveMech.add(
+      roundedBox(0.15, BAG_Y - DECK_Y - 0.04, 0.05, frameMat, 0, (BAG_Y + DECK_Y) / 2 - 0.01, z, 0.005),
+    )
+  }
+
+  // 导盘：一块横跨左右的滑块，两端各一个小滑轮，钢索从这里出去
+  const carriage = new Group()
+  carriage.add(roundedBox(1.0, 0.05, 0.14, armDark, 0, 0, 0, 0.008))
+  for (const sx of [-1, 1]) {
+    const sheave = new Mesh(new CylinderGeometry(0.055, 0.055, 0.03, 18), armDark)
+    sheave.rotation.z = Math.PI / 2
+    sheave.position.set(sx * PDIM.armX, 0.02, 0)
+    carriage.add(sheave)
+  }
+  // 导盘坐在两根导轨上（没有导轨，它就是悬在空中的一块板）
+  for (const sx of [-1, 1]) {
+    driveMech.add(
+      roundedBox(0.03, 0.03, 0.72, frameMat, sx * PDIM.armX, BAG_Y - 0.03, -0.42, 0.005),
+    )
+  }
+  driveMech.add(carriage)
+
+  /* 两根钢索：导盘滑轮 → 下臂根部的定滑轮。长度随行程变，但永远连着两端；
+     这一根线才是"气压怎么变成升弓动作"的答案，比任何文字都直白。 */
+  const cables: Mesh[] = []
+  for (let i = 0; i < 2; i += 1) {
+    const c = new Mesh(new CylinderGeometry(0.0065, 0.0065, 1, 8), steelMaterial(0x9aa0a6))
+    cables.push(c)
+    driveMech.add(c)
+  }
+
   const dampers = [0, 1].map(() =>
     cylinderActuator({
-      barrelLen: 0.34,
-      barrelR: 0.03,
-      rodR: 0.013,
+      barrelLen: 0.26,
+      barrelR: 0.032,
+      rodR: 0.014,
       barrelMat: paintedMaterial(0x555b62),
       rodMat: chrome,
     }),
@@ -764,8 +837,7 @@ export function buildPantograph(): DeviceRig {
   const valve = quickReleaseValve()
   const switchBox = pressureSwitch()
 
-  const driveMech = new Group()
-  driveMech.add(bags[0].group, bags[1].group, dampers[0].group, dampers[1].group)
+  driveMech.add(dampers[0].group, dampers[1].group)
   driveMech.add(valve.group, switchBox.group)
   /* 阀与开关挂在底架**外侧**的悬臂上，不在臂的摆动平面内。
      第一版放在 x=0.36：默认机位在 +X，近侧那根臂把它们整个挡住。 */
@@ -777,6 +849,7 @@ export function buildPantograph(): DeviceRig {
   valve.group.position.set(0.84, DECK_Y + 0.07, -0.34)
   valve.group.rotation.z = deg(-6)
   switchBox.group.position.set(0.64, DECK_Y + 0.07, -0.34)
+  driveMech.name = 'panto-pneumatic'
   parts.drive2 = driveMech
   root.add(driveMech)
 
@@ -799,6 +872,18 @@ export function buildPantograph(): DeviceRig {
         g.add(bolt)
       }
     }
+    /* 第二道拼缝：上段与中段的对接箍。
+       真实箱形梁是几段钢板拼焊的，拼缝处会夹一圈衬板——它比画一条黑线可信，
+       因为有厚度、会投影。全机原本是"一整块塑料"，就是缺这些。 */
+    g.add(roundedBox(0.134, 0.024, 0.174, armDark, 0, PDIM.lower * 0.75, 0, 0.003))
+    /* 纵向焊道：箱形梁两条棱上的焊缝。位置按下臂在 f=0.23 处的实际截面算，
+       不能拿根部的宽度一路量到梢部——那是锥形梁，越往上越窄。 */
+    for (const sx of [-1, 1]) {
+      const bead = new Mesh(new BoxGeometry(0.011, PDIM.lower * 0.42, 0.008), armPaint)
+      bead.position.set(sx * 0.066, PDIM.lower * 0.235, 0.09)
+      bead.castShadow = true
+      g.add(bead)
+    }
     // 肘部：两块耳板夹一根销轴（关节是"会动"的唯一线索，做成实心块等于藏起来）
     for (const bx of [-0.062, 0.062]) {
       g.add(roundedBox(0.02, 0.15, 0.135, armPaint, bx, PDIM.lower - 0.05, 0, 0.006))
@@ -807,6 +892,25 @@ export function buildPantograph(): DeviceRig {
     pin.rotation.z = Math.PI / 2
     pin.position.set(0, PDIM.lower - 0.05, 0)
     g.add(pin)
+    /* **弧形调整板（凸轮板）**：钢索贴着它的边缘绕，末端锚在弧上。
+       它的作用不是好看——气囊推力随行程增大，弧板半径随转角减小，力矩 M=F·r
+       才能基本不变，接触压力才稳得住（实机下臂根部那块扇形板就是干这个的）。
+       上一版这里只有一个 Ø220 的圆滑轮，等于把"压力恒定"这层机构整个省略了。 */
+    const arcGeo = new CylinderGeometry(ARC_R, ARC_R, 0.022, 28, 1, false, deg(140), deg(120))
+    arcGeo.rotateZ(Math.PI / 2)
+    const arc = new Mesh(arcGeo, armDark)
+    arc.position.y = 0.03
+    arc.castShadow = true
+    g.add(arc)
+    // 辐板：弧板不是悬空的一片，要有一根筋连回臂体
+    const rib = roundedBox(ARC_R * 0.92, 0.05, 0.014, armDark, 0.012, 0.03, 0, 0.004)
+    rib.rotation.y = deg(20)
+    g.add(rib)
+    // 轮毂：弧板与臂的销轴之间要有过渡件
+    const hub = new Mesh(new CylinderGeometry(0.055, 0.055, 0.05, 16), armDark)
+    hub.rotation.z = Math.PI / 2
+    hub.position.y = 0.03
+    g.add(hub)
     // 外侧伸出耳板：上臂挂在这里
     g.add(roundedBox(0.026, 0.17, 0.12, armPaint, side * 0.075, PDIM.lower - 0.05, 0, 0.006))
     const outPin = new Mesh(new CylinderGeometry(0.024, 0.024, 0.09, 12), fitting)
@@ -830,6 +934,13 @@ export function buildPantograph(): DeviceRig {
 
   const buildUpper = (g: Group): void => {
     g.add(boxBeam(PDIM.upper, 0.11, 0.145, 0.068, 0.09, armPaint))
+    // 纵向焊道：上臂同样有两条，位置按 f=0.2 处的截面给
+    for (const sx of [-1, 1]) {
+      const bead = new Mesh(new BoxGeometry(0.01, PDIM.upper * 0.36, 0.007), armPaint)
+      bead.position.set(sx * 0.048, PDIM.upper * 0.21, 0.066)
+      bead.castShadow = true
+      g.add(bead)
+    }
     // 抱箍：气管与配重的安装面
     for (const f of [0.34, 0.62]) {
       g.add(roundedBox(0.124, 0.022, 0.158, armDark, 0, PDIM.upper * f, 0, 0.006))
@@ -867,26 +978,67 @@ export function buildPantograph(): DeviceRig {
   const braceUp = roundedBox(1.14, 0.042, 0.05, armDark, 0, 0, 0, 0.007)
   arms.add(braceLow, braceUp)
 
-  /* 两根导杆（见 `panto-kin` 的 UPPER_ROD / LOWER_ROD 说明）：
-     - 上导杆：下臂 → 弓头支架，**定长刚杆**（全行程仅差 0.5%），保证滑板水平；
-     - 下导杆：底架 → 上臂，**套管 + 滑杆**（实测杆长变化 90% 以上，不可能是刚杆）。 */
-  /* 两根导杆都做成「组 + 子件」：组只负责摆位与指向，子件按局部 +Y 从 0 长到 1，
-     缩放的只有子件的 Y（半径不变）。直接用 position/scale 硬凑一根圆柱，
-     会在不同角度下出现"半截插进梁里"或"两端露头"。 */
-  const upperRod = new Group()
-  const urTube = new Mesh(new CylinderGeometry(0.017, 0.017, 1, 10), chrome)
-  urTube.position.y = 0.5
-  const urEyeA = roundedBox(0.05, 0.03, 0.045, armDark, 0, 0, 0, 0.005)
-  const urEyeB = roundedBox(0.05, 0.03, 0.045, armDark, 0, 1, 0, 0.005)
-  upperRod.add(urTube, urEyeA, urEyeB)
+  /* 两根导杆（**每侧一组**，与臂同一平面）。
+     实机是 Ø25–30 的钢管，两端**叉形耳板 + 销轴**，颜色接近臂漆（不是镀铬亮杆）。
+     上一版三处错，都在这一块：
+     ① 上导杆的弓头端写在 **x=0（机身中轴）**——杆从侧面臂斜插到中间，末端悬在空气里，
+        这就是截图里"穿过去又没了"的那根；
+     ② 下导杆外套 Ø52 配 Ø32 内杆，台阶太大，端面在斜视角下读成"断开的管口"；
+     ③ 两根都用镀铬亮杆，实拍里是深灰漆管。 */
+  const rodMat = paintedMaterial(0x4e545b)
+  const pinMat = paintedMaterial(0x8b9197)
 
-  const lowerRod = new Group()
-  const lrCase = new Mesh(new CylinderGeometry(0.026, 0.026, 1, 12), paintedMaterial(0x6a7076))
-  lrCase.position.y = 0.5
-  const lrInner = new Mesh(new CylinderGeometry(0.016, 0.016, 1, 10), chrome)
-  const lrEyeB = roundedBox(0.06, 0.035, 0.05, armDark, 0, 0, 0, 0.006)
-  lowerRod.add(lrCase, lrInner, lrEyeB)
-  arms.add(upperRod, lowerRod)
+  /** 叉形耳板 + 销轴：局部 +Y 是杆的伸向，两片耳板夹在 ±X。 */
+  const rodEnd = (): Group => {
+    const g = new Group()
+    for (const sx of [-1, 1]) {
+      g.add(roundedBox(0.013, 0.062, 0.046, rodMat, sx * 0.021, 0, 0, 0.004))
+    }
+    const pin = new Mesh(new CylinderGeometry(0.011, 0.011, 0.062, 10), pinMat)
+    pin.rotation.z = Math.PI / 2
+    g.add(pin)
+    return g
+  }
+
+  interface Rod {
+    grp: Group
+    tube: Mesh
+    a: Group
+    b: Group
+    sleeve?: Mesh
+    collar?: Mesh
+  }
+
+  const upperRods: Rod[] = []
+  const lowerRods: Rod[] = []
+  for (const side of [-1, 1] as const) {
+    // 上导杆：定长刚杆（全行程差 0.5%，所以两端都是真耳板，不假装伸缩）
+    const ug = new Group()
+    const uTube = new Mesh(new CylinderGeometry(0.017, 0.017, 1, 12), rodMat)
+    uTube.position.y = 0.5
+    const uA = rodEnd()
+    const uB = rodEnd()
+    ug.add(uTube, uA, uB)
+    ug.userData.side = side
+    arms.add(ug)
+    upperRods.push({ grp: ug, tube: uTube, a: uA, b: uB })
+
+    /* 下导杆：底架 → 上臂。杆长随行程变 90%，做不成定长杆（见 `panto-kin` 的说明），
+       所以是**导向杆**：外套 + 滑杆 + 套口压盖。压盖是关键——没有它，外套端面
+       在斜视角下就是一个圆孔，看着像被锯断的管子。 */
+    const lg = new Group()
+    const lSleeve = new Mesh(new CylinderGeometry(0.021, 0.021, 1, 14), rodMat)
+    lSleeve.position.y = 0.5
+    const lCollar = new Mesh(new CylinderGeometry(0.0245, 0.0245, 1, 14), pinMat)
+    const lSlide = new Mesh(new CylinderGeometry(0.017, 0.017, 1, 12), pinMat)
+    const lA = rodEnd()
+    const lB = rodEnd()
+    lg.add(lSleeve, lCollar, lSlide, lA, lB)
+    lg.userData.side = side
+    arms.add(lg)
+    lowerRods.push({ grp: lg, tube: lSlide, a: lA, b: lB, sleeve: lSleeve, collar: lCollar })
+  }
+  arms.name = 'panto-arms'
   parts.arms = arms
   root.add(arms)
 
@@ -898,6 +1050,13 @@ export function buildPantograph(): DeviceRig {
   const SZ = PDIM.stripZ
   // 弓头横梁（上臂销接梁）
   head.add(roundedBox(1.24, 0.06, 0.1, armDark, 0, 0.008, 0, 0.009))
+  /* 上导杆的顶部挂座：横梁下缘两块耳板，位置就是杆所在的 x（上臂外侧）。
+     少了它，上导杆上端没有"落点"，看起来还是浮在梁下面（这正是上一版的样子）。 */
+  for (const hx of [-1, 1]) {
+    head.add(
+      roundedBox(0.055, 0.07, 0.08, armDark, hx * (PDIM.armX + PDIM.armOut + 0.07), -0.04, 0, 0.006),
+    )
+  }
   // 中央托架
   head.add(roundedBox(0.3, 0.085, 0.3, armDark, 0, 0.02, 0, 0.01))
   // 两根铝托架（沿 X）
@@ -974,6 +1133,7 @@ export function buildPantograph(): DeviceRig {
     fit.position.set(sign * (STRIP_HALF - 0.03), 0.075, SZ - 0.02)
     head.add(fit)
   }
+  head.name = 'panto-head'
   parts.head = head
   root.add(head)
 
@@ -1000,29 +1160,32 @@ export function buildPantograph(): DeviceRig {
   /* 线沿 **Z**（车行方向），滑板横在它下面。画成沿 X 就正好与滑板平行，行内人一眼看出错。 */
   const wireMat = new MeshStandardMaterial({ color: 0x33352f, metalness: 0.12, roughness: 0.74 })
   const wireGroup = new Group()
+  /* 命名不是为了好看：导出 glb 时节点名会被带出去，Blender 侧要按名字把这组
+     「接触线 + 吊弦」排除在取景包围盒之外——它长 9m，混进去会把整机压成巴掌大。 */
+  wireGroup.name = 'catenary'
   const wire = new Mesh(new CylinderGeometry(0.012, 0.012, 9, 10), wireMat)
   wire.rotation.x = Math.PI / 2
   wire.position.set(0, WIRE_Y + 0.008, HEAD_Z - 2.2)
+  wire.name = 'catenary'
   wireGroup.add(wire)
   for (const z of [-3.6, 3.2]) {
     const dropper = new Mesh(new CylinderGeometry(0.003, 0.003, 0.85, 6), wireMat)
     dropper.position.set(0, WIRE_Y + 0.42, z)
+    dropper.name = 'catenary'
     wireGroup.add(dropper)
   }
   root.add(wireGroup)
 
   /* ---------------------------------------------------------------- 机构 */
   const pivots = [new Vector3(-PDIM.armX, PDIM.pivotY, PDIM.pivotZ), new Vector3(PDIM.armX, PDIM.pivotY, PDIM.pivotZ)]
-  const bagBase = [
-    new Vector3(-PDIM.armX, 0.04, 0.3),
-    new Vector3(PDIM.armX, 0.04, 0.3),
-  ]
+  const bagBase0 = new Vector3(0, BAG_Y, BAG_Z0)
+  const cA = new Vector3()
+  const cB = new Vector3()
+  const cU = new Vector3()
   const dmpBase = [
-    new Vector3(-PDIM.armX, 0.14, 0.14),
-    new Vector3(PDIM.armX, 0.14, 0.14),
+    new Vector3(-PDIM.armX, DECK_Y + 0.05, 0.06),
+    new Vector3(PDIM.armX, DECK_Y + 0.05, 0.06),
   ]
-  const rodBase = new Vector3(PDIM.armX, LOWER_ROD.base.y, LOWER_ROD.base.z)
-
   const p1 = [new Vector3(), new Vector3()]
   const p2 = [new Vector3(), new Vector3()]
   const attach = new Vector3()
@@ -1032,7 +1195,6 @@ export function buildPantograph(): DeviceRig {
   const rodEndB = new Vector3()
   const upA = new Vector3()
   const upB = new Vector3()
-  const upperRodLength = (a: Vector3, b: Vector3): number => a.distanceTo(b)
   let mode: PantoMode = 'normal'
   let lastT = 0
 
@@ -1071,10 +1233,26 @@ export function buildPantograph(): DeviceRig {
     braceLow.position.set(0, (pivots[0].y + p1[0].y) / 2, (pivots[0].z + p1[0].z) / 2)
     braceUp.position.set(0, (p1[0].y + p2[0].y) / 2, (p1[0].z + p2[0].z) / 2)
 
-    /* 气囊顶在下臂 32% 处、阻尼器挂在 50% 处。挂点都在下臂上随臂转，
-       底座固定，长度随两点距离变——这就是"推起来"与"限速"两个动作的全部。 */
+    /* 升弓链路：气囊伸长 → 导盘前移 → 钢索缩短 → 下臂转。
+       角度仍由 `panto-kin` 给（那是唯一来源），这里只把**看得见的因果**接上：
+       上一版气囊是竖着直接顶在臂上的长杆，画面上是"一根肠子从车顶穿出来"。 */
+    const stroke = 0.16 * p
+    const carZ = BAG_Z0 + 0.22 + stroke + 0.05
+    bag.set(bagBase0, cA.set(0, BAG_Y, carZ))
+    carriage.position.set(0, BAG_Y, carZ)
     for (let i = 0; i < 2; i += 1) {
-      bags[i].set(bagBase[i], onLower(attach, i, 0.32, a1))
+      // 钢索：导盘滑轮 → **弧形调整板的弧面**（不是臂身上的一个点）
+      const sx = i === 0 ? -1 : 1
+      cA.set(sx * PDIM.armX, BAG_Y + 0.02, carZ)
+      cU.subVectors(p1[i], pivots[i]).normalize()
+      // 弧板 90° 正对臂身，锚点取 200°（后下方）——钢索从导盘过来正好切在这里
+      const th = Math.atan2(cU.y, cU.z) + deg(110)
+      cB.set(pivots[i].x, pivots[i].y + Math.sin(th) * ARC_R, pivots[i].z + Math.cos(th) * ARC_R)
+      const clen = Math.max(cA.distanceTo(cB), 0.05)
+      placeAxis(cables[i], cA, cB)
+      cables[i].scale.y = clen
+    }
+    for (let i = 0; i < 2; i += 1) {
       dampers[i].set(dmpBase[i], onLower(attach, i, 0.5, a1))
     }
 
@@ -1092,31 +1270,49 @@ export function buildPantograph(): DeviceRig {
       r.position.y = gap / 2 + 0.02
     }
 
-    /* ---------------- 两根导杆 ---------------- */
-    // 上导杆：下臂 f 处 → 弓头支架下方的幅板（定长，全行程差 0.5%）
-    onLower(upA, 1, UPPER_ROD.f, a1)
-    upB.set(0, head.position.y + UPPER_ROD.offY, head.position.z + UPPER_ROD.offZ)
-    const upperLen = Math.max(upperRodLength(upA, upB), 0.1)
-    placeAxis(upperRod, upA, upB)
-    urTube.scale.y = upperLen
-    urEyeB.position.y = upperLen
+    /* ---------------- 两根导杆（每侧一组） ---------------- */
+    for (let i = 0; i < 2; i += 1) {
+      /* 导杆必须装在**上臂外侧**（`armX + armOut + 0.07`），不能只贴在下臂平面。
+         上一版上导杆从下臂斜插到机身中轴，正对镜头时整根横穿臂面——实物里两根杆
+         始终在臂的外侧、与臂大致平行，所以从任何角度看都不会"划"过臂的表面。 */
+      const sx = i === 0 ? -1 : 1
+      const rodX = pivots[i].x + sx * (PDIM.armOut + 0.07)
 
-    // 下导杆：底架 → 上臂 s 处。外套定长 0.7m，滑杆从套口抽出去
-    rodEndA.set(rodBase.x, rodBase.y, rodBase.z)
-    rodEndB.set(
-      PDIM.armX,
-      p1[1].y + PDIM.upper * LOWER_ROD.s * Math.sin(a2),
-      p1[1].z + PDIM.upper * LOWER_ROD.s * Math.cos(a2),
-    )
-    const lowerLen = Math.max(rodEndA.distanceTo(rodEndB), 0.2)
-    const caseLen = Math.min(0.7, lowerLen - 0.06)
-    placeAxis(lowerRod, rodEndA, rodEndB)
-    lrCase.scale.y = Math.max(caseLen, 0.05)
-    lrCase.position.y = Math.max(caseLen, 0.05) / 2
-    const slide = Math.max(lowerLen - caseLen, 0.05)
-    lrInner.scale.y = slide
-    lrInner.position.y = caseLen + slide / 2
-    lrEyeB.position.y = lowerLen
+      // 上导杆：下臂 f 处 → 弓头支架幅板下方
+      onLower(upA, i, UPPER_ROD.f, a1)
+      upA.x = rodX
+      upB.set(rodX, head.position.y + UPPER_ROD.offY, head.position.z + UPPER_ROD.offZ)
+      const ur = upperRods[i]
+      const ulen = Math.max(upA.distanceTo(upB), 0.15)
+      placeAxis(ur.grp, upA, upB)
+      // 管身两端各留 25mm 给耳板，避免管子戳出耳板外
+      ur.tube.scale.y = Math.max(ulen - 0.05, 0.08)
+      ur.tube.position.y = 0.025 + Math.max(ulen - 0.05, 0.08) / 2
+      ur.b.position.y = ulen
+
+      /* 下导杆：底架 → 上臂 s 处。外套定长，滑杆从中抽出。
+         套口必须带压盖——没有压盖，外套端面在斜视角下就是一个圆孔，
+         读成"被锯断的管子"（上一版截图里的第二个毛病）。 */
+      const lr = lowerRods[i]
+      rodEndA.set(rodX, LOWER_ROD.base.y, LOWER_ROD.base.z)
+      rodEndB.set(
+        rodX,
+        p1[i].y + PDIM.upper * LOWER_ROD.s * Math.sin(a2),
+        p1[i].z + PDIM.upper * LOWER_ROD.s * Math.cos(a2),
+      )
+      const llen = Math.max(rodEndA.distanceTo(rodEndB), 0.3)
+      placeAxis(lr.grp, rodEndA, rodEndB)
+      const sleeveLen = Math.max(Math.min(0.62, llen - 0.12), 0.14)
+      lr.sleeve!.scale.y = sleeveLen
+      lr.sleeve!.position.y = sleeveLen / 2
+      lr.collar!.scale.y = 0.022
+      lr.collar!.position.y = sleeveLen - 0.011
+      // 滑杆从套口里伸出去，端头再收 5mm 到耳板内
+      const slideLen = Math.max(llen - sleeveLen + 0.02, 0.06)
+      lr.tube.scale.y = slideLen
+      lr.tube.position.y = sleeveLen - 0.02 + slideLen / 2
+      lr.b.position.y = llen
+    }
 
     /* ---------------- 气路 / ADD ---------------- */
     const air = airState(t, mode)
@@ -1179,8 +1375,8 @@ export function buildPantograph(): DeviceRig {
         if (a.id === 'urod') {
           return { ...a, at: new Vector3(PDIM.armX + 0.2, (upA.y + upB.y) / 2, (upA.z + upB.z) / 2) }
         }
-        if (a.id === 'bag') return { ...a, at: new Vector3(PDIM.armX + 0.02, 0.24, 0.3) }
-        if (a.id === 'damper') return { ...a, at: new Vector3(PDIM.armX + 0.04, 0.3, 0.14) }
+        if (a.id === 'bag') return { ...a, at: new Vector3(0, BAG_Y + 0.02, BAG_Z0 + 0.2) }
+        if (a.id === 'damper') return { ...a, at: new Vector3(PDIM.armX + 0.06, DECK_Y + 0.14, 0.08) }
         if (a.id === 'valve') return { ...a, at: new Vector3(0.86, DECK_Y + 0.14, -0.38) }
         return { ...a, at: new Vector3(panelX + 0.02, panelY + 0.16, panelZ) }
       }),
