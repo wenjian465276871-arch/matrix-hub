@@ -1,9 +1,9 @@
 {
-  "sha256": "4894f8d5cf35665680fe2d4332fd07cc7c914f9299fbe1bf15464d925fc8dffc",
+  "sha256": "a108de9a257fcf3f0d2f5ada2ff5c5c2cbbd19b1404b685fdd774310ae110ba0",
   "files": {
     "samples": 6,
     "knowledge": 4
   },
   "knowledge_entries": 19,
-  "note": "2026-11-12 本人要求重烘其余五台设备（R8-3）：新增 6 处 baked_figure，每步图上限 3→4；失效记录与确认依据见 §4.16"
+  "note": "2026-11-12 本人要求补齐空调机组（R8-3）：新增 hvac 三维设备与 5 张 baked_figure + 1 处 device_scene，失效记录见 §4.17"
 }

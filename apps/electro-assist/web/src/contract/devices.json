@@ -143,6 +143,67 @@
         "door"
       ]
     },
+    "hvac": {
+      "moments": [
+        {
+          "key": "closed",
+          "label": "检修盖板装回、机组停用",
+          "t": 0.0
+        },
+        {
+          "key": "opened",
+          "label": "两块检修盖板已拆下、机内可见",
+          "t": 0.2
+        },
+        {
+          "key": "powered",
+          "label": "控制电源接通、三只断路器合闸",
+          "t": 0.36
+        },
+        {
+          "key": "ventilating",
+          "label": "通风模式：送风机与冷凝风机运行",
+          "t": 0.55
+        },
+        {
+          "key": "cooling",
+          "label": "制冷模式：压缩机运行、蒸发器结露",
+          "t": 0.78
+        },
+        {
+          "key": "stable",
+          "label": "稳定运行、各读数落在范围内",
+          "t": 1.0
+        }
+      ],
+      "part_labels": {
+        "compressor": "涡旋压缩机与气液分离器（含减振脚、接线盒）",
+        "condenser": "冷凝器（两侧翅片盘管与进风百叶）",
+        "control": "控制盒（断路器、接触器、端子排、指示灯）",
+        "evaporator": "蒸发器（V 形翅片盘管）与两台离心送风机",
+        "fans": "冷凝风机（顶部两台轴流风机与防护网罩）",
+        "filters": "回风口滤尘网（底面可拆洗滤网）",
+        "piping": "制冷剂管路（排气管、液管、吸气管、干燥过滤器、高压检修阀接口）",
+        "shell": "壳体与检修盖板（侧板、顶盖、铆钉、铭牌）",
+        "stand": "检修台（钢制纵梁与支腿）",
+        "supply": "送风口（底面两条送风格栅与送风道）"
+      },
+      "parts": [
+        "shell",
+        "fans",
+        "condenser",
+        "evaporator",
+        "filters",
+        "supply",
+        "compressor",
+        "control",
+        "piping",
+        "stand"
+      ],
+      "systems": [
+        "hvac"
+      ]
+    },
     "multimeter": {
       "moments": [
         {

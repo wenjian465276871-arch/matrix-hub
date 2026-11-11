@@ -463,6 +463,7 @@ async function init(): Promise<void> {
       door: async () => (await import('./devices/door')).buildDoor,
       pantograph: async () => (await import('./devices/pantograph')).buildPantograph,
       cabinet: async () => (await import('./devices/cabinet')).buildCabinet,
+      hvac: async () => (await import('./devices/hvac')).buildHvac,
       // 工具类四台：静态资源同样按需加载，翻到没有它们的那一页就不下载
       multimeter: async () => (await import('./devices/multimeter')).buildMultimeter,
       warning_sign: async () => (await import('./devices/warning_sign')).buildWarningSign,
@@ -540,6 +541,55 @@ async function init(): Promise<void> {
         }
         r.dispose?.()
         return btoa(bin)
+      }
+
+      /* 量一台设备在某个姿态下**指定部件**的世界包围盒，给离线烘焙算机位用。
+         为什么要在浏览器里量：GLB 导出不保留节点名（受电弓那次实测），
+         Blender 侧按名字取景取不到；而几何的真实位置只有 rig 自己知道。
+         返回 center/size，脚本据此换算成"目标点 + 距离"。 */
+      ;(window as unknown as {
+        __subjectBox?: (
+          subject: string,
+          t?: number,
+          keys?: string[],
+        ) => Promise<{ center: [number, number, number]; size: [number, number, number] } | null>
+      }).__subjectBox = async (subject: string, t = 0, keys) => {
+        const load = builders[subject]
+        if (!load) throw new Error(`未注册的设备场景：${subject}`)
+        const build = await load()
+        const r = build()
+        r.setT(t)
+        r.root.updateMatrixWorld(true)
+        const box = new three!.Box3()
+        const names = keys && keys.length ? keys : Object.keys(r.parts)
+        /* 只量**看得见**的网格：检修盖板被"取下"后只是 visible=false，
+           仍挂在树上，`expandByObject` 会把它算进去——量出来的框比实际大一圈，
+           机位就会退远（2026-11-12 空调控制盒那张就是这么拍空的）。 */
+        const visible = (o: import('three').Object3D): boolean => {
+          let cur: import('three').Object3D | null = o
+          while (cur) {
+            if (!cur.visible) return false
+            cur = cur.parent
+          }
+          return true
+        }
+        for (const key of names) {
+          const part = r.parts[key]
+          if (!part) continue
+          const meshes: import('three').Object3D[] = []
+          part.traverse((o) => {
+            if ((o as import('three').Mesh).isMesh && visible(o)) meshes.push(o)
+          })
+          for (const mesh of meshes) box.expandByObject(mesh)
+        }
+        const out = box.isEmpty()
+          ? null
+          : {
+              center: box.getCenter(new three!.Vector3()).toArray() as [number, number, number],
+              size: box.getSize(new three!.Vector3()).toArray() as [number, number, number],
+            }
+        r.dispose?.()
+        return out
       }
     }
   } catch (err) {

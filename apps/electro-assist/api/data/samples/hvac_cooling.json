@@ -53,6 +53,15 @@
       ],
       "figures": [
         {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/hvac/overall.webp",
+            "alt": "顶置式客室空调机组架在检修台上，顶部一端是两台带防护网罩的轴流冷凝风机，另一段是检修盖板与四角吊耳，侧面为进风百叶"
+          },
+          "caption": "机组外观（检修台上）",
+          "fallback_text": "确认机组外观无损伤、回风口滤网清洁，作业区域通风良好。"
+        },
+        {
           "primitive": "checklist",
           "params": {
             "items": [
@@ -91,6 +100,15 @@
         }
       ],
       "figures": [
+        {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/hvac/control.webp",
+            "alt": "机组检修盖板已拆下，控制盒顶盖取下，盒内可见一排三只断路器、接触器、端子排与线束，前壁贴有「控制电源 DC 110V」标签"
+          },
+          "caption": "控制盒（掀盖检查）",
+          "fallback_text": "用万用表测量控制电源电压，额定 DC110V，允许范围 99–121V，记录实测值。"
+        },
         {
           "primitive": "meter",
           "params": {
@@ -136,6 +154,15 @@
         }
       ],
       "figures": [
+        {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/hvac/supply.webp",
+            "alt": "从机组下方仰视：中间是回风口滤尘网（金属折页滤网），两侧各一条向下凸出的送风格栅，底盘由多块镀锌板拼接"
+          },
+          "caption": "回风滤网与送风格栅（仰视底面）",
+          "fallback_text": "启动通风模式运行 5 分钟，用风速仪测量送风口风速，要求 1.5–3.0 m/s。"
+        },
         {
           "primitive": "meter",
           "params": {
@@ -183,6 +210,25 @@
       ],
       "figures": [
         {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/hvac/evaporator.webp",
+            "alt": "蒸发段盖板已拆下，可见两片斜置成 V 形的翅片盘管与上下铜集管，两侧各一台离心送风机，接水盘在盘管下方"
+          },
+          "caption": "蒸发器（V 形翅片盘管）",
+          "fallback_text": "切换制冷模式稳定运行 10 分钟后测量送风温度，送风温度应比回风温度低 6–12℃。"
+        },
+        {
+          "primitive": "device_scene",
+          "params": {
+            "subject": "hvac",
+            "t": 0.78,
+            "part": "evaporator"
+          },
+          "caption": "蒸发段三维演绎（检修盖板已拆下、制冷模式）",
+          "fallback_text": "三维场景无法显示时的替代说明：蒸发器位于机组中段，V 形盘管下方是接水盘，两侧为离心送风机。"
+        },
+        {
           "primitive": "meter",
           "params": {
             "label": "送回风温差",
@@ -193,7 +239,13 @@
           },
           "caption": "制冷稳定运行 10 分钟后测量",
           "fallback_text": "制冷模式稳定运行 10 分钟后测送风温度，应比回风温度低 6-12℃。",
-          "motion": [{ "target": "needle", "anim": "draw", "duration": 1200 }]
+          "motion": [
+            {
+              "target": "needle",
+              "anim": "draw",
+              "duration": 1200
+            }
+          ]
         }
       ],
       "duration_s": 600
@@ -232,6 +284,15 @@
       ],
       "figures": [
         {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/hvac/compressor.webp",
+            "alt": "压缩机舱内：黑色立式涡旋压缩机（带接线盒与减振脚），排气管上接高压检修阀（蓝色阀帽）并挂有压力表软管，旁边是气液分离器"
+          },
+          "caption": "压缩机与高压检修阀",
+          "fallback_text": "用钳形电流表测量压缩机运行电流，额定 12A，允许范围 10–14A；用压力表测量制冷剂高压侧压力，要求 1.4–1.8 MPa。"
+        },
+        {
           "primitive": "meter",
           "params": {
             "label": "压缩机运行电流",
@@ -261,7 +322,13 @@
           },
           "caption": "合格判定",
           "fallback_text": "电源电压、风速、送回风温差、压缩机电流、高压压力五项均在范围内判合格；任一超差先复测一次，复测仍超差记录实测值并转入异常处置。",
-          "motion": [{ "target": "lamp", "anim": "blink", "duration": 1400 }]
+          "motion": [
+            {
+              "target": "lamp",
+              "anim": "blink",
+              "duration": 1400
+            }
+          ]
         }
       ],
       "duration_s": null

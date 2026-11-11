@@ -99,6 +99,19 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
     "door": ("leaf_l", "leaf_r", "frame", "lamp"),
     "pantograph": ("arms", "head", "frame", "drive", "drive2", "lamp"),
     "cabinet": ("breakers", "contactor", "relays", "lamps", "terminals", "board"),
+    # 客室空调机组：整机一台，五步判据分别落在不同部件上，所以键分得比别的整机细。
+    "hvac": (
+        "shell",
+        "fans",
+        "condenser",
+        "evaporator",
+        "filters",
+        "supply",
+        "compressor",
+        "control",
+        "piping",
+        "stand",
+    ),
     # 以下四台是「工具 + 作业动作」：指导书里出现频率最高的四件手动作业，
     # 此前只有 2D 原语（meter / torque_gauge / checklist），看不出"手怎么动"。
     "multimeter": ("body", "dial", "screen", "probes", "terminals"),
@@ -134,6 +147,18 @@ DEVICE_PART_LABELS: dict[str, dict[str, str]] = {
         "lamps": "指示灯（电源、运行、告警）",
         "terminals": "端子排（10 位）",
         "board": "柜内安装背板",
+    },
+    "hvac": {
+        "shell": "壳体与检修盖板（侧板、顶盖、铆钉、铭牌）",
+        "fans": "冷凝风机（顶部两台轴流风机与防护网罩）",
+        "condenser": "冷凝器（两侧翅片盘管与进风百叶）",
+        "evaporator": "蒸发器（V 形翅片盘管）与两台离心送风机",
+        "filters": "回风口滤尘网（底面可拆洗滤网）",
+        "supply": "送风口（底面两条送风格栅与送风道）",
+        "compressor": "涡旋压缩机与气液分离器（含减振脚、接线盒）",
+        "control": "控制盒（断路器、接触器、端子排、指示灯）",
+        "piping": "制冷剂管路（排气管、液管、吸气管、干燥过滤器、高压检修阀接口）",
+        "stand": "检修台（钢制纵梁与支腿）",
     },
     "multimeter": {
         "body": "表体与黄色护套（手持式数字万用表）",
@@ -193,6 +218,14 @@ DEVICE_MOMENTS: dict[str, tuple[tuple[float, str, str], ...]] = {
         (0.82, "tripped", "过载脱扣（手柄停在中间位）"),
         (1.0, "restored", "复位后重新合闸"),
     ),
+    "hvac": (
+        (0.0, "closed", "检修盖板装回、机组停用"),
+        (0.2, "opened", "两块检修盖板已拆下、机内可见"),
+        (0.36, "powered", "控制电源接通、三只断路器合闸"),
+        (0.55, "ventilating", "通风模式：送风机与冷凝风机运行"),
+        (0.78, "cooling", "制冷模式：压缩机运行、蒸发器结露"),
+        (1.0, "stable", "稳定运行、各读数落在范围内"),
+    ),
     "multimeter": (
         (0.0, "dialed", "档位置于直流电压档"),
         (0.3, "probe_plus", "红表笔搭上正极端子"),
@@ -236,6 +269,8 @@ DEVICE_SYSTEMS: dict[str, frozenset[str]] = {
     "pantograph": frozenset({"pantograph"}),
     # 配电柜（门控器供电、上电自检）属于车门系统，不是独立工位
     "cabinet": frozenset({"door"}),
+    # 空调机组只在空调系统里出现
+    "hvac": frozenset({"hvac"}),
     # 工具类跟着人走：万用表、警示牌三个系统都用；塞尺只量门缝（空调/受电弓没有这道工序）；
     # 力矩扳手在车门门机与受电弓底架螺栓上都用。
     "multimeter": frozenset({"door", "hvac", "pantograph"}),

@@ -25,6 +25,7 @@ import { describe, expect, it } from 'vitest'
 import type { DeviceRig } from './rig'
 import { buildCabinet } from './cabinet'
 import { buildDoor } from './door'
+import { buildHvac } from './hvac'
 import { buildFeelerGauge } from './feeler_gauge'
 import { buildMultimeter } from './multimeter'
 import { buildPantograph } from './pantograph'
@@ -40,6 +41,7 @@ const BUILDERS: Record<string, () => DeviceRig> = {
   door: buildDoor,
   pantograph: buildPantograph,
   cabinet: buildCabinet,
+  hvac: buildHvac,
   multimeter: buildMultimeter,
   warning_sign: buildWarningSign,
   feeler_gauge: buildFeelerGauge,
