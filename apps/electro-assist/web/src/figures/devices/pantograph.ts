@@ -1158,7 +1158,9 @@ export function buildPantograph(): DeviceRig {
 
   /* ---------------------------------------------------------------- 接触线 */
   /* 线沿 **Z**（车行方向），滑板横在它下面。画成沿 X 就正好与滑板平行，行内人一眼看出错。 */
-  const wireMat = new MeshStandardMaterial({ color: 0x33352f, metalness: 0.12, roughness: 0.74 })
+  /* 接触线是铜镁合金：**暖褐、金属感**。原来的 0x33352f 是橄榄灰，
+     在暖光下渲染出来像一根麻绳——特写里尤其明显。 */
+  const wireMat = new MeshStandardMaterial({ color: 0x3c3129, metalness: 0.45, roughness: 0.52 })
   const wireGroup = new Group()
   /* 命名不是为了好看：导出 glb 时节点名会被带出去，Blender 侧要按名字把这组
      「接触线 + 吊弦」排除在取景包围盒之外——它长 9m，混进去会把整机压成巴掌大。 */

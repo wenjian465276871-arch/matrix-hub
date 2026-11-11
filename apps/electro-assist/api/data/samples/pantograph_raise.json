@@ -122,7 +122,7 @@
           "primitive": "baked_figure",
           "params": {
             "src": "/figures/pantograph/step2.webp",
-            "alt": "受电弓弓头俯视：两根碳滑板与四只弓角，滑板侧面有磨耗到限标记"
+            "alt": "受电弓落弓状态：弓头搁在底架上方，两根碳滑板与四只弓角清晰可辨，滑板侧面有磨耗到限标记"
           },
           "caption": "弓头与碳滑板",
           "fallback_text": "弓头由两根碳滑板与四只弓角组成，滑板侧面有磨耗到限标记。"
