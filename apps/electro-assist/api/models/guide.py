@@ -161,7 +161,11 @@ class Step(BaseModel):
     safety: list[str] = Field(default_factory=list, max_length=5)
     tools: list[str] = Field(default_factory=list, max_length=8)
     criteria: list[Criterion] = Field(default_factory=list, max_length=8)
-    figures: list[VisualSpec] = Field(default_factory=list, max_length=3)
+    # 上限从 3 提到 4（2026-11-12）：实物渲染图（baked_figure）与可交互三维
+    # （device_scene）同时存在时，本来只剩一个位置留给仪表/表格。给车门那几步
+    # 「照片 + 三维 + 仪表 + 时间轴」留出位置——舞台一次只显示一张（页签切换），
+    # 辅图列宽度固定，4 张不会把版面撑破。
+    figures: list[VisualSpec] = Field(default_factory=list, max_length=4)
     # 用户自带的现场素材（照片/截图）。给模型看的 schema 里已剔除该字段，
     # 服务端在生成后填充；位置由人在草稿页决定。
     assets: list[AssetRef] = Field(default_factory=list, max_length=3)

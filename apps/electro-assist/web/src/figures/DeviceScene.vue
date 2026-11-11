@@ -511,6 +511,36 @@ async function init(): Promise<void> {
           }
           return btoa(bin)
         }
+
+      /* 按**设备名**直接导出，不依赖"当前挂载的是哪台"。
+         为什么需要它：切步骤时 Vue 会复用同一个 DeviceScene 实例，
+         `__exportGlb` 闭包里的 rig 可能还指向上一步那台设备——
+         2026-11-12 烘焙其余五台设备时，五张图里四张都成了同一台，
+         排查半小时才发现是导出钩子的生命周期问题，不是渲染问题。
+         这里现场建、导出、销毁，与页面状态完全解耦。 */
+      ;(window as unknown as { __exportSubject?: (s: string, t?: number) => Promise<string> })
+        .__exportSubject = async (subject: string, t = 0) => {
+        const load = builders[subject]
+        if (!load) throw new Error(`未注册的设备场景：${subject}`)
+        const build = await load()
+        const r = build()
+        r.setT(t)
+        r.root.updateMatrixWorld(true)
+        const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
+        const data = await new GLTFExporter().parseAsync(r.root, {
+          binary: true,
+          onlyVisible: true,
+          maxTextureSize: 2048,
+        })
+        const bytes = new Uint8Array(data as ArrayBuffer)
+        let bin = ''
+        const CHUNK = 0x8000
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK))
+        }
+        r.dispose?.()
+        return btoa(bin)
+      }
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '3D 场景加载失败'

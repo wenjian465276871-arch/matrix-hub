@@ -20,7 +20,10 @@
         "作业前必须确认无电",
         "禁止在车辆移动时作业"
       ],
-      "tools": ["警示牌", "手电"],
+      "tools": [
+        "警示牌",
+        "手电"
+      ],
       "criteria": [
         {
           "id": "confirm_safe",
@@ -30,17 +33,34 @@
       ],
       "figures": [
         {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/warning_sign/plate.webp",
+            "alt": "机柜门把手上挂着一块红色警示牌，牌面写着「禁止合闸 有人工作」"
+          },
+          "caption": "作业警示牌（示意）",
+          "fallback_text": "作业前须在操作把手处挂设「禁止合闸 有人工作」警示牌，并确认隔离到位。"
+        },
+        {
           "primitive": "step_card",
-          "params": {"index": 1, "action": "确认无电并设置警示", "hint": "先挂牌再动手"},
+          "params": {
+            "index": 1,
+            "action": "确认无电并设置警示",
+            "hint": "先挂牌再动手"
+          },
           "caption": "步骤示意",
           "fallback_text": "第 1 步：确认无电、设置警示后，方可开始检查。"
         },
-          {
-            "primitive": "device_scene",
-            "params": {"subject": "warning_sign", "t": 0.82, "part": "plate"},
-            "caption": "警示牌挂牌位置（示意）",
-            "fallback_text": "牌挂在门边操作把手上，牌面朝向作业面；挂绳绕过把手并回到穿线孔。挂在别处不算隔离到位。"
-          }
+        {
+          "primitive": "device_scene",
+          "params": {
+            "subject": "warning_sign",
+            "t": 0.82,
+            "part": "plate"
+          },
+          "caption": "警示牌挂牌位置（示意）",
+          "fallback_text": "牌挂在门边操作把手上，牌面朝向作业面；挂绳绕过把手并回到穿线孔。挂在别处不算隔离到位。"
+        }
       ],
       "duration_s": 120
     },
@@ -49,8 +69,12 @@
       "seq": 2,
       "title": "测量关闭间隙",
       "action": "在门扇中部与两端各测一次密封间隙，取三次读数的算术平均值作为判定值。",
-      "safety": ["塞尺使用后擦拭干净"],
-      "tools": ["塞尺（0.02–1.00 mm）"],
+      "safety": [
+        "塞尺使用后擦拭干净"
+      ],
+      "tools": [
+        "塞尺（0.02–1.00 mm）"
+      ],
       "criteria": [
         {
           "id": "gap_mid",
@@ -71,24 +95,53 @@
       ],
       "figures": [
         {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/feeler_gauge/gap.webp",
+            "alt": "两扇门扇之间的竖向缝隙里插着一把塞尺，测片夹在门扇与门框之间"
+          },
+          "caption": "塞尺插入门缝",
+          "fallback_text": "用塞尺逐片试插门扇与门框之间的缝隙，取刚好插入的叶片厚度作为间隙值。"
+        },
+        {
           "primitive": "meter",
-          "params": {"value": 2.0, "unit": "mm", "min": 1.0, "max": 3.0, "label": "中部间隙"},
+          "params": {
+            "value": 2.0,
+            "unit": "mm",
+            "min": 1.0,
+            "max": 3.0,
+            "label": "中部间隙"
+          },
           "caption": "读数示例",
           "fallback_text": "中部间隙示例读数 2.0 mm，允许范围 1.0–3.0 mm。",
-          "motion": [{ "target": "needle", "anim": "draw", "duration": 900 }]
+          "motion": [
+            {
+              "target": "needle",
+              "anim": "draw",
+              "duration": 900
+            }
+          ]
         },
         {
           "primitive": "wiring",
-          "params": {"terminals": "1-2-3", "wire_color": "棕/蓝/黄绿", "note": "仅示意端子顺序"},
+          "params": {
+            "terminals": "1-2-3",
+            "wire_color": "棕/蓝/黄绿",
+            "note": "仅示意端子顺序"
+          },
           "caption": "端子顺序示意",
           "fallback_text": "端子顺序为 1、2、3，对应线色棕、蓝、黄绿。"
         },
-          {
-            "primitive": "device_scene",
-            "params": {"subject": "feeler_gauge", "t": 0.62, "part": "blades"},
-            "caption": "塞尺插入门缝（示意）",
-            "fallback_text": "塞尺翻出一片、竖直插入门缝并沿缝滑动，以最紧处为准；能入的最厚一片即间隙下限。"
-          }
+        {
+          "primitive": "device_scene",
+          "params": {
+            "subject": "feeler_gauge",
+            "t": 0.62,
+            "part": "blades"
+          },
+          "caption": "塞尺插入门缝（示意）",
+          "fallback_text": "塞尺翻出一片、竖直插入门缝并沿缝滑动，以最紧处为准；能入的最厚一片即间隙下限。"
+        }
       ],
       "duration_s": 300
     },
@@ -102,20 +155,36 @@
           "id": "result",
           "label": "判定结果",
           "type": "enum",
-          "options": ["合格", "超差", "复测"]
+          "options": [
+            "合格",
+            "超差",
+            "复测"
+          ]
         }
       ],
       "figures": [
         {
           "primitive": "status_light",
-          "params": {"state": "pass", "label": "间隙合格"},
+          "params": {
+            "state": "pass",
+            "label": "间隙合格"
+          },
           "caption": "状态指示",
           "fallback_text": "判定为合格时，状态灯显示通过。",
-          "motion": [{ "target": "lamp", "anim": "pulse", "duration": 1200 }]
+          "motion": [
+            {
+              "target": "lamp",
+              "anim": "pulse",
+              "duration": 1200
+            }
+          ]
         }
       ],
       "duration_s": 60
     }
   ],
-  "disclaimers": ["演示数据 · 非实际作业依据", "AI 生成内容，需专业人员复核"]
+  "disclaimers": [
+    "演示数据 · 非实际作业依据",
+    "AI 生成内容，需专业人员复核"
+  ]
 }

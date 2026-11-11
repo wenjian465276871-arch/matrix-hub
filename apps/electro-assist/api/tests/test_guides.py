@@ -61,8 +61,11 @@ def test_get_returns_full_guide(fresh_library):
     assert len(guide["steps"]) == 3
     assert guide["steps"][0]["seq"] == 1
     assert "演示数据 · 非实际作业依据" in guide["disclaimers"]
-    # 图元参数被原样保留，前端渲染器据此分发
-    assert guide["steps"][1]["figures"][0]["primitive"] == "meter"
+    # 图元参数被原样保留，前端渲染器据此分发。
+    # 2026-11-12：这一步前面插了实物渲染图（baked_figure），不能再按下标取；
+    # 断言的本意是"meter 那一条的参数没被改写"，所以按 primitive 找。
+    meter = next(f for f in guide["steps"][1]["figures"] if f["primitive"] == "meter")
+    assert meter["params"]["unit"] == "mm"
 
 
 def test_draft_is_not_listed_but_reachable_by_id(fresh_library):

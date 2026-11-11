@@ -21,7 +21,10 @@
         "作业前必须断开蓄电池开关并挂牌",
         "禁止带电插拔门控器接插件"
       ],
-      "tools": ["万用表（DC 档）", "警示牌"],
+      "tools": [
+        "万用表（DC 档）",
+        "警示牌"
+      ],
       "criteria": [
         {
           "id": "safe_confirmed",
@@ -32,16 +35,24 @@
       "figures": [
         {
           "primitive": "step_card",
-          "params": {"index": 1, "action": "断电、挂牌、复测无压", "hint": "先隔离再动手"},
+          "params": {
+            "index": 1,
+            "action": "断电、挂牌、复测无压",
+            "hint": "先隔离再动手"
+          },
           "caption": "步骤示意",
           "fallback_text": "第 1 步：断开蓄电池开关、挂牌，并复测进线端无残余电压。"
         },
-          {
-            "primitive": "device_scene",
-            "params": {"subject": "warning_sign", "t": 0.82, "part": "plate"},
-            "caption": "隔离点挂牌（示意）",
-            "fallback_text": "断电后在门边操作把手上挂「禁止合闸，有人工作」标示牌，牌面朝向作业面。"
-          }
+        {
+          "primitive": "device_scene",
+          "params": {
+            "subject": "warning_sign",
+            "t": 0.82,
+            "part": "plate"
+          },
+          "caption": "隔离点挂牌（示意）",
+          "fallback_text": "断电后在门边操作把手上挂「禁止合闸，有人工作」标示牌，牌面朝向作业面。"
+        }
       ],
       "duration_s": 180
     },
@@ -50,8 +61,12 @@
       "seq": 2,
       "title": "测量电源回路绝缘",
       "action": "在蓄电池断开、门控器接插件拔下的状态下，用 500V 兆欧表测量电源正负极对车体的绝缘电阻，读数稳定后记录。",
-      "safety": ["兆欧表输出高压，测量时不得触碰表笔金属部分"],
-      "tools": ["兆欧表（500V）"],
+      "safety": [
+        "兆欧表输出高压，测量时不得触碰表笔金属部分"
+      ],
+      "tools": [
+        "兆欧表（500V）"
+      ],
       "criteria": [
         {
           "id": "insulation",
@@ -65,10 +80,22 @@
       "figures": [
         {
           "primitive": "meter",
-          "params": {"value": 100, "unit": "MΩ", "min": 5, "max": 500, "label": "绝缘电阻"},
+          "params": {
+            "value": 100,
+            "unit": "MΩ",
+            "min": 5,
+            "max": 500,
+            "label": "绝缘电阻"
+          },
           "caption": "读数示例",
           "fallback_text": "绝缘电阻示例读数 100 MΩ，允许范围 5–500 MΩ。",
-          "motion": [{ "target": "needle", "anim": "draw", "duration": 900 }]
+          "motion": [
+            {
+              "target": "needle",
+              "anim": "draw",
+              "duration": 900
+            }
+          ]
         }
       ],
       "duration_s": 240
@@ -78,8 +105,12 @@
       "seq": 3,
       "title": "恢复供电并测量输入电压",
       "action": "恢复蓄电池开关，门控器上电。用万用表 DC 档测量门控器电源输入端的电压，待读数稳定后记录。",
-      "safety": ["上电前确认接插件已完全插到位"],
-      "tools": ["万用表（DC 档）"],
+      "safety": [
+        "上电前确认接插件已完全插到位"
+      ],
+      "tools": [
+        "万用表（DC 档）"
+      ],
       "criteria": [
         {
           "id": "input_voltage",
@@ -92,18 +123,43 @@
       ],
       "figures": [
         {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/multimeter/reading.webp",
+            "alt": "一台黄色万用表屏幕显示 110.3，红黑表笔分别搭在端子排的端子上"
+          },
+          "caption": "万用表读取输入电压",
+          "fallback_text": "万用表置直流电压档，表笔接输入端子，读数稳定后记录。"
+        },
+        {
           "primitive": "meter",
-          "params": {"value": 110, "unit": "V", "min": 77, "max": 137.5, "label": "输入电压"},
+          "params": {
+            "value": 110,
+            "unit": "V",
+            "min": 77,
+            "max": 137.5,
+            "label": "输入电压"
+          },
           "caption": "输入电压示例",
           "fallback_text": "输入电压示例读数 110 V，允许范围 77–137.5 V。",
-          "motion": [{ "target": "needle", "anim": "draw", "duration": 900 }]
+          "motion": [
+            {
+              "target": "needle",
+              "anim": "draw",
+              "duration": 900
+            }
+          ]
         },
-          {
-            "primitive": "device_scene",
-            "params": {"subject": "multimeter", "t": 0.78, "part": "screen"},
-            "caption": "万用表测输入电压（示意）",
-            "fallback_text": "档位置于直流电压档，红表笔接电源正极、黑表笔接公共端；两根笔都搭稳后读数才成立，之前显示 OL。"
-          }
+        {
+          "primitive": "device_scene",
+          "params": {
+            "subject": "multimeter",
+            "t": 0.78,
+            "part": "screen"
+          },
+          "caption": "万用表测输入电压（示意）",
+          "fallback_text": "档位置于直流电压档，红表笔接电源正极、黑表笔接公共端；两根笔都搭稳后读数才成立，之前显示 OL。"
+        }
       ],
       "duration_s": 180
     },
@@ -112,26 +168,53 @@
       "seq": 4,
       "title": "观察上电自检指示",
       "action": "上电后观察门控器自检指示灯与自检结果：灯常亮或按约定次数闪烁表示自检通过；出现报警指示则记录并停止后续步骤，转入异常处置。",
-      "tools": ["手电"],
+      "tools": [
+        "手电"
+      ],
       "criteria": [
         {
           "id": "selfcheck",
           "label": "自检指示状态",
           "type": "enum",
-          "options": ["通过", "报警"]
+          "options": [
+            "通过",
+            "报警"
+          ]
         }
       ],
       "figures": [
         {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/cabinet/breakers-panel.webp",
+            "alt": "配电柜面板上有四个断路器、一个接触器、四只继电器、三只指示灯与端子排，导线按线色区分"
+          },
+          "caption": "配电柜面板与自检指示",
+          "fallback_text": "上电后观察面板指示灯与断路器位置，确认自检通过。"
+        },
+        {
           "primitive": "status_light",
-          "params": {"state": "pass", "label": "自检通过"},
+          "params": {
+            "state": "pass",
+            "label": "自检通过"
+          },
           "caption": "状态指示",
           "fallback_text": "自检通过时指示灯常亮；出现报警指示即为异常，记录后停止。",
-          "motion": [{ "target": "lamp", "anim": "pulse", "duration": 1200 }]
+          "motion": [
+            {
+              "target": "lamp",
+              "anim": "pulse",
+              "duration": 1200
+            }
+          ]
         },
         {
           "primitive": "device_scene",
-          "params": { "subject": "cabinet", "t": 0.75, "part": "breakers" },
+          "params": {
+            "subject": "cabinet",
+            "t": 0.75,
+            "part": "breakers"
+          },
           "caption": "配电回路上电自检（示意）",
           "fallback_text": "上电自检时，三极断路器手柄均在合闸位、状态窗为红色，接触器吸合、继电器依次动作，运行指示转绿。"
         }
@@ -143,8 +226,13 @@
       "seq": 5,
       "title": "核对节点地址与软件版本",
       "action": "用调试终端读取门控器的网络节点地址与软件版本号，与本次作业的配置单逐项核对，记录实际读到的地址与版本。",
-      "safety": ["调试终端接入前确认接口定义，避免误插"],
-      "tools": ["调试终端", "配置单（演示）"],
+      "safety": [
+        "调试终端接入前确认接口定义，避免误插"
+      ],
+      "tools": [
+        "调试终端",
+        "配置单（演示）"
+      ],
       "criteria": [
         {
           "id": "node_info",
@@ -155,7 +243,11 @@
       "figures": [
         {
           "primitive": "wiring",
-          "params": {"terminals": "1-2-3", "wire_color": "棕/蓝/黄绿", "note": "仅示意调试接口端子顺序"},
+          "params": {
+            "terminals": "1-2-3",
+            "wire_color": "棕/蓝/黄绿",
+            "note": "仅示意调试接口端子顺序"
+          },
           "caption": "调试接口示意",
           "fallback_text": "调试接口端子顺序为 1、2、3，对应线色棕、蓝、黄绿；接错会读不到节点。"
         }
@@ -172,13 +264,24 @@
           "id": "result",
           "label": "判定结果",
           "type": "enum",
-          "options": ["合格", "超差", "复测"]
+          "options": [
+            "合格",
+            "超差",
+            "复测"
+          ]
         }
       ],
       "figures": [
         {
           "primitive": "checklist",
-          "params": {"items": ["绝缘电阻已测且合格", "输入电压在范围内", "自检通过、无报警", "节点地址与版本已核对"]},
+          "params": {
+            "items": [
+              "绝缘电阻已测且合格",
+              "输入电压在范围内",
+              "自检通过、无报警",
+              "节点地址与版本已核对"
+            ]
+          },
           "caption": "收尾核对清单",
           "fallback_text": "收尾核对：绝缘、输入电压、自检、节点信息四项全部通过才判合格。"
         }
@@ -186,5 +289,8 @@
       "duration_s": 120
     }
   ],
-  "disclaimers": ["演示数据 · 非实际作业依据", "AI 生成内容，需专业人员复核"]
+  "disclaimers": [
+    "演示数据 · 非实际作业依据",
+    "AI 生成内容，需专业人员复核"
+  ]
 }
