@@ -30,6 +30,7 @@ import {
   CanvasTexture,
   CatmullRomCurve3,
   BoxGeometry,
+  CircleGeometry,
   CylinderGeometry,
   DoubleSide,
   EdgesGeometry,
@@ -572,16 +573,18 @@ export function buildPantograph(): DeviceRig {
   const panelX = 0.96
   const panelY = 0.28
   const panelZ = 0.46
-  const panelFace = roundedBox(0.03, 0.42, 0.62, paintedMaterial(0x6a7076), panelX, panelY, panelZ, 0.008)
+  /* 板从 0.62×0.42 收到 0.54×0.38：11 个元件的 z 跨距是 0.52、y 跨距 0.36，
+     板比元件大一圈时，画面里就是"一块空板上零星几个小方块"。 */
+  const panelFace = roundedBox(0.03, 0.38, 0.54, paintedMaterial(0x6a7076), panelX, panelY, panelZ, 0.008)
   panelFace.name = 'panto-panel-face'
   drive.add(panelFace)
   /* 支架：板不是浮在车顶上的——两根立柱落到车顶，一根横撑连回底架。 */
-  for (const z of [panelZ - 0.24, panelZ + 0.24]) {
+  for (const z of [panelZ - 0.20, panelZ + 0.20]) {
     drive.add(roundedBox(0.07, panelY + 0.2, 0.04, frameMat, panelX - 0.02, (panelY + 0.2) / 2, z, 0.005))
   }
   drive.add(roundedBox(0.42, 0.05, 0.05, frameMat, panelX - 0.22, DECK_Y + 0.03, panelZ, 0.006))
   // 汇流排：所有阀都挂在同一根气路上
-  drive.add(roundedBox(0.05, 0.05, 0.54, paintedMaterial(0x7c8288), panelX + 0.02, panelY + 0.16, panelZ, 0.008))
+  drive.add(roundedBox(0.05, 0.05, 0.46, paintedMaterial(0x7c8288), panelX + 0.02, panelY + 0.16, panelZ, 0.008))
 
   const coil = (x: number, y: number, z: number, c: number): Mesh => {
     const m = new Mesh(new CylinderGeometry(0.02, 0.02, 0.05, 14), paintedMaterial(c))
@@ -598,8 +601,18 @@ export function buildPantograph(): DeviceRig {
   const body = (w: number, h: number, d: number, x: number, y: number, z: number, c = 0x9aa0a6): Mesh =>
     roundedBox(w, h, d, paintedMaterial(c), x, y, z, 0.006)
 
+  /* 元件组：**必须整体沿 z 平移 panelZ**。
+     元件坐标是相对板面写的（z = -0.30 ~ +0.22），而板后来搬到了 panelZ = 0.46。
+     2026-11-11 宽幅重渲时发现：板在 z ∈ [0.15, 0.77]，元件在 [-0.30, 0.22]，
+     两者只重叠 7cm —— 也就是说 11 个阀门压力表全都**悬在板旁边的空气里**，
+     从任何角度看都只是"板边上露几个小方块"。这就是"气阀板看不到元件"的真正原因，
+     不是朝向问题。 */
+  const panelRig = new Group()
+  panelRig.position.z = panelZ + 0.02
+  drive.add(panelRig)
+
   // 1 过滤阀（带透明杯）
-  drive.add(body(0.07, 0.1, 0.07, panelX + 0.05, panelY + 0.11, -0.22, 0x8b9197))
+  panelRig.add(body(0.07, 0.1, 0.07, panelX + 0.05, panelY + 0.11, -0.22, 0x8b9197))
   const bowl = new Mesh(
     new CylinderGeometry(0.032, 0.028, 0.07, 16),
     new MeshStandardMaterial({
@@ -612,30 +625,30 @@ export function buildPantograph(): DeviceRig {
   )
   bowl.rotation.z = Math.PI / 2
   bowl.position.set(panelX + 0.09, panelY + 0.06, -0.22)
-  drive.add(bowl)
+  panelRig.add(bowl)
   // 2 两位五通电磁阀（阀体 + 两个线圈）
-  drive.add(body(0.06, 0.06, 0.15, panelX + 0.05, panelY - 0.08, -0.06, 0x3f444a))
-  drive.add(coil(panelX + 0.09, panelY - 0.08, -0.12, 0x2f3438))
-  drive.add(coil(panelX + 0.09, panelY - 0.08, 0.0, 0x2f3438))
+  panelRig.add(body(0.06, 0.06, 0.15, panelX + 0.05, panelY - 0.08, -0.06, 0x3f444a))
+  panelRig.add(coil(panelX + 0.09, panelY - 0.08, -0.12, 0x2f3438))
+  panelRig.add(coil(panelX + 0.09, panelY - 0.08, 0.0, 0x2f3438))
   // 3 / 5 精密调压阀（两只，带调节旋钮）
   for (const [z, y] of [
     [-0.22, 0.1],
     [0.14, 0.1],
   ] as const) {
-    drive.add(body(0.06, 0.09, 0.06, panelX + 0.05, y - 0.05, z, 0xb0b6bb))
-    drive.add(knob(panelX + 0.1, y - 0.05, z))
+    panelRig.add(body(0.06, 0.09, 0.06, panelX + 0.05, y - 0.05, z, 0xb0b6bb))
+    panelRig.add(knob(panelX + 0.1, y - 0.05, z))
   }
   // 4 / 11 压力开关（两只，小的方形盒，顶部两个端子）
   for (const [z, y] of [
     [-0.22, -0.02],
     [0.14, -0.02],
   ] as const) {
-    drive.add(body(0.055, 0.05, 0.05, panelX + 0.05, y, z, 0x2f3438))
+    panelRig.add(body(0.055, 0.05, 0.05, panelX + 0.05, y, z, 0x2f3438))
     for (const dz of [-0.012, 0.012]) {
       const t = new Mesh(new CylinderGeometry(0.004, 0.004, 0.012, 8), fitting)
       t.rotation.z = Math.PI / 2
       t.position.set(panelX + 0.08, y + 0.03, z + dz)
-      drive.add(t)
+      panelRig.add(t)
     }
   }
   // 6 梭阀（三通）
@@ -647,23 +660,23 @@ export function buildPantograph(): DeviceRig {
     b.position.set(panelX + 0.05, panelY - 0.02, 0.06 + dz)
     shuttle.add(b)
   }
-  drive.add(shuttle)
+  panelRig.add(shuttle)
   // 7 节流阀（两只单向调速，升/降各一）
   for (const z of [-0.3, 0.22]) {
-    drive.add(body(0.045, 0.06, 0.045, panelX + 0.05, panelY + 0.03, z, 0xb0b6bb))
+    panelRig.add(body(0.045, 0.06, 0.045, panelX + 0.05, panelY + 0.03, z, 0xb0b6bb))
     const screw = new Mesh(new CylinderGeometry(0.008, 0.008, 0.03, 8), chrome)
     screw.rotation.z = Math.PI / 2
     screw.position.set(panelX + 0.075, panelY + 0.03, z)
-    drive.add(screw)
+    panelRig.add(screw)
   }
   // 8 安全阀
-  drive.add(body(0.04, 0.07, 0.04, panelX + 0.05, panelY - 0.12, 0.22, 0xb23b32))
+  panelRig.add(body(0.04, 0.07, 0.04, panelX + 0.05, panelY - 0.12, 0.22, 0xb23b32))
   // 10 快排电磁阀 SA
-  drive.add(body(0.06, 0.06, 0.09, panelX + 0.05, panelY - 0.1, -0.2, 0x3f444a))
-  drive.add(coil(panelX + 0.09, panelY - 0.1, -0.2, 0x2f3438))
+  panelRig.add(body(0.06, 0.06, 0.09, panelX + 0.05, panelY - 0.1, -0.2, 0x3f444a))
+  panelRig.add(coil(panelX + 0.09, panelY - 0.1, -0.2, 0x2f3438))
 
   /* 9 压力表：表盘用画布画，刻度才看得清。 */
-  const gaugeR = 0.058
+  const gaugeR = 0.066
   const dialCanvas = document.createElement('canvas')
   dialCanvas.width = 256
   dialCanvas.height = 256
@@ -696,26 +709,31 @@ export function buildPantograph(): DeviceRig {
   dialTex.colorSpace = SRGBColorSpace
   dialTex.needsUpdate = true
   textures.push(dialTex)
-  /* 材质组顺序是 [侧面, 顶盖, 底盖]。表盘必须挂在顶盖上，
-     挂到索引 0 会把表盘卷在圆柱侧面上——第一版就是这样。 */
-  const dial = new Mesh(new CylinderGeometry(gaugeR, gaugeR, 0.012, 32), [
-    chromeMaterial(),
-    new MeshStandardMaterial({ color: 0xffffff, metalness: 0, roughness: 0.55, map: dialTex }),
-    chromeMaterial(),
-  ])
-  dial.rotation.z = deg(-90)
-  dial.position.set(panelX + 0.05, panelY + 0.24, 0.08)
-  drive.add(dial)
-  const bezel = new Mesh(new CylinderGeometry(gaugeR + 0.01, gaugeR + 0.01, 0.018, 28), chromeMaterial())
-  bezel.rotation.z = deg(-90)
-  bezel.position.copy(dial.position)
-  drive.add(bezel)
+  /* 表盘用**单面圆片**，不用「圆柱 + 三材质组」：
+     多材质网格导出 glTF 时会按材质拆成多个 primitive，实测圆盘面在导出后丢了贴图，
+     只剩镀铬侧面——表盘在渲染里变成一团石纹，刻度与 MPa 字样全无。
+     面片只有一个材质，导出无损。 */
+  const gaugeAt = new Vector3(panelX + 0.05, panelY + 0.12, 0.18)
+  const bezel = new Mesh(
+    new CylinderGeometry(gaugeR + 0.009, gaugeR + 0.009, 0.02, 28),
+    paintedMaterial(0x2a2e33),
+  )
+  bezel.rotation.z = deg(90)
+  bezel.position.copy(gaugeAt)
+  panelRig.add(bezel)
+  const dial = new Mesh(
+    new CircleGeometry(gaugeR, 32),
+    new MeshStandardMaterial({ color: 0xffffff, metalness: 0, roughness: 0.9, map: dialTex }),
+  )
+  dial.rotation.y = deg(90)
+  dial.position.copy(gaugeAt).setX(gaugeAt.x + 0.011)
+  panelRig.add(dial)
   const needlePivot = new Group()
-  needlePivot.position.set(panelX + 0.046, panelY + 0.24, 0.08)
+  needlePivot.position.set(gaugeAt.x + 0.014, gaugeAt.y, gaugeAt.z)
   needlePivot.add(
     roundedBox(0.003, gaugeR * 0.76, 0.005, paintedMaterial(0xb23b32), 0, gaugeR * 0.3, 0, 0.001),
   )
-  drive.add(needlePivot)
+  panelRig.add(needlePivot)
 
   /* 接近开关 ×2（升弓到位 / 落弓到位）。真机没有"到位指示灯"，状态由读数面板表达。 */
   const lampGroup = new Group()
