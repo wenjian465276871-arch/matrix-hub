@@ -405,6 +405,35 @@ export function buildCabinet(): DeviceRig {
   parts.terminals = terminals
   root.add(terminals)
 
+  /* ------------------------------------------------------------ 梳齿线槽 */
+  /* 2026-11-12（本人：配电柜"没有线槽也没有扎带"，与空调那边的口径不一致）：
+     柜内一排元件、几根散线，本质还是个"零件展柜"。真实低压配电柜在元件之间
+     一定有一条**梳齿线槽**：导线先进槽、再从齿缝分到各元件，槽的存在本身就是
+     "线有固定"的证据。
+     位置取"走线高度" y=0.37——继电器的顶（0.305）与断路器下端子（0.462）之间，
+     刚好是几根线原来横穿的那一段；线进了槽就看不见，露出来的是进槽的落差
+     和出槽后接向接触器的那一段。 */
+  const ductMat = paintedMaterial(0x7d8489)
+  const duct = new Group()
+  const DUCT = { y: 0.37, h: 0.07, x0: -0.34, x1: 0.44, z: 0.016 }
+  const ductLen = DUCT.x1 - DUCT.x0
+  // 槽底（贴安装背板）+ 上下两条侧壁
+  duct.add(roundedBox(ductLen, DUCT.h, 0.006, ductMat, (DUCT.x0 + DUCT.x1) / 2, DUCT.y, DUCT.z, 0.001))
+  for (const dy of [-1, 1]) {
+    duct.add(
+      roundedBox(ductLen, 0.008, 0.048, ductMat, (DUCT.x0 + DUCT.x1) / 2, DUCT.y + dy * (DUCT.h / 2 - 0.004), DUCT.z + 0.027, 0.001),
+    )
+  }
+  /* 梳齿：**细密**。第一版 26 根、齿宽 13mm，渲出来像一排梯子格栅——
+     线从齿缝里透出来，反倒像"贴在槽面上"。真实线槽的齿是 5~8mm、缝 4~6mm，
+     密到远看是一道竖纹，线只在缝里露一点。 */
+  const TEETH = 64
+  for (let i = 0; i < TEETH; i += 1) {
+    const tx = DUCT.x0 + 0.012 + (i * (ductLen - 0.024)) / (TEETH - 1)
+    duct.add(roundedBox(0.007, DUCT.h - 0.014, 0.005, ductMat, tx, DUCT.y, DUCT.z + 0.05, 0.001))
+  }
+  board.add(duct)
+
 
   /* ------------------------------------------------------------ 导线 */
   /* 配电柜最有「电气味」的东西是线。没有线，一排元件只是零件展柜。
@@ -422,7 +451,9 @@ export function buildCabinet(): DeviceRig {
     const x0 = -0.26 + dx
     const y0 = 0.462
     const x1 = landingX[i]
-    const dropY = 0.37 - i * 0.022
+    /* 三条线在槽内的分层高度：必须落在槽腔（0.335~0.405）里，
+       否则线会从槽底穿出去、在槽下面露出一截"凭空出现"的线头。 */
+    const dropY = 0.378 - i * 0.012
     const material = new MeshStandardMaterial({
       color: phaseColors[i],
       metalness: 0.05,
