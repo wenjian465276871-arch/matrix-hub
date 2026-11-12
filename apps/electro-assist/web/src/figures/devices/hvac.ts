@@ -28,7 +28,9 @@
  */
 import {
   CatmullRomCurve3,
+  Color,
   CylinderGeometry,
+  Euler,
   Group,
   Mesh,
   MeshStandardMaterial,
@@ -51,7 +53,7 @@ import {
   steelMaterial,
 } from './rig'
 import { canvasTexture, facePlate } from './print'
-import { phaseFor } from '../../lib/devphase'
+import { HVAC_T, phaseFor } from '../../lib/devphase'
 
 /* ------------------------------------------------------------------ 尺寸 */
 
@@ -83,6 +85,13 @@ const CASING = 0xb9c0c6
 const CASING_DARK = 0x8b9298
 const FRAME = 0x686f75
 const FIN = 0x9a8c7c
+/** 结露后的翅片色。
+ *  不是"结霜"——制冷工况下翅片在露点以下、结的是**水膜**：比金属暗一档、
+ *  偏冷灰蓝、而且很亮（水膜反光）。第一版刷成近白 `0xd2e2e8`，远看像一块
+ *  白塑料板，翅片层次全糊了。 */
+const FROST = 0x84979f
+const FIN_COLOR = new Color(FIN)
+const FROST_COLOR = new Color(FROST)
 
 /* -------------------------------------------------------------- 小工具 */
 
@@ -264,6 +273,9 @@ export function buildHvac(): DeviceRig {
     roughness: 0.62,
     envMapIntensity: 0.9,
   })
+  /* 蒸发器**单独一份**翅片材质：制冷时它要结露变白。
+     共用 `finMat` 会把冷凝器也一起染白（那是散热侧，本来就不该结露）。 */
+  const evapFinMat = finMat.clone()
   const copper = new MeshStandardMaterial({
     color: 0xb26b3c,
     metalness: 1,
@@ -522,11 +534,13 @@ export function buildHvac(): DeviceRig {
   evaporator.add(drainPan)
 
   // V 形蒸发器：两片斜置翅片盘管，上缘相接
+  const evapPacks: Array<{ sign: number; pack: Group }> = []
   for (const sign of [-1, 1]) {
-    const pack = finPack(evaporator, 0.8, 0.28, 0.07, 12, finMat, copper)
+    const pack = finPack(evaporator, 0.8, 0.28, 0.07, 12, evapFinMat, copper)
     pack.position.set(0, BOTTOM + 0.2, sign * 0.19)
     pack.rotation.x = sign * 0.34
     pack.rotation.z = 0
+    evapPacks.push({ sign, pack })
   }
   /* 原来这里有一块"挡水板"横在 V 形盘管上方——第 4 步要看的就是盘管，
      一块白板把整个蒸发段盖死，图里只剩白板。真实机组的挡水板贴在盘管
@@ -534,6 +548,46 @@ export function buildHvac(): DeviceRig {
   for (const z of [-0.24, 0.24]) {
     evaporator.add(roundedBox(0.82, 0.01, 0.05, steelMaterial(0xa8adb1), 0, BOTTOM + 0.315, z, 0.002))
   }
+
+  /* 结露（制冷段才出现）：翅片外侧挂水珠 + 接水盘积水。
+     2026-11-12 R11-7：0.68 之后画面原本一动不动，而阶段文案已经在说
+     "制冷模式起动 / 稳定运行"——文案在说、画面不动。真实机组制冷时
+     蒸发器翅片挂满凝水、水顺着落进接水盘，这是"制冷"唯一看得见的证据。
+     水珠挂在外侧面（`sign` 决定哪一侧是外侧），否则会被另一片盘管挡住。 */
+  const condensate = new Group()
+  evaporator.add(condensate)
+  const waterMat = paintedMaterial(0xb9d3dc)
+  waterMat.roughness = 0.18
+  /* 水珠：**小、多、错落**。第一版是 7 颗 ø28mm 排成一条直线，看着像装饰铆钉，
+     不像凝水。真实结露是密密麻麻的小珠子，越往下越大。位置用下标算出来的
+     伪随机（不能用 Math.random——导出要可复现，每次烘图必须一模一样）。 */
+  for (const { sign, pack } of evapPacks) {
+    /* 位置用哈希式伪随机（`sin*43758` 取小数位）：
+       用 `(i*37)%13` 那种线性取模会排出斜向的珠链——上一版就是这样，
+       远看像粘了一条条珠串，反而不像水。 */
+    const h = (n: number): number => {
+      const v = Math.sin(n * 127.1) * 43758.5453
+      return v - Math.floor(v)
+    }
+    for (let i = 0; i < 34; i += 1) {
+      const x = -0.33 + h(i * 1.7) * 0.66
+      const y = -0.09 + h(i * 3.1 + 11) * 0.18
+      // 越往下越大：凝水顺着翅片往下聚
+      const r = 0.0038 + h(i * 5.7 + 3) * 0.0026 + (y < -0.04 ? 0.0012 : 0)
+      for (const face of [-1, 1]) {
+        const local = new Vector3(x, y, face * 0.042)
+        local.applyEuler(new Euler(sign * 0.34, 0, 0)).add(pack.position)
+        const drop = new Mesh(new SphereGeometry(r, 8, 6), waterMat)
+        drop.position.copy(local)
+        // 扁一点、竖着拉长：贴面挂着的水珠不是正球
+        drop.scale.set(1, 1.55, 0.42)
+        condensate.add(drop)
+      }
+    }
+  }
+  // 接水盘积水：一块薄水面，随制冷进度上升一点（0.68 起 0，0.9 到顶）
+  const water = roundedBox(XC2 - XC1 - 0.16, 0.008, 0.3, waterMat, (XC1 + XC2) / 2, BOTTOM + 0.082, 0, 0.002)
+  condensate.add(water)
 
   // 两台离心送风机：分列蒸发器两侧，出口朝 Z 外侧
   for (const z of [-0.57, 0.57]) {
@@ -858,6 +912,23 @@ export function buildHvac(): DeviceRig {
     // 风机：0.5 起加速（送风机与冷凝风机同时），0.58 后满速
     const spin = t >= 0.5 ? 0.2 + smoothStep(seg(t, 0.5, 0.58)) * 1.8 : 0
     for (const f of fanRig) f.rotor.rotation.y = spin * Math.PI
+
+    /* 制冷段：翅片结露 + 接水盘积水（2026-11-12 R11-7）。
+       这一段原来画面**完全不动**——盖板/盒盖/断路器/指示灯/风机都在 0.5 之前
+       动完，而文案从「通风模式运行」切到「制冷模式起动」。真实机组制冷时
+       蒸发器翅片挂满凝水，是"制冷"唯一看得见的证据。
+       翅片只换色不动形：金属度降、粗糙度升，看着像挂了一层水膜。 */
+    const cool = smoothStep(seg(t, HVAC_T.cool, HVAC_T.cool + 0.1))
+    evapFinMat.color.copy(FIN_COLOR).lerp(FROST_COLOR, cool)
+    // 水膜：金属感降一档（水是介质）、粗糙度大幅降（反光），颜色走冷灰蓝
+    evapFinMat.metalness = 0.85 - 0.35 * cool
+    evapFinMat.roughness = 0.62 - 0.4 * cool
+    evapFinMat.envMapIntensity = 0.9 + 0.5 * cool
+    condensate.visible = cool > 0.02
+    // 接水盘的水位：0.68 起涨，0.92 到顶（对应"制冷稳定"那一段）
+    const wet = smoothStep(seg(t, HVAC_T.cool, 0.92))
+    water.scale.y = 0.4 + 0.6 * wet
+    water.position.y = BOTTOM + 0.078 + 0.012 * wet
   }
 
   /* 阶段文案的唯一来源在 `lib/devphase.ts`：同一句话不该在这里再写一遍。
