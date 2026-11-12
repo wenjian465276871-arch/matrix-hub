@@ -90,10 +90,24 @@ def _with_usage(
 
 
 def _format_validation_error(exc: ValidationError) -> str:
+    """把 pydantic 的错误整理成"给模型看、也给人看"的几行。
+
+    **必须带上收到的值**（pydantic 的 `msg` 只说要什么、不说收到了什么）。
+    少了它，修复提示词等于在说"某个字段错了，请自己找"——模型只能猜；
+    上一次重试能救回图的前提，正是它知道 `primitive` 被写成了 `hologram`。
+    只回显标量：对象/数组打印出来是几百字符的噪声，反而挤掉真正的原因。
+    """
     lines = []
     for err in exc.errors()[:5]:
         loc = ".".join(str(p) for p in err["loc"])
-        lines.append(f"- {loc or '<root>'}：{err['msg']}")
+        msg = err["msg"]
+        got = err.get("input")
+        if isinstance(got, (str, int, float, bool)) or got is None:
+            shown = "null" if got is None else str(got)
+            if len(shown) > 40:
+                shown = shown[:40] + "…"
+            msg = f"{msg}（收到：{shown}）"
+        lines.append(f"- {loc or '<root>'}：{msg}")
     return "\n".join(lines)
 
 
@@ -156,6 +170,30 @@ def _strip_invalid_motion(payload: dict) -> list[str]:
         figure["motion"] = kept
 
     return notes
+
+
+def _is_visual_param_error(exc: ValidationError) -> bool:
+    """这次校验失败是否属于「图示参数写错」这一类。
+
+    为什么要先分类再决定"重试还是降级"：只有这一类重试才有意义——模型手里有
+    字段名与期望值（"device_scene.subject 必须是 [...]"），重写一次通常就能把
+    那张图救回来；而「缺步骤 / 类型错 / 正文缺字段」重写一次的期望收益很低，
+    仍按老路先降级，不为它多烧一次调用（线上单次约 30s、¥0.05）。
+
+    判据用 loc 而不是错误文案：文案会随措辞改，`loc` 是 pydantic 的结构事实。
+    `figures` 覆盖原语枚举与整张图的语义校验，`params` 覆盖参数越界/缺键。
+
+    **动效错误排除在外**：挂错槽位的动效有现成的确定性剔除（`_strip_invalid_motion`），
+    图还在、只丢一格效果，为它再烧一次调用不划算（2026-11-02 线上事故的教训：
+    "只错一条动效不该整份作废"，同理也不该为它重跑）。
+    """
+    for err in exc.errors():
+        loc = err.get("loc") or ()
+        if "motion" in loc:
+            continue
+        if "figures" in loc or "params" in loc:
+            return True
+    return False
 
 
 def _salvage(payload: dict) -> tuple[Guide | None, list[str]]:
@@ -253,6 +291,9 @@ def generate_guide(
     attempts = 0
     last_error: LLMError | None = None
     repairs: list[str] = []
+    # 「图示参数写错 → 先让模型改一次，再降级」只给一次机会。没有这个标记，
+    # 两轮都写错时会一直走修复提示词，永远轮不到逐张丢弃那一档。
+    retried_visual = False
 
     for attempt in range(1, max_attempts + 1):
         remaining = deadline - clock()
@@ -323,6 +364,28 @@ def generate_guide(
                 if isinstance(exc, ValidationError)
                 else f"- 无法解析 JSON：{exc}"
             )
+            # 2026-11-12 第五轮评审 R11-2：**图示参数写错时，先给模型一次改的机会**。
+            # 起因：模型只把一个 `t` 写成 1.5、或把一个原语名写错，整张图就被下面的
+            # 确定性降级直接丢掉——而那张图往往正是这一步的信息载体。既然手里已经有
+            # "哪个字段、期望什么"的明确错误，重写一次的命中率远高于重跑整份。
+            # 代价：这类失败多一次调用（约 30s / ¥0.05），换来的是图不丢。
+            # 非图示类错误（结构/正文）不在此列：重写收益低，仍走"先降级"。
+            if (
+                isinstance(exc, ValidationError)
+                and not retried_visual
+                and attempt < max_attempts
+                and _is_visual_param_error(exc)
+            ):
+                retried_visual = True
+                repairs.append(detail)
+                log.warning(
+                    "图示参数未通过校验，先重试一次 job 第 %d 次调用：%s",
+                    attempt,
+                    detail.splitlines()[0] if detail else exc.__class__.__name__,
+                )
+                prompt = repair_prompt(cleaned, completion.text, detail)
+                continue
+
             # 先试确定性降级：图示/动效是表达层，不值得为它重跑整份。
             # 降级后能过校验就直接用，省下一次模型调用（线上实测约 30s、¥0.05）。
             salvaged, notes = _salvage(payload) if isinstance(payload, dict) else (None, [])

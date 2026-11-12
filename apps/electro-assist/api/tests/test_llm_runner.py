@@ -103,28 +103,9 @@ def test_source_note_can_be_supplied():
     assert draft.guide.meta.source_note.startswith("依据《公开检修资料》")
 
 
-def test_metadata_is_overwritten_by_server():
-    """溯源字段必须由服务端写死。
-
-    实测中模型会把 source_note 写成"依据公开资料整理"——它没有检索能力，
-    这句话是凭空生成的。model 也会填"未指定"。这类字段一旦信模型就是合规风险。
-    """
-    provider = FakeProvider([VALID])
-    draft = generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=Clock())
-
-    assert draft.guide.meta.model == "fake"          # 来自 Completion.model
-    assert draft.guide.meta.source_note == "由用户输入的工艺文本生成（演示用途）"
-    assert draft.guide.meta.generated_at.year >= 2026
-
-
-def test_source_note_can_be_supplied():
-    provider = FakeProvider([VALID])
-    draft = generate_guide(
-        provider, "测量车门关闭间隙，允许 1.0-3.0 mm。",
-        clock=Clock(), source_note="依据《公开检修资料》改写，演示用途",
-    )
-    assert draft.guide.meta.source_note.startswith("依据《公开检修资料》")
-
+# 2026-11-12：这里原本还粘贴了一份 test_metadata_is_overwritten_by_server +
+# test_source_note_can_be_supplied（同名函数定义两次，前者被后者覆盖、从未执行）。
+# 已去重；四条断言本来就只有一份在跑，行为无变化。
 
 def test_invalid_then_repaired():
     provider = FakeProvider(['{"id": "g_bad"}', VALID])  # 第一次缺字段
@@ -290,24 +271,71 @@ def test_bad_motion_is_degraded_without_retry():
     assert any(fig.primitive.value == "meter" for fig in figures)
 
 
-def test_broken_figure_falls_back_to_text_only():
-    """图示本身不合法 → **只去掉那一张**，同一步的其它图示与正文都保住。
-
-    2026-11-10 评审 P2-3：上一版丢掉的是"出错那一步的全部图示"，一张坏图会连
-    同一步的仪表、状态灯一起带走。现在逐张试探，所以这里特意在坏图后面放一张
-    合法图，断言它活下来。
-    """
+def _payload_with_unknown_primitive() -> str:
+    """第 1 步放一张原语名不存在的图（枚举未命中），后面跟一张合法图。"""
     data = json.loads(VALID)
     data["steps"][0]["figures"] = [
         {"primitive": "hologram", "params": {}, "fallback_text": "不存在的原语"},
         {"primitive": "checklist", "params": {"items": ["断电验电"]}, "fallback_text": "清单"},
     ]
-    provider = FakeProvider([json.dumps(data, ensure_ascii=False)])
+    return json.dumps(data, ensure_ascii=False)
+
+
+def _payload_with_unknown_primitive_fixed() -> str:
+    """同一份的第 2 版：把非法原语换成合法仪表，其余不动。
+
+    用它模拟"模型第一次把原语名写错、拿到修复提示词后改对了"。
+    """
+    data = json.loads(VALID)
+    data["steps"][0]["figures"] = [
+        {
+            "primitive": "meter",
+            "params": {"label": "关闭间隙", "min": 1.0, "max": 3.0, "unit": "mm"},
+            "fallback_text": "仪表",
+        },
+        {"primitive": "checklist", "params": {"items": ["断电验电"]}, "fallback_text": "清单"},
+    ]
+    return json.dumps(data, ensure_ascii=False)
+
+
+def test_bad_figure_retries_once_before_dropping():
+    """图示参数写错 → **先让模型改一次**，改对了那张图就不该被丢。
+
+    2026-11-12 第五轮评审 R11-2：上一版是"校验失败 → 立刻确定性降级"，
+    模型只写错一个原语名，那张图就被丢掉。既然手里已经有"哪个字段、期望什么"
+    的明确错误，一次重写的命中率远高于重跑整份——这条例用假 Provider 钉住它：
+    第 1 次非法、第 2 次合法 → 图保住、没走丢弃路径。
+    """
+    provider = FakeProvider([_payload_with_unknown_primitive(), _payload_with_unknown_primitive_fixed()])
 
     draft = generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=Clock())
 
-    assert draft.attempts == 1
-    assert len(provider.calls) == 1
+    assert draft.attempts == 2
+    assert len(provider.calls) == 2
+    assert draft.repaired is True
+    # 图没有被丢掉：第 1 步仍是两张（仪表 + 清单）
+    assert [f.primitive.value for f in draft.guide.steps[0].figures] == ["meter", "checklist"]
+    assert not any("不合法，已去掉" in note for note in draft.repairs)
+    # 第一次的具体错误要留痕，否则"重试过一次"在界面上看不出来
+    assert any("hologram" in note for note in draft.repairs)
+    # 第二次调用必须带着错误说明去改，不是原样重发
+    assert provider.calls[1]["user"] != provider.calls[0]["user"]
+    assert "hologram" in provider.calls[1]["user"]
+
+
+def test_broken_figure_retries_then_falls_back_to_text_only():
+    """改了一次仍然不合法 → 才逐张丢弃，同一步的其它图示与正文都保住。
+
+    2026-11-10 评审 P2-3 的"逐张丢弃"仍然有效，只是现在排在重试之后；
+    2026-11-12 第五轮 R11-2 把它从"第一动作"改成"兜底动作"。
+    """
+    bad = _payload_with_unknown_primitive()
+    provider = FakeProvider([bad, bad])
+
+    draft = generate_guide(provider, "测量车门关闭间隙，允许 1.0-3.0 mm。", clock=Clock())
+
+    assert draft.attempts == 2
+    assert len(provider.calls) == 2
     # 说明里要点出是哪张图，否则用户不知道该改哪儿
     assert any("hologram" in note and "不合法" in note for note in draft.repairs)
     assert [f.primitive.value for f in draft.guide.steps[0].figures] == ["checklist"]
