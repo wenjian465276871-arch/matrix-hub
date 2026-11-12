@@ -50,30 +50,37 @@ exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > check
 `;
 
 exports[`13 个视觉原语的渲染（真实参数 + 结构与快照） > connector：渲染出 SVG 且关键文本在位 1`] = `
-"<svg viewBox="0 0 308 160" role="img" aria-label="接插件针脚 X1-1 电源正、X1-2 电源负、X1-3 自检回馈、X2-2 零速安全、X2-3 信号公共、X3-1 内钥匙、X3-2 外钥匙" preserveAspectRatio="xMidYMid meet">
+"<svg viewBox="0 0 344 166" role="img" aria-label="接插件针脚 X1-1 电源正、X1-2 电源负、X1-3 自检回馈、X2-2 零速安全、X2-3 信号公共、X3-1 内钥匙、X3-2 外钥匙" preserveAspectRatio="xMidYMid meet">
   <title>接插件针脚 X1-1 电源正、X1-2 电源负、X1-3 自检回馈、X2-2 零速安全、X2-3 信号公共、X3-1 内钥匙、X3-2 外钥匙</title>
-  <rect x="8" y="14" width="292" height="120" rx="10" stroke-width="2" class="fig-surface fig-stroke-ink2"></rect>
+  <rect x="8" y="14" width="328" height="126" rx="10" stroke-width="2" class="fig-surface fig-stroke-ink2"></rect>
   <g>
-    <rect x="22" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="37" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X1-1 电源正</text>
+    <!-- 位号：方框按这一列的位号宽度撑开，居中 -->
+    <rect x="16.4" y="26" width="41.2" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="37" y="41" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X1-1</text><!-- 功能：写在框下，不再挤进框里 --><text x="37" y="69" text-anchor="middle" font-size="11" class="fig-ink3">电源正</text>
   </g>
   <g>
-    <rect x="66" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="81" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X1-2 电源负</text>
+    <!-- 位号：方框按这一列的位号宽度撑开，居中 -->
+    <rect x="70.4" y="26" width="41.2" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="91" y="41" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X1-2</text><!-- 功能：写在框下，不再挤进框里 --><text x="91" y="69" text-anchor="middle" font-size="11" class="fig-ink3">电源负</text>
   </g>
   <g>
-    <rect x="110" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="125" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X1-3 自检回馈</text>
+    <!-- 位号：方框按这一列的位号宽度撑开，居中 -->
+    <rect x="124.4" y="26" width="41.2" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="145" y="41" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X1-3</text><!-- 功能：写在框下，不再挤进框里 --><text x="145" y="69" text-anchor="middle" font-size="11" class="fig-ink3">自检回馈</text>
   </g>
   <g>
-    <rect x="154" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="169" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X2-2 零速安全</text>
+    <!-- 位号：方框按这一列的位号宽度撑开，居中 -->
+    <rect x="178.4" y="26" width="41.2" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="199" y="41" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X2-2</text><!-- 功能：写在框下，不再挤进框里 --><text x="199" y="69" text-anchor="middle" font-size="11" class="fig-ink3">零速安全</text>
   </g>
   <g>
-    <rect x="198" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="213" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X2-3 信号公共</text>
+    <!-- 位号：方框按这一列的位号宽度撑开，居中 -->
+    <rect x="232.4" y="26" width="41.2" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="253" y="41" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X2-3</text><!-- 功能：写在框下，不再挤进框里 --><text x="253" y="69" text-anchor="middle" font-size="11" class="fig-ink3">信号公共</text>
   </g>
   <g>
-    <rect x="242" y="28" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="257" y="43" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X3-1 内钥匙</text>
+    <!-- 位号：方框按这一列的位号宽度撑开，居中 -->
+    <rect x="286.4" y="26" width="41.2" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="307" y="41" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X3-1</text><!-- 功能：写在框下，不再挤进框里 --><text x="307" y="69" text-anchor="middle" font-size="11" class="fig-ink3">内钥匙</text>
   </g>
   <g>
-    <rect x="22" y="80" width="30" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="37" y="95" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X3-2 外钥匙</text>
-  </g><text x="8" y="152" font-size="11" class="fig-ink3">针脚定义按公开资料改写，仅示意顺序</text>
+    <!-- 位号：方框按这一列的位号宽度撑开，居中 -->
+    <rect x="16.4" y="82" width="41.2" height="30" rx="4" stroke-width="1" class="fig-track fig-stroke-line"></rect><text x="37" y="97" text-anchor="middle" dominant-baseline="central" font-size="13" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" class="fig-ink">X3-2</text><!-- 功能：写在框下，不再挤进框里 --><text x="37" y="125" text-anchor="middle" font-size="11" class="fig-ink3">外钥匙</text>
+  </g><text x="8" y="158" font-size="11" class="fig-ink3">针脚定义按公开资料改写，仅示意顺序</text>
 </svg>"
 `;
 

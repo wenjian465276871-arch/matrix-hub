@@ -41,8 +41,9 @@ const part = computed(() => {
   return typeof raw === 'string' ? raw : ''
 })
 
-/** 默认 0.6 只在 `t` 缺失时兜底（服务端已把 `t` 列为必填，正常数据不会走到这里）：
- *  停在动作中段，比 0（初始）或 1（终态）更能表达「这设备会动」。 */
+/** 本步对应的那一帧（服务端 `params.t`，必填）。默认**不再停在这里**：
+ *  2026-11-12 本人指出"部分三维的默认时间轴不是 0%"，要求打开就从 0 开始。
+ *  这条值现在只做两件事：一是「跳到本步」按钮的目标，二是播放时的语义参照。 */
 const initial = computed(() => {
   const raw = props.params.t
   const value = typeof raw === 'number' ? raw : Number(raw)
@@ -52,9 +53,12 @@ const initial = computed(() => {
 /** 打印用：DeviceScene 在停下后给的当前帧 PNG。canvas 打印出来是空白。 */
 const shot = ref('')
 
-const progress = ref(initial.value)
-watch(initial, (value) => {
-  progress.value = value
+/* 默认从 0 开始：打开就是动作的起点，按「播放动作」能看完整的全过程。
+   以前默认停在本步那一帧，于是按播放只演最后一段（0.78 → 1 只有 22%），
+   而且时间轴一进来就是"78%"，看着像没归位。 */
+const progress = ref(0)
+watch(initial, () => {
+  progress.value = 0
 })
 
 const percent = computed(() => Math.round(progress.value * 100))
@@ -101,8 +105,9 @@ function play(): void {
   raf = requestAnimationFrame(tick)
 }
 
-/** 复位 = 回到这一步在指导书里被指定的那一帧（不是 0）。
- *  回到 0 会把"这一步该看哪个瞬间"抹掉，那正是这张图存在的理由。 */
+/** 「跳到本步」= 回到这一步在指导书里被指定的那一帧。
+ *  不叫「复位」：默认已经是 0（动作起点），这个按钮的作用是"跳到该看的那个瞬间"，
+ *  叫复位会让人以为回到开头。 */
 function reset(): void {
   stop()
   progress.value = initial.value
@@ -133,8 +138,14 @@ onBeforeUnmount(stop)
       <button class="device__btn device__btn--play" type="button" @click="play">
         {{ playing ? '暂停' : '播放动作' }}
       </button>
-      <button class="device__btn" type="button" :disabled="progress === initial" @click="reset">
-        复位
+      <button
+        class="device__btn"
+        type="button"
+        :disabled="progress === initial"
+        :title="`跳到本步骤对应的那一帧（${Math.round(initial * 100)}%）`"
+        @click="reset"
+      >
+        跳到本步
       </button>
       <label class="device__scrub">
         <span class="device__scrub-label">时间轴 {{ percent }}%</span>

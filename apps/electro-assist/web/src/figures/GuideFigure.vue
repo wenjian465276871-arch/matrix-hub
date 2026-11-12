@@ -42,8 +42,79 @@ const isBaked = computed(() => props.spec.primitive === 'baked_figure')
 const zoomTrigger = ref<HTMLButtonElement | null>(null)
 const zoomClose = ref<HTMLButtonElement | null>(null)
 
+/* ---------------- 放大层里的滚轮缩放 / 拖动 ----------------
+ *  2026-11-12 本人：提示写着"滚轮可继续缩放浏览器"，实测滚轮毫无反应，
+ *  而且这个界面要的是**只缩图、不缩整页**。
+ *  所以：滚轮在层内被拦截（preventDefault），只改图片容器的 transform；
+ *  页面既不会滚动也不会被浏览器缩放。放大后可以按住拖动平移。 */
+const zoomScale = ref(1)
+const zoomTx = ref(0)
+const zoomTy = ref(0)
+const zoomBody = ref<HTMLElement | null>(null)
+
+const stageStyle = computed(() => ({
+  transform: `translate(${zoomTx.value}px, ${zoomTy.value}px) scale(${zoomScale.value})`,
+  transformOrigin: '0 0',
+}))
+
+/** 把位移夹回"图仍盖住可视区"的范围，免得一拖就拖出白边找回不来。 */
+function clampPan(): void {
+  const body = zoomBody.value
+  if (!body) return
+  const maxX = Math.max(0, (zoomScale.value - 1) * body.clientWidth)
+  const maxY = Math.max(0, (zoomScale.value - 1) * body.clientHeight)
+  zoomTx.value = Math.min(0, Math.max(-maxX, zoomTx.value))
+  zoomTy.value = Math.min(0, Math.max(-maxY, zoomTy.value))
+}
+
+function resetZoom(): void {
+  zoomScale.value = 1
+  zoomTx.value = 0
+  zoomTy.value = 0
+}
+
+function onZoomWheel(event: WheelEvent): void {
+  if (!isBaked.value) return
+  const body = zoomBody.value
+  if (!body) return
+  event.preventDefault()
+  const rect = body.getBoundingClientRect()
+  const px = event.clientX - rect.left
+  const py = event.clientY - rect.top
+  // 指数缩放：滚一格固定倍率，手感与地图一致
+  const next = Math.min(4, Math.max(1, zoomScale.value * Math.exp(-event.deltaY * 0.0015)))
+  if (next === zoomScale.value) return
+  // 以光标为锚点：先把光标换算到图片坐标，缩放后再反算位移
+  const sx = (px - zoomTx.value) / zoomScale.value
+  const sy = (py - zoomTy.value) / zoomScale.value
+  zoomScale.value = next
+  zoomTx.value = px - sx * next
+  zoomTy.value = py - sy * next
+  clampPan()
+}
+
+let panFrom: { x: number; y: number; tx: number; ty: number } | null = null
+
+function onPanStart(event: PointerEvent): void {
+  if (!isBaked.value || zoomScale.value <= 1) return
+  panFrom = { x: event.clientX, y: event.clientY, tx: zoomTx.value, ty: zoomTy.value }
+  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+}
+
+function onPanMove(event: PointerEvent): void {
+  if (!panFrom) return
+  zoomTx.value = panFrom.tx + (event.clientX - panFrom.x)
+  zoomTy.value = panFrom.ty + (event.clientY - panFrom.y)
+  clampPan()
+}
+
+function onPanEnd(): void {
+  panFrom = null
+}
+
 async function openZoom(): Promise<void> {
   zoomed.value = true
+  resetZoom()
   document.documentElement.classList.add('is-figure-zoom')
   await nextTick()
   zoomClose.value?.focus()
@@ -52,6 +123,7 @@ async function openZoom(): Promise<void> {
 async function closeZoom(): Promise<void> {
   if (!zoomed.value) return
   zoomed.value = false
+  resetZoom()
   document.documentElement.classList.remove('is-figure-zoom')
   // 触发按钮上有 `v-if="!zoomed"`：关闭的这一刻它才被重新挂载，
   // 同步 focus 拿到的是旧引用（已卸载的节点），焦点会掉到 body。
@@ -163,17 +235,29 @@ onErrorCaptured((err) => {
       <div class="zoom-frame">
         <div class="zoom-frame__bar">
           <span class="zoom-frame__label">{{ spec.caption || '步骤图示' }}</span>
-          <span class="zoom-frame__hint">Esc 关闭 · 滚轮可继续缩放浏览器</span>
+          <span class="zoom-frame__hint">Esc 关闭 · 滚轮缩放图片 · 放大后可拖动</span>
         </div>
-        <div class="zoom-frame__body">
-          <component
-            :is="component"
-            v-if="component && !failed"
-            :params="spec.params"
-            :label="spec.caption || spec.fallback_text"
-            :motion="spec.motion"
-            :fallback="spec.fallback_text"
-          />
+        <div
+          ref="zoomBody"
+          class="zoom-frame__body"
+          :class="{ 'zoom-frame__body--pannable': zoomScale > 1 }"
+          @wheel="onZoomWheel"
+          @pointerdown="onPanStart"
+          @pointermove="onPanMove"
+          @pointerup="onPanEnd"
+          @pointercancel="onPanEnd"
+          @dblclick="resetZoom"
+        >
+          <div class="zoom-frame__stage" :style="stageStyle">
+            <component
+              :is="component"
+              v-if="component && !failed"
+              :params="spec.params"
+              :label="spec.caption || spec.fallback_text"
+              :motion="spec.motion"
+              :fallback="spec.fallback_text"
+            />
+          </div>
         </div>
       </div>
       <button ref="zoomClose" class="figure__zoom-close figure__zoom-close--baked" type="button" @click="closeZoom">
@@ -314,6 +398,29 @@ onErrorCaptured((err) => {
   align-items: center;
   justify-content: center;
   padding: 10px;
+  /* 滚轮缩放期间不许把滚动传给页面，也不许浏览器接管触摸手势；
+     放大后拖动的边界由 clampPan 兜住。 */
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+
+/* 图片容器：滚轮/拖动只改这一层的 transform，图之外的页面纹丝不动。 */
+.zoom-frame__stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+}
+
+.zoom-frame__body--pannable {
+  cursor: grab;
+}
+
+.zoom-frame__body--pannable:active {
+  cursor: grabbing;
 }
 
 /* 放大态：按可用空间等比放到最大（含 1.2–1.3 倍上采样）。

@@ -1195,7 +1195,20 @@ export function buildPantograph(): DeviceRig {
   wire.position.set(0, WIRE_Y + 0.008, HEAD_Z - 2.2)
   wire.name = 'catenary'
   wireGroup.add(wire)
-  for (const z of [-3.6, 3.2]) {
+
+  /* 承力索（messenger wire）+ 吊弦（droppers）。
+     2026-11-12 本人指出：红线里那两条线"应该相连，不然不符合物理现实"——
+     当时只有一根 9m 的接触线和两根 0.85m 的吊弦：吊弦**上端什么都没连**，
+     而 z=+3.2 那根还落在接触线末端（z≈+2.63）之外，下端也悬着。
+     真实接触网是"承力索在上、吊弦在中间、接触线在下"的三层结构：
+     所以补一根承力索，并把吊弦收进接触线的跨度内。三者同名 catenary，
+     烘焙侧照旧整组排除出取景、按 SHOWCAT / WIRE_TRIM 处理。 */
+  const messenger = new Mesh(new CylinderGeometry(0.009, 0.009, 9, 8), wireMat)
+  messenger.rotation.x = Math.PI / 2
+  messenger.position.set(0, WIRE_Y + 0.85, HEAD_Z - 2.2)
+  messenger.name = 'catenary'
+  wireGroup.add(messenger)
+  for (const z of [-3.4, -1.2, 1.0, 2.2]) {
     const dropper = new Mesh(new CylinderGeometry(0.003, 0.003, 0.85, 6), wireMat)
     dropper.position.set(0, WIRE_Y + 0.42, z)
     dropper.name = 'catenary'
