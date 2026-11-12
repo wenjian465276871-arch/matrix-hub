@@ -36,11 +36,13 @@ import {
   chromeMaterial,
   disposeTree,
   floorMaterial,
+  paintedMaterial,
   roundedBox,
   rubberMaterial,
   seg,
+  steelMaterial,
 } from './rig'
-import { facePlate, lcdTexture, meterPanelTexture, setGlow, terminalLabelTexture } from './print'
+import { facePlate, ferruleTexture, lcdTexture, meterPanelTexture, setGlow, terminalLabelTexture } from './print'
 import { phaseFor } from '../../lib/devphase'
 
 /** 表体尺寸（m）：183 × 90 × 49mm 的通用工业表，取整到 180 × 88 × 46。 */
@@ -251,48 +253,109 @@ export function buildMultimeter(): DeviceRig {
   const jackWorld = [jackAt(-0.03), jackAt(-0.01), jackAt(0.01), jackAt(0.03)]
 
   /* ---------------------------------------------------------- 端子排 */
+  /* 真实件是 **DIN 导轨端子排**：灰塑料端子片一片片卡在 35mm 导轨上，两端端挡
+     限位，前脸一条标记条，导线从**后面**进线、靠端子处套线号管。
+
+     2026-11-12（本人指出"每个端子都标 +，全是正就没法测电压"）：
+     上一版是「一整块灰塑料底板 + 六个白块、每块顶面一个外凸的十字螺钉」——
+     白底 + 大十字，缩到 860px 就是六枚"+"。端子排上根本不会有这种标记：
+     极性靠**导线颜色 + 线号管**表达，端子上只有编号。
+     所以这里：螺钉缩到 4.2mm 并**沉进压线腔**（深色方口里），
+     1 号端接红导线标 +110V、2 号端接蓝导线标 -110V，其余控制线灰。 */
   const strip = new Group()
   strip.position.copy(STRIP)
   root.add(strip)
   parts.terminals = strip
 
-  strip.add(roundedBox(0.152, 0.05, 0.055, new MeshStandardMaterial({
-    color: 0x8b8f94,
-    metalness: 0.15,
-    roughness: 0.62,
-  }), 0, 0.006, 0, 0.004))
+  /** 35mm 导轨：U 形断面、两翼外翻——端子就卡在这两翼上。 */
+  const RAIL_Y = -0.014
+  const TERM_Y = 0.0205
+  const TERM_H = 0.058
+  const railMat = steelMaterial(0xbdc0c4)
+  strip.add(roundedBox(0.158, 0.009, 0.035, railMat, 0, RAIL_Y, 0, 0.002))
+  strip.add(
+    roundedBox(0.158, 0.005, 0.013, railMat, 0, RAIL_Y + 0.0068, -0.0112, 0.001),
+    roundedBox(0.158, 0.005, 0.013, railMat, 0, RAIL_Y + 0.0068, 0.0112, 0.001),
+  )
 
+  // 端挡：两端各一片，压住端子排不许横向窜动（真实端子排必配）
+  const endStopMat = paintedMaterial(0x8a9095)
+  for (const sx of [-1, 1]) {
+    const ex = (sx * (TERM_W * TERM_COUNT)) / 2 + sx * 0.005
+    strip.add(roundedBox(0.008, 0.07, 0.05, endStopMat, ex, TERM_Y, 0, 0.002))
+    const cap = new Mesh(new CylinderGeometry(0.0032, 0.0032, 0.004, 10), chromeMaterial())
+    cap.position.set(ex, TERM_Y + 0.014, 0.026)
+    cap.rotation.x = Math.PI / 2
+    strip.add(cap)
+  }
+
+  const termMat = new MeshStandardMaterial({ color: 0x8d9296, metalness: 0.08, roughness: 0.66 })
+  const cavityMat = new MeshStandardMaterial({ color: 0x24272b, metalness: 0.15, roughness: 0.72 })
   const screwTops: Vector3[] = []
   for (let i = 0; i < TERM_COUNT; i += 1) {
     const x = (i - (TERM_COUNT - 1) / 2) * TERM_W
-    strip.add(roundedBox(TERM_W - 0.002, 0.062, 0.058, new MeshStandardMaterial({
-      color: i % 2 === 0 ? 0xd8d5cc : 0xc9c6bd,
-      metalness: 0.05,
-      roughness: 0.68,
-    }), x, 0.008, 0, 0.003))
-
-    const screw = new Mesh(new CylinderGeometry(0.0068, 0.0068, 0.005, 16), chromeMaterial())
-    screw.position.set(x, 0.041, 0)
+    const capY = TERM_Y + TERM_H / 2
+    // 端子片：相邻两片之间留 0.8mm 缝（是一片片插起来的，不是整块）
+    strip.add(roundedBox(TERM_W - 0.0008, TERM_H, 0.048, termMat, x, TERM_Y, 0, 0.0022))
+    /* 压线腔：顶面下沉的深色方口。螺钉沉在里面、只露一个小十字槽，
+       不再是"顶面凸起一个大十字"——那是上一版被读成"+"的全部原因。 */
+    strip.add(roundedBox(0.0155, 0.007, 0.019, cavityMat, x, capY - 0.0035, 0, 0.0008))
+    const screw = new Mesh(new CylinderGeometry(0.0042, 0.0042, 0.004, 14), chromeMaterial())
+    screw.position.set(x, capY - 0.0055, 0)
     strip.add(screw)
-
-    // 十字槽：两道细条，比画个圆更像螺钉
     for (const rot of [0, Math.PI / 2]) {
-      const slot = roundedBox(0.0092, 0.0012, 0.0008, new MeshStandardMaterial({
-        color: 0x3a3d42,
-        metalness: 0.6,
-        roughness: 0.5,
-      }), 0, 0, 0, 0.0004)
-      slot.position.set(x, 0.0436, 0)
+      const slot = roundedBox(0.006, 0.0009, 0.0007, cavityMat, x, capY - 0.0034, 0, 0.0003)
       slot.rotation.y = rot
       strip.add(slot)
     }
-    screwTops.push(new Vector3(x, 0.0436, 0))
+    screwTops.push(new Vector3(x, capY - 0.0034, 0))
   }
 
-  // 编号条：贴在端子排前脸，正对镜头
-  const label = facePlate(0.148, 0.0246, terminalLabelTexture(TERM_COUNT), { roughness: 0.6 })
-  label.position.set(0, -0.013, 0.0302)
+  // 编号条：卡在端子前脸的标记条槽里
+  const label = facePlate(TERM_W * TERM_COUNT, 0.024, terminalLabelTexture(TERM_COUNT, { 0: '+', 1: '\u2212' }), {
+    roughness: 0.62,
+  })
+  label.position.set(0, TERM_Y - 0.015, 0.0244)
   strip.add(label)
+
+  /* 导线：**从端子后面进线**。正极红、负极蓝、其余控制线灰——
+     现场认正负靠线色与线号管，端子排上不刻符号。 */
+  const WIRES: Array<{ color: number; ferrule: string }> = [
+    { color: 0xa8262c, ferrule: '+110V' },
+    { color: 0x1d4b86, ferrule: '-110V' },
+    { color: 0x2a2e34, ferrule: 'X1-3' },
+    { color: 0x2a2e34, ferrule: 'X1-4' },
+    { color: 0x2a2e34, ferrule: 'X1-5' },
+    { color: 0x2d6b3a, ferrule: 'PE' },
+  ]
+  const DECK_Y = -0.0155
+  WIRES.forEach((wire, i) => {
+    const x = (i - (TERM_COUNT - 1) / 2) * TERM_W
+    const wireMat = new MeshStandardMaterial({ color: wire.color, metalness: 0.04, roughness: 0.78 })
+    const curve = new CatmullRomCurve3(
+      [
+        new Vector3(x, TERM_Y + 0.004, -0.028),
+        new Vector3(x - 0.012 - i * 0.003, TERM_Y - 0.01, -0.064),
+        new Vector3(x - 0.03 - i * 0.006, DECK_Y + 0.004, -0.092),
+        new Vector3(x - 0.05 - i * 0.008, DECK_Y + 0.004, -0.16),
+      ],
+      false,
+      'catmullrom',
+      0.34,
+    )
+    const run = new Mesh(new TubeGeometry(curve, 30, 0.0026, 7, false), wireMat)
+    run.castShadow = true
+    strip.add(run)
+
+    // 线号管：套在端子出口那一小段上（现场就是这么套的）
+    const fer = new Mesh(
+      new CylinderGeometry(0.0035, 0.0035, 0.017, 12),
+      new MeshStandardMaterial({ map: ferruleTexture(wire.ferrule), roughness: 0.74 }),
+    )
+    fer.position.set(x - 0.008 - i * 0.002, TERM_Y - 0.001, -0.05)
+    fer.rotation.x = Math.PI / 2
+    strip.add(fer)
+  })
 
   /* 表笔落点用世界坐标：端子排的局部坐标要乘上它自己的矩阵，
      否则六个落点全挤在原点附近。 */

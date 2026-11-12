@@ -23,6 +23,7 @@ import {
   SRGBColorSpace,
   ShadowMaterial,
   SphereGeometry,
+  TorusGeometry,
 } from 'three'
 
 import type { DeviceRig } from './rig'
@@ -38,6 +39,7 @@ import {
   steelMaterial,
   withEdges,
 } from './rig'
+import { facePlate, isolationLabelTexture } from './print'
 import { phaseFor } from '../../lib/devphase'
 
 /** 示意尺寸（米）。改这里就能整体缩放，不散落在各处。 */
@@ -49,7 +51,10 @@ const DIM = {
   wallW: 3.7,
   wallH: 2.25,
   wallT: 0.09,
-  leafW: 0.7,
+  /* 2026-11-12：0.70 → 0.66。原来两扇合计正好等于门洞 1.4m，门扇把门框整个盖住，
+     既看不到门框、也没有地方装门框侧的隔离锁挡。真实塞拉门门扇要留出塞拉摆出
+     与胶条压缩量，与门框单侧有 30~40mm 缝。 */
+  leafW: 0.66,
   leafH: 1.95,
   leafT: 0.042,
   leafZ: 0.05,
@@ -230,6 +235,29 @@ export function buildDoor(): DeviceRig {
   parts.frame = frame
   root.add(frame)
 
+  /* ------------------------------------------------------------ 隔离锁挡 */
+  /* 锁挡固定在**门框钢结构**上（不是门扇上）。C 形开口朝中缝，
+     门扇上的长插销横向插进来——非隔离位时两者留 2~3mm。 */
+  const isoStopMat = steelMaterial(0x9a9d9f)
+  const switchMat = paintedMaterial(0x2a2e33)
+  for (const s of [-1, 1]) {
+    const sx = s * (DIM.openW / 2 - 0.011)
+    // 底板：贴门框正面
+    frame.add(roundedBox(0.034, 0.12, 0.008, isoStopMat, sx, 0.732, 0.062, 0.003))
+    // 上下两翼：夹住插销，形成楔口（口高 32mm，插销 13mm）
+    frame.add(
+      roundedBox(0.034, 0.044, 0.026, isoStopMat, sx, 0.77, 0.076, 0.003),
+      roundedBox(0.034, 0.044, 0.026, isoStopMat, sx, 0.694, 0.076, 0.003),
+    )
+    // 到位微动开关：隔离锁舌压下它才发隔离信号
+    frame.add(roundedBox(0.026, 0.02, 0.018, switchMat, sx, 0.648, 0.074, 0.003))
+    for (const off of [-0.006, 0.006]) {
+      const leadWire = new Mesh(new CylinderGeometry(0.0012, 0.0012, 0.11, 6), switchMat)
+      leadWire.position.set(sx + off, 0.585, 0.074)
+      frame.add(leadWire)
+    }
+  }
+
   // 门槛压条：一条镀铬槽，门下沿的导柱就插在这条槽里
   root.add(
     roundedBox(DIM.openW - 0.02, 0.006, 0.055, chromeMaterial(), 0, DIM.sill + 0.006, 0.018, 0.003),
@@ -355,6 +383,9 @@ export function buildDoor(): DeviceRig {
      teardown 的金属参数是给发动机、起落架那种裸金属机构的，不是给钣金外壳的。 */
   /** 门锁锁舌：解锁时缩回，锁闭时伸出、跨过中缝咬进对侧锁扣。 */
   const lockBolts: Mesh[] = []
+  /** 隔离锁的长插销：t=0 处于隔离位（插进门框锁挡），解除隔离时缩回。
+   *  不缩回就开门 = 「锁着还能拉开」，物理上不成立。 */
+  const isoBolts: Array<{ mesh: Mesh; dir: number }> = []
   const buildLeaf = (dir: -1 | 1) => {
     const leaf = new Group()
     const cx = (dir * DIM.leafW) / 2
@@ -442,8 +473,65 @@ export function buildDoor(): DeviceRig {
       leaf.add(roundedBox(0.04, 0.03, 0.01, paintedMaterial(0x1b1e22), -0.33, lockY, DIM.leafT / 2 + 0.016, 0.003))
     }
 
+    /* ---------------------------------------------------------- 隔离锁 */
+    /* **本体在门扇、锁挡在门框**——三份独立资料写死的结构：
+       《高速列车侧门锁闭安全性设计》："门上还设置有隔离锁……手动操作隔离锁可带动
+       隔离插销伸出，并与固定于车体侧墙上的隔离锁挡搭接，同时触发隔离开关"；
+       成都地铁架修技术条款："检查锁组成**在门扇上**安装牢固、无松动"、
+       "隔离位时，隔离锁舌与**门框钢结构**搭接量不小于 2mm"、"三角锁芯无破损、
+       无缺角、无变形"、"非隔离位置时，锁舌与行程开关弹片的间隙 2~3mm"；
+       专利 CN208073187U：门扇上两个隔离锁，位于主锁扣与辅助锁扣之间。
+
+       上一版的错不在"少了个零件"，而是：门扇上只有一个**主锁**（中缝那个黑盒），
+       既没有三角锁芯、也没有门框侧的锁挡——于是它既不像主锁也不像隔离锁，
+       被当成了"不符合实际的隔离锁"。
+       现在按实物补齐：门扇上 = 锁盒 + 三角锁芯 + "隔离锁"铭牌 + 长插销；
+       门框上 = C 形锁挡 + 到位微动开关（锁舌压下它才发隔离信号）。 */
+    const ISO_Y = 0.735
+    const isoBody = new Group()
+    isoBody.position.set(dir * 0.28, ISO_Y, DIM.leafT / 2)
+    leaf.add(isoBody)
+
+    // 锁盒：凸出门面 27mm，里面是曲柄与弹簧（真实锁盒就是这个厚度）
+    isoBody.add(roundedBox(0.085, 0.11, 0.026, paintedMaterial(0x24262a), 0, 0, 0.014, 0.006))
+    // 盖板：略小一圈，压出一道分缝
+    isoBody.add(roundedBox(0.072, 0.096, 0.004, paintedMaterial(0x33363b), 0, 0, 0.028, 0.004))
+    /* 三角锁芯：**识别隔离锁的关键特征**。圆盘里一个等边三角孔，配三角钥匙
+       （车站/检修用三角钥匙，不是普通方孔钥匙）。 */
+    const keyDisc = new Mesh(new CylinderGeometry(0.016, 0.016, 0.007, 22), chromeMaterial())
+    keyDisc.rotation.x = Math.PI / 2
+    keyDisc.position.set(0, 0.019, 0.0315)
+    isoBody.add(keyDisc)
+    // 锁芯外圈一道凹槽：真实锁芯是"盘 + 环槽 + 三角孔"，只有盘和孔会看成一颗铆钉
+    const keyGroove = new Mesh(new TorusGeometry(0.0125, 0.0011, 6, 22), paintedMaterial(0x2b2e33))
+    keyGroove.position.set(0, 0.019, 0.0352)
+    isoBody.add(keyGroove)
+    /* 三角孔：等边三角形，**一个角朝上**（三角钥匙的三个方位就是这个朝向）。
+       半径 8mm 是真实的三角钥匙芯规格，再大就不像标准件了。 */
+    const keyHole = new Mesh(
+      new CylinderGeometry(0.008, 0.008, 0.008, 3),
+      new MeshStandardMaterial({ color: 0x0b0d0f, metalness: 0.1, roughness: 0.9 }),
+    )
+    keyHole.rotation.x = Math.PI / 2
+    keyHole.rotation.z = 0
+    keyHole.position.set(0, 0.019, 0.0335)
+    isoBody.add(keyHole)
+    // 标识铭牌："隔离锁"——现场辨认它最直接的东西
+    const isoPlate = facePlate(0.044, 0.016, isolationLabelTexture(), { roughness: 0.55 })
+    isoPlate.position.set(0, -0.033, 0.0308)
+    isoBody.add(isoPlate)
+    // 长插销：朝门框方向伸出，非隔离位时端头与锁挡口留 2~3mm（条款原文）
+    const isoBolt = new Mesh(new CylinderGeometry(0.0065, 0.0065, 0.038, 12), chromeMaterial())
+    isoBolt.rotation.z = Math.PI / 2
+    isoBolt.position.set(dir * 0.0515, 0, 0.014)
+    isoBody.add(isoBolt)
+    isoBolts.push({ mesh: isoBolt, dir })
+    // 插销出口的导向套
+    isoBody.add(roundedBox(0.012, 0.022, 0.022, paintedMaterial(0x2b2f34), dir * 0.0435, 0, 0.014, 0.004))
+
     leaf.position.set(cx, 0, DIM.leafZ)
     return leaf
+
   }
 
   const leafL = buildLeaf(-1)
@@ -506,6 +594,12 @@ export function buildDoor(): DeviceRig {
   const setT = (t: number): void => {
     /* 段零：解锁。**这是开门的前置条件**——锁舌没缩回，门扇一点都不能动。
        以前从 t=0 就开始外移，等于「锁着也能开门」，现场不可能。 */
+    /* 段负一：**解除隔离**。t=0 是隔离位——长插销插在门框锁挡里（搭接 8mm），
+       此时门是被机械约束住的，一点都不能动。现场顺序是「反转三角钥匙使锁复位
+       （插销缩回）→ 再操作内外解锁装置」，所以这一段排在最前。 */
+    const unisolate = seg(t, 0.002, 0.045)
+    for (const iso of isoBolts) iso.mesh.position.x = iso.dir * (0.0515 - 0.008 * unisolate)
+
     const unlock = seg(t, 0.02, 0.08)
     for (const bolt of lockBolts) bolt.position.x = 0.365 - 0.065 * unlock
 

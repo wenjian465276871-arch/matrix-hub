@@ -276,18 +276,63 @@ export function torqueScaleTexture(): Texture {
   })
 }
 
-/** 端子排上的编号条。6 位，字距按端子宽度排，与螺栓位置对齐。 */
-export function terminalLabelTexture(count: number): Texture {
+/** 端子排上的编号条。
+ *
+ *  `marks` 把个别端子标成极性——真实端子排上只有电源进线端会另插一小片
+ *  「+/−」标记条，其余全是编号。**不能整排都标**：全标"+"就没法表达电位差，
+ *  表笔搭哪两个端子都成了"量同一极"。 */
+export function terminalLabelTexture(count: number, marks: Record<number, string> = {}): Texture {
   return canvasTexture(64 * count, 64, (ctx, w, h) => {
     ctx.fillStyle = '#e9e6dc'
     ctx.fillRect(0, 0, w, h)
-    ctx.fillStyle = '#2b2d31'
-    ctx.font = 'bold 34px ui-monospace, monospace'
+    for (let i = 0; i < count; i += 1) {
+      const marked = marks[i] !== undefined
+      const text = marked ? marks[i] : String(i + 1)
+      ctx.fillStyle = marked ? '#14171b' : '#2b2d31'
+      ctx.font = `bold ${marked ? 46 : 34}px ui-monospace, monospace`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(text, 64 * i + 32, h / 2 + 2)
+      if (marked) {
+        // 极性标记是单独一片插进去的，压一圈深色边
+        ctx.strokeStyle = '#6f757b'
+        ctx.lineWidth = 3
+        ctx.strokeRect(64 * i + 5, 5, 54, h - 10)
+      }
+    }
+  })
+}
+
+/** 线号管：套在导线上的白色套管，环向热转印线号。
+ *
+ *  **为什么要重复 4 份**：Cylinder 的 u 沿整个圆周，只印一份的话转到背面就看不见了，
+ *  而这一类图是静态机位渲出来的，字落在背面等于没有。印 4 份，任意角度都有一份正对。
+ *  真实线号管是"白 PVC 管 + 黑色热转印"，字高约管径的 1.2 倍。 */
+export function ferruleTexture(text: string): Texture {
+  const W = 128
+  return canvasTexture(W * 4, 64, (ctx, w, h) => {
+    ctx.fillStyle = '#f4f2ec'
+    ctx.fillRect(0, 0, w, h)
+    ctx.fillStyle = '#1f2226'
+    // 字宽按份宽自适应：`-110V` 比 `PE` 长得多，固定字号会把长的挤成两行
+    const size = text.length > 3 ? 26 : 30
+    ctx.font = `bold ${size}px ui-monospace, monospace`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    for (let i = 0; i < count; i += 1) {
-      ctx.fillText(String(i + 1), (64 * i) + 32, h / 2 + 2)
-    }
+    for (let i = 0; i < 4; i += 1) ctx.fillText(text, W * i + W / 2, h / 2 + 1)
+  })
+}
+
+/** 隔离锁的标识铭牌：真实锁盒上贴"隔离/解锁"字样，是现场辨认它最直接的东西。 */
+export function isolationLabelTexture(): Texture {
+  return canvasTexture(192, 64, (ctx, w, h) => {
+    ctx.fillStyle = '#2f3338'
+    ctx.fillRect(0, 0, w, h)
+    ctx.fillStyle = '#e8e4d8'
+    ctx.font = 'bold 38px system-ui, sans-serif'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('隔离锁', w / 2, h / 2 + 2)
   })
 }
 
