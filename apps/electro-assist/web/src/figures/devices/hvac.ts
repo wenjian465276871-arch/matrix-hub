@@ -506,7 +506,20 @@ export function buildHvac(): DeviceRig {
     const pack = finPack(condenser, X1 - XC2 - 0.16, U.H - 0.14, 0.075, 13, finMat, copper)
     pack.position.set((XC2 + X1) / 2, BOTTOM + (U.H - 0.14) / 2 + 0.05, z)
     // 盘管背后的挡风板，挡住"透过去看见另一侧百叶"
-    condenser.add(roundedBox(X1 - XC2 - 0.14, U.H - 0.12, 0.008, casingDark, (XC2 + X1) / 2, BOTTOM + 0.24, z - Math.sign(z) * 0.05, 0.002))
+    /* 挡风板贴在盘管背面（盘管半深 0.0375 + 板半厚 0.004）：
+       原来退 0.05，离盘管 10.6mm，自检判它悬空。 */
+    condenser.add(
+      roundedBox(
+        X1 - XC2 - 0.14,
+        U.H - 0.12,
+        0.008,
+        casingDark,
+        (XC2 + X1) / 2,
+        BOTTOM + 0.24,
+        z - Math.sign(z) * 0.0415,
+        0.002,
+      ),
+    )
   }
   // 冷凝段中间的风道隔板，把两侧进风分成两路
   condenser.add(roundedBox(X1 - XC2 - 0.05, U.H - 0.10, 0.02, casingDark, (XC2 + X1) / 2, BOTTOM + 0.24, 0, 0.003))
@@ -730,11 +743,17 @@ export function buildHvac(): DeviceRig {
   for (let i = 0; i < 6; i += 1) {
     control.add(roundedBox(0.028, 0.032, 0.032, paintedMaterial(0xd8b24a), CB.x - 0.13 + i * 0.032, CB.y - 0.09, CB.z + 0.07, 0.003))
   }
-  // 盒内指示灯（电源 / 运行 / 故障）：装在底板前缘，俯视可见
+  /* 盒内指示灯（电源 / 运行 / 故障）：装在底板前缘，俯视可见。
+     2026-11-12 几何自检发现：三只灯悬空 26mm——它们下面是空的。
+     真实电控盒的灯焊在小板上，补一块 PCB 把它们接住。 */
+  control.add(
+    roundedBox(CB.w - 0.06, 0.006, 0.09, paintedMaterial(0x1f4a3c), CB.x, CB.y - 0.155, CB.z - 0.09, 0.002),
+  )
   const leds: Mesh[] = []
   for (let i = 0; i < 3; i += 1) {
     const led = new Mesh(new CylinderGeometry(0.009, 0.009, 0.01, 12), lampMaterial(0x2f9e6a))
-    led.position.set(CB.x - 0.05 + i * 0.05, CB.y - 0.13, CB.z - 0.09)
+    // PCB 顶面在 CB.y-0.152；灯的底沿坐在它上面
+    led.position.set(CB.x - 0.05 + i * 0.05, CB.y - 0.147, CB.z - 0.09)
     control.add(led)
     leds.push(led)
   }

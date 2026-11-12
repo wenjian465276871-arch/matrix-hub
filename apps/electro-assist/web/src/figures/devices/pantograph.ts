@@ -551,7 +551,11 @@ export function buildPantograph(): DeviceRig {
     nut.position.set(x, DECK_Y + 0.1, -0.86)
     chassis.add(nut)
     // 引线从底架落到车顶：给足垂度，一根笔直的竖线在画面上就是一根杆
-    chassis.add(braid(new Vector3(x, DECK_Y + 0.04, -0.88), new Vector3(x, 0.02, -0.98), 0.12, copper))
+    /* 起点必须落在螺母下沿（DECK_Y+0.094、z=-0.86）：原来从 +0.04/-0.88 出发，
+       整根辫子离最近的件 8.3mm——是"挂在空气里"，不是挂在线夹上。 */
+    chassis.add(
+      braid(new Vector3(x, DECK_Y + 0.094, -0.86), new Vector3(x, 0.02, -0.98), 0.12, copper),
+    )
   }
   /* 2 个**空气管路接口**：车顶管路从这里进底架，再分给气囊与 ADD。 */
   for (const x of [-0.18, 0.18]) {
@@ -671,7 +675,9 @@ export function buildPantograph(): DeviceRig {
     panelRig.add(screw)
   }
   // 8 安全阀
-  panelRig.add(body(0.04, 0.07, 0.04, panelX + 0.05, panelY - 0.12, 0.22, 0xb23b32))
+  /* 红色安全阀（0.04 宽，比其它元件窄）：中心从 +0.05 收到 +0.035，
+     否则它的内侧面离板面 15mm——自检判悬空。 */
+  panelRig.add(body(0.04, 0.07, 0.04, panelX + 0.035, panelY - 0.12, 0.22, 0xb23b32))
   // 10 快排电磁阀 SA
   panelRig.add(body(0.06, 0.06, 0.09, panelX + 0.05, panelY - 0.1, -0.2, 0x3f444a))
   panelRig.add(coil(panelX + 0.09, panelY - 0.1, -0.2, 0x2f3438))

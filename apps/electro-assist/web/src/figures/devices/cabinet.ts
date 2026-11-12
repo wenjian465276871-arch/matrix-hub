@@ -394,6 +394,10 @@ export function buildCabinet(): DeviceRig {
   /* ------------------------------------------------------------ 端子排 */
   const terminals = new Group()
   const termMat = new MeshStandardMaterial({ color: 0x8d9196, metalness: 0.2, roughness: 0.55 })
+  /* 导轨：真实端子排一律卡在 35mm DIN 导轨上。
+     2026-11-12 几何自检发现：10 个端子块整体悬空 6mm——它们的下沿在 0.0375，
+     下面是空的。补一根导轨把它们接住（导轨顶面 = 端子下沿）。 */
+  terminals.add(roundedBox(0.44, 0.035, 0.035, steelMaterial(0x9aa0a5), -0.12, 0.02, 0.06, 0.003))
   for (let i = 0; i < 10; i += 1) {
     terminals.add(roundedBox(0.034, 0.055, 0.05, termMat, -0.3 + i * 0.04, 0.065, 0.06, 0.003))
   }

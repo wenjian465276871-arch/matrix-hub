@@ -81,7 +81,9 @@ export function buildTorqueWrench(): DeviceRig {
 
   // 旁边一颗已复紧的螺栓：给"这里是一组螺栓"的上下文
   const other = new Group()
-  other.position.set(-0.085, 0.092, 0)
+  /* z 从 0 挪到 -0.017：安装座正面在 z=-0.033，螺栓头半厚 0.004，
+     原来整颗头浮在座子前面 17mm（自检抓到的）。 */
+  other.position.set(-0.085, 0.092, -0.017)
   other.add(new Mesh(new CylinderGeometry(0.0115, 0.0115, 0.008, 6), steelMaterial(0xa9adb2)))
   const otherHead = other.children[0] as Mesh
   otherHead.rotation.x = Math.PI / 2
