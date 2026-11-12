@@ -290,23 +290,43 @@ export function buildHvac(): DeviceRig {
 
   /* 两台**端部马凳**，不是两根通长纵梁。
      第 3 步要仰视底面（回风滤网与送风格栅都在机腹），通长纵梁会正好架在
-     镜头与底面之间，把整个画面切成两条。马凳只落在 x=±0.95，
-     机腹中线整段敞着，仰视时才看得见滤网的折页。 */
-  for (const x of [-0.95, 0.95]) {
-    // 横梁（沿 Z）
-    stand.add(roundedBox(0.12, 0.1, 1.62, steelMaterial(0x8b9297), x, U.deck - 0.05, 0, 0.005))
+     镜头与底面之间，把整个画面切成两条。马凳只落在两端，
+     机腹中线整段敞着，仰视时才看得见滤网的折页。
+
+     2026-11-12（本人指出整机图里"只看到 2 条支柱"）：
+     原来马凳收在 x=±0.95、腿在 z=±0.70，全部落在机组轮廓**以内**——
+     从右前上方的 3/4 机位看，远端那条马凳被机身整个挡住，画面只剩 2 条腿。
+
+     只把马凳往外挪还不够。这个机位的俯角只有 14°，机身顶面在腿前方投下
+     一条很长的"阴影楔"：地面 z<+1.13 的范围全被机身盖住，后腿就算挪到
+     z=+1.05 也还是看不见（实测过两版）。
+     真正的办法是让腿**向外撇到机身轮廓之外**——腿脚落在 x=±1.32
+     （机身半长 1.20），后腿从端板外侧露出来。实物马凳的八字腿本来就这样。
+     于是：梁在 x=±1.14（托住底盘），腿从梁底斜到 x=±1.32 的地脚。 */
+  const STAND_X = 1.14
+  const STAND_Z = 0.88
+  const FOOT_X = 1.24
+  const LEG_TOP = U.deck - 0.1 // 0.42：梁底，腿的顶端
+  const LEG_TILT = Math.atan((FOOT_X - STAND_X) / LEG_TOP) // ≈ 0.404 rad
+  for (const x of [-STAND_X, STAND_X]) {
+    const sx = Math.sign(x)
+    // 横梁（沿 Z）：台面略宽于机组，底盘整条坐在梁上
+    stand.add(roundedBox(0.12, 0.1, STAND_Z * 2, steelMaterial(0x8b9297), x, U.deck - 0.05, 0, 0.005))
     // 梁下加强板
-    stand.add(roundedBox(0.09, 0.016, 1.5, steelMaterial(0x767d82), x, U.deck - 0.108, 0, 0.003))
-    for (const z of [-0.7, 0.7]) {
-      // 支腿：略外撇（马凳的真实姿势），用两段拼一个 A 形
-      const leg = roundedBox(0.07, U.deck - 0.12, 0.07, steelMaterial(0x8b9297), x, (U.deck - 0.12) / 2, z, 0.004)
+    stand.add(roundedBox(0.09, 0.016, STAND_Z * 2 - 0.12, steelMaterial(0x767d82), x, U.deck - 0.108, 0, 0.003))
+    for (const z of [-STAND_Z, STAND_Z]) {
+      /* 八字腿：顶端在梁下 x，腿脚外撇到 FOOT_X。绕 Z 轴转，
+         角度 = atan(外撇量 / 高度)，箱子中段放在两端点的中点。 */
+      const leg = roundedBox(0.07, Math.hypot(FOOT_X - STAND_X, LEG_TOP), 0.07, steelMaterial(0x8b9297), x + (sx * (FOOT_X - STAND_X)) / 2, LEG_TOP / 2, z, 0.004)
+      leg.rotation.z = sx * LEG_TILT
       stand.add(leg)
-      stand.add(roundedBox(0.13, 0.014, 0.13, steelMaterial(0x767d82), x, 0.007, z, 0.003))
-      // 斜撑：从梁端斜到腿脚
-      const brace = roundedBox(0.05, 0.05, 0.5, steelMaterial(0x8b9297), x, U.deck - 0.2, z * 0.55, 0.004)
-      brace.rotation.x = z > 0 ? -0.5 : 0.5
-      stand.add(brace)
+      // 地脚板
+      stand.add(roundedBox(0.14, 0.014, 0.14, steelMaterial(0x767d82), sx * FOOT_X, 0.007, z, 0.003))
     }
+    /* 两条腿之间的下横撑：位置必须落在**腿的实际高度**上（腿是斜的，
+       x 随高度变化），否则它自己就是悬空的。y=0.2 处腿心在 x=1.232。 */
+    const tieX = sx * (STAND_X + ((FOOT_X - STAND_X) * (LEG_TOP - 0.2)) / LEG_TOP)
+    stand.add(roundedBox(0.05, 0.05, STAND_Z * 2 - 0.06, steelMaterial(0x767d82), tieX, 0.2, 0, 0.003))
   }
 
   /* ============================================================== 壳体 */
@@ -719,41 +739,135 @@ export function buildHvac(): DeviceRig {
   const control = new Group()
   root.add(control)
   parts.control = control
-  const CB = { x: -0.98, y: BOTTOM + 0.17, z: -0.54, w: 0.44, h: 0.34, d: 0.3 }
+  /* 控制盒本体。`x` 原来是 -0.98：盒壁算下来比端板内表面还靠外 19mm，
+     等于插进端板里。挪 2cm 贴平，留 2mm 缝。 */
+  const CB = { x: -0.96, y: BOTTOM + 0.17, z: -0.54, w: 0.44, h: 0.34, d: 0.3 }
+  const CB_FLOOR = CB.y - CB.h / 2 + 0.009 // 0.579：盒内底面
   // 盒体：底板、后壁、两侧、前壁（前壁朝 -Z 装铭牌），顶面敞口
-  control.add(roundedBox(CB.w, 0.018, CB.d, casingDark, CB.x, CB.y - CB.h / 2, CB.z, 0.003))
-  control.add(roundedBox(CB.w, CB.h, 0.018, casingDark, CB.x, CB.y, CB.z + CB.d / 2, 0.003))
-  control.add(roundedBox(0.018, CB.h, CB.d, casingDark, CB.x - CB.w / 2, CB.y, CB.z, 0.003))
-  control.add(roundedBox(0.018, CB.h, CB.d, casingDark, CB.x + CB.w / 2, CB.y, CB.z, 0.003))
-  control.add(roundedBox(CB.w, CB.h, 0.018, casingDark, CB.x, CB.y, CB.z - CB.d / 2, 0.003))
+  /* 盒体取**浅灰**（不是深灰）：真实电控盒内壁是浅灰喷塑，
+     深灰内壁在俯视景里会把端子、线槽全吃掉——上一版照片里盒内一片黑，
+     就是因为内壁太深。 */
+  control.add(roundedBox(CB.w, 0.018, CB.d, casing, CB.x, CB.y - CB.h / 2, CB.z, 0.003))
+  control.add(roundedBox(CB.w, CB.h, 0.018, casing, CB.x, CB.y, CB.z + CB.d / 2, 0.003))
+  control.add(roundedBox(0.018, CB.h, CB.d, casing, CB.x - CB.w / 2, CB.y, CB.z, 0.003))
+  control.add(roundedBox(0.018, CB.h, CB.d, casing, CB.x + CB.w / 2, CB.y, CB.z, 0.003))
+  control.add(roundedBox(CB.w, CB.h, 0.018, casing, CB.x, CB.y, CB.z - CB.d / 2, 0.003))
 
-  // 导轨 + 三只断路器（靠前壁，俯视时最先看到）+ 接触器 + 端子排
-  control.add(roundedBox(CB.w - 0.04, 0.012, 0.02, steelMaterial(0xb2b7bb), CB.x, CB.y + 0.06, CB.z + 0.05, 0.002))
+  /* 盒内布置（俯视：靠镜头的一侧 = -Z = 画面下方）：
+       后排 DIN 导轨 → 三只断路器 + 接触器（高位）；
+       中排 → 灰色 PVC 线槽（带梳齿），端子出来的线全部入槽；
+       前排 → 端子排（卡在导轨上）+ 左下角的指示灯小板。
+     为什么把断路器挪到后壁：原来断路器与端子排挤在同一个 z 上，
+     俯视时端子整个躲在断路器底下——"线到底有没有接在端子上"根本看不出来，
+     这正是本人截图里指的那一处。 */
+  const ROW_BREAK_Z = CB.z + 0.09
+  control.add(roundedBox(CB.w - 0.04, 0.012, 0.02, steelMaterial(0xb2b7bb), CB.x, CB.y + 0.06, ROW_BREAK_Z, 0.002))
   const breakers: Mesh[] = []
   for (let i = 0; i < 3; i += 1) {
     const bx = CB.x - 0.11 + i * 0.062
-    control.add(roundedBox(0.05, 0.11, 0.055, paintedMaterial(0xdfe2e5), bx, CB.y + 0.01, CB.z + 0.05, 0.004))
-    const toggle = roundedBox(0.02, 0.03, 0.02, paintedMaterial(0x2a2d30), bx, CB.y + 0.015, CB.z + 0.02, 0.004)
+    control.add(roundedBox(0.05, 0.11, 0.055, paintedMaterial(0xdfe2e5), bx, CB.y + 0.01, ROW_BREAK_Z, 0.004))
+    const toggle = roundedBox(0.02, 0.03, 0.02, paintedMaterial(0x2a2d30), bx, CB.y + 0.015, ROW_BREAK_Z - 0.03, 0.004)
     control.add(toggle)
     breakers.push(toggle)
   }
-  // 接触器
-  control.add(roundedBox(0.09, 0.095, 0.07, paintedMaterial(0x33373a), CB.x + 0.1, CB.y + 0.005, CB.z + 0.04, 0.006))
-  // 端子排（靠近后壁）
-  for (let i = 0; i < 6; i += 1) {
-    control.add(roundedBox(0.028, 0.032, 0.032, paintedMaterial(0xd8b24a), CB.x - 0.13 + i * 0.032, CB.y - 0.09, CB.z + 0.07, 0.003))
+  // 接触器（后排右端）
+  control.add(roundedBox(0.09, 0.095, 0.07, paintedMaterial(0x33373a), CB.x + 0.1, CB.y + 0.005, ROW_BREAK_Z - 0.01, 0.006))
+
+  /* 端子排：**卡在 DIN 导轨上**，不是摆在地板上。
+     2026-11-12（本人：截图里"电线没经过端子排直接跨过去"）——原来 6 只端子块
+     直接落在地板上、没有导轨、也没有任何进线，线是从盒外斜着穿过盒口的。
+     真实电控盒的三条规矩（GB50738-2011 §14.3 / 控制柜布线工艺规范）：
+       ① 端子排卡在导轨上、靠近盒底，上下留过线空间；
+       ② 导线先入线槽，由线槽经电缆护套出盒，端子处不得承受拉力；
+       ③ 线号统一、走向横平竖直，不许斜穿。
+     所以这里补：导轨 + 两端支架 + 端挡 → 端子 → 中排灰色 PVC 线槽 →
+     每只端子一根短跳线入槽 → 右侧壁两只电缆护套出盒。 */
+  const RAIL_Y = CB_FLOOR + 0.059 // 0.638：导轨中心
+  const RAIL_Z = CB.z - 0.06
+  const TERM_Y = RAIL_Y + 0.02 // 端子中心（端子高 32mm，底面坐在导轨上）
+  const TERM_X0 = CB.x - 0.076 // 六只端子首块中心
+  control.add(roundedBox(0.26, 0.008, 0.036, steelMaterial(0xb2b7bb), CB.x + 0.02, RAIL_Y, RAIL_Z, 0.001))
+  for (const dx of [-0.08, 0.12]) {
+    // 导轨支架：把导轨架到盒底，否则导轨自己也是悬空的
+    const h = RAIL_Y - CB_FLOOR
+    control.add(roundedBox(0.016, h, 0.03, steelMaterial(0x8f959a), CB.x + dx, CB_FLOOR + h / 2, RAIL_Z, 0.002))
   }
-  /* 盒内指示灯（电源 / 运行 / 故障）：装在底板前缘，俯视可见。
+  for (const dx of [-0.115, 0.155]) {
+    // 端挡（E/UK 挡块）：导轨两端必须收口，否则端子会左右窜
+    control.add(roundedBox(0.012, 0.036, 0.036, paintedMaterial(0xd8b24a), CB.x + dx, TERM_Y, RAIL_Z, 0.002))
+  }
+  for (let i = 0; i < 6; i += 1) {
+    const tx = TERM_X0 + i * 0.032
+    control.add(roundedBox(0.028, 0.032, 0.032, paintedMaterial(0xd8b24a), tx, TERM_Y, RAIL_Z, 0.003))
+    // 端子顶上的标记条（线号条），朝镜头一侧才看得见
+    control.add(roundedBox(0.024, 0.009, 0.002, paintedMaterial(0xe8ecef), tx, TERM_Y + 0.021, RAIL_Z - 0.016, 0.001))
+  }
+
+  /* 线槽：中排一条灰色 PVC 线槽（梳齿式侧壁），端子出来的线先入槽。
+     齿是**分段的**：真实线槽的侧壁就是一排齿，线从齿缝里出，
+     这样才读得出"线槽"而不是一根方管。颜色取深一档（0x7e858b）——
+     浅灰在盒里的暗环境下会糊成一块白板。 */
+  const ductMat = paintedMaterial(0x7e858b)
+  const DUCT = { x: CB.x, z: CB.z - 0.005, len: 0.34, h: 0.05, d: 0.038 }
+  control.add(roundedBox(DUCT.len, 0.005, DUCT.d, ductMat, DUCT.x, CB_FLOOR + 0.0025, DUCT.z, 0.001))
+  control.add(roundedBox(DUCT.len, DUCT.h, 0.004, ductMat, DUCT.x, CB_FLOOR + 0.005 + DUCT.h / 2, DUCT.z + DUCT.d / 2 - 0.002, 0.001))
+  for (let i = 0; i < 10; i += 1) {
+    // 前壁梳齿：10 根，齿缝就是出线口
+    const tx = DUCT.x - DUCT.len / 2 + 0.026 + i * 0.032
+    control.add(roundedBox(0.018, DUCT.h, 0.004, ductMat, tx, CB_FLOOR + 0.005 + DUCT.h / 2, DUCT.z - DUCT.d / 2 + 0.002, 0.001))
+  }
+  // 跳线：每只端子顶部 → 翻过梳齿 → 入槽。线不再横跨盒口
+  const WIRE_COLORS = [0x2f3b4a, 0x9b3b34, 0x3f6b46, 0x2f3b4a, 0x9b3b34, 0x3f6b46]
+  for (let i = 0; i < 6; i += 1) {
+    const tx = TERM_X0 + i * 0.032
+    const wm = new MeshStandardMaterial({ color: WIRE_COLORS[i], metalness: 0, roughness: 0.72 })
+    pipe(control, wm, [
+      [tx, TERM_Y + 0.016, RAIL_Z - 0.004],
+      [tx, TERM_Y + 0.032, DUCT.z - 0.03],
+      [tx, CB_FLOOR + 0.042, DUCT.z + 0.004],
+    ], 0.0024)
+  }
+
+  /* 线槽末端 → 电缆护套：槽里的线束由这一段短缆引到侧壁护套上。
+     没有它，线就是"从板缝里钻出去"的——那是最容易被一眼看穿的地方。 */
+  pipe(control, rubberMaterial(0x22262a), [
+    [DUCT.x + DUCT.len / 2 - 0.01, CB_FLOOR + 0.03, DUCT.z],
+    [CB.x + CB.w / 2 - 0.03, CB.y - 0.1, -0.5],
+    [CB.x + CB.w / 2 + 0.004, CB.y - 0.1, -0.5],
+  ], 0.0065)
+  pipe(control, rubberMaterial(0x22262a), [
+    [DUCT.x + DUCT.len / 2 - 0.05, CB_FLOOR + 0.03, DUCT.z],
+    [CB.x + CB.w / 2 - 0.03, CB.y - 0.14, -0.5],
+    [CB.x + CB.w / 2 + 0.004, CB.y - 0.14, -0.5],
+  ], 0.0065)
+
+  /* 电缆护套（两只）：装在右侧壁，电缆从这里出盒。
+     实物是黄铜压紧式，外面看是六角螺母 + 圆柱本体。 */
+  const GLANDS = [
+    { y: CB.y - 0.1, z: -0.5 },
+    { y: CB.y - 0.14, z: -0.5 },
+  ]
+  for (const g of GLANDS) {
+    const body = new Mesh(new CylinderGeometry(0.011, 0.011, 0.022, 14), chromeMaterial())
+    body.rotation.z = Math.PI / 2
+    body.position.set(CB.x + CB.w / 2 + 0.006, g.y, g.z)
+    control.add(body)
+    const nut = new Mesh(new CylinderGeometry(0.0145, 0.0145, 0.008, 6), chromeMaterial())
+    nut.rotation.z = Math.PI / 2
+    nut.position.set(CB.x + CB.w / 2 + 0.002, g.y, g.z)
+    control.add(nut)
+  }
+
+  /* 盒内指示灯（电源 / 运行 / 故障）：小板装在前左角（俯视可见）。
      2026-11-12 几何自检发现：三只灯悬空 26mm——它们下面是空的。
      真实电控盒的灯焊在小板上，补一块 PCB 把它们接住。 */
-  control.add(
-    roundedBox(CB.w - 0.06, 0.006, 0.09, paintedMaterial(0x1f4a3c), CB.x, CB.y - 0.155, CB.z - 0.09, 0.002),
-  )
+  const PCB_X = CB.x - 0.11
+  const PCB_Z = CB.z - 0.1
+  control.add(roundedBox(0.1, 0.006, 0.055, paintedMaterial(0x1f4a3c), PCB_X, CB_FLOOR + 0.006, PCB_Z, 0.002))
   const leds: Mesh[] = []
   for (let i = 0; i < 3; i += 1) {
     const led = new Mesh(new CylinderGeometry(0.009, 0.009, 0.01, 12), lampMaterial(0x2f9e6a))
-    // PCB 顶面在 CB.y-0.152；灯的底沿坐在它上面
-    led.position.set(CB.x - 0.05 + i * 0.05, CB.y - 0.147, CB.z - 0.09)
+    led.position.set(PCB_X - 0.03 + i * 0.03, CB_FLOOR + 0.014, PCB_Z)
     control.add(led)
     leds.push(led)
   }
@@ -789,104 +903,182 @@ export function buildHvac(): DeviceRig {
   }
 
   /* ============================================================ 制冷剂管路 */
+  /* 2026-11-12 重做（本人：截图里"管路乱七八糟、没有固定、不符合现实"）。
+
+     原来几根铜管是在舱内**斜着穿过去**的：压缩机顶 → 直接拉到冷凝器、
+     蒸发器下集管 → 斜拉到气液分离器，中间没有任何支架、也不贴结构面。
+     任何一间机房都不会这么干。GB50243-2016 §8.3.3 写得明确：
+       · 连接制冷机的吸、排气管道应设**独立支架**；
+       · 水平管支架间距**不大于 1.5m**，垂直管不大于 2.0m；
+       · 管道上下平行敷设时，**吸气管应在下方**；
+       · 穿墙（隔板）须加套管。
+     制冷配管还有一条常识：低压吸气管必须包保温，且管道弯头半径 ≥3.5D。
+
+     所以改成"管排"：主干沿 -Z 内壁敷设、沿 X 直走，分三层（吸气管最下），
+     每 0.4m 一个管卡（远小于 1.5m 上限），穿隔板处加橡胶护圈，
+     只在设备端用短支管接出。吸气管走 +Z 侧（与液管分开两侧走，
+     避免平行敷设时的回油问题），包深色保温。 */
   const piping = new Group()
   root.add(piping)
   parts.piping = piping
   const INSUL = rubberMaterial(0x34383c)
+  const RACK_Z = -0.772 // 管中心离 -Z 壁板内衬 46mm
+  const RACK_Z2 = 0.772 // +Z 侧（吸气管）
+  const Y_SUCTION = BOTTOM + 0.09
+  const Y_LIQUID = BOTTOM + 0.09
+  const Y_DISCHARGE = BOTTOM + 0.29
 
-  // 排气管：压缩机顶 → 上翻 → 沿 Z 内侧走 → 穿隔板 → 冷凝器集管
+  /** 管卡：壁板上的支座 + 抱管的卡箍。**每个管子都要有它**——这是"固定措施"本身。 */
+  const clampMat = steelMaterial(0xb6bbc0)
+  const clipMat = rubberMaterial(0x2b2f33)
+  const pipeClamp = (x: number, y: number, zWall: number, zPipe: number, r: number): void => {
+    const zMid = (zWall + zPipe) / 2
+    piping.add(roundedBox(0.03, 0.032, Math.abs(zPipe - zWall) + 0.014, clampMat, x, y, zMid, 0.002))
+    const clip = new Mesh(new TorusGeometry(r + 0.0026, 0.0022, 6, 18), clipMat)
+    clip.rotation.y = Math.PI / 2
+    clip.position.set(x, y, zPipe)
+    piping.add(clip)
+  }
+
+  /* 排气管：压缩机壳侧（**接线盒下方**）→ 上翻 → 贴 -Z 壁板 → 冷凝器上集管。
+     第一版把出口放在 y=0.795、z=-0.07，正好落在压缩机接线盒（y 0.775~0.865,
+     z -0.105~-0.035）里面——画面上就是"铜管从电气接线盒里钻出来"。
+     挪到盒下方的壳体上（y=0.72），并从盒前面 20mm 处上翻。 */
   pipe(piping, copper, [
-    [CP.x, BOTTOM + 0.28, CP.z - 0.02],
-    [CP.x, BOTTOM + 0.345, CP.z - 0.08],
-    [-0.4, BOTTOM + 0.365, -0.2],
-    [0.0, BOTTOM + 0.365, -0.34],
-    [0.42, BOTTOM + 0.35, -0.44],
-    [0.58, BOTTOM + 0.3, -0.46],
+    [CP.x, BOTTOM + 0.15, -0.085],
+    [CP.x - 0.02, BOTTOM + 0.19, -0.3],
+    [CP.x - 0.02, Y_DISCHARGE, RACK_Z],
   ], 0.011)
-  // 隔板穿孔处的橡胶护圈
-  for (const x of [XC1, XC2]) {
-    const grommet = new Mesh(new TorusGeometry(0.018, 0.006, 8, 16), INSUL)
-    grommet.position.set(x, BOTTOM + 0.365, -0.34)
+  pipe(piping, copper, [
+    [CP.x - 0.02, Y_DISCHARGE, RACK_Z],
+    [0.53, Y_DISCHARGE, RACK_Z],
+  ], 0.011)
+  for (const x of [-0.5, -0.1, 0.25]) pipeClamp(x, Y_DISCHARGE, Z0 + 0.034, RACK_Z, 0.011)
+
+  // 液管：冷凝器下集管 → 贴 -Z 壁板 → 干燥过滤器 → 膨胀阀 → 蒸发器下集管
+  pipe(piping, copper, [
+    [0.53, BOTTOM + 0.05, -0.76],
+    [0.5, Y_LIQUID, RACK_Z],
+  ], 0.008)
+  pipe(piping, copper, [
+    [0.5, Y_LIQUID, RACK_Z],
+    [-0.4, Y_LIQUID, RACK_Z],
+    [-0.4, Y_LIQUID - 0.02, -0.42],
+    [-0.4, BOTTOM + 0.07, -0.29],
+  ], 0.008)
+  for (const x of [0.2, -0.05, -0.32]) pipeClamp(x, Y_LIQUID, Z0 + 0.034, RACK_Z, 0.008)
+  // 干燥过滤器（横装）与热力膨胀阀（阀头朝上，感温包在回气管上）
+  const drier = new Mesh(new CylinderGeometry(0.026, 0.026, 0.15, 16), paintedMaterial(0x9aa0a5))
+  drier.rotation.z = Math.PI / 2
+  drier.position.set(-0.14, Y_LIQUID, RACK_Z)
+  piping.add(drier)
+  piping.add(roundedBox(0.05, 0.075, 0.05, chromeMaterial(), -0.27, Y_LIQUID + 0.008, RACK_Z, 0.005))
+  // 感温包：绑在回气管（+Z 侧）上，与膨胀阀用毛细管连
+  const bulb = new Mesh(new CylinderGeometry(0.009, 0.009, 0.07, 10), chromeMaterial())
+  bulb.rotation.x = Math.PI / 2
+  bulb.position.set(-0.27, Y_SUCTION + 0.016, RACK_Z2)
+  piping.add(bulb)
+
+  // 吸气管（带保温）：蒸发器上集管 → 贴 +Z 壁板 → 气液分离器 → 压缩机
+  const suctionPath: Array<[number, number, number]> = [
+    [0.4, BOTTOM + 0.225, 0.26],
+    [0.4, Y_SUCTION + 0.03, 0.62],
+    [0.36, Y_SUCTION, RACK_Z2],
+    [-0.5, Y_SUCTION, RACK_Z2],
+    [-0.5, Y_SUCTION + 0.08, 0.48],
+    [-0.5, BOTTOM + 0.13, 0.27],
+  ]
+  pipe(piping, INSUL, suctionPath, 0.017)
+  for (const x of [0.15, -0.15, -0.42]) pipeClamp(x, Y_SUCTION, Z1 - 0.034, RACK_Z2, 0.017)
+  // 气液分离器 → 压缩机吸气口（短接，不进主管）
+  pipe(piping, INSUL, [
+    [-0.5, BOTTOM + 0.27, 0.24],
+    [-0.56, BOTTOM + 0.24, 0.16],
+    [-0.62, BOTTOM + 0.2, 0.1],
+  ], 0.014)
+
+  // 隔板穿孔的橡胶护圈（排气管、液管、吸气管各一处）
+  for (const [x, y, z] of [
+    [XC1, Y_DISCHARGE, RACK_Z],
+    [XC2, Y_DISCHARGE, RACK_Z],
+    [XC1, Y_LIQUID, RACK_Z],
+    [XC2, Y_LIQUID, RACK_Z],
+    [XC1, Y_SUCTION, RACK_Z2],
+    [XC2, Y_SUCTION, RACK_Z2],
+  ] as const) {
+    const grommet = new Mesh(new TorusGeometry(0.021, 0.006, 8, 16), INSUL)
+    grommet.position.set(x, y, z)
     grommet.rotation.y = Math.PI / 2
     piping.add(grommet)
   }
 
-  // 液管：冷凝器 → 干燥过滤器 → 膨胀阀 → 蒸发器
+  /* 高压检修阀接口：仍然放在**压缩机排气管**上（第 5 步同时量电流与高压侧压力，
+     两个测点在实机上就挨着）。现在主管贴在壁板上，所以这里做一只三通支管
+     朝 +Z 伸进舱内，表管挂在支管上——不再是从管排上直接斜拉一根软管。 */
+  const PORT = { x: -0.62, y: Y_DISCHARGE, z: RACK_Z }
   pipe(piping, copper, [
-    [0.58, BOTTOM + 0.2, -0.52],
-    [0.1, BOTTOM + 0.12, -0.58],
-    [-0.18, BOTTOM + 0.14, -0.58],
-    [-0.28, BOTTOM + 0.2, -0.44],
-    [-0.3, BOTTOM + 0.26, -0.3],
-  ], 0.008)
-  const drier = new Mesh(new CylinderGeometry(0.028, 0.028, 0.16, 16), paintedMaterial(0x9aa0a5))
-  drier.rotation.z = Math.PI / 2
-  drier.position.set(-0.04, BOTTOM + 0.13, -0.58)
-  piping.add(drier)
-  // 膨胀阀
-  piping.add(roundedBox(0.06, 0.07, 0.05, chromeMaterial(), -0.29, BOTTOM + 0.23, -0.36, 0.006))
-
-  // 吸气管：蒸发器下集管 → 气液分离器 → 压缩机侧
-  pipe(piping, copper, [
-    [0.05, BOTTOM + 0.09, -0.24],
-    [-0.2, BOTTOM + 0.07, -0.3],
-    [-0.5, BOTTOM + 0.1, -0.28],
-    [-0.5, BOTTOM + 0.16, 0.1],
-    [-0.52, BOTTOM + 0.24, 0.19],
-  ], 0.011)
-  // 吸气管保温：低压管必须包保温，这一段包成深色海绵
-  pipe(piping, INSUL, [
-    [0.06, BOTTOM + 0.09, -0.24],
-    [-0.22, BOTTOM + 0.07, -0.3],
-    [-0.46, BOTTOM + 0.095, -0.28],
-  ], 0.017)
-
-  /* 高压检修阀接口：**放在压缩机排气管上**（不是在冷凝器那头）。
-     第 5 步同时量"压缩机电流"和"高压侧压力"，两个测点在实机上就在一处；
-     放到冷凝段去，这一张图就装不下"压缩机 + 接表的地方"两件事。 */
-  pipe(piping, copper, [
-    [-0.4, BOTTOM + 0.365, -0.2],
-    [-0.42, BOTTOM + 0.355, -0.14],
-    [-0.44, BOTTOM + 0.35, -0.08],
-  ], 0.01)
-  // 阀口**横着**接（沿 Z 出），不是竖着装：竖着装阀帽顶到 1.01，会从盖板里穿出去
-  const port = new Mesh(new CylinderGeometry(0.016, 0.016, 0.03, 12), chromeMaterial())
+    [PORT.x, PORT.y, PORT.z],
+    [PORT.x, PORT.y, -0.6],
+  ], 0.009)
+  const port = new Mesh(new CylinderGeometry(0.015, 0.015, 0.028, 12), chromeMaterial())
   port.rotation.x = Math.PI / 2
-  port.position.set(-0.44, BOTTOM + 0.35, -0.075)
+  port.position.set(PORT.x, PORT.y, -0.585)
   piping.add(port)
-  const portCap = new Mesh(new CylinderGeometry(0.013, 0.013, 0.024, 12), paintedMaterial(0x2f5fa8))
+  const portCap = new Mesh(new CylinderGeometry(0.012, 0.012, 0.022, 12), paintedMaterial(0x2f5fa8))
   portCap.rotation.x = Math.PI / 2
-  portCap.position.set(-0.44, BOTTOM + 0.35, -0.052)
+  portCap.position.set(PORT.x, PORT.y, -0.562)
   piping.add(portCap)
-  // 阀上挂一小段压力表软管，交代"这里能接表"
+  // 表管：从阀口往下垂一段，交代"这里能接表"（自然下垂，不是斜穿机舱）
   pipe(piping, rubberMaterial(0x1f2224), [
-    [-0.44, BOTTOM + 0.35, -0.045],
-    [-0.4, BOTTOM + 0.33, 0.04],
-    [-0.34, BOTTOM + 0.32, 0.12],
-  ], 0.008)
+    [PORT.x, PORT.y - 0.012, -0.55],
+    [PORT.x + 0.02, PORT.y - 0.09, -0.5],
+    [PORT.x + 0.03, PORT.y - 0.15, -0.44],
+  ], 0.0075)
 
-  // 排水管：从蒸发段接水盘引出、从底盘侧面穿出（挂在 piping 上，
-  // 否则它伸到机外 0.8m，会把第 4 步蒸发器的取景框整个拉大）
+  // 排水管：接水盘 → 沿壁板下沿 → 穿出底盘侧面
   pipe(piping, rubberMaterial(0x2f3134), [
-    [(XC1 + XC2) / 2, BOTTOM + 0.04, -0.2],
-    [0.1, BOTTOM + 0.02, -0.32],
-    [0.36, BOTTOM + 0.01, -0.62],
-    [0.5, BOTTOM - 0.02, -0.8],
+    [0.16, BOTTOM + 0.035, -0.16],
+    [0.16, BOTTOM + 0.02, -0.6],
+    [0.16, BOTTOM + 0.005, -0.818],
+    [0.16, BOTTOM - 0.03, -0.9],
   ], 0.012)
 
-  // 线束：控制盒 → 压缩机接线盒 / 风机 / 冷凝风机
-  for (const [color, pts] of [
-    [0x9b3b34, [[-1.0, BOTTOM + 0.26, -0.42], [-0.95, BOTTOM + 0.2, -0.3], [-0.88, BOTTOM + 0.26, -0.18]]],
-    [0x2f3b4a, [[-1.06, BOTTOM + 0.3, -0.44], [-1.1, BOTTOM + 0.18, -0.2], [-1.02, BOTTOM + 0.1, 0.1], [-0.9, BOTTOM + 0.12, 0.44]]],
-    [0x3f6b46, [[-1.05, BOTTOM + 0.34, -0.46], [-0.6, BOTTOM + 0.34, -0.78], [0.3, BOTTOM + 0.34, -0.8], [0.8, BOTTOM + 0.3, -0.78]]],
-  ] as const) {
-    const wire = new MeshStandardMaterial({ color, metalness: 0, roughness: 0.72 })
-    pipe(piping, wire, pts.map((p) => [...p] as [number, number, number]), 0.0065)
+  /* 线束：**两根护套电缆 + 线卡**，不再是三根单芯线斜穿机舱。
+     原来那三根线从控制盒口直接拉到压机/风机，横跨舱口——本人一眼看出
+     "电线应该经过端子排、而且不会这么随意"。现在：从盒右侧的两只电缆护套
+     出盒 → 贴 -Z 壁板下沿（低于所有管子）→ 每 0.4m 一个线卡 → 到设备端
+     才短支出去。与制冷剂管分两层走，互不缠绕。 */
+  const CABLE_Y = BOTTOM + 0.015
+  const cableMat = rubberMaterial(0x22262a)
+  const cableClip = (x: number, y: number, z: number): void => {
+    const c = new Mesh(new TorusGeometry(0.012, 0.0018, 6, 16), rubberMaterial(0x3a3f44))
+    c.rotation.y = Math.PI / 2
+    c.position.set(x, y, z)
+    piping.add(c)
+    piping.add(roundedBox(0.02, 0.024, Math.abs(z - (Z0 + 0.034)) + 0.008, steelMaterial(0xb6bbc0), x, y, (z + Z0 + 0.034) / 2, 0.002))
   }
-  // 线束的线卡
-  for (const x of [-0.75, -0.2, 0.5]) {
-    piping.add(roundedBox(0.02, 0.02, 0.012, rubberMaterial(), x, BOTTOM + 0.34, -0.8, 0.004))
-  }
+  // ① 控制盒 → 压缩机接线盒
+  pipe(piping, cableMat, [
+    [-0.716, CB.y - 0.1, -0.5],
+    [-0.73, CB.y - 0.13, -0.68],
+    [-0.73, CABLE_Y + 0.02, RACK_Z],
+    [-0.66, CABLE_Y + 0.02, RACK_Z],
+    [-0.66, BOTTOM + 0.24, RACK_Z],
+    [-0.66, BOTTOM + 0.245, -0.4],
+    [-0.665, BOTTOM + 0.25, -0.14],
+  ], 0.0075)
+  cableClip(-0.73, CABLE_Y + 0.02, RACK_Z)
+  cableClip(-0.66, BOTTOM + 0.12, RACK_Z)
+  // ② 控制盒 → 送风机（-Z 侧那台）
+  pipe(piping, cableMat, [
+    [-0.716, CB.y - 0.14, -0.5],
+    [-0.74, CB.y - 0.16, -0.7],
+    [-0.74, CABLE_Y, RACK_Z],
+    [0.0, CABLE_Y, RACK_Z],
+    [0.0, BOTTOM + 0.07, -0.762],
+    [0.0, BOTTOM + 0.095, -0.745],
+  ], 0.0075)
+  for (const x of [-0.5, -0.25, 0.0]) cableClip(x, CABLE_Y, RACK_Z)
 
   /* ================================================================ 动作 */
 
@@ -909,8 +1101,10 @@ export function buildHvac(): DeviceRig {
     for (let i = 0; i < breakers.length; i += 1) {
       const on = seg(t, 0.3 + i * 0.03, 0.36 + i * 0.03)
       // 手柄是"从里往外拨"，起点必须用它自己的位置——
-      // 上一版这里写死 -0.01，三只手柄全被拉到盒外 60cm（盒在 z=-0.56）
-      breakers[i].position.z = CB.z + 0.02 + on * 0.012
+      // 上一版这里写死 -0.01，三只手柄全被拉到盒外 60cm（盒在 z=-0.56）。
+      // 2026-11-12 断路器整排挪到后壁，这里必须跟着走，
+      // 否则三只手柄悬空 20.5mm（几何自检直接报出来）。
+      breakers[i].position.z = ROW_BREAK_Z - 0.03 + on * 0.012
       ;(breakers[i].material as MeshStandardMaterial).color.setHex(on > 0.5 ? 0x8d2f2a : 0x2a2d30)
     }
 
