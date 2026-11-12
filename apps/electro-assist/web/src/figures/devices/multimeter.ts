@@ -41,6 +41,7 @@ import {
   seg,
 } from './rig'
 import { facePlate, lcdTexture, meterPanelTexture, setGlow, terminalLabelTexture } from './print'
+import { phaseFor } from '../../lib/devphase'
 
 /** 表体尺寸（m）：183 × 90 × 49mm 的通用工业表，取整到 180 × 88 × 46。 */
 const BODY = { w: 0.088, h: 0.18, d: 0.046 }
@@ -382,14 +383,10 @@ export function buildMultimeter(): DeviceRig {
     else applyLcd('steady')
   }
 
-  const phase = (t: number): string => {
-    if (t < 0.12) return '档位置于直流电压档'
-    if (t < 0.3) return '红表笔接近正极端子'
-    if (t < 0.55) return '黑表笔接近公共端'
-    if (t < 0.7) return '读数建立中'
-    if (t < 0.9) return '读数稳定 110.3 V'
-    return '撤笔、读数保持'
-  }
+  /* 阶段文案的唯一来源在 `lib/devphase.ts`：同一句话不该在这里再写一遍。
+     2026-11-12 评审 R11-6：三维侧与读数侧各写一份，`door` 已经漂成
+     "三维说完全开启、界面说到位检测"。阈值改动请改 devphase 的常量。 */
+  const phase = (t: number): string => phaseFor('multimeter', t)
 
   setT(0)
   root.updateMatrixWorld(true)

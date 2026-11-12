@@ -39,10 +39,16 @@ const state = reactive<TopBarState>({
   actions: [],
 })
 
-/** 页面投稿。只给要改的字段，其余保持上一次的值会让上一个页面串味，
- *  所以每次调用都整体替换（调用方通常一次给全）。 */
+/** 页面投稿。**整体替换**：没给的字段一律清空，不留上一次的值。
+ *
+ *  2026-11-12 第五轮评审 R11-5：`kicker` 原来写的是 `patch.kicker ?? state.kicker`，
+ *  与其余三个字段（缺省即清空）不一致，也与本注释相反。当前两个投稿方都给了
+ *  kicker，所以没发作；但只要有第三处只投稿标题，就会带着上一页的小字
+ *  （"正在查看 02 / 05"挂在生成页上）。这里统一成清空，并由
+ *  `useTopBar.spec.ts` 钉住"第二次投稿不带 kicker → kicker 必须为空"。
+ */
 export function setTopBar(patch: Partial<TopBarState>): void {
-  state.kicker = patch.kicker ?? state.kicker
+  state.kicker = patch.kicker ?? ''
   state.title = patch.title ?? ''
   state.progress = patch.progress ?? null
   state.actions = patch.actions ?? []

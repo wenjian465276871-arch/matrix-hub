@@ -38,6 +38,7 @@ import {
   steelMaterial,
   withEdges,
 } from './rig'
+import { phaseFor } from '../../lib/devphase'
 
 /** 示意尺寸（米）。改这里就能整体缩放，不散落在各处。 */
 const DIM = {
@@ -539,14 +540,10 @@ export function buildDoor(): DeviceRig {
     bulb.emissive.setHex(hex)
   }
 
-  const phase = (t: number): string => {
-    if (t < 0.02) return '关闭锁定'
-    if (t < 0.08) return '门锁解锁'
-    if (t < 0.2) return '退出密封面'
-    if (t < 0.88) return '门扇开启'
-    if (t < 0.88) return '到位检测'
-    return '完全开启'
-  }
+  /* 阶段文案的唯一来源在 `lib/devphase.ts`：同一句话不该在这里再写一遍。
+     2026-11-12 评审 R11-6：三维侧与读数侧各写一份，`door` 已经漂成
+     "三维说完全开启、界面说到位检测"。阈值改动请改 devphase 的常量。 */
+  const phase = (t: number): string => phaseFor('door', t)
 
   setT(0)
 

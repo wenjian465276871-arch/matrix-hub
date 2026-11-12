@@ -43,6 +43,7 @@ import {
   steelMaterial,
   withEdges,
 } from './rig'
+import { phaseFor } from '../../lib/devphase'
 
 const OFF = 0x2b2d31
 const RED = 0xd1483f
@@ -573,18 +574,10 @@ export function buildCabinet(): DeviceRig {
     setLed(alarmLed, RED, t >= 0.8 && t < 0.97)
   }
 
-  const phase = (t: number): string => {
-    if (t < 0.13) return '主断路器合闸'
-    if (t < 0.26) return '分路断路器合闸'
-    if (t < 0.3) return '控制回路得电'
-    if (t < 0.46) return '接触器吸合'
-    if (t < 0.68) return '继电器自检'
-    if (t < 0.78) return '系统就绪'
-    if (t < 0.88) return '过载脱扣'
-    if (t < 0.94) return '复位（手柄扳到底）'
-    if (t < 0.999) return '重新合闸'
-    return '系统就绪'
-  }
+  /* 阶段文案的唯一来源在 `lib/devphase.ts`：同一句话不该在这里再写一遍。
+     2026-11-12 评审 R11-6：三维侧与读数侧各写一份，`door` 已经漂成
+     "三维说完全开启、界面说到位检测"。阈值改动请改 devphase 的常量。 */
+  const phase = (t: number): string => phaseFor('cabinet', t)
 
   setT(0)
 

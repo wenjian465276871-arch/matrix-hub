@@ -35,6 +35,7 @@ import {
   steelMaterial,
 } from './rig'
 import { facePlate, setGlow, torqueScaleTexture } from './print'
+import { phaseFor } from '../../lib/devphase'
 
 /** 螺栓轴心（世界坐标）与设定扭矩。 */
 const BOLT = new Vector3(0, 0.092, 0)
@@ -198,13 +199,10 @@ export function buildTorqueWrench(): DeviceRig {
     setGlow(scale, 0.05 + 0.55 * flash)
   }
 
-  const phase = (t: number): string => {
-    if (t < 0.42) return '套筒套入螺栓'
-    if (t < 0.7) return '施力、刻度接近设定值'
-    if (t < 0.86) return '到 25 N·m 咔嗒脱扣'
-    if (t < 0.92) return '移开扳手'
-    return '复检并做防松标记'
-  }
+  /* 阶段文案的唯一来源在 `lib/devphase.ts`：同一句话不该在这里再写一遍。
+     2026-11-12 评审 R11-6：三维侧与读数侧各写一份，`door` 已经漂成
+     "三维说完全开启、界面说到位检测"。阈值改动请改 devphase 的常量。 */
+  const phase = (t: number): string => phaseFor('torque_wrench', t)
 
   setT(0)
   root.updateMatrixWorld(true)

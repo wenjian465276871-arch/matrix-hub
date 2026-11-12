@@ -41,6 +41,7 @@ import {
   seg,
 } from './rig'
 import { facePlate, signFaceTexture } from './print'
+import { phaseFor } from '../../lib/devphase'
 
 /** 牌面：200 × 160mm，厚度取 3mm（PVC 板常见 2.5–3mm）。 */
 const PLATE = { w: 0.2, h: 0.16, t: 0.003 }
@@ -179,13 +180,10 @@ export function buildWarningSign(): DeviceRig {
     updateCord(hole, 1 - seated)
   }
 
-  const phase = (t: number): string => {
-    if (t < 0.2) return '牌已挂在把手上、尚未摆正'
-    if (t < 0.4) return '挂绳滑入把手内侧'
-    if (t < 0.62) return '牌面离手、下垂'
-    if (t < 0.88) return '摆动收住、牌面摆正'
-    return '挂牌到位、牌面朝向作业面'
-  }
+  /* 阶段文案的唯一来源在 `lib/devphase.ts`：同一句话不该在这里再写一遍。
+     2026-11-12 评审 R11-6：三维侧与读数侧各写一份，`door` 已经漂成
+     "三维说完全开启、界面说到位检测"。阈值改动请改 devphase 的常量。 */
+  const phase = (t: number): string => phaseFor('warning_sign', t)
 
   setT(0)
   root.updateMatrixWorld(true)

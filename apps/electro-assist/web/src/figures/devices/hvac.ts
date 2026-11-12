@@ -51,6 +51,7 @@ import {
   steelMaterial,
 } from './rig'
 import { canvasTexture, facePlate } from './print'
+import { phaseFor } from '../../lib/devphase'
 
 /* ------------------------------------------------------------------ 尺寸 */
 
@@ -859,15 +860,10 @@ export function buildHvac(): DeviceRig {
     for (const f of fanRig) f.rotor.rotation.y = spin * Math.PI
   }
 
-  const phase = (t: number): string => {
-    if (t < 0.12) return '检修盖板关闭、机组停用'
-    if (t < 0.28) return '掀开检修盖板'
-    if (t < 0.36) return '检查控制盒接线'
-    if (t < 0.5) return '控制电源接通'
-    if (t < 0.68) return '通风模式运行'
-    if (t < 0.86) return '制冷模式起动'
-    return '稳定运行'
-  }
+  /* 阶段文案的唯一来源在 `lib/devphase.ts`：同一句话不该在这里再写一遍。
+     2026-11-12 评审 R11-6：三维侧与读数侧各写一份，`door` 已经漂成
+     "三维说完全开启、界面说到位检测"。阈值改动请改 devphase 的常量。 */
+  const phase = (t: number): string => phaseFor('hvac', t)
 
   setT(0)
 

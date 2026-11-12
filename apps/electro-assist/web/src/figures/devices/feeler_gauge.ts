@@ -43,6 +43,7 @@ import {
   seg,
   steelMaterial,
 } from './rig'
+import { phaseFor } from '../../lib/devphase'
 
 /** 门缝宽度（m）。真实 1–2mm，这里放大以便看清片插进去。 */
 const GAP = 0.008
@@ -204,14 +205,10 @@ export function buildFeelerGauge(): DeviceRig {
     gauge.rotation.y = -0.2 * (1 - approach)
   }
 
-  const phase = (t: number): string => {
-    if (t < 0.32) return '展开选片、翻成竖直'
-    if (t < 0.35) return '片端对准门缝'
-    if (t < 0.62) return '塞尺插入门缝'
-    if (t < 0.82) return '沿缝滑动找最紧处'
-    if (t < 0.92) return '抽出塞尺'
-    return '读出片厚、判定间隙'
-  }
+  /* 阶段文案的唯一来源在 `lib/devphase.ts`：同一句话不该在这里再写一遍。
+     2026-11-12 评审 R11-6：三维侧与读数侧各写一份，`door` 已经漂成
+     "三维说完全开启、界面说到位检测"。阈值改动请改 devphase 的常量。 */
+  const phase = (t: number): string => phaseFor('feeler_gauge', t)
 
   setT(0)
   root.updateMatrixWorld(true)

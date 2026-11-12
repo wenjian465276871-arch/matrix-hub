@@ -69,7 +69,8 @@ import {
   armAngles,
   compression,
 } from '../../lib/panto-kin'
-import { PANO_T, airState, phase as airPhase, travel, type PantoMode } from '../../lib/panto-air'
+import { PANO_T, airState, travel, type PantoMode } from '../../lib/panto-air'
+import { phaseFor } from '../../lib/devphase'
 
 /** 接触线所在的前后位置：正对**前侧那根滑板**（升到位时弓头 z≈0.33）。 */
 const HEAD_Z = 0.43
@@ -1379,7 +1380,8 @@ export function buildPantograph(): DeviceRig {
       setT(lastT)
     },
     parts,
-    phase: (t: number) => airPhase(t, mode),
+    // 阶段文案的唯一来源在 `lib/devphase.ts`（含 ADD 工况）
+    phase: (t: number) => phaseFor('pantograph', t, mode),
     framing: { target: [0.08, 1.55, 0.06], distance: 8.7 },
     /* 长焦（26°）而不是默认 34°：受电弓是一台 3m 高的设备，广角会把底架拉大、
        把弓头压小，看起来像"从脚边仰拍"。产品图用的是 24–28°，透视一弱，比例就对了。 */

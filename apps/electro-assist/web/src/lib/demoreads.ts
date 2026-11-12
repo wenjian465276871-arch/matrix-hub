@@ -14,7 +14,8 @@
  * 而页面要 WebGL。纯函数没有这个负担。
  */
 
-import { PANO_T, airState, phase as airPhase, travel, type PantoMode } from './panto-air'
+import { CAB_T, FEEL_T, MM_T, SIGN_T, TQ_T, phaseFor } from './devphase'
+import { PANO_T, airState, travel, type PantoMode } from './panto-air'
 import { PGAP, WIRE_Y, armY, compression } from './panto-kin'
 
 export type ReadoutDot = 'ok' | 'idle' | 'warn'
@@ -57,18 +58,7 @@ export function doorReads(t: number): Readout[] {
   } else if (t >= 0.88) {
     current = 0.12
   }
-  const phase =
-    t < 0.02
-      ? '关闭锁定'
-      : t < 0.08
-        ? '门锁解锁'
-        : t < 0.2
-          ? '退出密封面'
-          : t < 0.88
-            ? '门扇开启'
-            : t < 0.92
-              ? '到位检测'
-              : '完全开启'
+  const phase = phaseFor('door', t)
   return [
     { label: '动作阶段', value: phase },
     // 「门锁」是机械状态，「锁闭信号」是电气状态。现场要先看信号再动车
@@ -139,25 +129,7 @@ export function pantoReads(t: number, mode: PantoMode = 'normal'): Readout[] {
 
   /* 阶段名：正常工况沿用原来那套（测试与判据都按这几句核对）；
      ADD 工况直接用气路模块的说法，因为那一段的"证据"就是压差与快排。 */
-  const phase =
-    mode === 'add' && t >= PT.lower0
-      ? airPhase(t, mode)
-      : t < PT.airOn
-        ? '落弓锁定'
-        : t < PT.raise0
-          ? '气路建压'
-          : t < PT.raise1
-            ? '升弓中'
-            : t < PT.press1
-              ? '接触压力建立'
-              : t < PT.hold1
-                ? '升弓到位'
-                : t < PT.lower0
-                  ? '保压'
-                  : t < PT.lower1
-                    ? '降弓中（阻尼）'
-                    : '落弓到位'
-
+  const phase = phaseFor('pantograph', t, mode)
   return [
     { label: '动作阶段', value: phase },
     { label: '弓头高度', value: String(headTop), unit: 'mm' },
@@ -179,10 +151,10 @@ export function pantoReads(t: number, mode: PantoMode = 'normal'): Readout[] {
 
 /* -------------------------------------------------------------- 电气柜 */
 
-/** 与 `devices/cabinet.ts` 的 `setT` 同源：0.78 脱扣、0.88 复位、0.94 再合闸。 */
-export const CAB_TRIP = 0.78
-export const CAB_RESET = 0.88
-export const CAB_RECLOSE = 0.94
+/** 阈值唯一来源在 `lib/devphase.ts`（`CAB_T`）；这里保留旧名字给既有用例。 */
+export const CAB_TRIP = CAB_T.trip
+export const CAB_RESET = CAB_T.reset
+export const CAB_RECLOSE = CAB_T.reclose
 
 export function cabinetReads(t: number): Readout[] {
   const closed = t >= 0.12
@@ -194,26 +166,7 @@ export function cabinetReads(t: number): Readout[] {
   const relayCount = t < 0.82 ? [0, 1, 2].filter((i) => t >= 0.48 + i * 0.06).length : t >= 0.99 ? 3 : 0
   const running = (t >= 0.72 && t < 0.8) || t >= 0.99
 
-  const phase =
-    t < 0.13
-      ? '主断路器合闸'
-      : t < 0.26
-        ? '分路断路器合闸'
-        : t < 0.3
-          ? '控制回路得电'
-          : t < 0.46
-            ? '接触器吸合'
-            : t < 0.68
-              ? '继电器自检'
-              : t < CAB_TRIP
-                ? '系统就绪'
-                : t < CAB_RESET
-                  ? '过载脱扣'
-                  : t < CAB_RECLOSE
-                    ? '复位（手柄扳到底）'
-                    : t < 0.999
-                      ? '重新合闸'
-                      : '系统就绪'
+  const phase = phaseFor('cabinet', t)
 
   /* 手柄位置是这一页最要紧的一条：中间位既非合闸也非断开，
      现场见到它不能直接往上扳，必须先扳到底复位。 */
@@ -243,8 +196,8 @@ export function cabinetReads(t: number): Readout[] {
 
 /* ------------------------------------------------------- 工具四台（2026-11-10） */
 
-/** 与 `devices/multimeter.ts` 的 setT 同源：0.12 档位、0.30 红笔、0.55 黑笔、0.58 读数。 */
-export const MM = { dial: 0.12, red: 0.3, black: 0.55, read: 0.58, settle: 0.7 } as const
+/** 阈值唯一来源在 `lib/devphase.ts`（`MM_T`）；这里只做别名，防止两处各写一套。 */
+export const MM = { dial: MM_T.dial, red: MM_T.red, black: MM_T.black, read: MM_T.lcd, settle: MM_T.settle } as const
 
 export function multimeterReads(t: number): Readout[] {
   const dialed = t >= MM.dial
@@ -252,19 +205,7 @@ export function multimeterReads(t: number): Readout[] {
   const black = t >= MM.black
   const reading = t >= MM.read
   const value = !reading ? '—' : t >= MM.settle ? '110.3' : '109.8'
-  const phase =
-    t < MM.dial
-      ? '档位置于直流电压档'
-      : t < MM.red
-        ? '红表笔接近正极端子'
-        : t < MM.black
-          ? '黑表笔接近公共端'
-          : t < MM.read
-            ? '等待读数建立'
-            : t < 0.9
-              ? '读数稳定'
-              : '撤笔、读数保持'
-
+  const phase = phaseFor('multimeter', t)
   return [
     { label: '动作阶段', value: phase },
     { label: '档位', value: dialed ? 'V⎓ 直流' : 'OFF', dot: dialed ? 'ok' : 'idle' },
@@ -280,19 +221,12 @@ export function multimeterReads(t: number): Readout[] {
   ]
 }
 
-/** 与 `devices/warning_sign.ts` 同源：0.40 绳到位、0.62 离手、0.82 摆正。 */
-export const SIGN = { seated: 0.4, released: 0.62, settled: 0.82 } as const
+/** 阈值唯一来源在 `lib/devphase.ts`（`SIGN_T`）。 */
+export const SIGN = { seated: SIGN_T.seated, released: SIGN_T.released, settled: SIGN_T.settled } as const
 
 export function signReads(t: number): Readout[] {
   const settled = t >= SIGN.settled
-  const phase =
-    t < SIGN.seated
-      ? '牌已挂上、尚未摆正'
-      : t < SIGN.released
-        ? '挂绳滑入把手内侧'
-        : t < SIGN.settled
-          ? '牌面离手、摆动中'
-          : '挂牌到位、牌面摆正'
+  const phase = phaseFor('warning_sign', t)
   // 摆角只作展示：0.42rad ≈ 24°，摆正后归零
   const tilt = Math.round((24 * (1 - smooth(t, 0, 0.4)) + (t < 0.62 ? 0 : 4 * Math.exp(-9 * (t - 0.62)))) * 10) / 10
 
@@ -305,26 +239,15 @@ export function signReads(t: number): Readout[] {
   ]
 }
 
-/** 与 `devices/feeler_gauge.ts` 同源：0.32 选片完成、0.35 对缝、0.62 插入、0.82 滑动。 */
-export const FEEL = { fold: 0.32, align: 0.35, inserted: 0.62, slid: 0.82 } as const
+/** 阈值唯一来源在 `lib/devphase.ts`（`FEEL_T`）。 */
+export const FEEL = { fold: FEEL_T.fold, align: FEEL_T.align, inserted: FEEL_T.inserted, slid: FEEL_T.slid } as const
 
 export function feelerReads(t: number): Readout[] {
-  const phase =
-    t < FEEL.fold
-      ? '展开选片、翻成竖直'
-      : t < FEEL.align
-        ? '片端对准门缝'
-        : t < FEEL.inserted
-          ? '插入门缝'
-          : t < FEEL.slid
-            ? '沿缝滑动找最紧处'
-            : t < 0.92
-              ? '抽出塞尺'
-              : '读出片厚、判定间隙'
+  const phase = phaseFor('feeler_gauge', t)
   const depth = Math.round(
-    25 * smooth(t, FEEL.align, FEEL.inserted) * (1 - smooth(t, 0.9, 1)),
+    25 * smooth(t, FEEL.align, FEEL.inserted) * (1 - smooth(t, FEEL_T.out, 1)),
   )
-  const slide = Math.round(55 * smooth(t, FEEL.inserted, FEEL.slid) * (1 - smooth(t, 0.9, 1)))
+  const slide = Math.round(55 * smooth(t, FEEL.inserted, FEEL.slid) * (1 - smooth(t, FEEL_T.out, 1)))
 
   return [
     { label: '动作阶段', value: phase },
@@ -337,8 +260,8 @@ export function feelerReads(t: number): Readout[] {
   ]
 }
 
-/** 与 `devices/torque_wrench.ts` 同源：0.42 落位、0.70 到位前、0.86 咔嗒。 */
-export const TQ = { seated: 0.42, loaded: 0.7, clicked: 0.86 } as const
+/** 阈值唯一来源在 `lib/devphase.ts`（`TQ_T`）。 */
+export const TQ = { seated: TQ_T.seated, loaded: TQ_T.loaded, clicked: TQ_T.click1 } as const
 export const TQ_TARGET = 25
 
 export function torqueReads(t: number): Readout[] {
@@ -347,17 +270,7 @@ export function torqueReads(t: number): Readout[] {
     TQ_TARGET * Math.min(1, smooth(t, TQ.seated, TQ.loaded) * 0.94 + (t >= 0.78 ? 0.06 : 0)),
   )
   const clicked = t >= TQ.clicked
-  const phase =
-    t < TQ.seated
-      ? '套筒套入螺栓'
-      : t < TQ.loaded
-        ? '施力、刻度上升'
-        : t < TQ.clicked
-          ? '到值前最后一段'
-          : t < 0.92
-            ? '咔嗒脱扣、手柄回弹'
-            : '复检并做防松标记'
-
+  const phase = phaseFor('torque_wrench', t)
   return [
     { label: '动作阶段', value: phase },
     { label: '设定扭矩', value: String(TQ_TARGET), unit: 'N·m' },
