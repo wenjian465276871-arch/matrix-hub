@@ -86,7 +86,11 @@ def test_unknown_param_still_rejected_for_new_primitive():
 
 def test_primitive_count_is_within_plan_range():
     # 计划 §2.1 要求 10–15 个；少于此说明"原语库补全"没做完。
-    assert 10 <= len(list(Primitive)) <= 15
+    # 2026-11-13 上限由 15 提到 17：新增 `mon_panel` 与 `operation_scene` 两个
+    # **交互情景**原语（受电弓升弓试验的 MON 屏与双画布操作台）。它们是"带状态的
+    # 界面"而不是一张图，用既有的 15 个只能拼出静态示意，点不了。上限跟着提，
+    # 不是放宽断言——超过 17 仍然会红，防的是无节制扩表。
+    assert 10 <= len(list(Primitive)) <= 17
 
 
 def test_schema_visual_lists_every_primitive():

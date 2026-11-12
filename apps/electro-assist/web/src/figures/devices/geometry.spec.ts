@@ -11,6 +11,7 @@ import { Box3, BoxGeometry, Mesh, MeshBasicMaterial, Object3D, Vector3 } from 't
 
 import { buildCabinet } from './cabinet'
 import { buildDoor } from './door'
+import { buildDriverDesk } from './driver_desk'
 import { buildFeelerGauge } from './feeler_gauge'
 import { DETACH_TOL, auditRig, boxGap, findDetached, type MeshBox } from './geometry-audit'
 import { buildHvac } from './hvac'
@@ -28,6 +29,7 @@ const BUILDERS: Record<string, () => ReturnType<typeof buildDoor>> = {
   warning_sign: buildWarningSign,
   feeler_gauge: buildFeelerGauge,
   torque_wrench: buildTorqueWrench,
+  driver_desk: buildDriverDesk,
 }
 
 describe.each(Object.keys(BUILDERS))('%s 的几何自检', (name) => {

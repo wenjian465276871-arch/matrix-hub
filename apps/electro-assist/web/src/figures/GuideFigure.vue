@@ -39,6 +39,12 @@ const isScene = computed(() => props.spec.primitive === 'device_scene')
  *  2026-11-11 本人明确要求：实物图也要能像三维那样"放大看"。
  *  它走弹层（就是一张 <img>，重挂载零成本）。 */
 const isBaked = computed(() => props.spec.primitive === 'baked_figure')
+/** 交互情景（MON 屏、升弓操作台）不提供放大层：
+ *  放大层是**重新挂载一个实例**，对这两类等于重建一套 WebGL + 丢掉当前页的滚动位置；
+ *  而它们本来就是整栏高度、自己带操作条，放大没有增益。 */
+const isOps = computed(
+  () => props.spec.primitive === 'mon_panel' || props.spec.primitive === 'operation_scene',
+)
 const zoomTrigger = ref<HTMLButtonElement | null>(null)
 const zoomClose = ref<HTMLButtonElement | null>(null)
 
@@ -199,7 +205,7 @@ onErrorCaptured((err) => {
          矮窗口里塞进版面必然看不清读数（510px 高的窗口画布只有 140px）。
          纯 2D 图元只在横屏短高出现——竖屏的 SVG 已经够大，多一个按钮是噪音。 -->
     <button
-      v-if="!zoomed && (isScene || isBaked)"
+      v-if="!zoomed && (isScene || isBaked) && !isOps"
       ref="zoomTrigger"
       class="figure__zoom"
       :class="isScene ? 'figure__zoom--scene' : 'figure__zoom--baked'"
@@ -209,7 +215,7 @@ onErrorCaptured((err) => {
       放大看
     </button>
     <button
-      v-else-if="!zoomed"
+      v-else-if="!zoomed && !isOps"
       ref="zoomTrigger"
       class="figure__zoom"
       type="button"

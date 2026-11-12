@@ -50,6 +50,17 @@ export const TQ_T = { seated: 0.42, loaded: 0.7, click0: 0.78, click1: 0.86, awa
 /** `devices/warning_sign.ts`：0.40 绳到位、0.62 离手、0.82 摆正。 */
 export const SIGN_T = { seated: 0.4, released: 0.62, settled: 0.82 } as const
 
+/** `devices/driver_desk.ts`：0.12 钥匙插入、0.22 右旋、0.36 手柄快速位、
+ *  0.50 选 2U、0.64 旋钮保持、0.80 弓起、1.00 VCB 闭合。 */
+export const DESK_T = {
+  keyIn: 0.12,
+  keyOn: 0.22,
+  brake: 0.36,
+  unit: 0.5,
+  raise: 0.64,
+  raised: 0.8,
+} as const
+
 /** `devices/hvac.ts`：0.10 掀盖、0.155 盖板取下、0.24 盒盖、0.30–0.40 合闸、0.50 风机、0.68 制冷。 */
 export const HVAC_T = {
   open: 0.1,
@@ -72,6 +83,7 @@ export type PhaseKey =
   | 'warning_sign'
   | 'feeler_gauge'
   | 'torque_wrench'
+  | 'driver_desk'
 
 /** 当前处于哪一段。`t` 是 0–1 的行程比例，与 `setT` 同一口径。 */
 export function phaseFor(scene: PhaseKey, t: number, mode: PantoMode = 'normal'): string {
@@ -148,6 +160,18 @@ export function phaseFor(scene: PhaseKey, t: number, mode: PantoMode = 'normal')
       if (t < TQ_T.click1) return '到 25 N·m 咔嗒脱扣'
       if (t < TQ_T.away) return '移开扳手'
       return '复检并做防松标记'
+
+    case 'driver_desk':
+      // 八拍就是升弓试验里"人做的部分"。阈值与 `driver_desk.ts` 的 setT 同源，
+      // 改动画必须同步改这里，`phase-contract.spec.ts` 会红。
+      if (t < DESK_T.keyIn) return '主控未激活、MON 屏熄灭'
+      if (t < DESK_T.keyOn) return '主控钥匙已插入'
+      if (t < DESK_T.brake) return '钥匙右旋、司机室占用'
+      if (t < DESK_T.unit) return '制动手柄快速位、MCR 励磁'
+      if (t < DESK_T.raise) return '受电弓选择 2U'
+      if (t < DESK_T.raised) return '升弓旋钮保持、升弓中'
+      if (t < 1) return '受电弓升起、网压正常'
+      return 'VCB 闭合、送电完成'
 
     default: {
       // 受电弓：正常工况沿用现场口径的短句，ADD 工况直接取气路模块的说法

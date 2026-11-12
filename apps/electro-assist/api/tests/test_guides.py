@@ -272,22 +272,22 @@ def _extra_published(count: int) -> None:
 
 
 def test_list_pages_twelve_at_a_time(fresh_library):
-    _extra_published(13)  # 6 份样例 + 13 份 = 19
+    _extra_published(13)  # 7 份样例 + 13 份 = 20
 
     first = client.get("/api/electro/guides").json()
     assert first["limit"] == 12
     assert first["count"] == 12
-    assert first["total"] == 19
+    assert first["total"] == 20
     assert first["has_more"] is True
 
     second = client.get("/api/electro/guides?limit=12&offset=12").json()
-    assert second["count"] == 7
+    assert second["count"] == 8
     assert second["has_more"] is False
-    assert second["total"] == 19
+    assert second["total"] == 20
 
     # 两页不能有重叠：排序键不稳定时这里会挂
     ids = [item["id"] for item in first["items"] + second["items"]]
-    assert len(ids) == len(set(ids)) == 19
+    assert len(ids) == len(set(ids)) == 20
 
 
 def test_offset_past_the_end_returns_empty_page(fresh_library):
@@ -315,22 +315,22 @@ def _extra_published(count: int) -> None:
 
 
 def test_list_pages_twelve_at_a_time(fresh_library):
-    _extra_published(13)  # 6 份样例 + 13 份 = 19
+    _extra_published(13)  # 7 份样例 + 13 份 = 20
 
     first = client.get("/api/electro/guides").json()
     assert first["limit"] == 12
     assert first["count"] == 12
-    assert first["total"] == 19
+    assert first["total"] == 20
     assert first["has_more"] is True
 
     second = client.get("/api/electro/guides?limit=12&offset=12").json()
-    assert second["count"] == 7
+    assert second["count"] == 8
     assert second["has_more"] is False
-    assert second["total"] == 19
+    assert second["total"] == 20
 
     # 两页不能有重叠：排序键不稳定时这里会挂
     ids = [item["id"] for item in first["items"] + second["items"]]
-    assert len(ids) == len(set(ids)) == 19
+    assert len(ids) == len(set(ids)) == 20
 
 
 def test_offset_past_the_end_returns_empty_page(fresh_library):
@@ -445,6 +445,14 @@ def test_samples_carry_device_scenes_for_every_subject():
     # 烘焙图的设备由路径第二段给出：/figures/pantograph/step1.webp → pantograph。
     live = set()
     baked = set()
+    # 交互情景原语（`operation_scene` / `mon_panel`）也代表设备出场：
+    # 2026-11-13 新增的司机操纵台没有独立 `device_scene`，它是通过升弓操作台
+    # 出场的——只数 device_scene 会把它误判成"没验收"。
+    # 映射写死在这里是有意的：场景键 → 设备是构建期的约定，不从代码里反射猜。
+    ops_scene_subjects = {
+        "pantograph_raise": {"driver_desk", "pantograph"},
+    }
+    ops = set()
     for path in SAMPLES.glob("*.json"):
         guide = Guide(**json.loads(path.read_text(encoding="utf-8")))
         for step in guide.steps:
@@ -455,8 +463,11 @@ def test_samples_carry_device_scenes_for_every_subject():
                     parts = str(fig.params.get("src", "")).split("/")
                     if len(parts) > 2:
                         baked.add(parts[2])
+                elif fig.primitive.value in ("operation_scene", "mon_panel"):
+                    scene = fig.params.get("scene")
+                    ops.update(ops_scene_subjects.get(scene, set()))
 
-    seen = live | baked
+    seen = live | baked | ops
     demo_only = {"torque_wrench"}
     assert seen - demo_only == set(DEVICE_SUBJECTS) - demo_only, (
         f"缺少样例覆盖：{set(DEVICE_SUBJECTS) - seen}"

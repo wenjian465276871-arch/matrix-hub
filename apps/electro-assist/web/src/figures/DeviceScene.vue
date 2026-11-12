@@ -20,6 +20,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Mesh, MeshStandardMaterial, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 import type { DeviceRig } from './devices/rig'
 import type { SectionCutter } from './devices/section'
+import { DEVICE_BUILDERS } from './devices/registry'
+import { partKeyOf } from './pick'
 
 /** 只声明用得到的那几个成员，避免把整个 OrbitControls 的类型拖进主包。 */
 interface ControlsLike {
@@ -62,6 +64,13 @@ const props = withDefaults(
      * 设备没实现 `setMode` 时无效。
      */
     mode?: string
+    /**
+     * 允许点击部件。打开后短按（不拖动）会射线拾取，把命中的部件键 emit 出去。
+     *
+     * 为什么不默认开：指导书里的三维首先是"看"的，点一下跳出一个动作会吓到人；
+     * 只有升弓操作台那种"点哪个件就做哪个动作"的场景才需要它。
+     */
+    pick?: boolean
   }>(),
   {
     subject: 'door',
@@ -73,6 +82,7 @@ const props = withDefaults(
     cutAt: 0.5,
     labels: false,
     mode: 'normal',
+    pick: false,
   },
 )
 
@@ -84,6 +94,8 @@ const emit = defineEmits<{
   snapshot: [dataUrl: string]
   /** 该设备是否支持剖切。UI 据此决定要不要显示开关，避免按场景名硬编码。 */
   cutable: [value: boolean]
+  /** 点击命中的部件键（仅 `pick` 打开时）。键已在后端白名单里。 */
+  'part-click': [key: string]
 }>()
 
 const host = ref<HTMLDivElement | null>(null)
@@ -116,6 +128,12 @@ let envTarget: { dispose(): void } | null = null
 let observer: ResizeObserver | null = null
 /** 剖切器。`section.ts` 同样只在用到时才加载，不拖首屏。 */
 let cutter: SectionCutter | null = null
+/** 拾取监听器。挂在 canvas 上，卸载时必须摘掉——否则翻页几次会叠出一排回调。 */
+let pickListeners: {
+  el: HTMLCanvasElement
+  down: (event: PointerEvent) => void
+  up: (event: PointerEvent) => void
+} | null = null
 
 /**
  * 程序化影棚环境：给金属"反射内容"。
@@ -458,19 +476,9 @@ async function init(): Promise<void> {
     three = await import('three')
     rigModule = await import('./devices/rig')
     /* 构建期白名单：subject 不是自由字符串，查到哪个建哪个。
-       与后端 `models/visual.py` 的枚举纪律一致——模型不能靠一句话让前端加载任意场景。 */
-    const builders: Record<string, () => Promise<() => DeviceRig>> = {
-      door: async () => (await import('./devices/door')).buildDoor,
-      pantograph: async () => (await import('./devices/pantograph')).buildPantograph,
-      cabinet: async () => (await import('./devices/cabinet')).buildCabinet,
-      hvac: async () => (await import('./devices/hvac')).buildHvac,
-      // 工具类四台：静态资源同样按需加载，翻到没有它们的那一页就不下载
-      multimeter: async () => (await import('./devices/multimeter')).buildMultimeter,
-      warning_sign: async () => (await import('./devices/warning_sign')).buildWarningSign,
-      feeler_gauge: async () => (await import('./devices/feeler_gauge')).buildFeelerGauge,
-      torque_wrench: async () => (await import('./devices/torque_wrench')).buildTorqueWrench,
-    }
-    const load = builders[props.subject]
+       与后端 `models/visual.py` 的枚举纪律一致——模型不能靠一句话让前端加载任意场景。
+       表在 `devices/registry.ts`（唯一登记处），测试直接断言它与契约一致。 */
+    const load = DEVICE_BUILDERS[props.subject]
     if (!load) throw new Error(`未注册的设备场景：${props.subject}`)
     const build = await load()
     rig = build()
@@ -521,7 +529,7 @@ async function init(): Promise<void> {
          这里现场建、导出、销毁，与页面状态完全解耦。 */
       ;(window as unknown as { __exportSubject?: (s: string, t?: number) => Promise<string> })
         .__exportSubject = async (subject: string, t = 0) => {
-        const load = builders[subject]
+        const load = DEVICE_BUILDERS[subject]
         if (!load) throw new Error(`未注册的设备场景：${subject}`)
         const build = await load()
         const r = build()
@@ -554,7 +562,7 @@ async function init(): Promise<void> {
           keys?: string[],
         ) => Promise<{ center: [number, number, number]; size: [number, number, number] } | null>
       }).__subjectBox = async (subject: string, t = 0, keys) => {
-        const load = builders[subject]
+        const load = DEVICE_BUILDERS[subject]
         if (!load) throw new Error(`未注册的设备场景：${subject}`)
         const build = await load()
         const r = build()
@@ -710,6 +718,37 @@ async function init(): Promise<void> {
   })
   controls = ctrl as unknown as ControlsLike
 
+  /* ---------------- 部件拾取 ----------------
+     只在 `pick` 打开时挂。判定"点击"而不是"拖视角"用两条：位移 <6px、按下到抬起 <700ms。
+     没有这两条，用户想转个角度就会顺手把升弓指令发出去——现场最不该出现的就是这个。 */
+  let down: { x: number; y: number; at: number } | null = null
+  const onDown = (event: PointerEvent): void => {
+    down = { x: event.clientX, y: event.clientY, at: performance.now() }
+  }
+  const onUp = (event: PointerEvent): void => {
+    const start = down
+    down = null
+    if (!props.pick || !start || !rig || !camera || !three) return
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6) return
+    if (performance.now() - start.at > 700) return
+    const rect = canvasEl.getBoundingClientRect()
+    if (!rect.width || !rect.height) return
+    const ndc = new three.Vector2(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1,
+    )
+    const ray = new three.Raycaster()
+    ray.setFromCamera(ndc, camera)
+    const hits = ray.intersectObjects(Object.values(rig.parts), true)
+    const key = hits.length ? partKeyOf(rig.parts, hits[0].object) : null
+    if (key) emit('part-click', key)
+  }
+  if (props.pick) {
+    canvasEl.addEventListener('pointerdown', onDown)
+    canvasEl.addEventListener('pointerup', onUp)
+  }
+  pickListeners = { el: canvasEl, down: onDown, up: onUp }
+
   observer = new ResizeObserver(resize)
   observer.observe(hostEl)
   resize()
@@ -787,6 +826,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.clearTimeout(captureTimer)
+  if (pickListeners) {
+    pickListeners.el.removeEventListener('pointerdown', pickListeners.down)
+    pickListeners.el.removeEventListener('pointerup', pickListeners.up)
+    pickListeners = null
+  }
   observer?.disconnect()
   observer = null
   controls?.dispose()
@@ -808,7 +852,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="host" class="scene">
+  <div ref="host" class="scene" :class="{ 'scene--picking': pick }">
     <canvas ref="canvas" class="scene__canvas" role="img" :aria-label="ariaLabel" />
     <!-- 标注层：纯视觉，同样的信息在读数面板里也有文字，所以对读屏隐藏 -->
     <canvas ref="annot" class="scene__annot" aria-hidden="true" />
@@ -839,6 +883,12 @@ onBeforeUnmount(() => {
   /* OrbitControls 需要接管手势，否则拖动会带着整页滚 */
   touch-action: none;
   cursor: grab;
+}
+
+/* 可点击时用 pointer：告诉人"这里有东西可以按"。拖动仍是 grab 的手感，
+   光标只改外观，不影响 OrbitControls。 */
+.scene--picking .scene__canvas {
+  cursor: pointer;
 }
 
 .scene__canvas:active {

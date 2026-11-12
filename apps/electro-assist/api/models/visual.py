@@ -53,6 +53,11 @@ class Primitive(str, Enum):
     annotation = "annotation"            # 标注示意图：编号点 + 图例
     device_scene = "device_scene"        # 设备三维场景：受控设备 + 动作进度 + 部件高亮
     baked_figure = "baked_figure"        # 离线烘焙的静态图：指导书主图（画质优先，不可交互）
+    # 以下两个是「交互情景」原语：不是一张图，而是一段可操作的界面。
+    # 与 device_scene 的区别是**它带状态**——点完之后要记住，翻页回来还得在。
+    # 所以参数只有一个场景键，具体页签/视图由前端按场景表展开，模型无权编结构。
+    mon_panel = "mon_panel"              # MON 屏：可点确认的随车显示屏（页签 + 逐项确认）
+    operation_scene = "operation_scene"  # 联动作业台：操纵台与设备双画布，点开关驱动动作
 
 
 # 每个原语允许的参数键。未列出的键一律拒绝，防止 LLM 塞任意内容。
@@ -75,6 +80,10 @@ _ALLOWED_PARAMS: dict[Primitive, set[str]] = {
     Primitive.device_scene: {"subject", "t", "part"},
     # 只给路径与替代文字。尺寸/滤镜/背景一律不给——那是构建期决定的。
     Primitive.baked_figure: {"src", "alt"},
+    # 交互情景：只给"哪个场景"和"打开时看哪一页"。数据（行、页签、联锁）在前端场景表里，
+    # 让模型填这些等于让它编设备状态。
+    Primitive.mon_panel: {"scene", "tab", "mode"},
+    Primitive.operation_scene: {"scene", "view"},
 }
 
 # 必填参数：缺了就不是"降级成文字"，而是渲染出一张没有信息量的空图。
@@ -90,6 +99,9 @@ _REQUIRED_PARAMS: dict[Primitive, set[str]] = {
     # 没人知道。三维图唯一的价值就是"这一步设备长什么样"，这一项不能有默认值。
     Primitive.device_scene: {"subject", "t"},
     Primitive.baked_figure: {"src", "alt"},
+    # 场景键不能省：没有它，前端不知道该展开哪台设备的哪套操作。
+    Primitive.mon_panel: {"scene"},
+    Primitive.operation_scene: {"scene"},
 }
 
 # 设备白名单：subject → 可高亮的部件键。
@@ -118,6 +130,18 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
     "warning_sign": ("plate", "cord", "handle", "door"),
     "feeler_gauge": ("blades", "case", "gap", "seal"),
     "torque_wrench": ("wrench", "socket", "bolt", "bracket", "window"),
+    # 司机操纵台：升弓试验的"人这一侧"。8 个键全部是可操作件——
+    # 这台设备不是用来看的，是用来点的：点哪个键，现场就得做哪个动作。
+    "driver_desk": (
+        "desk",
+        "mon",
+        "key",
+        "brake",
+        "switch",
+        "knob",
+        "vcb",
+        "gauge",
+    ),
 }
 
 # 部件的中文说明：键是英文的（`drive` / `drive2` 这类），说明是给人看的。
@@ -185,6 +209,16 @@ DEVICE_PART_LABELS: dict[str, dict[str, str]] = {
         "bolt": "门机安装螺栓（六角头）",
         "bracket": "安装座与螺纹孔",
         "window": "刻度窗与指针（设定值 25 N·m）",
+    },
+    "driver_desk": {
+        "desk": "操纵台台体与仪表盘（含右屏 ATP、CIR 小屏、电话与按钮排）",
+        "mon": "MON 车辆信息显示屏（左侧大屏，带遮光帽檐与软键）",
+        "key": "主控钥匙（插在制动控制器上，拔取位可取出）",
+        "brake": "制动控制器 / 制动手柄（运行、B1–B7、快速、拔取位）",
+        "switch": "受电弓切换开关（转换开关盘2，2U / 3U 选择）",
+        "knob": "升弓旋钮 PanUS（右旋保持、松手回位）",
+        "vcb": "VCB 合按钮（中央开关盘，绿色带灯）",
+        "gauge": "网压表（仪表盘左下，0–35 kV，正常区 19–31）",
     },
 }
 
@@ -254,6 +288,18 @@ DEVICE_MOMENTS: dict[str, tuple[tuple[float, str, str], ...]] = {
         (0.82, "clicked", "到扭矩咔嗒脱扣"),
         (1.0, "marked", "复检并做防松标记"),
     ),
+    # 升弓试验的操作顺序。这八拍就是指导书六屏里"人做的部分"，
+    # 每一拍在三维台面上都对应一个可见变化（钥匙转、手柄动、屏亮、针起）。
+    "driver_desk": (
+        (0.0, "idle", "主控未激活、MON 屏熄灭"),
+        (0.12, "key_in", "主控钥匙已插入"),
+        (0.22, "key_on", "钥匙右旋、司机室占用、MON 屏点亮"),
+        (0.36, "brake_fast", "制动手柄移至快速位、MCR 励磁"),
+        (0.5, "unit_2u", "受电弓选择 2U（04 车）"),
+        (0.64, "raise_hold", "升弓旋钮保持、升弓中"),
+        (0.8, "raised", "受电弓升起、网压 25 kV"),
+        (1.0, "vcb", "VCB 闭合、送电完成"),
+    ),
 }
 
 # t 的容差。模型照表抄也可能写出 0.549、0.551 这种数（它习惯把连续量"算一下"），
@@ -277,6 +323,8 @@ DEVICE_SYSTEMS: dict[str, frozenset[str]] = {
     "warning_sign": frozenset({"door", "hvac", "pantograph"}),
     "feeler_gauge": frozenset({"door"}),
     "torque_wrench": frozenset({"door", "pantograph"}),
+    # 司机操纵台只服务升弓试验：车门/空调的作业在司机台上没有对应操作。
+    "driver_desk": frozenset({"pantograph"}),
 }
 
 # 每份指导书最多几张三维图。与 prompt 里的约束同一处定义，避免"提示词说 2、代码放 5"。
@@ -291,6 +339,23 @@ MAX_DEVICE_SCENES = 3
 STATE_VALUES = ("pass", "warn", "danger", "idle")
 GATE_STATES = ("open", "closed", "half")
 CALLOUT_POSITIONS = ("left", "right", "top", "bottom")
+
+# 交互情景白名单：场景键 → 允许的子视图。
+#
+# 为什么不把这些参数交给模型自由填：`mon_panel` 的每一行、`operation_scene` 的
+# 每一步动作都对应真实联锁（电压不足不能升弓、MON 没确认不能发指令）。
+# 让模型写这些，等于让它发明一套电气逻辑，而页面上看起来完全合理——
+# 与 `device_scene` 只给 subject 是同一个理由。
+INTERACTIVE_SCENES: dict[str, dict[str, tuple[str, ...]]] = {
+    "pantograph_raise": {
+        # MON 三页：电源电压 / 车辆信息 / 远程控制切除
+        "mon_tabs": ("power", "vehicle", "remote"),
+        # check = 可点确认；status = 只看结果（确认成功用）
+        "mon_modes": ("check", "status"),
+        # desk = 只看操纵台；both = 操纵台 + 车顶受电弓同框
+        "ops_views": ("desk", "both"),
+    },
+}
 
 
 class MotionAnim(str, Enum):
@@ -541,6 +606,32 @@ class VisualSpec(BaseModel):
             # 容差内吸附到表内值：同一瞬间差 1–2% 看不出来，但会让同一份指导书里的
             # 两个 t 落在不同帧，打印出的静态帧和滑块读数对不上。
             self.params["t"] = nearest_t
+
+        if self.primitive in (Primitive.mon_panel, Primitive.operation_scene):
+            scene = self.params.get("scene")
+            if scene not in INTERACTIVE_SCENES:
+                raise ValueError(
+                    f"{self.primitive.value}.scene 必须是 "
+                    f"{sorted(INTERACTIVE_SCENES)} 之一；收到 {scene}"
+                )
+            spec = INTERACTIVE_SCENES[scene]
+            if self.primitive is Primitive.mon_panel:
+                tab = self.params.get("tab", "power")
+                if tab not in spec["mon_tabs"]:
+                    raise ValueError(
+                        f"mon_panel.tab 必须是 {sorted(spec['mon_tabs'])} 之一；收到 {tab}"
+                    )
+                mode = self.params.get("mode", "check")
+                if mode not in spec["mon_modes"]:
+                    raise ValueError(
+                        f"mon_panel.mode 必须是 {sorted(spec['mon_modes'])} 之一；收到 {mode}"
+                    )
+            else:
+                view = self.params.get("view", "both")
+                if view not in spec["ops_views"]:
+                    raise ValueError(
+                        f"operation_scene.view 必须是 {sorted(spec['ops_views'])} 之一；收到 {view}"
+                    )
 
         self._check_motion()
 

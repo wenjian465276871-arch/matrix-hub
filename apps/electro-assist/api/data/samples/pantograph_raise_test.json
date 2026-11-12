@@ -1,0 +1,501 @@
+{
+  "schema_version": "1.2",
+  "id": "g_pantograph_raise_test",
+  "title": "受电弓升弓试验（司机台操作）",
+  "summary": "以 8 编组动车组 04 车 2U 单元为例，按「准备确认 → MON 逐项核对 → 上电激活 → 选择受电弓 → 发出升弓指令 → 确认网压」六步完成升弓试验。五项 MON 确认未完成时升弓回路不成立，旋钮按了也不动作。",
+  "meta": {
+    "system": "pantograph",
+    "source_note": "公开网络资料改写：司机台布局与升弓条件参考 CRH380A 统型驾驶设施公开讲义、用户提供的公开科普截图；车型与设备型号保留公开资料原文，电压/压力/网压读数为演示虚构值，不含任何企业资料",
+    "model": "deepseek-flash",
+    "generated_at": "2026-11-13T00:00:00Z",
+    "is_demo": true
+  },
+  "steps": [
+    {
+      "id": "s01",
+      "seq": 1,
+      "title": "升弓前必须满足的条件",
+      "action": "逐项确认下列九条，缺一不可。主控司机室、制动手柄、控制电压、总风缸压力、EGS、VCB、受电弓切除这七条都要在司机台上核实；任何一条不满足，不得发出升弓指令。",
+      "safety": [
+        "升弓即取电，作业人员不得进入弓网带电区域",
+        "确认防溜措施到位、全列门关闭后方可操作",
+        "紧急制动未缓解时禁止升弓"
+      ],
+      "tools": [
+        "主控钥匙（随车）"
+      ],
+      "criteria": [
+        {
+          "id": "cab_active",
+          "label": "主控司机室已激活占用",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        },
+        {
+          "id": "brake_pos",
+          "label": "制动手柄位置",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "快速位",
+            "B4 级及以下",
+            "其他"
+          ]
+        },
+        {
+          "id": "control_voltage",
+          "label": "蓄电池/控制电压",
+          "type": "range",
+          "unit": "V",
+          "min": 87,
+          "max": 130,
+          "options": null
+        },
+        {
+          "id": "mr_pressure",
+          "label": "总风缸 MR 压力",
+          "type": "range",
+          "unit": "kPa",
+          "min": 640,
+          "max": 900,
+          "options": null
+        },
+        {
+          "id": "egs_vcb",
+          "label": "EGS 与 VCB 状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "均断开",
+            "有一项闭合"
+          ]
+        },
+        {
+          "id": "train_state",
+          "label": "列车静止、全列门关闭、紧急制动已缓解",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "table",
+          "params": {
+            "headers": [
+              "项目",
+              "要求",
+              "检查方式"
+            ],
+            "rows": [
+              "主控司机室|已激活占用|钥匙右旋、屏亮",
+              "制动手柄|快速位（或 B4 及以下）|MCR 励磁",
+              "控制电压|≥87 V|MON 电源电压页",
+              "总风缸 MR 压力|≥640 kPa|双针压力表 / MON",
+              "EGS 接地保护|必须断开|MON 车辆信息页",
+              "VCB 真空断路器|必须断开|MON 车辆信息页",
+              "受电弓未切除|断路器闭合、未切除|MON 远程切除页",
+              "紧急制动|已缓解、按钮未按下|故障显示灯",
+              "列车状态|静止、防溜、全门关闭|目视 + 关门灯"
+            ],
+            "label": "升弓前必须满足的条件（缺一不可）"
+          },
+          "caption": "九项条件与检查方式",
+          "fallback_text": "九项条件：主控占用、手柄快速位、控制电压≥87 V、MR≥640 kPa、EGS 断开、VCB 断开、受电弓未切除、紧急制动缓解、列车静止且全门关闭。"
+        },
+        {
+          "primitive": "baked_figure",
+          "params": {
+            "src": "/figures/pantograph/step1.webp",
+            "alt": "受电弓落弓状态全机：底架与三个支撑绝缘子、折叠的双下臂与上臂、弓头搁在弓装配上，接触线位于其上方"
+          },
+          "caption": "起弓前的落弓状态",
+          "fallback_text": "受电弓落弓状态：双臂折叠、弓头落在弓装配上，接触线在弓头上方。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s02",
+      "seq": 2,
+      "title": "MON 屏逐项确认",
+      "action": "在主控钥匙右旋、MON 屏点亮后，于 MON 上逐项核对：控制电压≥87 V、总风缸 MR≥640 kPa、EGS 断开、VCB 断开、受电弓未被切除。点一行确认一行，五项全部确认后才允许发出升弓指令。",
+      "safety": [
+        "MON 显示应与双针压力表、控制电压表一致",
+        "显示异常或缺项时按故障处理，不得带疑升弓"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "mon_voltage",
+          "label": "MON 控制电压显示",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "≥87 V",
+            "低于 87 V"
+          ]
+        },
+        {
+          "id": "mon_egs_vcb",
+          "label": "MON 车辆信息页 EGS / VCB",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "均断开",
+            "有一项闭合"
+          ]
+        },
+        {
+          "id": "mon_cut",
+          "label": "MON 远程控制切除页",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "未切除",
+            "已切除"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "mon_panel",
+          "params": {
+            "scene": "pantograph_raise",
+            "tab": "power",
+            "mode": "check"
+          },
+          "caption": "MON 屏（可点确认）",
+          "fallback_text": "MON 屏三页：电源电压（控制电压≥87 V、MR≥640 kPa）、车辆信息（EGS 与 VCB 断开）、远程控制切除（受电弓未切除）。点一行确认一行，五项全部确认后才允许升弓。"
+        },
+        {
+          "primitive": "checklist",
+          "params": {
+            "items": [
+              "控制电压 ≥87 V",
+              "总风缸 MR ≥640 kPa",
+              "EGS 接地保护开关断开",
+              "VCB 真空断路器断开",
+              "受电弓未被远程切除"
+            ]
+          },
+          "caption": "五项确认清单",
+          "fallback_text": "五项确认：控制电压、总风缸压力、EGS 断开、VCB 断开、受电弓未切除。缺一项升弓回路不成立。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s03",
+      "seq": 3,
+      "title": "上电激活：插钥匙、右旋、手柄快速位",
+      "action": "将主控钥匙插入制动控制器并右旋到运行位：司机室占用、MON 屏点亮；确认制动手柄在「快速」位（或 B4 级及以下），使主控继电器 MCR 励磁。钥匙不右旋，手柄推到底也不产生升弓指令。",
+      "safety": [
+        "移动制动手柄前确认列车静止、防溜到位",
+        "手柄移动后确认 MCR 励磁、无异常报警"
+      ],
+      "tools": [
+        "主控钥匙"
+      ],
+      "criteria": [
+        {
+          "id": "key_state",
+          "label": "主控钥匙状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "已插入并右旋",
+            "已插入未右旋",
+            "未插入"
+          ]
+        },
+        {
+          "id": "brake_fast",
+          "label": "制动手柄在快速位",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "是",
+            "否"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "pantograph_raise",
+            "view": "desk"
+          },
+          "caption": "司机操纵台：点钥匙、再推手柄",
+          "fallback_text": "在司机操纵台上：主控钥匙插入制动控制器并右旋，司机室占用；制动手柄推到快速位，MCR 励磁。点三维里的件或下方按钮均可操作。"
+        },
+        {
+          "primitive": "callout",
+          "params": {
+            "target": "主控钥匙在制动控制器上",
+            "note": "插到底再右旋，MON 点亮才算司机室占用",
+            "position": "left"
+          },
+          "caption": "钥匙位置",
+          "fallback_text": "主控钥匙插在制动控制器上：插到底后右旋到运行位，MON 屏点亮、司机室占用。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s04",
+      "seq": 4,
+      "title": "选择受电弓单元",
+      "action": "操作转换开关盘2上的【受电弓切换开关】：升 04 车弓 = 2U 单元，升 06 车弓 = 3U 单元。原则上升运行方向的后弓；重联时前车与后车必须「均升前弓」或「均升后弓」，严禁前车升后弓、后车升前弓（易造成异相短路与变电所跳闸）。",
+      "safety": [
+        "重联作业必须与后车联控确认弓位后再操作",
+        "严禁异相升弓：前车升后弓、后车升前弓",
+        "受电弓升起后不得切换单元"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "unit_selected",
+          "label": "受电弓单元选择",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "2U（04 车）",
+            "3U（06 车）"
+          ]
+        },
+        {
+          "id": "bow_side",
+          "label": "弓位与运行方向",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "后弓",
+            "前弓",
+            "未确认"
+          ]
+        },
+        {
+          "id": "mu_checked",
+          "label": "重联时已与后车联控确认弓位",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "pantograph_raise",
+            "view": "desk"
+          },
+          "caption": "转换开关盘2：选 2U / 3U",
+          "fallback_text": "在转换开关盘2上选择受电弓单元：2U 对应 04 车，3U 对应 06 车。原则上升运行方向的后弓；重联时前后车弓位必须一致。"
+        },
+        {
+          "primitive": "table",
+          "params": {
+            "headers": [
+              "单元",
+              "对应车辆",
+              "升弓含义"
+            ],
+            "rows": [
+              "2U|04 车|升 04 车受电弓",
+              "3U|06 车|升 06 车受电弓"
+            ],
+            "label": "单元与车辆对应"
+          },
+          "caption": "单元对应关系",
+          "fallback_text": "2U 单元对应 04 车受电弓，3U 单元对应 06 车受电弓。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s05",
+      "seq": 5,
+      "title": "发出升弓指令并保持",
+      "action": "手动方式：右旋转换开关盘2上的【受电弓升起】旋钮（PanUS），保持至 MON 屏显示受电弓已升起后松开。远程方式：MON →「远程控制切除」→ 选择单元（2U/3U）→ 点「受电弓升起」→ 点「设定」。本样板演示手动方式。",
+      "safety": [
+        "升弓过程中任何人不得进入弓网区域",
+        "确认受电弓上方无异物、无接地线",
+        "提前松手会导致升弓中断，弓回落"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "raise_mode",
+          "label": "升弓指令方式",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "手动旋钮",
+            "MON 远程"
+          ]
+        },
+        {
+          "id": "raise_process",
+          "label": "升弓过程",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "平稳、无异常",
+            "有异响/卡滞"
+          ]
+        },
+        {
+          "id": "mon_raised",
+          "label": "MON 显示受电弓升起",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "升起",
+            "未升起"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "pantograph_raise",
+            "view": "both"
+          },
+          "caption": "按住升弓旋钮：右侧受电弓同步升起",
+          "fallback_text": "按住升弓旋钮不松手：升弓电磁阀得电、压缩空气进入升弓气囊，车顶受电弓升起；MON 显示升起后松开，弓保持。"
+        },
+        {
+          "primitive": "motion_timeline",
+          "params": {
+            "steps": [
+              "0.0s 右旋旋钮，升弓指令发出",
+              "1.2s 气囊建压，下臂抬起",
+              "3.4s 弓头接近接触线",
+              "4.6s 升弓到位、保压"
+            ],
+            "total": "4.6",
+            "label": "升弓时序（示意）"
+          },
+          "caption": "升弓时序",
+          "fallback_text": "升弓时序：0 秒发指令，1.2 秒气囊建压、下臂抬起，3.4 秒弓头接近接触线，4.6 秒升弓到位并保压。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s06",
+      "seq": 6,
+      "title": "确认升弓成功与网压",
+      "action": "确认 MON 显示对应受电弓「升起」；网压表/MON 显示网压约 25 kV（正常范围约 19–31 kV）；呼唤应答：手指受电弓方向，高声确认「受电弓升起、网压正常」。",
+      "safety": [
+        "手指确认时不得越过司机室前端",
+        "网压超出 19–31 kV 时按异常处理，不得闭合 VCB"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "panto_status",
+          "label": "MON 受电弓状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "升起",
+            "未升起"
+          ]
+        },
+        {
+          "id": "catenary_voltage",
+          "label": "网压",
+          "type": "range",
+          "unit": "kV",
+          "min": 19,
+          "max": 31,
+          "options": null
+        },
+        {
+          "id": "call_answer",
+          "label": "呼唤应答已执行",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "mon_panel",
+          "params": {
+            "scene": "pantograph_raise",
+            "tab": "remote",
+            "mode": "status"
+          },
+          "caption": "MON 显示受电弓升起",
+          "fallback_text": "MON 远程控制切除页显示对应受电弓「升起」，网压 25.1 kV，VCB 断开。"
+        },
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 25.1,
+            "unit": "kV",
+            "min": 19,
+            "max": 31,
+            "label": "网压"
+          },
+          "caption": "网压读数",
+          "fallback_text": "网压示例读数 25.1 kV，正常范围 19–31 kV。"
+        },
+        {
+          "primitive": "status_light",
+          "params": {
+            "state": "pass",
+            "label": "升弓到位、网压正常"
+          },
+          "caption": "状态指示",
+          "fallback_text": "升弓到位且网压正常时，状态指示为通过。"
+        }
+      ],
+      "duration_s": null
+    }
+  ],
+  "disclaimers": [
+    "演示数据 · 非实际作业依据",
+    "AI 辅助整理，需专业人员复核"
+  ]
+}

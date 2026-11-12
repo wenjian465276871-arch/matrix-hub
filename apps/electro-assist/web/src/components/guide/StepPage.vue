@@ -101,11 +101,15 @@ function assetUrl(asset: AssetRef): string {
  * flex 会把 2D 压成只剩标题的 26px 空盒，三维的 min-height 又顶着容器，
  * 下一张图画在三维上（用户 2026-11-10 截图：接线图盖住受电弓）。
  * 分栏之后两列各管各的，物理上不可能重叠。 */
+/* 占主栏的原语：三维、MON 屏、升弓操作台。
+   后两个是"带状态的界面"，塞进 330px 的辅图列会连一行字都排不下——
+   它们和三维一样，是这一页要看的东西，不是配图。 */
+const HERO_PRIMITIVES = new Set(['device_scene', 'mon_panel', 'operation_scene'])
 const heroFigures = computed(() =>
-  props.step.figures.filter((fig) => fig.primitive === 'device_scene'),
+  props.step.figures.filter((fig) => HERO_PRIMITIVES.has(fig.primitive)),
 )
 const aidFigures = computed(() =>
-  props.step.figures.filter((fig) => fig.primitive !== 'device_scene'),
+  props.step.figures.filter((fig) => !HERO_PRIMITIVES.has(fig.primitive)),
 )
 
 const minutes = (): number | null => {

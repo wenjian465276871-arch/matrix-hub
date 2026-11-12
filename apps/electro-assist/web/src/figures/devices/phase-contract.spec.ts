@@ -28,6 +28,7 @@ import { readoutsFor, type SceneKey } from '../../lib/demoreads'
 import { phaseFor, type PhaseKey } from '../../lib/devphase'
 import { buildCabinet } from './cabinet'
 import { buildDoor } from './door'
+import { buildDriverDesk } from './driver_desk'
 import { buildFeelerGauge } from './feeler_gauge'
 import { buildHvac } from './hvac'
 import { buildMultimeter } from './multimeter'
@@ -44,6 +45,7 @@ const BUILDERS: Record<string, () => { phase: (t: number) => string; dispose: ()
   warning_sign: buildWarningSign,
   feeler_gauge: buildFeelerGauge,
   torque_wrench: buildTorqueWrench,
+  driver_desk: buildDriverDesk,
 }
 
 /** 每个时刻"此刻该说的话"里的关键字。
@@ -111,6 +113,16 @@ const KEYWORD: Record<string, Record<string, string>> = {
     loaded: '刻度到达设定值',
     clicked: '咔嗒脱扣',
     marked: '防松标记',
+  },
+  driver_desk: {
+    idle: '主控未激活',
+    key_in: '主控钥匙已插入',
+    key_on: '钥匙右旋',
+    brake_fast: '快速位',
+    unit_2u: '受电弓选择',
+    raise_hold: '升弓中',
+    raised: '受电弓升起',
+    vcb: 'VCB 闭合',
   },
 }
 

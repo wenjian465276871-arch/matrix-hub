@@ -78,7 +78,7 @@ const shown = computed(() => {
    - scene：可交互三维（拖时间轴、播放、放大看）
    两者都有时用页签切换，而不是并排——并排时每张只剩一半宽，两个都看不清。
    2026-11-11 本人明确：实物渲染图与三维画面都要保留，且都要尽可能大。 */
-type StageView = 'still' | 'scene'
+type StageView = 'still' | 'scene' | 'ops'
 
 const figures = computed<VisualSpec[]>(() => step.value?.figures ?? [])
 
@@ -86,8 +86,13 @@ const viewGroups = computed<{ id: StageView; label: string; figs: VisualSpec[] }
   const out: { id: StageView; label: string; figs: VisualSpec[] }[] = []
   const still = figures.value.filter((f) => f.primitive === 'baked_figure')
   const scene = figures.value.filter((f) => f.primitive === 'device_scene')
+  // MON 屏与升弓操作台：带状态的界面，给它们一个独立页签，不与"看动作"混在一起
+  const ops = figures.value.filter(
+    (f) => f.primitive === 'mon_panel' || f.primitive === 'operation_scene',
+  )
   if (still.length) out.push({ id: 'still', label: '实物示意图', figs: still })
   if (scene.length) out.push({ id: 'scene', label: '三维动作', figs: scene })
+  if (ops.length) out.push({ id: 'ops', label: '操作台', figs: ops })
   return out
 })
 
@@ -106,7 +111,11 @@ const heroFigures = computed<VisualSpec[]>(() =>
 const aidFigures = computed<VisualSpec[]>(() =>
   viewGroups.value.length
     ? figures.value.filter(
-        (f) => f.primitive !== 'baked_figure' && f.primitive !== 'device_scene',
+        (f) =>
+          f.primitive !== 'baked_figure' &&
+          f.primitive !== 'device_scene' &&
+          f.primitive !== 'mon_panel' &&
+          f.primitive !== 'operation_scene',
       )
     : figures.value.slice(1),
 )

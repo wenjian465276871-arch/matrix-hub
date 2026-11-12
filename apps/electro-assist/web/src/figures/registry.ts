@@ -14,7 +14,9 @@ import DeviceFigure from './primitives/DeviceFigure.vue'
 import FlowArrow from './primitives/FlowArrow.vue'
 import GateState from './primitives/GateState.vue'
 import Meter from './primitives/Meter.vue'
+import MonPanel from './primitives/MonPanel.vue'
 import MotionTimeline from './primitives/MotionTimeline.vue'
+import PantoOps from './primitives/PantoOps.vue'
 import StatusLight from './primitives/StatusLight.vue'
 import StepCard from './primitives/StepCard.vue'
 import Table from './primitives/Table.vue'
@@ -39,4 +41,7 @@ export const FIGURES: Record<string, Component> = {
   // 不进指导书页面就不下载那 191KB。
   device_scene: DeviceFigure,
   baked_figure: BakedFigure,
+  // 交互情景：带状态，不是一张图。见 `lib/panto-session.ts`。
+  mon_panel: MonPanel,
+  operation_scene: PantoOps,
 }

@@ -99,6 +99,73 @@
         "door"
       ]
     },
+    "driver_desk": {
+      "moments": [
+        {
+          "key": "idle",
+          "label": "主控未激活、MON 屏熄灭",
+          "t": 0.0
+        },
+        {
+          "key": "key_in",
+          "label": "主控钥匙已插入",
+          "t": 0.12
+        },
+        {
+          "key": "key_on",
+          "label": "钥匙右旋、司机室占用、MON 屏点亮",
+          "t": 0.22
+        },
+        {
+          "key": "brake_fast",
+          "label": "制动手柄移至快速位、MCR 励磁",
+          "t": 0.36
+        },
+        {
+          "key": "unit_2u",
+          "label": "受电弓选择 2U（04 车）",
+          "t": 0.5
+        },
+        {
+          "key": "raise_hold",
+          "label": "升弓旋钮保持、升弓中",
+          "t": 0.64
+        },
+        {
+          "key": "raised",
+          "label": "受电弓升起、网压 25 kV",
+          "t": 0.8
+        },
+        {
+          "key": "vcb",
+          "label": "VCB 闭合、送电完成",
+          "t": 1.0
+        }
+      ],
+      "part_labels": {
+        "brake": "制动控制器 / 制动手柄（运行、B1–B7、快速、拔取位）",
+        "desk": "操纵台台体与仪表盘（含右屏 ATP、CIR 小屏、电话与按钮排）",
+        "gauge": "网压表（仪表盘左下，0–35 kV，正常区 19–31）",
+        "key": "主控钥匙（插在制动控制器上，拔取位可取出）",
+        "knob": "升弓旋钮 PanUS（右旋保持、松手回位）",
+        "mon": "MON 车辆信息显示屏（左侧大屏，带遮光帽檐与软键）",
+        "switch": "受电弓切换开关（转换开关盘2，2U / 3U 选择）",
+        "vcb": "VCB 合按钮（中央开关盘，绿色带灯）"
+      },
+      "parts": [
+        "desk",
+        "mon",
+        "key",
+        "brake",
+        "switch",
+        "knob",
+        "vcb",
+        "gauge"
+      ],
+      "systems": [
+        "pantograph"
+      ]
+    },
     "feeler_gauge": {
       "moments": [
         {

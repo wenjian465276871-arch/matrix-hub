@@ -25,6 +25,7 @@ import { describe, expect, it } from 'vitest'
 import type { DeviceRig } from './rig'
 import { buildCabinet } from './cabinet'
 import { buildDoor } from './door'
+import { buildDriverDesk } from './driver_desk'
 import { buildHvac } from './hvac'
 import { buildFeelerGauge } from './feeler_gauge'
 import { buildMultimeter } from './multimeter'
@@ -32,6 +33,7 @@ import { buildPantograph } from './pantograph'
 import { buildTorqueWrench } from './torque_wrench'
 import { buildWarningSign } from './warning_sign'
 import { createSection } from './section'
+import { DEVICE_BUILDERS } from './registry'
 // 契约文件由后端生成（`api/scripts/export_contract.py`），**不要手改**。
 // 这份 import 就是这条用例的全部意义：部件清单来自后端，而不是在这里再抄一遍。
 // 2026-11-10 评审 P2-1：上一版是硬编码数组，给后端加一个部件键它照样全绿。
@@ -46,6 +48,7 @@ const BUILDERS: Record<string, () => DeviceRig> = {
   warning_sign: buildWarningSign,
   feeler_gauge: buildFeelerGauge,
   torque_wrench: buildTorqueWrench,
+  driver_desk: buildDriverDesk,
 }
 
 type ContractDevice = {
@@ -87,6 +90,17 @@ describe('契约覆盖', () => {
     // 后端加了第四台设备而前端没写 build，这条会红——比在页面上发现"切过去是空白"早得多。
     for (const name of Object.keys(CONTRACT_DEVICES)) {
       expect(BUILDERS[name], `缺少 ${name} 的构建函数`).toBeTypeOf('function')
+    }
+  })
+
+  it('运行时构建表（DeviceScene 用的那份）也齐全', async () => {
+    // 2026-11-13 踩到的坑：测试里补了 builder，`DeviceScene` 里的表却没补，
+    // 页面显示"未注册的设备场景"而单测全绿。现在两边共用 `devices/registry.ts`，
+    // 这条断言它真的覆盖契约里的每一台。
+    for (const name of Object.keys(CONTRACT_DEVICES)) {
+      expect(DEVICE_BUILDERS[name], `运行时没有登记 ${name}`).toBeTypeOf('function')
+      const build = await DEVICE_BUILDERS[name]()
+      expect(build, `${name} 的懒加载没有返回构建函数`).toBeTypeOf('function')
     }
   })
 

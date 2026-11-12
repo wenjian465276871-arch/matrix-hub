@@ -48,6 +48,10 @@ _PRIMITIVE_HINTS: dict[str, str] = {
         "t 必填，必须是该设备列出的某个瞬间（容差 ±0.02，越界整份被拒）；"
         "part 可省略（不高亮）"
     ),
+    # 交互原语只给一句"什么时候用、参数取什么"：具体行与联锁在前端场景表里，
+    # 模型写错也执行不了，所以这里要明确劝退——只有受电弓升弓试验有这两类图。
+    "mon_panel": "scene 只能取 pantograph_raise；tab 取 power / vehicle / remote，mode 取 check / status",
+    "operation_scene": "scene 只能取 pantograph_raise；view 取 desk / both",
 }
 
 
