@@ -2,7 +2,7 @@
  *
  *  ## 为什么状态必须活在组件外面
  *  阅读器是"一步一屏"，只挂当前页与左右各一页。状态放进组件，翻页就清零：
- *  第 3 步插了钥匙，第 4 步又变成"未上电"；第 5 步升起的弓，第 6 步回到落弓。
+ *  第 2 步插了钥匙，第 3 步又变成"未上电"；第 5 步升起的弓，第 6 步回到落弓。
  *  而这些恰好是这套演示唯一要证明的事——**操作有后果、后果会保持**。
  *  所以用模块级单例，按"一份指导书一次试验"来用；`reset()` 给"重新开始"。
  *
@@ -125,7 +125,23 @@ export function selectUnit(unit: Unit): ActionResult {
   return OK(session.notice)
 }
 
+/**
+ * 在 MON 上确认一项。
+ *
+ * 两条前置（2026-11-13 本人指出，此前是错的）：
+ * 1. **MON 必须已上电**。屏都没亮就"逐项确认"是假动作——司机台的真实顺序是
+ *    插钥匙→右旋→司机室占用、MON 点亮→再确认。这也是原先把上电放在第 3 步
+ *    造成的逻辑倒置，现在步骤已对调。
+ * 2. **VCB 必须断开才谈得上"确认断开"**。已经合上的 VCB 不能被勾成合格项，
+ *    否则同一块屏上会同时出现"要求断开"与"已闭合 ✓"。
+ */
 export function confirmMon(key: MonKey): ActionResult {
+  if (!session.keyTurned) {
+    return { ok: false, hint: 'MON 未上电：先插主控钥匙并右旋到运行位，屏点亮后再确认' }
+  }
+  if (key === 'vcb' && session.vcbClosed) {
+    return { ok: false, hint: 'VCB 已闭合：升弓前必须断开（复位后重来）' }
+  }
   session.mon[key] = true
   session.notice = 'MON 已确认一项'
   return OK(session.notice)
@@ -140,7 +156,7 @@ export function holdRaise(): ActionResult {
     const names = MON_ITEMS.filter((i) => missing.includes(i.key))
       .map((i) => i.label)
       .join('、')
-    return { ok: false, hint: `MON 确认未完成：${names}；回第 2 步逐项确认后再升弓` }
+    return { ok: false, hint: `MON 确认未完成：${names}；回第 3 步逐项确认后再升弓` }
   }
   if (session.raised) return OK('受电弓已升起，保持即可')
   session.raiseHeld = true
@@ -212,7 +228,7 @@ export function nextAction(): string {
   if (!session.keyInserted) return '点制动控制器上的钥匙，插入主控钥匙'
   if (!session.keyTurned) return '再把钥匙右旋到运行位（司机室占用）'
   if (!session.brakeFast) return '把制动手柄推到"快速"位（MCR 励磁）'
-  if (monMissing().length) return 'MON 屏还有确认项未完成，先回第 2 步逐项确认'
+  if (monMissing().length) return 'MON 屏还有确认项未完成，先回第 3 步逐项确认'
   if (!session.unit) return '在转换开关盘上选择受电弓单元（2U / 3U）'
   if (!session.raised) return '按住升弓旋钮不松手，直到 MON 显示"升起"'
   return '受电弓已升起并保压，可进入下一步确认'

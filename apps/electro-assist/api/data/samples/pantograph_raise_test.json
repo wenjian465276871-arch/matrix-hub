@@ -2,7 +2,7 @@
   "schema_version": "1.2",
   "id": "g_pantograph_raise_test",
   "title": "受电弓升弓试验（司机台操作）",
-  "summary": "以 8 编组动车组 04 车 2U 单元为例，按「准备确认 → MON 逐项核对 → 上电激活 → 选择受电弓 → 发出升弓指令 → 确认网压」六步完成升弓试验。五项 MON 确认未完成时升弓回路不成立，旋钮按了也不动作。",
+  "summary": "以 8 编组动车组 04 车 2U 单元为例，按「准备确认 → 上电激活 → MON 逐项核对 → 选择受电弓 → 发出升弓指令 → 确认网压」六步完成升弓试验。五项 MON 确认未完成时升弓回路不成立，旋钮按了也不动作。",
   "meta": {
     "system": "pantograph",
     "source_note": "公开网络资料改写：司机台布局与升弓条件参考 CRH380A 统型驾驶设施公开讲义、用户提供的公开科普截图；车型与设备型号保留公开资料原文，电压/压力/网压读数为演示虚构值，不含任何企业资料",
@@ -15,7 +15,7 @@
       "id": "s01",
       "seq": 1,
       "title": "升弓前必须满足的条件",
-      "action": "逐项确认下列九条，缺一不可。主控司机室、制动手柄、控制电压、总风缸压力、EGS、VCB、受电弓切除这七条都要在司机台上核实；任何一条不满足，不得发出升弓指令。",
+      "action": "逐项确认下列九条，缺一不可：主控司机室、制动手柄、蓄电池/控制电压、总风缸 MR 压力、EGS 接地保护、VCB 真空断路器、受电弓未切除、紧急制动缓解、列车状态（静止、防溜、全门关闭）。九条都要在司机台上核实；任何一条不满足，不得发出升弓指令。",
       "safety": [
         "升弓即取电，作业人员不得进入弓网带电区域",
         "确认防溜措施到位、全列门关闭后方可操作",
@@ -89,6 +89,15 @@
       ],
       "figures": [
         {
+          "primitive": "device_scene",
+          "params": {
+            "subject": "pantograph",
+            "t": 0
+          },
+          "caption": "受电弓落弓状态：拖时间轴或点播放，可看完整升弓动作",
+          "fallback_text": "受电弓落弓状态：底架与三个支撑绝缘子、折叠的双下臂与上臂，弓头搁在弓装配上，接触线位于其上方。"
+        },
+        {
           "primitive": "table",
           "params": {
             "headers": [
@@ -111,15 +120,6 @@
           },
           "caption": "九项条件与检查方式",
           "fallback_text": "九项条件：主控占用、手柄快速位、控制电压≥87 V、MR≥640 kPa、EGS 断开、VCB 断开、受电弓未切除、紧急制动缓解、列车静止且全门关闭。"
-        },
-        {
-          "primitive": "baked_figure",
-          "params": {
-            "src": "/figures/pantograph/step1.webp",
-            "alt": "受电弓落弓状态全机：底架与三个支撑绝缘子、折叠的双下臂与上臂、弓头搁在弓装配上，接触线位于其上方"
-          },
-          "caption": "起弓前的落弓状态",
-          "fallback_text": "受电弓落弓状态：双臂折叠、弓头落在弓装配上，接触线在弓头上方。"
         }
       ],
       "duration_s": null
@@ -127,8 +127,70 @@
     {
       "id": "s02",
       "seq": 2,
+      "title": "上电激活：插钥匙、右旋、手柄快速位",
+      "action": "将主控钥匙插入制动控制器并右旋到运行位：司机室占用、MON 屏点亮；确认制动手柄在「快速」位（或 B4 级及以下），使主控继电器 MCR 励磁。钥匙不右旋，MON 不亮、手柄推到底也不产生升弓指令；MON 点亮后，下一步才能在屏上逐项确认。",
+      "safety": [
+        "移动制动手柄前确认列车静止、防溜到位",
+        "手柄移动后确认 MCR 励磁、无异常报警"
+      ],
+      "tools": [
+        "主控钥匙"
+      ],
+      "criteria": [
+        {
+          "id": "key_state",
+          "label": "主控钥匙状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "已插入并右旋",
+            "已插入未右旋",
+            "未插入"
+          ]
+        },
+        {
+          "id": "brake_fast",
+          "label": "制动手柄在快速位",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "是",
+            "否"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "pantograph_raise",
+            "view": "desk"
+          },
+          "caption": "司机操纵台：点钥匙、再推手柄",
+          "fallback_text": "在司机操纵台上：主控钥匙插入制动控制器并右旋，司机室占用；制动手柄推到快速位，MCR 励磁。点三维里的件或下方按钮均可操作。"
+        },
+        {
+          "primitive": "callout",
+          "params": {
+            "target": "主控钥匙在制动控制器上",
+            "note": "插到底再右旋，MON 点亮才算司机室占用",
+            "position": "left"
+          },
+          "caption": "钥匙位置",
+          "fallback_text": "主控钥匙插在制动控制器上：插到底后右旋到运行位，MON 屏点亮、司机室占用。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s03",
+      "seq": 3,
       "title": "MON 屏逐项确认",
-      "action": "在主控钥匙右旋、MON 屏点亮后，于 MON 上逐项核对：控制电压≥87 V、总风缸 MR≥640 kPa、EGS 断开、VCB 断开、受电弓未被切除。点一行确认一行，五项全部确认后才允许发出升弓指令。",
+      "action": "上一步已完成上电（钥匙右旋、司机室占用、MON 点亮）。在 MON 上逐项核对：控制电压≥87 V、总风缸 MR≥640 kPa、EGS 断开、VCB 断开、受电弓未被切除。点一行确认一行，五项全部确认后才允许发出升弓指令；MON 未上电时点不动。",
       "safety": [
         "MON 显示应与双针压力表、控制电压表一致",
         "显示异常或缺项时按故障处理，不得带疑升弓"
@@ -196,68 +258,6 @@
           },
           "caption": "五项确认清单",
           "fallback_text": "五项确认：控制电压、总风缸压力、EGS 断开、VCB 断开、受电弓未切除。缺一项升弓回路不成立。"
-        }
-      ],
-      "duration_s": null
-    },
-    {
-      "id": "s03",
-      "seq": 3,
-      "title": "上电激活：插钥匙、右旋、手柄快速位",
-      "action": "将主控钥匙插入制动控制器并右旋到运行位：司机室占用、MON 屏点亮；确认制动手柄在「快速」位（或 B4 级及以下），使主控继电器 MCR 励磁。钥匙不右旋，手柄推到底也不产生升弓指令。",
-      "safety": [
-        "移动制动手柄前确认列车静止、防溜到位",
-        "手柄移动后确认 MCR 励磁、无异常报警"
-      ],
-      "tools": [
-        "主控钥匙"
-      ],
-      "criteria": [
-        {
-          "id": "key_state",
-          "label": "主控钥匙状态",
-          "type": "enum",
-          "unit": null,
-          "min": null,
-          "max": null,
-          "options": [
-            "已插入并右旋",
-            "已插入未右旋",
-            "未插入"
-          ]
-        },
-        {
-          "id": "brake_fast",
-          "label": "制动手柄在快速位",
-          "type": "enum",
-          "unit": null,
-          "min": null,
-          "max": null,
-          "options": [
-            "是",
-            "否"
-          ]
-        }
-      ],
-      "figures": [
-        {
-          "primitive": "operation_scene",
-          "params": {
-            "scene": "pantograph_raise",
-            "view": "desk"
-          },
-          "caption": "司机操纵台：点钥匙、再推手柄",
-          "fallback_text": "在司机操纵台上：主控钥匙插入制动控制器并右旋，司机室占用；制动手柄推到快速位，MCR 励磁。点三维里的件或下方按钮均可操作。"
-        },
-        {
-          "primitive": "callout",
-          "params": {
-            "target": "主控钥匙在制动控制器上",
-            "note": "插到底再右旋，MON 点亮才算司机室占用",
-            "position": "left"
-          },
-          "caption": "钥匙位置",
-          "fallback_text": "主控钥匙插在制动控制器上：插到底后右旋到运行位，MON 屏点亮、司机室占用。"
         }
       ],
       "duration_s": null

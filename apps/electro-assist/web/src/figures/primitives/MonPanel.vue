@@ -16,7 +16,7 @@
 import { computed, ref } from 'vue'
 
 import type { ParamValue } from '../../types'
-import { MON_ITEMS, monDone, session, type MonKey } from '../../lib/panto-session'
+import { MON_ITEMS, confirmMon, monDone, session, type MonKey } from '../../lib/panto-session'
 
 const props = defineProps<{
   params: Record<string, ParamValue>
@@ -47,10 +47,20 @@ interface Row {
   value: string
 }
 
-/* 第 6 步（status）是"成功后应该看到的样子"：即使没走过前面步骤，也按成功态显示。
-   否则直接翻到第 6 步会看到一块暗屏 + 全部"未升起"，与"读到升起即可进入下一步"自相矛盾。 */
+/* 第 6 步（status）是"成功后应该看到的样子"：即使没走过前面步骤，也按成功态显示受电弓。
+   否则直接翻到第 6 步会看到一块暗屏 + "未升起"，与"读到升起即可进入下一步"自相矛盾。 */
 const shownRaised = computed(() => (mode.value === 'status' ? true : session.raised))
-const shownVcb = computed(() => (mode.value === 'status' ? false : session.vcbClosed))
+
+/* VCB **不能**跟着 status 一起"示意"。
+   2026-11-13 本人实测：第 5 步合了 VCB，第 6 步屏上仍写"断开"——因为这里写死了 false。
+   VCB 是人操作的直接结果，屏必须如实反映；"升起了但还没合闸"本身也是合法中间态，
+   显示"断开"不算矛盾。 */
+const shownVcb = computed(() => session.vcbClosed)
+
+/** VCB 在两种场景下的含义不同：
+ *  - 升弓前（check）：必须断开，否则升弓回路被联锁切断；
+ *  - 升弓后（status）：按需要，合闸是下一步的事，不是判据。 */
+const vcbRequired = computed(() => (mode.value === 'status' ? '视需要' : '必须断开'))
 
 /** 当前选中的受电弓单元。2U = 04 车，3U = 06 车。 */
 const unit = computed(() => session.unit ?? '2U')
@@ -66,7 +76,7 @@ const rows = computed<Row[]>(() => {
   if (tab.value === 'vehicle') {
     return [
       { key: 'egs', ...pick('egs') },
-      { key: 'vcb', ...pick('vcb') },
+      { key: 'vcb', ...pick('vcb', '视需要') },
       // 这一行的"要求"与"显示"不能都写"未切除"：两列同字，看着像重复渲染。
       { key: 'panto_cut', label: '受电弓远程切除', required: '应未切除', value: '均未切除' },
     ]
@@ -77,44 +87,74 @@ const rows = computed<Row[]>(() => {
   return [
     { label: `${unit.value} 受电弓切除`, required: '应未切除', value: '未切除' },
     { label: `${other} 受电弓切除`, required: '应未切除', value: '未切除' },
-    { label: '受电弓状态', required: '应升起', value: shownRaised.value ? '升起' : '未升起' },
-    { label: 'VCB', required: '应断开', value: shownVcb.value ? '闭合' : '断开' },
+    { label: '受电弓状态', required: mode.value === 'status' ? '已确认' : '应升起', value: shownRaised.value ? '升起' : '未升起' },
+    { label: 'VCB', required: vcbRequired.value, value: shownVcb.value ? '闭合' : '断开' },
   ]
 })
 
-function pick(key: MonKey): { label: string; required: string; value: string } {
+/** 有些项的"显示值"是活的，不能写死在 `MON_ITEMS` 里默认值中：
+ *  VCB 是人操作的结果，写死"断开"会在用户合闸后自相矛盾。 */
+function liveValue(key: MonKey, fallback: string): string {
+  if (key === 'vcb') return shownVcb.value ? '闭合' : '断开'
+  return fallback
+}
+
+function pick(
+  key: MonKey,
+  requiredInStatus?: string,
+): { label: string; required: string; value: string } {
   const item = MON_ITEMS.find((i) => i.key === key)!
-  return { label: item.label, required: item.required, value: item.value }
+  return {
+    label: item.label,
+    required: mode.value === 'status' && requiredInStatus ? requiredInStatus : item.required,
+    value: liveValue(key, item.value),
+  }
 }
 
 function isDone(key?: MonKey): boolean {
   return key ? session.mon[key] : false
 }
 
+/** 点击没被接受时的说明。放在屏内页脚——短屏下 `.mon__hint` 是隐藏的，
+ *  提示挂在那里等于没提示。 */
+const flash = ref('')
+let flashTimer = 0
+
 function toggle(key?: MonKey): void {
   if (mode.value !== 'check' || !key) return
-  session.mon[key] = true
-  session.notice = 'MON 已确认一项'
+  const result = confirmMon(key)
+  flash.value = result.ok ? '' : result.hint
+  window.clearTimeout(flashTimer)
+  if (flash.value) {
+    flashTimer = window.setTimeout(() => {
+      flash.value = ''
+    }, 5000)
+  }
 }
 
 const done = computed(() => monDone())
 const total = MON_ITEMS.length
 
 const foot = computed(() => {
-  if (mode.value === 'status') return '受电弓升起 · 网压 25.1 kV（成功态示意）'
+  if (flash.value) return flash.value
+  if (mode.value === 'status') {
+    return shownVcb.value
+      ? '受电弓升起 · 网压 25.1 kV · VCB 已闭合'
+      : '受电弓升起 · 网压 25.1 kV（VCB 未合）'
+  }
+  if (!session.keyTurned) return 'MON 未上电：先插主控钥匙并右旋到运行位'
   if (done.value >= total) return '五项已确认 · 允许发出升弓指令'
   return `已确认 ${done.value}/${total} · 五项全部确认后才允许升弓`
 })
 
 /** 屏幕是否"有电"：钥匙右旋后点亮。第 2 步是上电后画面，所以恒亮，但要说明。 */
-const powered = computed(() => session.keyTurned || mode.value === 'check' || mode.value === 'status')
+/* MON 由主控钥匙右旋点亮。check 模式不再恒亮——那是上一版为了让"先确认后上电"
+   这个错误顺序看起来自洽而加的补丁，现在顺序已经改对，屏就该如实反映有没有电。 */
+const powered = computed(() => session.keyTurned || mode.value === 'status')
 
-/** 第 2 步（check）还没插钥匙，写"未上电"会与"屏亮着、能点"自相矛盾。
- *  这里如实说明它是"上电后画面"，不是当前实时状态。 */
 const stat = computed(() => {
   if (session.keyTurned) return '司机室占用'
-  if (mode.value === 'status') return '结果示意'
-  return mode.value === 'check' ? '画面示意' : '未上电'
+  return mode.value === 'status' ? '结果示意' : '未上电'
 })
 </script>
 
@@ -149,6 +189,8 @@ const stat = computed(() => {
         </button>
       </div>
 
+      <div class="mon__body">
+      <div class="mon__main">
       <div class="mon__thead" aria-hidden="true">
         <span>项目</span>
         <span>要求</span>
@@ -156,7 +198,6 @@ const stat = computed(() => {
         <span>确认</span>
       </div>
 
-      <div class="mon__body">
       <ul class="mon__rows">
         <li v-for="row in rows" :key="row.label" class="mon__row" :class="{ 'is-done': isDone(row.key) }">
           <button
@@ -180,6 +221,7 @@ const stat = computed(() => {
           </div>
         </li>
       </ul>
+      </div>
 
       <!-- 右侧三块状态牌：真车 MON 的右上角常驻"受电弓 / 网压 / VCB"。
            它同时把宽屏下表格右侧那一大片空白填上。 -->
@@ -232,7 +274,9 @@ const stat = computed(() => {
       {{
         mode === 'status'
           ? '读到"升起"与 25 kV 即可进入下一步；数值为演示值。'
-          : '画面为上电后状态，用于逐项核对：点一行确认一行。实际作业以司机室 MON 实屏为准。'
+          : session.keyTurned
+            ? '点一行确认一行。实际作业以司机室 MON 实屏为准。'
+            : 'MON 未上电：回到上一步插钥匙并右旋到运行位，屏点亮后才能逐项确认。'
       }}
     </p>
   </div>
@@ -372,7 +416,8 @@ const stat = computed(() => {
   display: grid;
   grid-template-columns: 1fr 96px 124px 26px;
   column-gap: 12px;
-  padding: 6px 12px;
+  /* 与 `.mon__hit` 同 padding-left/right，列才真正对齐 */
+  padding: 6px 6px;
   border-bottom: 1px solid #1a352c;
   background: #0b1d17;
   color: #86a89a;
@@ -396,6 +441,16 @@ const stat = computed(() => {
   display: flex;
   align-items: stretch;
   gap: 10px;
+}
+
+/* 表头与数据行必须同宽：原来表头横跨整个面板（含右侧状态牌的位置），
+   数据行只占左侧，两者的固定列相差 170px 以上，看上去像"表头东倒西歪"。 */
+.mon__main {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .mon__rows {
@@ -681,9 +736,25 @@ const stat = computed(() => {
 @media (max-height: 620px) {
   .mon__ribbon,
   .mon__softkeys,
-  .mon__form,
-  .mon__side {
+  .mon__form {
     display: none;
+  }
+
+  /* 右侧状态牌**不跟着隐藏**：受电弓 / 网压 / VCB 是这一屏的结论。
+     1090×614（本人常用窗口）下把它藏掉，等于让人只看表格去猜结果——
+     2026-11-13 实测就是这么发现"VCB 明明合了却看不到"的。矮屏只压缩它。 */
+  .mon__side {
+    flex: 0 0 176px;
+    gap: 5px;
+    padding: 6px 8px 4px 0;
+  }
+
+  .mon__stat-card {
+    padding: 5px 9px;
+  }
+
+  .mon__stat-card strong {
+    font-size: 19px;
   }
 
   .mon__row {
@@ -695,8 +766,10 @@ const stat = computed(() => {
   }
 }
 
-/* 窄容器：右侧状态牌挤掉表格，宁可不显示 */
-@media (max-width: 760px) {
+/* 窄容器：状态牌挤掉表格，宁可不显示。
+   判据用视口宽度——容器宽度随三栏布局变，CSS 读不到；900px 以下视口里
+   MON 面板确实撑不住 176px 的侧栏。 */
+@media (max-width: 900px) {
   .mon__side {
     display: none;
   }

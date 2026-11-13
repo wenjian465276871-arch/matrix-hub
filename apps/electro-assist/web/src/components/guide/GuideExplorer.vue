@@ -207,6 +207,16 @@ const hasStageFocus = computed(() =>
   ),
 )
 
+/** 本步主图是一台设备的静态三维（不是操作台）。
+ *
+ *  这类步骤一进来就要"看得出这是台什么设备"，但三栏布局里标题块 + 作业动作
+ *  会先吃掉 ~200px，1090×614 下三维只剩 177px。这里只做两件低风险的事：
+ *  作业动作压成一行、标题块收紧，把省下的 ~50px 让给三维。
+ *  想铺满仍走「聚焦操作」——那是用户主动选择，标题与判据的取舍由他决定。 */
+const hasSceneHero = computed(() =>
+  (step.value?.figures ?? []).some((f) => f.primitive === 'device_scene'),
+)
+
 /** 聚焦开关。切到普通步骤自动退出，切回操作步自动进入——但不覆盖用户当次选择。 */
 const focusOn = ref(false)
 
@@ -337,7 +347,7 @@ watch(
       <!-- 中：步骤舞台 -->
       <section
         class="panel ex__stage"
-        :class="{ 'ex__stage--ops': hasOpsFigure }"
+        :class="{ 'ex__stage--ops': hasOpsFigure, 'ex__stage--scene': hasSceneHero }"
         aria-labelledby="ex-stage-title"
       >
         <!-- 顶行：看哪一种图。实物示意图与三维动作各自吃满同一块舞台，
@@ -1676,6 +1686,24 @@ tbody tr.done {
     padding: 5px 12px;
   }
   .ex__stage--ops .scene-caption p {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* 三维主图（车门 / 受电弓 / 柜体）在矮屏也让位给三维。
+     标题与工具在左栏目录（"STEP 01 · 作业 · 判据 6"）与顶栏都有，
+     这里重复一遍要付 110px——1090×614 下那正是三维"看不出是台什么"的原因。
+     与交互步（`--ops`）同一条策略：矮屏优先保证图示可读。 */
+  .ex__stage--scene .scene-heading {
+    display: none;
+  }
+  .ex__stage--scene .scene-caption {
+    margin: 0 12px 8px;
+    padding: 5px 10px;
+  }
+  .ex__stage--scene .scene-caption p {
     display: -webkit-box;
     -webkit-line-clamp: 1;
     -webkit-box-orient: vertical;

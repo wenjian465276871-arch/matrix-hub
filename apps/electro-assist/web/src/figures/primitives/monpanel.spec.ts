@@ -4,7 +4,9 @@
  *  1. 三页都能切，页内行数与截图一致；
  *  2. 点一行就记一行，页脚计数跟着走（这是"核对过"的证据）；
  *  3. `status` 模式只读——第 6 步不该让人再点一遍；
- *  4. 远程页读的是会话状态（选了 2U 就显示 2U），不是写死的文案。
+ *  4. 远程页读的是会话状态（选了 2U 就显示 2U），不是写死的文案；
+ *  5. MON 没上电时不能"确认"（屏都没亮，确认是假动作）；
+ *  6. VCB 合上后屏上必须显示"闭合"——不能写死"断开"。
  */
 import { mount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -32,6 +34,7 @@ describe('mon_panel', () => {
   })
 
   it('点一行确认一行，页脚 0/5 → 1/5', () => {
+    session.keyTurned = true
     const w = mountPanel()
     expect(w.get('.mon__foot-text').text()).toContain('0/5')
     return w.findAll('.mon__hit')[0].trigger('click').then(() => {
@@ -48,6 +51,30 @@ describe('mon_panel', () => {
     expect(text[0]).toContain('断开')
     expect(text[1]).toContain('VCB')
     expect(text[2]).toContain('受电弓远程切除')
+  })
+
+  it('MON 未上电时点击无效，页脚说明原因', () => {
+    // 真实顺序：插钥匙→右旋→司机室占用、MON 点亮→再确认。
+    // 屏没亮就点确认是假动作，必须被拒并说明去哪儿上电。
+    const w = mountPanel()
+    expect(w.get('.mon__foot-text').text()).toContain('MON 未上电')
+    return w.findAll('.mon__hit')[0].trigger('click').then(() => {
+      expect(session.mon.voltage).toBe(false)
+      expect(w.get('.mon__foot-text').text()).toContain('MON 未上电')
+    })
+  })
+
+  it('VCB 合上后屏上显示"闭合"，要求列改成"视需要"', () => {
+    // 2026-11-13 本人实测：第 5 步合了 VCB，第 6 步屏上仍写"断开"。
+    session.keyTurned = true
+    session.raised = true
+    session.vcbClosed = true
+    const w = mountPanel('remote', 'status')
+    const rows = w.findAll('.mon__row').map((r) => r.text())
+    const vcb = rows.find((t) => t.includes('VCB'))!
+    expect(vcb).toContain('闭合')
+    expect(vcb).not.toContain('断开')
+    expect(vcb).toContain('视需要')
   })
 
   it('status 模式只读：没有可点的确认按钮', () => {
