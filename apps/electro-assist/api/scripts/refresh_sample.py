@@ -7,13 +7,21 @@
 
 这个脚本只做一件事：按样例文件重写内容，**保留 id / status / created_at / published_at**。
 因为主键没变，`sessions.guide_id` 与 `records.step_id` 继续有效，记录页不会断。
-步骤 id 序列变了会直接拒绝——那种情况得人工迁移，不能靠覆盖。
+
+## 两道闸门（2026-11-13 第六轮评审后补齐）
+
+1. **步骤 id 序列必须一致**——变了，老记录会指向不存在的步骤，只能人工迁移。
+2. **有记录的步骤，含义不许变**（标题 / 动作 / 安全提示 / 判据）。只比 id 是不够的：
+   `7d79af7` 就把 s02/s03 的内容对调而 id 原地不动，刷新照写成功，于是"在 s02 提交的
+   记录"从"上电激活"变成了"MON 屏逐项确认"——记录没变，解读变了。
+   确认要覆盖历史解读时加 `--allow-record-rewrite`，它会打印受影响的记录条数。
 
 用法（在 `apps/electro-assist/api` 下）：
 
     python -m scripts.refresh_sample                 # 只报告差异
     python -m scripts.refresh_sample --yes           # 写入
     python -m scripts.refresh_sample --yes --only g_door_switch_formal_001
+    python -m scripts.refresh_sample --yes --allow-record-rewrite   # 明知会改写历史解读
 
 服务器容器内：
 
@@ -83,6 +91,11 @@ def main() -> int:
         help="只处理指定指导书 id，可重复",
     )
     parser.add_argument("--dir", default=None, help="样例目录，默认 data/samples")
+    parser.add_argument(
+        "--allow-record-rewrite",
+        action="store_true",
+        help="明知会改写已被记录引用的步骤含义时也写入（会打印受影响记录数）",
+    )
     args = parser.parse_args()
 
     store.init_db()
@@ -97,6 +110,7 @@ def main() -> int:
     pending = 0
     done = 0
     failed = 0
+    rewritten = 0
 
     for guide in guides:
         row = store.get_guide(guide.id)
@@ -126,18 +140,30 @@ def main() -> int:
             continue
 
         try:
-            result = store.refresh_sample_guide(guide)
+            result = store.refresh_sample_guide(guide, allow_record_rewrite=args.allow_record_rewrite)
         except (ValueError, LookupError) as exc:
             print(f"  [FAIL] {exc}")
             failed += 1
             continue
         done += 1
         print(f"  [OK] 已写入，updated_at={result['updated_at']}")
+        if result.get("rewrote_records"):
+            rewritten += int(result.get("records_affected") or 0)
 
     if pending and not args.yes:
         print(f"\n共 {pending} 份有差异；确认无误后加 --yes 写入。")
+        print(
+            "注意：若某一步已有记录，而这次改动了它的标题/动作/安全提示/判据，"
+            "会被拒绝（避免老记录被重新解释）；确认要覆盖时加 --allow-record-rewrite。"
+        )
     if done:
-        print(f"\n已刷新 {done} 份；记录与会话未受影响（id 与步骤 id 未变）。")
+        tail = f"已刷新 {done} 份；记录与会话未受影响（id 与步骤 id 未变）。"
+        if rewritten:
+            tail = (
+                f"已刷新 {done} 份；**按 --allow-record-rewrite 改写了 {rewritten} 条"
+                "历史记录的解读**，请自行确认这些记录是否还需要。"
+            )
+        print("\n" + tail)
     if failed:
         print(f"\n{failed} 份未处理，见上面的 FAIL/MISS。")
         return 1

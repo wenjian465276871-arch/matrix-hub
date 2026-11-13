@@ -120,17 +120,72 @@ def save_guide(
     return {"id": guide.id, "status": status, "updated_at": now, "skipped": False}
 
 
-def refresh_sample_guide(guide: Guide) -> dict[str, Any]:
+def _recorded_steps(conn: sqlite3.Connection, guide_id: str) -> dict[str, int]:
+    """这份指导书上「哪些步骤已经有记录、各有几条」。"""
+    rows = conn.execute(
+        """
+        SELECT r.step_id AS step_id, COUNT(*) AS n
+        FROM records r JOIN sessions s ON s.id = r.session_id
+        WHERE s.guide_id = ?
+        GROUP BY r.step_id
+        """,
+        (guide_id,),
+    ).fetchall()
+    return {row["step_id"]: int(row["n"]) for row in rows}
+
+
+def _step_content_signature(step: dict[str, Any]) -> str:
+    """把一个步骤压成「它还是不是同一件事」的指纹。
+
+    为什么需要第二道闸门（2026-11-13 第六轮评审 P1-1）：
+
+    第一道闸门只比 `step_id` 序列，保证记录**还能查到**步骤；但查得到不等于
+    同一步。`7d79af7` 就把 s02/s03 的内容对调而 id 原位不动——刷新照写，
+    于是「在 s02 提交的记录」从"上电激活"变成了"MON 屏逐项确认"。记录本身
+    没变，解读变了。对一份作业记录来说，这等于伪造。
+
+    取哪些字段：标题、动作、安全提示、判据。这四项决定「这一步要人做什么、
+    合格线在哪」。刻意**不含** `figures` / `tools`：重烘一张图、换机位、
+    调工具清单都不改变记录的含义，算进来只会让刷新被无谓挡住。
+    """
+    criteria = [
+        {
+            "id": item.get("id"),
+            "label": item.get("label"),
+            "type": item.get("type"),
+            "unit": item.get("unit"),
+            "min": item.get("min"),
+            "max": item.get("max"),
+            "options": item.get("options") or [],
+        }
+        for item in (step.get("criteria") or [])
+    ]
+    payload = {
+        "title": step.get("title"),
+        "action": step.get("action"),
+        "safety": step.get("safety") or [],
+        "criteria": criteria,
+    }
+    blob = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def refresh_sample_guide(guide: Guide, *, allow_record_rewrite: bool = False) -> dict[str, Any]:
     """用样例文件覆盖一条**已发布**指导书的内容。只给 `scripts/refresh_sample.py` 调用。
 
     与 `save_guide` 的分工：`save_guide` 拒绝覆盖已发布内容（防生成流程顶替案例），
     这一条专门做"样例内容刷新"——保留 `id` / `status` / `created_at` / `published_at`，
     只换内容。因为主键没变，`sessions.guide_id` 与 `records.step_id` 全部继续有效。
 
-    两条前置条件（不满足直接抛错，不做半套更新）：
+    三条前置条件（不满足直接抛错，不做半套更新）：
     1. 记录必须是 published——草稿是生成产物或用户资产，样例不该覆盖它；
     2. 步骤 id 序列必须完全一致——变了就等于老记录指向的 `step_id` 失效，
-       记录页会拼不出那一步。
+       记录页会拼不出那一步；
+    3. **有记录的步骤，其含义不许变**（标题 / 动作 / 安全提示 / 判据）。
+       第 2 条只挡住"记录查不到步骤"，挡不住"记录查到的是另一件事"；
+       后者更隐蔽，因为它不报错，只是把历史悄悄改写。
+       确认要改写历史解读时，显式传 `allow_record_rewrite=True`（CLI 有对应开关，
+       且会打印受影响的记录数）。
     """
     now = now_iso()
     payload = json.dumps(guide.model_dump(mode="json"), ensure_ascii=False)
@@ -159,6 +214,25 @@ def refresh_sample_guide(guide: Guide) -> dict[str, Any]:
             raise ValueError(
                 f"{guide.id} 步骤 id 序列变了（旧 {old_ids} / 新 {new_ids}），"
                 "刷新会让已有记录失去对应步骤；改用人工迁移或新建样例 id"
+            )
+
+        recorded = _recorded_steps(conn, guide.id)
+        old_by_id = {step.get("id"): step for step in old_payload.get("steps", [])}
+        changed = [
+            step.id
+            for step in guide.steps
+            if step.id in recorded
+            and _step_content_signature(step.model_dump(mode="json"))
+            != _step_content_signature(old_by_id.get(step.id) or {})
+        ]
+        if changed and not allow_record_rewrite:
+            detail = "、".join(f"{sid}（{recorded[sid]} 条）" for sid in changed)
+            raise ValueError(
+                f"{guide.id} 的步骤 {detail} 上已有历史记录，"
+                "而这次改动会改变这些步骤的含义——刷新后老记录会按新内容重新解释。"
+                "三条路：① 不动这几步；② 换一个新的样例 id；"
+                "③ 确认要覆盖历史解读时，用 "
+                "`python -m scripts.refresh_sample --yes --allow-record-rewrite`。"
             )
 
         with tx(conn):
@@ -192,6 +266,10 @@ def refresh_sample_guide(guide: Guide) -> dict[str, Any]:
         "created_at": row["created_at"],
         "published_at": row["published_at"],
         "updated_at": now,
+        # 给调用方留一条可审计的痕迹：这次刷新牵动了多少条历史记录。
+        # 只数**含义真的变了**的那几步；正常路径是 0。
+        "records_affected": sum(recorded[sid] for sid in changed),
+        "rewrote_records": bool(changed) and allow_record_rewrite,
     }
 
 
