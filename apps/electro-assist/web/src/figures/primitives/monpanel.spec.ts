@@ -134,4 +134,55 @@ describe('mon_panel', () => {
         expect(w.findAll('.mon__row')[0].text()).toContain('EGS')
       })
   })
+
+  /* ---- 页签角标（R20-4）：回答"还差几项、在哪一页" ---- */
+
+  it('上电后页签标出未确认项数：电源 2 / 车辆 3 / 远程页没有确认项', () => {
+    session.keyTurned = true
+    session.brakeFast = true
+    const w = mountPanel()
+    const badges = w.findAll('.mon__tab-badge').map((b) => b.text())
+    expect(badges).toEqual(['2', '3'])
+    // 可访问名要把数字说出来，不能只画个小圆点
+    expect(w.findAll('.mon__tab')[0].attributes('aria-label')).toContain('还有 2 项未确认')
+  })
+
+  it('确认完一页，该页角标消失', async () => {
+    session.keyTurned = true
+    session.brakeFast = true
+    const w = mountPanel()
+    const hits = w.findAll('.mon__hit')
+    await hits[0].trigger('click')
+    await hits[1].trigger('click')
+    const badges = w.findAll('.mon__tab-badge').map((b) => b.text())
+    expect(badges).toEqual(['3'])
+    expect(w.findAll('.mon__tab')[0].attributes('aria-label')).toBe('电源电压')
+  })
+
+  it('屏没上电 / status 模式时都不出角标（不催人做不该做的事）', () => {
+    // 未上电：屏是暗的，标"还有 2 项"等于催人去点一块暗屏
+    expect(mountPanel().findAll('.mon__tab-badge')).toHaveLength(0)
+    // status：第 6 步只读，没有"确认"这回事
+    session.keyTurned = true
+    session.brakeFast = true
+    expect(mountPanel('power', 'status').findAll('.mon__tab-badge')).toHaveLength(0)
+  })
+
+  /* ---- 结果示意提示（R20-3）---- */
+
+  it('status 模式但本次会话没升弓：必须写明"本屏为结果示意"', () => {
+    const w = mountPanel('remote', 'status')
+    const note = w.get('.mon__provisional')
+    expect(note.text()).toContain('结果示意')
+    expect(note.text()).toContain('尚未真正升弓')
+    // 屏上仍然画"升起"（印刷语义），只是多一行说明
+    expect(w.get('.mon__side').text()).toContain('升起')
+  })
+
+  it('真的升弓之后不再提示，check 模式也不提示', () => {
+    session.raised = true
+    expect(mountPanel('remote', 'status').findAll('.mon__provisional')).toHaveLength(0)
+    session.raised = false
+    expect(mountPanel('power', 'check').findAll('.mon__provisional')).toHaveLength(0)
+  })
 })

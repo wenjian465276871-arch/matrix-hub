@@ -172,3 +172,24 @@ def test_force_flag_rewrites_records_and_reports_count(demo):
 
     assert result["rewrote_records"] is True
     assert result["records_affected"] == 3
+
+
+def test_warns_when_file_changed_but_revision_not_bumped(demo, caplog):
+    """文件变了、revision 没提 → 不刷新，但要在启动日志里说一句（R20-6）。
+
+    2026-11-13 线上就是这么发现 `g_door_clearance_001` 差一个参数的：机制**正确地**
+    没刷新，却没有任何声音，只能靠人想起来跑一次 dry-run。
+    """
+    caplog.set_level(logging.WARNING, logger="electro.library")
+    path = demo / SAMPLE
+    data = json.loads(path.read_text(encoding="utf-8"))
+    data["steps"][3]["title"] = "改过的标题"
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")  # 不提 revision
+    library._seeded_paths.clear()
+
+    assert library.ensure_seeded() == 0
+
+    assert "没提高" in caplog.text
+    assert GUIDE_ID in caplog.text
+    # 线上内容一个字没动
+    assert store.get_guide(GUIDE_ID)["guide"]["steps"][3]["title"] != "改过的标题"

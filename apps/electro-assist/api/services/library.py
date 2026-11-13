@@ -59,6 +59,30 @@ def _revision_of(row: dict) -> int:
         return 0
 
 
+def _comparable(payload: dict) -> str:
+    """归一化后的内容指纹。**剔除两个"必然不同"的字段**：
+
+    - `schema_version`：`normalize_schema_versions()` 启动时会把存量刷到当前版本，
+      而样例文件可能还写着旧版本号 —— 那不是内容差异。
+    - `meta.revision`：这条检查本身就是为了判断"内容变了但 revision 没提"，
+      把它算进来会让所有条目恒不相等。
+    """
+    try:
+        copy = json.loads(json.dumps(payload, ensure_ascii=False))
+    except (TypeError, ValueError):
+        return ""
+    copy.pop("schema_version", None)
+    meta = copy.get("meta")
+    if isinstance(meta, dict):
+        meta.pop("revision", None)
+    return json.dumps(copy, ensure_ascii=False, sort_keys=True)
+
+
+def _content_drifted(stored: dict, fresh: Guide) -> bool:
+    """样例文件与库里那份是否内容不一致。"""
+    return _comparable(stored) != _comparable(fresh.model_dump(mode="json"))
+
+
 def ensure_seeded() -> int:
     """把**库里还没有的**样例导入为已发布。
 
@@ -81,6 +105,7 @@ def ensure_seeded() -> int:
     directory = guide_dir()
     seeded = 0
     refreshed = 0
+    drifted = 0
     for guide in load_fixtures(directory):
         existing = store.get_guide(guide.id)
         if existing is not None:
@@ -105,6 +130,20 @@ def ensure_seeded() -> int:
                     refreshed += 1
                 except (LookupError, ValueError) as exc:
                     log.error("样例 %s 未刷新，保留库中旧版：%s", guide.id, exc)
+            elif guide.meta.is_demo and _content_drifted(existing["guide"], guide):
+                # 内容变了但 revision 没提：seed 不会刷新，线上永远是旧版。
+                #
+                # 2026-11-13 线上就是这么发现 `g_door_clearance_001` 差一个参数（0.62 vs 0.61）：
+                # 改了样例文件忘了提 revision，机制**正确地**没刷新，却没有任何声音。
+                # 这里只说一句，不自动刷新——「内容不同就覆盖已发布内容」比"旧一点"危险得多。
+                drifted += 1
+                log.warning(
+                    "样例 %s 的文件内容与库中不一致，但 meta.revision 没提高（%d → %d）："
+                    "线上仍是旧版。要上线就抬高样例的 revision；只想改文件、不改线上就忽略这条。",
+                    guide.id,
+                    old_rev,
+                    guide.meta.revision,
+                )
             continue
         # 样例进库即为 published，因此它必须过同一条发布闸门（§12.4）。
         # 缺判据的样例宁可不上架——上了就是"已发布但现场没有验收依据"。
@@ -114,12 +153,13 @@ def ensure_seeded() -> int:
             continue
         store.save_guide(guide, status="published")
         seeded += 1
-    if seeded or refreshed:
+    if seeded or refreshed or drifted:
         log.info(
-            "已从 %s 增量导入 %d 份样例、刷新 %d 份（published）",
+            "已从 %s 增量导入 %d 份样例、刷新 %d 份、发现 %d 份「文件变了但没提 revision」",
             directory,
             seeded,
             refreshed,
+            drifted,
         )
 
     with _seed_lock:

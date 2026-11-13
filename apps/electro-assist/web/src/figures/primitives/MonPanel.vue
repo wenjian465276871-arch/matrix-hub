@@ -31,6 +31,16 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: 'remote', label: '远程控制切除' },
 ]
 
+/** 每个页签上有哪几项需要确认（远程控制切除页只"看"，没有确认项）。
+ *
+ *  有了它，页签才能标出"还有几项没确认"——否则用户点完当前页的 2 行、
+ *  看到进度写 2/5，却不知道剩下 3 项藏在另外两页里（2026-11-13 实测踩到）。 */
+const TAB_KEYS: Record<Tab, MonKey[]> = {
+  power: ['voltage', 'mr'],
+  vehicle: ['egs', 'vcb', 'panto_cut'],
+  remote: [],
+}
+
 const initialTab = computed<Tab>(() => {
   const raw = props.params.tab
   return raw === 'vehicle' || raw === 'remote' ? raw : 'power'
@@ -135,6 +145,19 @@ function toggle(key?: MonKey): void {
 const done = computed(() => monDone())
 const total = MON_ITEMS.length
 
+/** 某个页签上还没确认的项数。只在 check 模式（且屏已点亮）才算——
+ *  status 模式是"结果示意"，不该催人去确认。 */
+function pendingIn(id: Tab): number {
+  if (mode.value !== 'check' || !powered.value) return 0
+  return TAB_KEYS[id].filter((key) => !session.mon[key]).length
+}
+
+/** 第 6 步的强制诚实：`status` 模式按设计**无条件**画"成功的样子"（印刷版指导书就该这样），
+ *  但交互状态下如果这次会话根本没升弓，屏上的"升起 / 25.1 kV"是**示意**，不是结果。
+ *  不点明这一点，用户会以为"我已经做完并验收了"——那正是 2026-11-13 实测踩到的坑：
+ *  只确认了一个页签、旋钮没被接受，第 6 屏照样写着升起。 */
+const provisional = computed(() => mode.value === 'status' && !session.raised)
+
 /* MON 的点亮条件是「钥匙右旋 + 制动手柄快速位」，判断在 `monPowered()` 里，
    这里只消费。check 模式不再恒亮——屏就该如实反映有没有电。 */
 const powered = computed(() => monPowered() || mode.value === 'status')
@@ -188,10 +211,12 @@ const foot = computed(() => {
           type="button"
           role="tab"
           :aria-selected="tab === t.id"
+          :aria-label="pendingIn(t.id) ? `${t.label}，还有 ${pendingIn(t.id)} 项未确认` : t.label"
           :class="{ 'is-on': tab === t.id }"
           @click="tab = t.id"
         >
           {{ t.label }}
+          <span v-if="pendingIn(t.id)" class="mon__tab-badge" aria-hidden="true">{{ pendingIn(t.id) }}</span>
         </button>
       </div>
 
@@ -269,6 +294,11 @@ const foot = computed(() => {
           <i v-for="i in total" :key="i" :class="{ 'is-on': i <= done }" />
         </span>
       </footer>
+
+      <!-- 结果示意 ≠ 验收结果：交互状态下没真升弓就必须说清楚 -->
+      <p v-if="provisional" class="mon__provisional" role="note">
+        本屏为结果示意：本次会话尚未真正升弓
+      </p>
 
       <!-- 屏下软键：真车每块屏下面一排 8 个，按页面功能分配。这里只作形制 -->
       <div class="mon__softkeys" aria-hidden="true">
@@ -414,6 +444,35 @@ const foot = computed(() => {
   background: #17402f;
   color: #eafaf3;
   font-weight: 600;
+}
+
+/* 未确认项角标：跟着页签走，回答"还差几项、在哪一页"。
+   用琥珀色而不是报错红——它不是异常，只是提示"这页还没看完"。 */
+.mon__tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 5px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #8a5a12;
+  color: #ffe6bd;
+  font-size: 11px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+
+/* 结果示意提示：压一条窄带在页脚上方，不抢表格的注意力，但一定看得见 */
+.mon__provisional {
+  margin: 0;
+  padding: 5px 12px;
+  border-top: 1px solid #3d2f14;
+  background: #2a2109;
+  color: #ffd89a;
+  font-size: 12px;
+  text-align: center;
 }
 
 /* ---------------- 表头 ---------------- */
