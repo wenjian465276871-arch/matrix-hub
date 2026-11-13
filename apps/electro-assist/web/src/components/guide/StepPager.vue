@@ -23,7 +23,7 @@
  *  打印时必须把全部页铺开（`preparePrint()` → 等一帧 → 调 `window.print()`），
  *  否则纸上只有当前一页。`Ctrl+P` 走 `beforeprint` 兜底，尽力而为。
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, useSlots, watch } from 'vue'
 import StepPage from './StepPage.vue'
 import { announce } from '../../lib/announce'
 import {
@@ -74,6 +74,21 @@ function syncFromScroll(): void {
     savePage(pageStorageKey(props.guideId), index)
   }
 }
+
+/**
+ * 给操作台一个"点 MON 屏去确认"的钩子。
+ *
+ * 页码口径是 `1 + steps + 尾页`（0 = 封面），所以第 i 步在 `i + 1`。
+ * provide 放在这里而不是 StepPage：一页一个组件，而跳转要由分页器执行。
+ */
+provide('guide-goto-mon', () => {
+  const index = props.steps.findIndex((s) =>
+    (s.figures ?? []).some((f) => f.primitive === 'mon_panel'),
+  )
+  if (index < 0) return false
+  goTo(index + 1)
+  return true
+})
 
 function goTo(index: number, smooth = true): void {
   const target = clampPage(index, count.value)

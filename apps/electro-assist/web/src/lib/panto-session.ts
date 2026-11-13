@@ -244,7 +244,8 @@ export function nextAction(): string {
   if (!session.keyInserted) return '点制动控制器上的钥匙，插入主控钥匙'
   if (!session.keyTurned) return '再把钥匙右旋到运行位（司机室占用）'
   if (!session.brakeFast) return '把制动手柄推到"快速"位：MCR 励磁后 MON 才点亮'
-  if (monMissing().length) return 'MON 屏还有确认项未完成，先回第 3 步逐项确认'
+  // 措辞跟着交互走：现在点 MON 屏就能进确认页，不必让人自己找"第 3 步"在哪。
+  if (monMissing().length) return 'MON 屏还有确认项未完成，请点击 MON 屏进行逐项确认'
   if (!session.unit) return '在转换开关盘上选择受电弓单元（2U / 3U）'
   if (!session.raised) return '按住升弓旋钮不松手，直到 MON 显示"升起"'
   return '受电弓已升起并保压，可进入下一步确认'

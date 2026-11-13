@@ -22,10 +22,10 @@ const SceneStub = defineComponent({
   template: '<div class="scene-stub" />',
 })
 
-function mountOps(view = 'both') {
+function mountOps(view = 'both', provide: Record<string, unknown> = {}) {
   return mount(PantoOps, {
     props: { params: { scene: 'pantograph_raise', view }, label: '升弓操作' },
-    global: { stubs: { DeviceScene: SceneStub } },
+    global: { stubs: { DeviceScene: SceneStub }, provide },
   })
 }
 
@@ -52,13 +52,37 @@ describe('operation_scene', () => {
     expect(w.text()).toContain('未上电')
   })
 
-  it('点"钥匙"两次：先插入、再右旋', () => {
+  it('六个状态灯常驻：钥匙插入完不会把"钥匙右旋"顶出来', () => {
+    // 2026-11-13 本人要求：按钮是状态灯，六个动作各占一个、位置与文案都不动。
     const w = mountOps()
-    return buttonByText(w, '钥匙 插入')
+    const labels = w.findAll('.ops__btn').map((b) => b.text())
+    for (const want of ['钥匙插入', '钥匙右旋', '手柄快速位', '选弓 2U/3U', '按住升弓旋钮', 'VCB 合']) {
+      expect(labels).toContain(want)
+    }
+  })
+
+  it('做完的动作变蓝：keyInserted 后"钥匙插入"带 is-done', () => {
+    const w = mountOps()
+    expect(w.findAll('.ops__btn.is-done')).toHaveLength(0)
+    return buttonByText(w, '钥匙插入')
       .trigger('click')
       .then(() => {
         expect(session.keyInserted).toBe(true)
-        return buttonByText(w, '钥匙 右旋').trigger('click')
+        expect(buttonByText(w, '钥匙插入').classes()).toContain('is-done')
+        expect(buttonByText(w, '钥匙插入').attributes('aria-pressed')).toBe('true')
+        // 下一步的按钮不因上一步完成而"变蓝"，它只是可点了
+        expect(buttonByText(w, '钥匙右旋').classes()).not.toContain('is-done')
+      })
+  })
+
+  it('点"钥匙插入"再点"钥匙右旋"：两个独立动作', () => {
+    const w = mountOps()
+    return buttonByText(w, '钥匙插入')
+      .trigger('click')
+      .then(() => {
+        expect(session.keyInserted).toBe(true)
+        expect(session.keyTurned).toBe(false)
+        return buttonByText(w, '钥匙右旋').trigger('click')
       })
       .then(() => {
         expect(session.keyTurned).toBe(true)
@@ -66,9 +90,19 @@ describe('operation_scene', () => {
       })
   })
 
+  it('没插钥匙就点右旋：拒绝并说明原因', () => {
+    const w = mountOps()
+    return buttonByText(w, '钥匙右旋')
+      .trigger('click')
+      .then(() => {
+        expect(session.keyTurned).toBe(false)
+        expect(w.get('.ops__toast').text()).toContain('先插入主控钥匙')
+      })
+  })
+
   it('没右旋钥匙时推手柄，提示里说清原因', () => {
     const w = mountOps()
-    return buttonByText(w, '手柄 推快速位')
+    return buttonByText(w, '手柄快速位')
       .trigger('click')
       .then(() => {
         expect(session.brakeFast).toBe(false)
@@ -82,6 +116,59 @@ describe('operation_scene', () => {
     scene.vm.$emit('part-click', 'key')
     return w.vm.$nextTick().then(() => {
       expect(session.keyInserted).toBe(true)
+    })
+  })
+
+  it('点 MON 屏且还有未确认项：调用跳转钩子', () => {
+    let jumped = 0
+    const w = mountOps('desk', { 'guide-goto-mon': () => { jumped += 1; return true } })
+    session.keyInserted = true
+    session.keyTurned = true
+    session.brakeFast = true
+    const scene = w.findAllComponents({ name: 'DeviceScene' })[0]
+    scene.vm.$emit('part-click', 'mon')
+    return w.vm.$nextTick().then(() => {
+      expect(jumped).toBe(1)
+      expect(w.get('.ops__toast').text()).toContain('已跳到确认页')
+    })
+  })
+
+  it('点击 MON 屏且已上电但无跳转钩子时，给出中性提示', () => {
+    const w = mountOps('desk')
+    session.keyInserted = true
+    session.keyTurned = true
+    session.brakeFast = true
+    const scene = w.findAllComponents({ name: 'DeviceScene' })[0]
+    scene.vm.$emit('part-click', 'mon')
+    return w.vm.$nextTick().then(() => {
+      // 没有钩子（阅读器旧入口）时不能说"请点击 MON 屏"——那是空话
+      expect(w.get('.ops__toast').text()).toContain('MON 屏还有确认项未完成')
+    })
+  })
+
+  it('MON 未上电时点屏：拒绝并说明缺哪步', () => {
+    const w = mountOps('desk')
+    const scene = w.findAllComponents({ name: 'DeviceScene' })[0]
+    scene.vm.$emit('part-click', 'mon')
+    return w.vm.$nextTick().then(() => {
+      expect(w.get('.ops__toast').text()).toContain('MON 未上电')
+    })
+  })
+
+  it('MON 全部确认后点屏：打开放大层，Esc 收起', () => {
+    const w = mountOps('desk')
+    session.keyInserted = true
+    session.keyTurned = true
+    session.brakeFast = true
+    session.mon = { voltage: true, mr: true, egs: true, vcb: true, panto_cut: true }
+    const scene = w.findAllComponents({ name: 'DeviceScene' })[0]
+    scene.vm.$emit('part-click', 'mon')
+    return w.vm.$nextTick().then(() => {
+      expect(w.find('.ops__mon').exists()).toBe(true)
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+      return w.vm.$nextTick().then(() => {
+        expect(w.find('.ops__mon').exists()).toBe(false)
+      })
     })
   })
 

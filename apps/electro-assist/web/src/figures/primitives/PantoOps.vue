@@ -17,17 +17,20 @@
  *  离开页面时动画随卸载停止，但 `raiseT` 留在会话里，翻回来接着走——
  *  否则第 5 步升起的弓，第 6 步又躺回去了。
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { splitLabel } from '../tooltip'
 
 import type { ParamValue } from '../../types'
 import DeviceScene from '../DeviceScene.vue'
+import MonPanel from './MonPanel.vue'
 import {
   RAISE_T,
   closeVcb,
   deskT,
   holdRaise,
   insertKey,
+  monMissing,
+  monPowered,
   moveBrakeFast,
   nextAction,
   releaseRaise,
@@ -43,6 +46,13 @@ const props = defineProps<{
   params: Record<string, ParamValue>
   label?: string
 }>()
+
+/** 跳到 MON 确认页。由阅读器 / 探索台 provide；没有提供时返回 false，
+ *  PantoOps 退化成只给提示（单测里就是这样）。 */
+const gotoMonStep = inject<(() => boolean) | null>('guide-goto-mon', null)
+
+/** MON 屏放大态：三维里的屏只有 0.46m 宽，投影到画布上几十像素，读不清读数。 */
+const monZoom = ref(false)
 
 /** `desk` 只看操纵台（第 3、4 步）；`both` 加车顶受电弓（第 5、6 步）。 */
 const view = computed(() => (props.params.view === 'desk' ? 'desk' : 'both'))
@@ -87,7 +97,13 @@ function toggleExpand(): void {
 }
 
 function onKey(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && expanded.value) expanded.value = false
+  if (event.key !== 'Escape') return
+  // 先收放大层，再收全屏：Esc 一次只关一层，符合"由内到外"的直觉
+  if (monZoom.value) {
+    monZoom.value = false
+    return
+  }
+  if (expanded.value) expanded.value = false
 }
 
 onMounted(() => {
@@ -107,17 +123,33 @@ onBeforeUnmount(() => {
 
 /* ---------------- 动作入口 ---------------- */
 
-type Act = 'key' | 'brake' | 'switch' | 'knob' | 'vcb'
+/** 每个按钮对应**一个原子动作**，不再是一个按钮轮流承担"插入→右旋"。
+ *  按钮同时是状态灯：做完就变蓝、文案不变，用户一眼看出走到哪一步。 */
+type Act = 'insert' | 'turn' | 'brake' | 'switch' | 'knob' | 'vcb'
 
 function run(result: { ok: boolean; hint: string }): void {
   notice.value = result.hint
 }
 
 function act(kind: Act): void {
-  if (kind === 'key') {
-    if (!session.keyInserted) run(insertKey())
-    else if (!session.keyTurned) run(turnKey())
-    else notice.value = '钥匙已在运行位'
+  if (kind === 'insert') {
+    if (session.keyInserted) {
+      notice.value = '钥匙已插入'
+      return
+    }
+    run(insertKey())
+    return
+  }
+  if (kind === 'turn') {
+    if (!session.keyInserted) {
+      notice.value = '先插入主控钥匙，锁芯才转得动'
+      return
+    }
+    if (session.keyTurned) {
+      notice.value = '钥匙已在运行位'
+      return
+    }
+    run(turnKey())
     return
   }
   if (kind === 'brake') {
@@ -138,6 +170,29 @@ function act(kind: Act): void {
     return
   }
   run(closeVcb())
+}
+
+/**
+ * 点 MON 屏：**还有未确认项就去确认页；都确认完了就把屏放大看读数**。
+ *
+ * 为什么不一律跳转：第 4/5 步离确认已经过去，用户这时候点屏是想核对读数
+ * （受电弓状态、网压、VCB），跳走反而打断操作。判据用"还有没有未确认项"，
+ * 两种意图各自落到该去的地方。
+ */
+function onMonPart(): void {
+  if (!monPowered()) {
+    notice.value = 'MON 未上电：先把钥匙右旋、手柄推到「快速」位'
+    return
+  }
+  if (monMissing().length) {
+    const jumped = gotoMonStep?.() ?? false
+    notice.value = jumped
+      ? 'MON 屏还有未确认项：已跳到确认页'
+      : 'MON 屏还有确认项未完成，请点击 MON 屏进行逐项确认'
+    return
+  }
+  monZoom.value = true
+  notice.value = 'MON 屏已放大：点关闭或按 Esc 收起'
 }
 
 /**
@@ -163,12 +218,12 @@ const PART_NAME: Record<string, string> = {
  *  回执只取括号前的主名——回执要短，气泡才负责把细节说完。 */
 function onPart(key: string, label = ''): void {
   const name = (label ? splitLabel(label).name : '') || PART_NAME[key] || key
-  if (key === 'key') act('key')
+  if (key === 'key') act(session.keyInserted ? 'turn' : 'insert')
   else if (key === 'brake') act('brake')
   else if (key === 'switch') act('switch')
   else if (key === 'knob') act('knob')
   else if (key === 'vcb') act('vcb')
-  else if (key === 'mon') notice.value = 'MON 屏的逐项确认在第 2 步；这里只显示结果'
+  else if (key === 'mon') onMonPart()
   else if (key === 'gauge') {
     notice.value = session.raised ? '网压表：25.1 kV（正常 19–31 kV）' : '网压表：0 kV（受电弓未升起）'
   } else {
@@ -187,21 +242,31 @@ const unitText = computed(() => session.unit ?? '未选择')
 const volts = computed(() => (session.raised ? '25.1 kV' : '0 kV'))
 
 /** 按钮文案跟着状态走：同一个键在不同阶段做的是不同动作，标签必须说出来。 */
-const acts = computed<Array<{ id: Act; label: string }>>(() => [
-  {
-    id: 'key',
-    label: session.keyTurned ? '钥匙已右旋' : session.keyInserted ? '钥匙 右旋' : '钥匙 插入',
-  },
-  { id: 'brake', label: session.brakeFast ? '手柄已在快速位' : '手柄 推快速位' },
+/**
+ * 底部按钮 = **六个常驻的状态灯**。
+ *
+ * 上一版是一个按钮轮流承担"插入 → 右旋"，完成后文案就变了，且下一个动作的按钮
+ * 要等人做完上一步才"出现"。本人 2026-11-13 指出：这些按钮应当像盘面指示灯，
+ * 六个动作各占一个，做完就变蓝、位置与文案都不动。
+ *
+ * `done` 只反映"这一步做过没有"，不代表当前是否可点：可点性仍由 `panto-session`
+ * 的联锁判断，点了不满足的动作会给出原因（而不是静默变灰让人猜）。
+ */
+const acts = computed<Array<{ id: Act; label: string; done: boolean }>>(() => [
+  { id: 'insert', label: '钥匙插入', done: session.keyInserted },
+  { id: 'turn', label: '钥匙右旋', done: session.keyTurned },
+  { id: 'brake', label: '手柄快速位', done: session.brakeFast },
   {
     id: 'switch',
-    label: session.unit ? `已选 ${session.unit}（点击切换）` : '选弓 2U / 3U',
+    label: session.unit ? `选弓 ${session.unit}` : '选弓 2U/3U',
+    done: session.unit !== null,
   },
   {
     id: 'knob',
-    label: session.raiseHeld ? '松开旋钮' : session.raised ? '已升起、保压' : '按住升弓旋钮',
+    label: session.raiseHeld ? '松开旋钮' : '按住升弓旋钮',
+    done: session.raised || session.raiseHeld,
   },
-  { id: 'vcb', label: session.vcbClosed ? 'VCB 已闭合' : 'VCB 合' },
+  { id: 'vcb', label: 'VCB 合', done: session.vcbClosed },
 ])
 
 function restart(): void {
@@ -261,8 +326,9 @@ function restart(): void {
         v-for="a in acts"
         :key="a.id"
         class="ops__btn"
-        :class="{ 'is-on': a.id === 'knob' && session.raiseHeld }"
+        :class="{ 'is-done': a.done, 'is-on': a.id === 'knob' && session.raiseHeld }"
         type="button"
+        :aria-pressed="a.done"
         @click="act(a.id)"
       >
         {{ a.label }}
@@ -273,6 +339,27 @@ function restart(): void {
     <p class="ops__note">
       结构示意，参数为演示虚构值；点三维里的件与点下面的按钮等价。
     </p>
+
+    <!-- MON 屏放大：三维里的屏只有几十像素，读数要看清就得单独铺开一层。
+         复用 MonPanel（与第 3 步同一套联锁与状态），不是另画一张图。 -->
+    <div
+      v-if="monZoom"
+      class="ops__mon"
+      role="dialog"
+      aria-modal="true"
+      aria-label="MON 车辆信息显示屏放大"
+    >
+      <div class="ops__mon-box">
+        <header class="ops__mon-bar">
+          <span>MON 车辆信息显示屏</span>
+          <button class="ops__mon-close" type="button" @click="monZoom = false">关闭</button>
+        </header>
+        <MonPanel
+          :params="{ scene: 'pantograph_raise', tab: 'power', mode: 'check' }"
+          label="MON 屏放大"
+        />
+      </div>
+    </div>
   </div>
 </template>
 
@@ -445,11 +532,79 @@ function restart(): void {
   font-weight: 600;
 }
 
+/* 状态灯：这一步做过了就整块变蓝。
+   与 `is-on`（旋钮正被按住）区分开——那个是"正在做"，这个是"已完成"。
+   完成后仍可点：再点一次只回一句"已完成"，不静默变灰让人猜为什么点不动。 */
+.ops__btn.is-done {
+  border-color: var(--c-primary);
+  background: var(--c-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.ops__btn.is-done:hover {
+  background: var(--c-primary);
+  color: #fff;
+}
+
 .ops__btn--reset {
   color: var(--c-ink-2);
 }
 
 
+
+.ops__mon {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(10 12 14 / 74%);
+}
+
+.ops__mon-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(1120px, 94vw);
+  height: min(760px, 90vh);
+  padding: 12px 14px 14px;
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  background: var(--c-surface);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 42%);
+}
+
+/* MonPanel 自己撑 100% 高，这里要给它一个能算的高度 */
+.ops__mon-box :deep(.mon) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ops__mon-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--c-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ops__mon-close {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
 
 .ops__note {
   margin: 0;
@@ -471,7 +626,60 @@ function restart(): void {
 }
 
 @media (max-height: 820px) {
-  .ops__note {
+  .ops__mon {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(10 12 14 / 74%);
+}
+
+.ops__mon-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(1120px, 94vw);
+  height: min(760px, 90vh);
+  padding: 12px 14px 14px;
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  background: var(--c-surface);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 42%);
+}
+
+/* MonPanel 自己撑 100% 高，这里要给它一个能算的高度 */
+.ops__mon-box :deep(.mon) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.ops__mon-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--c-ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ops__mon-close {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--c-line);
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.ops__note {
     display: none;
   }
 }

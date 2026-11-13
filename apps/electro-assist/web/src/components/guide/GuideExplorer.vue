@@ -10,7 +10,7 @@
  *  全站唯一的 TopBar（composables/useTopBar）——页面自己再画一条头，
  *  就又会回到"两条栏叠着"的老样子。
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import GuideFigure from '../../figures/GuideFigure.vue'
 import { resetTopBar, setTopBar, type TopBarAction } from '../../composables/useTopBar'
 import { criterionValue, provenanceText } from '../../lib/criterionfmt'
@@ -161,6 +161,21 @@ function go(index: number): void {
 function prev(): void {
   go(props.page - 1)
 }
+
+/**
+ * 跳到「MON 屏逐项确认」那一步。
+ *
+ * 给操作台一个钩子：点三维里的 MON 屏就能过去确认，不必自己找目录。
+ * 在 MON 屏已经确认完的情况下，操作台会改走"放大看读数"，不会调它。
+ */
+provide('guide-goto-mon', () => {
+  const index = steps.value.findIndex((s) =>
+    (s.figures ?? []).some((f) => f.primitive === 'mon_panel'),
+  )
+  if (index < 0) return false
+  go(index)
+  return true
+})
 function next(): void {
   go(props.page + 1)
 }
