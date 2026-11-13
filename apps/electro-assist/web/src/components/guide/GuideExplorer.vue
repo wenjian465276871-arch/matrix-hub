@@ -694,7 +694,12 @@ watch(
   display: none;
 }
 .ex--focus .diagram {
-  padding: 8px 12px 10px;
+  padding: 4px 10px 6px;
+}
+/* 聚焦时 GuideFigure 自己的题注（"司机操纵台：点钥匙…"）与顶栏、HUD 重复，
+   却在 1090×614 下吃掉 24px——正好是三维缺的高度。 */
+.ex--focus .diagram__main :deep(.figure > figcaption) {
+  display: none;
 }
 
 .focus-bar {
