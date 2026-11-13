@@ -760,6 +760,9 @@ async function init(): Promise<void> {
     part.traverse((node) => {
       const mesh = node as Mesh
       if (!mesh.isMesh) return
+      // 大块结构件不参与高亮：30cm 的开关盘壳体整块变蓝，比"没反馈"更难看。
+      // 设备可以用 `userData.noHover = true` 标记这类件。
+      if (mesh.userData.noHover) return
       const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
       for (const mat of mats) {
         const std = mat as MeshStandardMaterial
@@ -767,7 +770,8 @@ async function init(): Promise<void> {
         if (hoverSaved.has(std)) continue
         hoverSaved.set(std, { color: std.emissive.getHex(), intensity: std.emissiveIntensity })
         std.emissive.setHex(HOVER)
-        std.emissiveIntensity = 0.45
+        // 0.45 会把浅灰屏框整块染蓝（2026-11-13 实测），0.3 只提亮不夺色
+        std.emissiveIntensity = 0.24
       }
     })
     hostEl.classList.add('is-hot')

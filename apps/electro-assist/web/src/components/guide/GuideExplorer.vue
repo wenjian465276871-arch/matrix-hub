@@ -196,6 +196,20 @@ const hasOpsFigure = computed(() =>
   (step.value?.figures ?? []).some((f) => f.primitive === 'operation_scene'),
 )
 
+/** 需要"整屏"的步骤：三维操作台与 MON 屏。
+ *
+ *  这两类图元的价值全在"看得清、点得中"：1090×614 下三栏布局会把它们压到
+ *  200px 高。聚焦模式把目录 / 详解 / 轨迹全部让位，舞台独占整屏；
+ *  用户点「显示目录与判据」随时回到三栏。 */
+const hasStageFocus = computed(() =>
+  (step.value?.figures ?? []).some(
+    (f) => f.primitive === 'operation_scene' || f.primitive === 'mon_panel',
+  ),
+)
+
+/** 聚焦开关。切到普通步骤自动退出，切回操作步自动进入——但不覆盖用户当次选择。 */
+const focusOn = ref(false)
+
 /* 短窗口 + 交互图元：自动把轨迹收起，把高度让给操作台。
    1090×614 实测：轨迹展开时操作区只剩 65px、三维画布 42px，点不中任何件；
    收起后舞台多出 ~250px。只在**进入这类步骤**时自动收一次，用户自己再展开就不干预。 */
@@ -203,6 +217,7 @@ let autoCollapsedTrace = false
 watch(
   () => step.value?.id,
   () => {
+    focusOn.value = hasStageFocus.value
     const hasOps = (step.value?.figures ?? []).some((f) => f.primitive === 'operation_scene')
     if (hasOps && traceOpen.value && window.innerHeight < 900) {
       traceOpen.value = false
@@ -261,13 +276,13 @@ watch(
 </script>
 
 <template>
-  <div class="ex">
+  <div class="ex" :class="{ 'ex--focus': focusOn }">
     <!-- 页面级 h1 只能有一处：视觉上书名在顶栏，但**顶栏是全区共用的**，
          它不能在不同页面变 h1/h2。所以这里留一个只给读屏的 h1，
          路由切换后的焦点归位（router/index.ts 找 main h1）也靠它。 -->
     <h1 class="sr-only">{{ guide.title }}</h1>
 
-    <div class="ex__grid" :class="{ 'trace-collapsed': !traceOpen }">
+    <div class="ex__grid" :class="{ 'trace-collapsed': !traceOpen, 'is-focus': focusOn }">
       <!-- 左：步骤目录 -->
       <aside class="panel ex__side" aria-label="步骤目录">
         <div class="panel-head">
@@ -327,7 +342,38 @@ watch(
       >
         <!-- 顶行：看哪一种图。实物示意图与三维动作各自吃满同一块舞台，
              而不是并排各占一半——两个都看不清等于两个都没有。 -->
-        <div class="stage-toolbar">
+        <div v-if="focusOn" class="focus-bar">
+          <button
+            class="focus-arrow"
+            type="button"
+            aria-label="上一步"
+            :disabled="page === 0"
+            @click="prev"
+          >
+            ‹
+          </button>
+          <label class="focus-step">
+            <span class="sr-only">跳到步骤</span>
+            <select :value="String(page)" @change="go(Number(($event.target as HTMLSelectElement).value))">
+              <option v-for="(s, i) in steps" :key="s.id" :value="String(i)">
+                {{ pad(s.seq) }} · {{ s.title }}
+              </option>
+            </select>
+          </label>
+          <button
+            class="focus-arrow"
+            type="button"
+            aria-label="下一步"
+            :disabled="page >= total - 1"
+            @click="next"
+          >
+            ›
+          </button>
+          <span class="focus-note">三维实时渲染 · 拖动旋转 / 滚轮缩放 / 点件操作</span>
+          <button class="focus-exit" type="button" @click="focusOn = false">显示目录与判据</button>
+        </div>
+
+        <div v-else class="stage-toolbar">
           <div v-if="viewGroups.length > 1" class="view-tabs" role="tablist" aria-label="图示种类">
             <button
               v-for="g in viewGroups"
@@ -341,6 +387,14 @@ watch(
             </button>
           </div>
           <span v-else class="view-static">步骤图示</span>
+          <button
+            v-if="hasStageFocus"
+            class="focus-enter"
+            type="button"
+            @click="focusOn = true"
+          >
+            聚焦操作（铺满整屏）
+          </button>
           <span class="model-label">图示为自动生成，非实测照片</span>
         </div>
 
@@ -602,6 +656,118 @@ watch(
    这是"收起轨迹，放大图示"这个名字该有的效果；不这么做，按钮只兑现了一半。 */
 .ex__grid.trace-collapsed .diagram__aids {
   display: none;
+}
+
+/* ---------------------------------------------------------------- 聚焦模式
+   操作台与 MON 屏的可用性全押在尺寸上：三栏布局在 1090×614 下只给它们
+   200px 高，点不中、读不清。聚焦时把目录 / 详解 / 轨迹整体让位，
+   舞台独占一屏；顶栏换成一个步骤下拉 + 前后箭头，导航不丢。 */
+.ex.ex--focus {
+  /* 必须写成 .ex.ex--focus：<1180 的媒体查询里有一条 `.ex { height:auto }`，
+     同为单类选择器且在后面，单靠 `.ex--focus` 会被它盖掉（实测舞台撑到 731px）。 */
+  height: calc(100dvh - var(--nav-h));
+  /* 基础规则里有 min-height:600px：614 高的窗口下它会顶出 42px，
+     MON 屏底部被裁掉。聚焦模式必须让高度完全由视口决定。 */
+  min-height: 0;
+  overflow: hidden;
+}
+.ex--focus .ex__grid,
+.ex__grid.is-focus {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+.ex--focus .ex__side,
+.ex--focus .ex__inspect,
+.ex--focus .ex__trace {
+  display: none;
+}
+.ex--focus .ex__stage {
+  grid-column: 1;
+  grid-row: 1;
+  /* 覆盖 <1180 的那条定高：聚焦时舞台由栅格行决定，不再按内容撑 */
+  height: auto;
+  min-height: 0;
+}
+.ex--focus .scene-heading,
+.ex--focus .scene-caption,
+.ex--focus .diagram__aids {
+  display: none;
+}
+.ex--focus .diagram {
+  padding: 8px 12px 10px;
+}
+
+.focus-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--c-line-soft);
+  background: var(--c-bg);
+}
+.focus-arrow {
+  flex: none;
+  width: 34px;
+  height: 32px;
+  border: 1px solid var(--c-line);
+  border-radius: 4px;
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.focus-arrow:disabled {
+  color: var(--c-ink-3);
+  cursor: default;
+}
+.focus-step {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+.focus-step select {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid var(--c-line);
+  border-radius: 4px;
+  background: var(--c-surface);
+  color: var(--c-ink);
+  font: inherit;
+  font-size: 13px;
+}
+.focus-note {
+  color: var(--ex-muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.focus-exit,
+.focus-enter {
+  flex: none;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--c-primary-line);
+  border-radius: 4px;
+  background: var(--c-primary-soft);
+  color: var(--c-primary-ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.focus-enter {
+  margin-left: auto;
+  margin-right: 10px;
+}
+@media (max-width: 720px) {
+  .focus-note {
+    display: none;
+  }
 }
 .panel {
   border: 1px solid var(--c-line);
