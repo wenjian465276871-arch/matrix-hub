@@ -745,6 +745,9 @@ async function init(): Promise<void> {
     hoverSaved.clear()
     hoverKey = ''
     hostEl.classList.remove('is-hot')
+    // 还原材质必须立刻重绘：按需渲染下，不重绘就会把"上一个悬停帧"留在屏幕上
+    // （2026-11-13 实测：鼠标移出画布后，顶梁仍是蓝的，重绘一次才恢复）。
+    render()
   }
 
   const setHover = (key: string): void => {
@@ -775,6 +778,8 @@ async function init(): Promise<void> {
       }
     })
     hostEl.classList.add('is-hot')
+    // 高亮是改材质，同样要自己请求一帧；否则要等下一次状态变化才看得见
+    render()
   }
 
   /** 把事件坐标换成射线，返回命中的部件键。命中不到返回空串。 */

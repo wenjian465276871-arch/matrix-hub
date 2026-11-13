@@ -560,6 +560,8 @@ export function buildDriverDesk(): DeviceRig {
   const KEY_X = -0.44
   const KEY_Y = 0.795
   const KEY_Z = 0.214
+  // 锁圈用本组材质：共用 darkMat 会让"悬停钥匙"把整块仪表盘一起染蓝。
+  const keyDark = darkMat.clone()
 
   // 锁芯：装在制动底座前脸。锁体、锁圈、钥匙三段必须互相咬住，
   // 上一版把钥匙放在 z=0.32（底座前脸外 11cm），整串东西是悬空的。
@@ -567,7 +569,7 @@ export function buildDriverDesk(): DeviceRig {
   lockBody.rotation.x = Math.PI / 2
   lockBody.position.set(KEY_X, KEY_Y, KEY_Z - 0.008)
   key.add(lockBody)
-  const lockRing = new Mesh(new CylinderGeometry(0.026, 0.026, 0.006, 24), darkMat)
+  const lockRing = new Mesh(new CylinderGeometry(0.026, 0.026, 0.006, 24), keyDark)
   lockRing.rotation.x = Math.PI / 2
   lockRing.position.set(KEY_X, KEY_Y, KEY_Z - 0.019)
   key.add(lockRing)
