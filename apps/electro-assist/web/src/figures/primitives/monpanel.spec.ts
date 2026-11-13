@@ -5,7 +5,7 @@
  *  2. 点一行就记一行，页脚计数跟着走（这是"核对过"的证据）；
  *  3. `status` 模式只读——第 6 步不该让人再点一遍；
  *  4. 远程页读的是会话状态（选了 2U 就显示 2U），不是写死的文案；
- *  5. MON 没上电时不能"确认"（屏都没亮，确认是假动作）；
+ *  5. MON 没上电时不能"确认"（屏都没亮，确认是假动作），且"上电"是钥匙右旋 **加** 手柄快速位；
  *  6. VCB 合上后屏上必须显示"闭合"——不能写死"断开"。
  */
 import { mount } from '@vue/test-utils'
@@ -35,6 +35,7 @@ describe('mon_panel', () => {
 
   it('点一行确认一行，页脚 0/5 → 1/5', () => {
     session.keyTurned = true
+    session.brakeFast = true
     const w = mountPanel()
     expect(w.get('.mon__foot-text').text()).toContain('0/5')
     return w.findAll('.mon__hit')[0].trigger('click').then(() => {
@@ -53,6 +54,18 @@ describe('mon_panel', () => {
     expect(text[2]).toContain('受电弓远程切除')
   })
 
+  it('只右旋钥匙还不够：手柄不在快速位时屏仍是暗的', () => {
+    // 2026-11-13 本人指出：钥匙右旋只建立司机室占用，MON 要等 MCR 励磁才亮。
+    session.keyTurned = true
+    const w = mountPanel()
+    expect(w.get('.mon').classes()).toContain('mon--off')
+    expect(w.get('.mon__stat').text()).toBe('待 MCR')
+    expect(w.get('.mon__foot-text').text()).toContain('快速')
+    return w.findAll('.mon__hit')[0].trigger('click').then(() => {
+      expect(session.mon.voltage).toBe(false)
+    })
+  })
+
   it('MON 未上电时点击无效，页脚说明原因', () => {
     // 真实顺序：插钥匙→右旋→司机室占用、MON 点亮→再确认。
     // 屏没亮就点确认是假动作，必须被拒并说明去哪儿上电。
@@ -67,6 +80,7 @@ describe('mon_panel', () => {
   it('VCB 合上后屏上显示"闭合"，要求列改成"视需要"', () => {
     // 2026-11-13 本人实测：第 5 步合了 VCB，第 6 步屏上仍写"断开"。
     session.keyTurned = true
+    session.brakeFast = true
     session.raised = true
     session.vcbClosed = true
     const w = mountPanel('remote', 'status')

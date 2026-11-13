@@ -85,16 +85,18 @@ type Row = [string, string]
 const SCREEN: Array<{ tab: string; rows: Row[]; note: string; on: boolean }> = [
   { tab: '待机', rows: [['主控', '未激活'], ['MON', '熄灭']], note: '插入主控钥匙并右旋', on: false },
   { tab: '待机', rows: [['主控钥匙', '已插入'], ['MON', '自检中']], note: '右旋钥匙，建立司机室占用', on: false },
+  // state 2 = 钥匙右旋、司机室占用，但手柄还没到快速位 ⇒ 屏仍是暗的。
+  // 2026-11-13 本人指出：右旋钥匙不会让 MON 亮，要等 MCR 励磁。
   {
-    tab: '电源电压',
-    rows: [['控制电压', '110.2 V'], ['蓄电池', '110.0 V'], ['总风缸 MR', '720 kPa']],
-    note: '司机室占用 · 电压 ≥87 V 正常',
-    on: true,
+    tab: '待机',
+    rows: [['主控钥匙', '运行位'], ['MON', '等待 MCR'], ['制动手柄', '非快速位']],
+    note: '把手柄推到「快速」位，屏才点亮',
+    on: false,
   },
   {
     tab: '电源电压',
     rows: [['控制电压', '110.2 V'], ['制动手柄', '快速位'], ['总风缸 MR', '720 kPa']],
-    note: 'MCR 已励磁 · 可进行升弓操作',
+    note: 'MCR 已励磁 · MON 点亮 · 可升弓',
     on: true,
   },
   {
@@ -848,10 +850,11 @@ export function buildDriverDesk(): DeviceRig {
     const state = stateAt(clamped)
     if (state !== lastState) {
       paint(state)
-      // ATP 与 MON 同步上电：没插钥匙时它是暗的，否则全屏最亮的是这块背景屏
-      atpMat.emissiveIntensity = state >= 2 ? 0.3 : 0.0
+      // ATP 与 MON 同步上电。门槛是 state 3（MCR 励磁），不是 state 2（钥匙右旋）——
+      // 屏的点亮条件只有一个出处：`monPowered()` 的同一套物理逻辑。
+      atpMat.emissiveIntensity = state >= 3 ? 0.3 : 0.0
       // 只压 emissive 不够：贴图本身是亮的，环境光仍把它照出来
-      atpMat.color.setHex(state >= 2 ? 0xffffff : 0x151a1c)
+      atpMat.color.setHex(state >= 3 ? 0xffffff : 0x151a1c)
       lastState = state
     }
 

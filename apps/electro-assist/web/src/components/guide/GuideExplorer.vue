@@ -448,7 +448,14 @@ watch(
               role="region"
               aria-label="辅助图示（可滚动）"
             >
-              <GuideFigure v-for="(f, i) in aidFigures" :key="`a-${i}`" :spec="f" />
+              <!-- 辅图区只有 184px 宽：表格/清单在上面读不清，所以整块可点放大，
+                   同时保留一个角标按钮给键盘用户 -->
+              <GuideFigure
+                v-for="(f, i) in aidFigures"
+                :key="`a-${i}`"
+                :spec="f"
+                zoom-on-click
+              />
             </div>
           </div>
           <div v-else-if="assets.length" class="diagram__assets">

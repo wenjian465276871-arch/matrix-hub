@@ -16,7 +16,7 @@
 import { computed, ref } from 'vue'
 
 import type { ParamValue } from '../../types'
-import { MON_ITEMS, confirmMon, monDone, session, type MonKey } from '../../lib/panto-session'
+import { MON_ITEMS, confirmMon, monDone, monPowered, session, type MonKey } from '../../lib/panto-session'
 
 const props = defineProps<{
   params: Record<string, ParamValue>
@@ -135,6 +135,22 @@ function toggle(key?: MonKey): void {
 const done = computed(() => monDone())
 const total = MON_ITEMS.length
 
+/* MON 的点亮条件是「钥匙右旋 + 制动手柄快速位」，判断在 `monPowered()` 里，
+   这里只消费。check 模式不再恒亮——屏就该如实反映有没有电。 */
+const powered = computed(() => monPowered() || mode.value === 'status')
+
+/** 屏没亮时要说清卡在哪一步：只右旋了钥匙 ≠ 已上电。 */
+const offReason = computed(() => {
+  if (!session.keyTurned) return 'MON 未上电：先插主控钥匙并右旋到运行位'
+  return 'MON 未上电：把制动手柄推到「快速」位，MCR 励磁后屏才点亮'
+})
+
+const stat = computed(() => {
+  if (monPowered()) return '司机室占用'
+  if (session.keyTurned) return '待 MCR'
+  return mode.value === 'status' ? '结果示意' : '未上电'
+})
+
 const foot = computed(() => {
   if (flash.value) return flash.value
   if (mode.value === 'status') {
@@ -142,19 +158,9 @@ const foot = computed(() => {
       ? '受电弓升起 · 网压 25.1 kV · VCB 已闭合'
       : '受电弓升起 · 网压 25.1 kV（VCB 未合）'
   }
-  if (!session.keyTurned) return 'MON 未上电：先插主控钥匙并右旋到运行位'
+  if (!monPowered()) return offReason.value
   if (done.value >= total) return '五项已确认 · 允许发出升弓指令'
   return `已确认 ${done.value}/${total} · 五项全部确认后才允许升弓`
-})
-
-/** 屏幕是否"有电"：钥匙右旋后点亮。第 2 步是上电后画面，所以恒亮，但要说明。 */
-/* MON 由主控钥匙右旋点亮。check 模式不再恒亮——那是上一版为了让"先确认后上电"
-   这个错误顺序看起来自洽而加的补丁，现在顺序已经改对，屏就该如实反映有没有电。 */
-const powered = computed(() => session.keyTurned || mode.value === 'status')
-
-const stat = computed(() => {
-  if (session.keyTurned) return '司机室占用'
-  return mode.value === 'status' ? '结果示意' : '未上电'
 })
 </script>
 
@@ -274,9 +280,9 @@ const stat = computed(() => {
       {{
         mode === 'status'
           ? '读到"升起"与 25 kV 即可进入下一步；数值为演示值。'
-          : session.keyTurned
+          : monPowered()
             ? '点一行确认一行。实际作业以司机室 MON 实屏为准。'
-            : 'MON 未上电：回到上一步插钥匙并右旋到运行位，屏点亮后才能逐项确认。'
+            : 'MON 未上电：回到上一步插钥匙右旋、并把制动手柄推到「快速」位，屏点亮后才能逐项确认。'
       }}
     </p>
   </div>

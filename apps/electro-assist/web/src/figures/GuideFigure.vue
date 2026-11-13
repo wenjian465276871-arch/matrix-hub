@@ -13,7 +13,17 @@ import { computed, nextTick, onBeforeUnmount, onErrorCaptured, ref, watch } from
 import type { VisualSpec } from '../types'
 import { FIGURES } from './registry'
 
-const props = defineProps<{ spec: VisualSpec }>()
+const props = defineProps<{
+  spec: VisualSpec
+  /**
+   * 点击图元本身即放大。
+   *
+   * 给「辅助图示」区用：那里只有 184px 宽，表格/清单类图元在上面必然读不清，
+   * 而 44px 的放大按钮又会挡住表头——整块可点比塞一个按钮更实用。
+   * 按钮仍然保留（缩小成角标），键盘用户需要它。
+   */
+  zoomOnClick?: boolean
+}>()
 
 const failed = ref(false)
 const reason = ref('')
@@ -118,6 +128,13 @@ function onPanEnd(): void {
   panFrom = null
 }
 
+function onFigureClick(): void {
+  // 已经在放大态、或没开这个开关时什么都不做：主图区的三维要靠拖动旋转，
+  // 点一下就弹全屏会把转视角的手势吃掉。
+  if (!props.zoomOnClick || zoomed.value) return
+  void openZoom()
+}
+
 async function openZoom(): Promise<void> {
   zoomed.value = true
   resetZoom()
@@ -167,7 +184,8 @@ onErrorCaptured((err) => {
        position:fixed，没有 role 的话读屏完全不知道"页面进入了另一种状态"。 -->
   <figure
     class="figure"
-    :class="{ 'figure--zoomed': zoomed && isScene }"
+    :class="{ 'figure--zoomed': zoomed && isScene, 'figure--click': zoomOnClick && !zoomed }"
+    @click="onFigureClick"
     :role="zoomed && isScene ? 'dialog' : undefined"
     :aria-modal="zoomed && isScene ? 'true' : undefined"
     :aria-label="zoomed && isScene ? `${spec.caption || '图示'}放大` : undefined"
@@ -218,10 +236,12 @@ onErrorCaptured((err) => {
       v-else-if="!zoomed && !isOps"
       ref="zoomTrigger"
       class="figure__zoom"
+      :class="{ 'figure__zoom--badge': zoomOnClick }"
       type="button"
+      :aria-label="zoomOnClick ? `放大查看：${spec.caption || '图示'}` : undefined"
       @click="openZoom"
     >
-      点击放大
+      {{ zoomOnClick ? '⤢' : '点击放大' }}
     </button>
   </figure>
 
@@ -303,6 +323,11 @@ onErrorCaptured((err) => {
   contain-intrinsic-size: auto 240px;
 }
 
+/* 整块可点（辅图区）：光标给 zoom-in，让人知道这里点了会放大 */
+.figure--click {
+  cursor: zoom-in;
+}
+
 /* 默认不显示：竖屏图够大，只在横屏短高才需要 */
 .figure__zoom {
   display: none;
@@ -338,6 +363,17 @@ onErrorCaptured((err) => {
 .figure__zoom--scene,
 .figure__zoom--baked {
   display: inline-flex;
+}
+
+/* 辅图区的角标：28px 只放一个符号。带文字会盖掉表格的表头，
+   而这里恰恰是"看不清才要放大"的地方。 */
+.figure__zoom--badge {
+  display: inline-flex;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
 }
 
 /* ---------- 实物图放大：整页铺开 ---------- */

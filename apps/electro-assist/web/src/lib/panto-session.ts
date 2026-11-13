@@ -82,6 +82,19 @@ export function reset(): void {
   Object.assign(session, initial())
 }
 
+/**
+ * MON 屏是否点亮。
+ *
+ * 条件是两个，不是一个（2026-11-13 本人指出：只右旋钥匙屏不会亮）：
+ * 主控钥匙右旋只建立司机室占用；MON 显示的是车辆与 MCR 状态，
+ * **制动手柄不在「快速」位、MCR 未励磁时它仍是暗的**。
+ * 这条判断只在这里定义，组件与文案都来问它——否则"屏亮没亮"会散落成
+ * 三处各写一遍的 `keyTurned`。
+ */
+export function monPowered(): boolean {
+  return session.keyTurned && session.brakeFast
+}
+
 export function monDone(): number {
   return MON_ITEMS.filter((item) => session.mon[item.key]).length
 }
@@ -105,7 +118,7 @@ export function turnKey(): ActionResult {
   if (!session.keyInserted) return { ok: false, hint: '先插入主控钥匙，锁芯才转得动' }
   if (session.keyTurned) return OK('司机室已占用')
   session.keyTurned = true
-  session.notice = '钥匙右旋到运行位：司机室占用、MON 屏点亮'
+  session.notice = '钥匙右旋到运行位：司机室占用（MON 待 MCR 励磁后点亮）'
   return OK(session.notice)
 }
 
@@ -113,7 +126,7 @@ export function moveBrakeFast(): ActionResult {
   if (!session.keyTurned) return { ok: false, hint: '主控未激活：钥匙要先右旋，司机室占用后手柄才有效' }
   if (session.brakeFast) return OK('制动手柄已在快速位')
   session.brakeFast = true
-  session.notice = '制动手柄移至快速位：MCR 励磁'
+  session.notice = '制动手柄移至快速位：MCR 励磁、MON 屏点亮'
   return OK(session.notice)
 }
 
@@ -137,7 +150,10 @@ export function selectUnit(unit: Unit): ActionResult {
  */
 export function confirmMon(key: MonKey): ActionResult {
   if (!session.keyTurned) {
-    return { ok: false, hint: 'MON 未上电：先插主控钥匙并右旋到运行位，屏点亮后再确认' }
+    return { ok: false, hint: 'MON 未上电：先插主控钥匙并右旋到运行位' }
+  }
+  if (!session.brakeFast) {
+    return { ok: false, hint: 'MON 未上电：制动手柄推到「快速」位、MCR 励磁后屏才点亮' }
   }
   if (key === 'vcb' && session.vcbClosed) {
     return { ok: false, hint: 'VCB 已闭合：升弓前必须断开（复位后重来）' }
@@ -227,7 +243,7 @@ export function deskT(): number {
 export function nextAction(): string {
   if (!session.keyInserted) return '点制动控制器上的钥匙，插入主控钥匙'
   if (!session.keyTurned) return '再把钥匙右旋到运行位（司机室占用）'
-  if (!session.brakeFast) return '把制动手柄推到"快速"位（MCR 励磁）'
+  if (!session.brakeFast) return '把制动手柄推到"快速"位：MCR 励磁后 MON 才点亮'
   if (monMissing().length) return 'MON 屏还有确认项未完成，先回第 3 步逐项确认'
   if (!session.unit) return '在转换开关盘上选择受电弓单元（2U / 3U）'
   if (!session.raised) return '按住升弓旋钮不松手，直到 MON 显示"升起"'
@@ -240,8 +256,8 @@ export function stageText(): string {
   if (session.raised) return '升弓到位、保压'
   if (session.raiseHeld) return '升弓中'
   if (session.unit) return '已选弓，待发升弓指令'
-  if (session.brakeFast) return 'MCR 励磁，可升弓'
-  if (session.keyTurned) return '司机室占用、MON 已点亮'
+  if (session.brakeFast) return 'MCR 励磁、MON 已点亮，可升弓'
+  if (session.keyTurned) return '司机室占用（待手柄快速位）'
   if (session.keyInserted) return '钥匙已插入'
   return '未上电'
 }
