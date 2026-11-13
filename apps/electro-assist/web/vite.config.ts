@@ -21,6 +21,24 @@ const apiTarget = process.env.API_TARGET ?? 'http://127.0.0.1:8001'
 export default defineConfig({
   base: '/apps/electro-assist/',
   plugins: [vue()],
+  /** Vue 的编译期开关（2026-11-13，第六轮评审 R14-4 的替代方案）。
+   *
+   *  为什么关 `__VUE_OPTIONS_API__`：全站 41 个组件零 Options API（`export default {}`
+   *  / `data()` / `methods:` / `mixins:` 一处都没有，`grep` 可复算），而 Vue 默认
+   *  仍把「把选项式组件翻译成 setup」的运行时打进来。这是首屏里**唯一一块白占的地方**：
+   *  框架底线（Vue + Router 最小用法）实测 39.6kB gzip，首屏 48.09kB，属于应用自己的
+   *  只有 8.5kB —— 不关它就没有任何"回收 1kB"的余地。
+   *
+   *  风险与边界：一旦有人写选项式组件（含 `beforeRouteEnter`），运行时会直接报
+   *  "Options API has been disabled"。这条开关等于把"不许写 Options API"变成机检。
+   *  **注意它对 `vite dev` 与单测同样生效**（`define` 是编译期替换，不分环境）——
+   *  这是有意的：让违规在开发时就炸，而不是等 CI 或线上。2026-11-13 全量 461 条单测
+   *  在该开关下通过。
+   */
+  define: {
+    __VUE_OPTIONS_API__: false,
+    __VUE_PROD_DEVTOOLS__: false,
+  },
   build: {
     target: 'es2020',
     cssCodeSplit: true,
