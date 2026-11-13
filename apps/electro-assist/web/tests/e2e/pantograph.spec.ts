@@ -50,7 +50,7 @@ async function confirmTab(page: import('@playwright/test').Page, tab: string) {
 
 test('六屏走完：三灯 → MON 五项 → 选弓 → 升弓到位 → 第 6 屏确认网压', async ({ page }) => {
   // 三维建场景 + 升弓动画 4.6s + 六屏翻页，默认 30s 不够
-  test.setTimeout(90_000)
+  test.setTimeout(120_000)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
 
@@ -85,8 +85,23 @@ test('六屏走完：三灯 → MON 五项 → 选弓 → 升弓到位 → 第 6
   // --- 第 5 屏：按住升弓旋钮 ---
   await next(page).click()
   await page.getByRole('button', { name: '按住升弓旋钮' }).click()
-  // 升到位要 4.6 秒；状态条是"真的升上去了"的唯一文字口径
-  await expect(page.locator('.ops__chip')).toContainText('升弓到位', { timeout: 20_000 })
+  /* 等"真的升到位"，而不是等界面文案自己变。
+     CI 的软件渲染只有 1–2fps（run 43460025005 卡在「升弓中」超时），按帧推进的动作
+     在低帧率下会被拉长；这里读组件暴露的进度探针（`window.__panto`），
+     超时也给足 40 秒——断言的是结果，不是速度。 */
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const probe = (window as unknown as {
+            __panto?: () => { t: number; raised: boolean; held: boolean }
+          }).__panto
+          return probe ? probe() : null
+        }),
+      { timeout: 40_000, message: '升弓进度没有推进到 raised=true' },
+    )
+    .toMatchObject({ raised: true })
+  await expect(page.locator('.ops__chip')).toContainText('升弓到位')
   await expect(page.getByRole('button', { name: '松开旋钮' })).toBeVisible()
 
   // --- 第 6 屏：确认网压 ---
@@ -99,7 +114,7 @@ test('六屏走完：三灯 → MON 五项 → 选弓 → 升弓到位 → 第 6
 })
 
 test('联锁：只确认一个页签（3/5）就去升弓，第 5 步必须拒绝并点名缺项', async ({ page }) => {
-  test.setTimeout(90_000)
+  test.setTimeout(120_000)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
 

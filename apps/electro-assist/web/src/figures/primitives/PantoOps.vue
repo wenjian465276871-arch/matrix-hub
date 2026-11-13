@@ -62,14 +62,30 @@ const notice = ref('')
  *  靠 CSS 挤不出能点中钥匙的高度——给一个铺满视口的模式。 */
 const expanded = ref(false)
 
+/** E2E 读的进度探针（`window.__panto`，见 onMounted）。 */
+interface PantoProbe {
+  /** 三维进度 0–0.72 */
+  t: number
+  raised: boolean
+  held: boolean
+}
+
 /* ---------------- rAF：只在"还在动"时跑 ----------------
    常驻循环会让平板白耗电；停下来就彻底停。 */
 let raf = 0
 let last = 0
 
+/** 单帧最多吃多少秒。
+ *
+ *  这里原来钳的是 **0.1s**，等于把"升弓 4.6 秒"变成了"至少 46 帧"。本机 60fps 感觉不到，
+ *  但 CI 的软件渲染实测只有 1–2fps：同样 20 秒只推进到一半，E2E 卡在「升弓中」超时
+ *  （run 43460025005）。**动作时长是物理量，不该由渲染帧率决定**——钳到 1 秒，
+ *  低帧率下仍按真实时间走；保留上限只为避免切走标签页再回来时一帧跳完全程。 */
+const MAX_DT = 1.0
+
 function tick(now: number): void {
   if (!last) last = now
-  const dt = Math.min(0.1, (now - last) / 1000)
+  const dt = Math.min(MAX_DT, (now - last) / 1000)
   last = now
   const moving = stepRaise(dt)
   raf = moving ? requestAnimationFrame(tick) : 0
@@ -112,11 +128,20 @@ onMounted(() => {
     ensureMoving()
   }
   window.addEventListener('keydown', onKey)
+  // 调试出口（与 `DeviceScene` 的 `__hoverKey` / `__rigRender` 同一约定）：
+  // E2E 等的是"真的升到位"，不是猜帧率。CI 软件渲染只有 1–2fps，
+  // 靠固定 sleep 或界面文案都会抖（run 43460025005 就是这么挂的）。
+  ;(window as unknown as { __panto?: () => PantoProbe }).__panto = () => ({
+    t: session.raiseT,
+    raised: session.raised,
+    held: session.raiseHeld,
+  })
 })
 
 onBeforeUnmount(() => {
   if (raf) cancelAnimationFrame(raf)
   raf = 0
+  delete (window as unknown as { __panto?: () => PantoProbe }).__panto
   window.clearTimeout(noticeTimer)
   window.removeEventListener('keydown', onKey)
 })

@@ -37,6 +37,30 @@ function advance(seconds: number, step = 0.05): void {
   for (let t = 0; t < seconds; t += step) stepRaise(step)
 }
 
+describe('升弓推进与帧率无关', () => {
+  beforeEach(() => reset())
+
+  it('一大步 dt 按真实时间算，不按帧数算', () => {
+    // 组件把每帧 dt 钳到 1s（`PantoOps` 的 MAX_DT）。CI 的软件渲染只有 1–2fps，
+    // 若仍按"每帧 0.1s"推进，4.6 秒的动作会被拉成 46 秒——run 43460025005 就是这么挂的。
+    session.keyInserted = true
+    session.keyTurned = true
+    session.brakeFast = true
+    session.unit = '2U'
+    confirmAll()
+    expect(holdRaise().ok).toBe(true)
+
+    // 1 帧 = 1 秒：应推进 0.72/4.6 ≈ 0.156
+    stepRaise(1)
+    expect(session.raiseT).toBeCloseTo(RAISE_T / 4.6, 3)
+
+    // 5 帧走满
+    for (let i = 0; i < 4; i += 1) stepRaise(1)
+    expect(session.raiseT).toBeCloseTo(RAISE_T, 3)
+    expect(session.raised).toBe(true)
+  })
+})
+
 describe('升弓联锁', () => {
   beforeEach(() => reset())
 
