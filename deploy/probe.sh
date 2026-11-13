@@ -79,3 +79,21 @@ probe_business() {
   printf '%s' "$body" | grep -Eq '"count":[[:space:]]*[1-9]' || return 1
   return 0
 }
+
+# 业务探针重试（2026-11-13）。
+#
+# 为什么不是"探一次就判死"：容器刚起来时，启动保留期清理（retention 延迟 3s 起）
+# 可能正在扫库/扫上传目录，第一次只读请求偶尔会超过 8s 超时。2026-11-13 15:43
+# 的部署就因此回滚——同一镜像在临时容器里 list 200 / kb 200，回滚后旧容器也全过。
+# 结构性故障（路由丢了、库空了）会连续失败，重试不会掩盖它；4 次 × 3s 只多等 9s。
+probe_business_retry() {
+  local i
+  for i in 1 2 3 4; do
+    probe_business && return 0
+    if [ "$i" -lt 4 ]; then
+      echo "    业务探针第 ${i} 次失败，3 秒后重试" >&2
+      sleep 3
+    fi
+  done
+  return 1
+}

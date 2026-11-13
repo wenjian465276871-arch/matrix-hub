@@ -107,7 +107,7 @@ if health_check; then
   # 健康检查只证明"进程活着"，业务探针证明"接口能用"。两条都过才算部署成功：
   # 一个 200 的 /healthz + 一个 500 的 /guides，对用户来说就是坏版本。
   echo "==> 业务只读探针（列表 / 详情 / 知识库）"
-  if probe_business; then
+  if probe_business_retry; then
     # 知识库自检（计划 §2.3）：quick 模式只跑检索、不调模型，约 50ms。
     # 用镜像里的真实知识库算 Top-3 与未覆盖识别，低于 80% 就回滚——
     # 迁移写坏或知识库文件漏打，都会在这里现形。
