@@ -8,7 +8,8 @@
     "source_note": "公开网络资料改写：司机台布局与升弓条件参考 CRH380A 统型驾驶设施公开讲义、用户提供的公开科普截图；车型与设备型号保留公开资料原文，电压/压力/网压读数为演示虚构值，不含任何企业资料",
     "model": "deepseek-flash",
     "generated_at": "2026-11-13T00:00:00Z",
-    "is_demo": true
+    "is_demo": true,
+    "revision": 1
   },
   "steps": [
     {

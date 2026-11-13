@@ -209,6 +209,10 @@ class GuideMeta(BaseModel):
     model: str = Field(min_length=3, max_length=40)
     generated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     is_demo: bool = True
+    # 演示样例的内容修订号。样例文件改了内容就 +1，seed 时据此刷新库里那份
+    # （`services/library.py: ensure_seeded`）。0 时不落盘——旧样例与旧草稿
+    # 因此逐字节不变，不会因为加了这个字段触发一次无意义的指纹变化。
+    revision: int = Field(default=0, ge=0, exclude_if=lambda value: value == 0)
 
     @field_validator("is_demo")
     @classmethod

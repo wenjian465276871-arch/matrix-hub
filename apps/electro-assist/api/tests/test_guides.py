@@ -217,6 +217,63 @@ def test_seed_adds_missing_fixtures_without_touching_existing(tmp_path, monkeypa
     assert store.get_guide("g_door_switch_formal_001") is not None
 
 
+def test_seed_refreshes_demo_when_revision_bumps(tmp_path, monkeypatch):
+    """样例文件 meta.revision 提高时，库里的已发布版本被刷新。
+
+    2026-11-13 踩到的坑：改了 `pantograph_raise_test.json` 的步骤顺序与文案，
+    部署后线上还是旧的——seed 只"缺了才补"，已发布内容一律不动。
+    样例是随代码走的演示资产，内容变了就该跟着变，于是加了修订号 +
+    走 `refresh_sample_guide`（保留 id/status/时间戳，不动记录引用）。
+    """
+    src = json.loads((SAMPLES / "pantograph_raise_test.json").read_text(encoding="utf-8"))
+    src["meta"]["revision"] = 1
+    (tmp_path / "a.json").write_text(json.dumps(src, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "electro.db"))
+    monkeypatch.setenv("GUIDE_DIR", str(tmp_path))
+    monkeypatch.setenv("SEED_GUIDES", "1")
+    store.init_db()
+
+    assert library.ensure_seeded() == 1
+    first = store.get_guide("g_pantograph_raise_test")
+    assert first["guide"]["steps"][1]["title"].startswith("上电激活")
+
+    # 同版本重扫：不该重复写
+    library._seeded_paths.clear()
+    assert library.ensure_seeded() == 0
+
+    # 版本 +1、内容改了标题：库里跟着变
+    src["meta"]["revision"] = 2
+    src["steps"][0]["title"] = "升弓前必须满足的条件（改）"
+    (tmp_path / "a.json").write_text(json.dumps(src, ensure_ascii=False), encoding="utf-8")
+    library._seeded_paths.clear()
+    assert library.ensure_seeded() == 1
+    second = store.get_guide("g_pantograph_raise_test")
+    assert second["guide"]["steps"][0]["title"].endswith("（改）")
+    # 身份不变：仍是同一条已发布记录
+    assert second["status"] == "published"
+    assert second["published_at"] == first["published_at"]
+
+
+def test_seed_refresh_refuses_when_step_ids_change(tmp_path, monkeypatch):
+    """步骤 id 序列变了不许刷新——老记录会指向不存在的 step_id。"""
+    src = json.loads((SAMPLES / "pantograph_raise_test.json").read_text(encoding="utf-8"))
+    src["meta"]["revision"] = 1
+    (tmp_path / "a.json").write_text(json.dumps(src, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "electro.db"))
+    monkeypatch.setenv("GUIDE_DIR", str(tmp_path))
+    monkeypatch.setenv("SEED_GUIDES", "1")
+    store.init_db()
+    assert library.ensure_seeded() == 1
+
+    src["meta"]["revision"] = 2
+    src["steps"][0]["id"] = "s99"
+    (tmp_path / "a.json").write_text(json.dumps(src, ensure_ascii=False), encoding="utf-8")
+    library._seeded_paths.clear()
+    # 被拒：返回 0，且库里仍是旧内容
+    assert library.ensure_seeded() == 0
+    assert store.get_guide("g_pantograph_raise_test")["guide"]["steps"][0]["id"] == "s01"
+
+
 def test_normalize_schema_versions_only_touches_stamp(tmp_path, monkeypatch):
     """存量 1.0/1.1 指导书要能被归一化，但只改版本戳。
 

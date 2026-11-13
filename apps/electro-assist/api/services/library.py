@@ -51,6 +51,14 @@ def load_fixtures(directory: Path | None = None) -> list[Guide]:
     return list(_iter_fixtures(directory or guide_dir()))
 
 
+def _revision_of(row: dict) -> int:
+    """库中那份样例的修订号。字段缺失（本字段上线前导入的记录）视作 0。"""
+    try:
+        return int(row["guide"]["meta"].get("revision", 0))
+    except (KeyError, TypeError, ValueError):
+        return 0
+
+
 def ensure_seeded() -> int:
     """把**库里还没有的**样例导入为已发布。
 
@@ -72,8 +80,31 @@ def ensure_seeded() -> int:
 
     directory = guide_dir()
     seeded = 0
+    refreshed = 0
     for guide in load_fixtures(directory):
-        if store.get_guide(guide.id) is not None:
+        existing = store.get_guide(guide.id)
+        if existing is not None:
+            # 演示样例的内容修订：样例文件里 `meta.revision` 更高就覆盖库里那份。
+            #
+            # 为什么需要它：seed 原本"已存在的一律不动"，于是**改了样例文件也上不了线**——
+            # 2026-11-13 改升弓试验的步骤顺序时才发现，线上库里的 published 版本
+            # 永远停在第一次导入的样子。样例是随代码走的演示资产，内容变了就该跟着变。
+            #
+            # 边界：只动 `is_demo` 的。用户自己生成或改过的指导书（is_demo 恒为 true
+            # 但 revision 是 0、且 id 不会与样例撞）不在其列——样例 id 都是 `g_*_test`
+            # 这类固定值，用户生成的是随机 id，两者不会互相覆盖。
+            old_rev = _revision_of(existing)
+            if guide.meta.is_demo and guide.meta.revision > old_rev:
+                # 覆盖走 `refresh_sample_guide` 而不是 `save_guide`：
+                # 后者对已发布内容返回 skipped（防生成流程顶替案例），
+                # 前者专做样例刷新，并保留 id / status / created_at / published_at。
+                # 它还会拒绝"步骤 id 序列变了"的刷新——那种情况老记录会指向
+                # 不存在的 step_id，只能人工迁移，不能靠覆盖。
+                try:
+                    store.refresh_sample_guide(guide)
+                    refreshed += 1
+                except (LookupError, ValueError) as exc:
+                    log.error("样例 %s 未刷新，保留库中旧版：%s", guide.id, exc)
             continue
         # 样例进库即为 published，因此它必须过同一条发布闸门（§12.4）。
         # 缺判据的样例宁可不上架——上了就是"已发布但现场没有验收依据"。
@@ -83,12 +114,17 @@ def ensure_seeded() -> int:
             continue
         store.save_guide(guide, status="published")
         seeded += 1
-    if seeded:
-        log.info("已从 %s 增量导入 %d 份样例（published）", directory, seeded)
+    if seeded or refreshed:
+        log.info(
+            "已从 %s 增量导入 %d 份样例、刷新 %d 份（published）",
+            directory,
+            seeded,
+            refreshed,
+        )
 
     with _seed_lock:
         _seeded_paths.add(key)
-    return seeded
+    return seeded + refreshed
 
 
 def normalize_schema_versions() -> int:

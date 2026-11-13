@@ -1,9 +1,9 @@
 {
-  "sha256": "b7446451fcf34e91d1e69b65b3a033d68b734fbf182d4c3c1910883fd833f9f3",
+  "sha256": "84f89dcfe23b1290316492ad40dc0f021c7c80b8bd3b2bf28a17c03f6b62e52d",
   "files": {
     "samples": 7,
     "knowledge": 4
   },
   "knowledge_entries": 19,
-  "note": "2026-11-13 19:40 本人四条指令：VCB 状态跟随合闸、第1步主图改三维、补全九条、步骤2/3对调（先上电后MON确认）。仅重排与补全 public 作业逻辑，无新增来源"
+  "note": "2026-11-13 19:40 本人四条指令：样例步骤2/3对调、第1步补全九条并改三维主图、meta 加 revision=1"
 }
