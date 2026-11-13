@@ -123,6 +123,29 @@ describe.each(DEVICES)('$name 设备' , ({ name, build, parts, moments }) => {
     rig.dispose()
   })
 
+  it('悬停名称与后端释义逐字一致', () => {
+    // 三维里的悬停气泡直接显示 `rig.partLabels`。它与后端 `PART_LABELS` 是
+    // "同一份文案的两个副本"——契约 JSON 由后端生成，前端不该再抄一遍；
+    // 这条用例把"抄错"当场变红，而不是等用户在气泡里看到错别字。
+    const rig = build()
+    const declared = rig.partLabels
+    if (!declared) {
+      // 还没接悬停提示的设备不强制（它们的三维是"看"的，没有 pick 场景）
+      rig.dispose()
+      return
+    }
+    const truth = CONTRACT_DEVICES[name].part_labels as Record<string, string>
+    for (const [key, label] of Object.entries(declared)) {
+      expect(truth[key], `${name}.${key} 后端没有这个部件键`).toBeTruthy()
+      expect(label, `${name}.${key} 的中文名被改过`).toBe(truth[key])
+    }
+    // 反向：后端声明的每个键都得有名称，否则鼠标移上去什么都不弹
+    for (const key of parts) {
+      expect(declared[key], `${name}.${key} 缺悬停名称`).toBeTruthy()
+    }
+    rig.dispose()
+  })
+
   it('parts 键与后端白名单一致', () => {
     const rig = build()
     // 只比对"后端允许的键都在"：前端多挂几个内部件（如 motor / wires）不该报错，

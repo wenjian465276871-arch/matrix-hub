@@ -16,12 +16,13 @@
  *  软阴影 + ACES 色调映射。这四件是 Web 端「像不像产品渲染图」的胜负手，
  *  比把面数翻十倍有效得多。
  */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Mesh, MeshStandardMaterial, PerspectiveCamera, Scene, WebGLRenderer } from 'three'
 import type { DeviceRig } from './devices/rig'
 import type { SectionCutter } from './devices/section'
 import { DEVICE_BUILDERS } from './devices/registry'
 import { partKeyOf } from './pick'
+import { placeTip, splitLabel } from './tooltip'
 
 /** 只声明用得到的那几个成员，避免把整个 OrbitControls 的类型拖进主包。 */
 interface ControlsLike {
@@ -97,7 +98,14 @@ const emit = defineEmits<{
   /** 该设备是否支持剖切。UI 据此决定要不要显示开关，避免按场景名硬编码。 */
   cutable: [value: boolean]
   /** 点击命中的部件键（仅 `pick` 打开时）。键已在后端白名单里。 */
-  'part-click': [key: string]
+  /**
+   * 点中了某个件。
+   *
+   * 第二个参数是该件的中文名（来自设备 `partLabels`，即后端契约的 `part_labels`）。
+   * 父组件不必自己维护一份短名表——两份表迟早会对不上，用户会看到
+   * 气泡写「制动控制器」而回执写「制动手柄」。
+   */
+  'part-click': [key: string, label?: string]
 }>()
 
 const host = ref<HTMLDivElement | null>(null)
@@ -111,6 +119,15 @@ let annotW = 0
 let annotH = 0
 const error = ref('')
 const loading = ref(true)
+
+/**
+ * 悬停气泡。`name` / `note` 由后端 `part_labels` 拆成"主名 + 备注"两行。
+ *
+ * 为什么不用 `title` 属性：原生 tooltip 延迟 1–2 秒、字号跟随系统、且在
+ * WebGL canvas 上不同浏览器表现不一致；用户要的是"移到件上立刻看清这是什么"。
+ */
+const tip = ref<{ name: string; note: string } | null>(null)
+const tipEl = ref<HTMLElement | null>(null)
 
 const ariaLabel = computed(
   () => props.label || `设备三维示意（${props.subject}），可拖动旋转查看`,
@@ -137,6 +154,7 @@ let pickListeners: {
   up: (event: PointerEvent) => void
   move: (event: PointerEvent) => void
   leave: () => void
+  wheel: () => void
 } | null = null
 
 /**
@@ -740,6 +758,8 @@ async function init(): Promise<void> {
   let hoverKey = ''
   let lastHoverAt = 0
   let down: { x: number; y: number; at: number } | null = null
+  /** 按住（拖视角）中。拖动时鼠标会一路划过各部件，气泡跟着闪等于干扰。 */
+  let pressed = false
 
   const clearHover = (): void => {
     for (const [mat, saved] of hoverSaved) {
@@ -749,6 +769,8 @@ async function init(): Promise<void> {
     hoverSaved.clear()
     hoverKey = ''
     hostEl.classList.remove('is-hot')
+    // 高亮没了，气泡也必须一起收——否则它会停在上一帧的位置继续"指着"空气
+    hideTip()
     // 还原材质必须立刻重绘：按需渲染下，不重绘就会把"上一个悬停帧"留在屏幕上
     // （2026-11-13 实测：鼠标移出画布后，顶梁仍是蓝的，重绘一次才恢复）。
     render()
@@ -800,7 +822,69 @@ async function init(): Promise<void> {
     return hits.length ? (partKeyOf(rig.parts, hits[0].object) ?? '') : ''
   }
 
+  /* ------------------------------------------------------------ 悬停气泡
+     只在 `pick` 场景出现：指导书里的三维首先是"看"的，鼠标划过就弹气泡会烦人；
+     而操作台那种"点哪个件就做哪个动作"的界面，用户必须先认出件是什么。
+
+     定位走 CSSOM 写 `transform`，不拼 `style` 字符串：CSP 的 `style-src 'self'`
+     只管 `<style>` 与 `style` 属性解析，CSSOM 赋值不在其内（且这里的数据全部来自
+     本地坐标计算，没有外部输入）。 */
+
+  /** 不弹气泡的件：台体占了大半屏幕，气泡一路跟着鼠标等于没有信息。 */
+  const NO_TIP = new Set(['desk'])
+  const cursor = { x: 0, y: 0 }
+  let tipName = ''
+  let tipBox = { w: 0, h: 0 }
+
+  const hideTip = (): void => {
+    tip.value = null
+    tipName = ''
+    tipBox = { w: 0, h: 0 }
+  }
+
+  /** 按缓存的尺寸摆位。尺寸只在换件时量一次——每次移动都读 `offsetWidth`
+   *  会强制同步布局，而这个页面同时还在跑 WebGL。 */
+  const applyTip = (): void => {
+    const el = tipEl.value
+    const rect = hostEl.getBoundingClientRect()
+    if (!el || !rect.width || !rect.height) return
+    if (!tipBox.w || !tipBox.h) {
+      tipBox = { w: el.offsetWidth, h: el.offsetHeight }
+      if (!tipBox.w || !tipBox.h) return
+    }
+    const p = placeTip(cursor, { w: rect.width, h: rect.height }, tipBox)
+    el.style.transform = `translate3d(${Math.round(p.left)}px, ${Math.round(p.top)}px, 0)`
+  }
+
+  const showTip = (key: string, event: PointerEvent): void => {
+    // 触摸没有"悬停"：手指按着拖动时不该冒气泡
+    if (event.pointerType === 'touch' || !key || NO_TIP.has(key)) {
+      if (tip.value) hideTip()
+      return
+    }
+    const raw = rig?.partLabels?.[key] ?? ''
+    if (!raw) {
+      if (tip.value) hideTip()
+      return
+    }
+    const rect = hostEl.getBoundingClientRect()
+    cursor.x = event.clientX - rect.left
+    cursor.y = event.clientY - rect.top
+    const { name, note } = splitLabel(raw)
+    if (tip.value && tipName === name) {
+      applyTip()
+      return
+    }
+    tipName = name
+    tipBox = { w: 0, h: 0 }
+    tip.value = { name, note }
+    // 先让 DOM 出现，再按真实尺寸摆位；否则首个气泡会歪一帧
+    void nextTick(applyTip)
+  }
+
   const onMove = (event: PointerEvent): void => {
+    // 拖动视角时不弹气泡：松手后鼠标再动一下就会出现
+    if (pressed) return
     const now = performance.now()
     if (now - lastHoverAt < 80) return
     lastHoverAt = now
@@ -809,22 +893,29 @@ async function init(): Promise<void> {
        没有它，"点了没反应"只能靠猜是没命中还是没接线。 */
     ;(window as unknown as { __hoverKey?: string }).__hoverKey = key
     setHover(key)
+    showTip(key, event)
   }
 
-  const onLeave = (): void => clearHover()
+  const onLeave = (): void => {
+    clearHover()
+    hideTip()
+  }
 
   const onDown = (event: PointerEvent): void => {
     down = { x: event.clientX, y: event.clientY, at: performance.now() }
+    pressed = true
+    hideTip()
   }
 
   const onUp = (event: PointerEvent): void => {
     const start = down
     down = null
+    pressed = false
     if (!props.pick || !start) return
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6) return
     if (performance.now() - start.at > 700) return
     const key = pickAt(event)
-    if (key) emit('part-click', key)
+    if (key) emit('part-click', key, rig?.partLabels?.[key] ?? '')
   }
 
   if (props.pick) {
@@ -832,8 +923,19 @@ async function init(): Promise<void> {
     canvasEl.addEventListener('pointerup', onUp)
     canvasEl.addEventListener('pointermove', onMove)
     canvasEl.addEventListener('pointerleave', onLeave)
+    // 滚轮缩放后部件已经移位，停在原处的气泡会"指着空气"
+    canvasEl.addEventListener('wheel', hideTip, { passive: true })
   }
-  pickListeners = { el: canvasEl, down: onDown, up: onUp, move: onMove, leave: onLeave }
+  pickListeners = {
+    el: canvasEl,
+    down: onDown,
+    up: onUp,
+    move: onMove,
+    leave: onLeave,
+    // 存同一个引用：removeEventListener 必须拿到注册时那个函数，卸载时
+    // 现写一个箭头函数是摘不掉的（这类泄漏在单页里会越积越多）。
+    wheel: hideTip,
+  }
 
   observer = new ResizeObserver(resize)
   observer.observe(hostEl)
@@ -925,6 +1027,7 @@ onBeforeUnmount(() => {
     pickListeners.el.removeEventListener('pointerup', pickListeners.up)
     pickListeners.el.removeEventListener('pointermove', pickListeners.move)
     pickListeners.el.removeEventListener('pointerleave', pickListeners.leave)
+    pickListeners.el.removeEventListener('wheel', pickListeners.wheel)
     pickListeners = null
   }
   observer?.disconnect()
@@ -952,6 +1055,11 @@ onBeforeUnmount(() => {
     <canvas ref="canvas" class="scene__canvas" role="img" :aria-label="ariaLabel" />
     <!-- 标注层：纯视觉，同样的信息在读数面板里也有文字，所以对读屏隐藏 -->
     <canvas ref="annot" class="scene__annot" aria-hidden="true" />
+    <!-- 悬停气泡：纯视觉辅助，同一信息在读数面板与点击回执里都有文字，故对读屏隐藏 -->
+    <div v-if="tip" ref="tipEl" class="scene__tip" role="tooltip" aria-hidden="true">
+      <span class="scene__tip-name">{{ tip.name }}</span>
+      <span v-if="tip.note" class="scene__tip-note">{{ tip.note }}</span>
+    </div>
     <p v-if="loading && !error" class="scene__note">正在加载三维场景…</p>
     <p v-else-if="error" class="scene__note scene__note--error">
       {{ error }} · 已降级为文字说明
@@ -972,6 +1080,41 @@ onBeforeUnmount(() => {
   background: #cfcec9;
 }
 
+/* 悬停气泡。深色玻璃底 + 左侧主色条：在浅灰场景与深色仪表盘上都能读。
+   位置由 `applyTip()` 用 transform 写，这里只定"零尺寸锚点 + 样式"。 */
+.scene__tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  max-width: 272px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 11px 8px 12px;
+  border-left: 3px solid #5b9bf8;
+  border-radius: 7px;
+  background: rgb(17 23 25 / 94%);
+  box-shadow: 0 5px 16px rgb(0 0 0 / 34%);
+  color: #f3f8f7;
+  /* 气泡不能吃鼠标事件：它跟着光标走，一旦可点就会"自己点自己"、还会让射线拾取断断续续 */
+  pointer-events: none;
+  will-change: transform;
+}
+
+.scene__tip-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.scene__tip-note {
+  color: #a8bdb7;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
 .scene__canvas {
   display: block;
   width: 100%;
@@ -983,11 +1126,81 @@ onBeforeUnmount(() => {
 
 /* 可点击时的光标：默认仍是 grab（可以拖视角），只有悬停到**真的能点的件**上
    才变 pointer。全域 pointer 会骗人——点在背景上没反应，用户就以为功能没做。 */
-.scene--picking .scene__canvas {
+.scene--picking /* 悬停气泡。深色玻璃底 + 左侧主色条：在浅灰场景与深色仪表盘上都能读。
+   位置由 `applyTip()` 用 transform 写，这里只定"零尺寸锚点 + 样式"。 */
+.scene__tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  max-width: 272px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 11px 8px 12px;
+  border-left: 3px solid #5b9bf8;
+  border-radius: 7px;
+  background: rgb(17 23 25 / 94%);
+  box-shadow: 0 5px 16px rgb(0 0 0 / 34%);
+  color: #f3f8f7;
+  /* 气泡不能吃鼠标事件：它跟着光标走，一旦可点就会"自己点自己"、还会让射线拾取断断续续 */
+  pointer-events: none;
+  will-change: transform;
+}
+
+.scene__tip-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.scene__tip-note {
+  color: #a8bdb7;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.scene__canvas {
   cursor: grab;
 }
 
-.scene--picking.is-hot .scene__canvas {
+.scene--picking.is-hot /* 悬停气泡。深色玻璃底 + 左侧主色条：在浅灰场景与深色仪表盘上都能读。
+   位置由 `applyTip()` 用 transform 写，这里只定"零尺寸锚点 + 样式"。 */
+.scene__tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 5;
+  max-width: 272px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 11px 8px 12px;
+  border-left: 3px solid #5b9bf8;
+  border-radius: 7px;
+  background: rgb(17 23 25 / 94%);
+  box-shadow: 0 5px 16px rgb(0 0 0 / 34%);
+  color: #f3f8f7;
+  /* 气泡不能吃鼠标事件：它跟着光标走，一旦可点就会"自己点自己"、还会让射线拾取断断续续 */
+  pointer-events: none;
+  will-change: transform;
+}
+
+.scene__tip-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.scene__tip-note {
+  color: #a8bdb7;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.scene__canvas {
   cursor: pointer;
 }
 

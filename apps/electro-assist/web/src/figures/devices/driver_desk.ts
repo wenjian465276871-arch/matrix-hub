@@ -28,6 +28,7 @@
  *  贴一张固定图，八拍动作就只有机械件在动、屏永远一个样——而现场判断"成了没有"
  *  靠的恰恰是屏。所以按状态重画，只在状态切换时重画一次。
  */
+import contract from '../../contract/devices.json'
 import {
   CanvasTexture,
   CylinderGeometry,
@@ -460,6 +461,9 @@ function screenUnit(
     }),
   )
   screen.name = 'display'
+  // 显示面不参与悬停高亮：屏染成蓝色正好盖掉用户要读的读数。
+  // 悬停反馈由铝框与软键提供，屏幕内容保持原亮度。
+  screen.userData.noHover = true
   screen.position.set(0, 0.02, 0.025)
   g.add(screen)
 
@@ -893,6 +897,9 @@ export function buildDriverDesk(): DeviceRig {
     setT,
     parts,
     phase,
+    // 名称来自后端契约（`models/visual.py` 的 PART_LABELS 生成），不在前端手抄。
+    // 取不到就留空——气泡不显示，但模型照常渲染，不至于因为一张表让整台设备打不开。
+    partLabels: (contract.devices.driver_desk?.part_labels ?? {}) as Record<string, string>,
     setUnit: setScreenUnit,
     framing: { target: [0, 0.88, 0.02], distance: 2.3 },
     // 略俯视：台面是水平面，平视只能看到一排侧影；实拍也是从司机肩后上方看

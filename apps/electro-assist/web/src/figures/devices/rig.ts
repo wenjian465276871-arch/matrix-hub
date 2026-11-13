@@ -66,6 +66,21 @@ export interface DeviceRig {
   setT: (t: number) => void
   /** 可点选/高亮的部件，键名与 DSL 的 `part` 枚举一一对应。 */
   parts: Record<string, Object3D>
+  /**
+   * 可选：部件的中文名称，供悬停气泡显示。
+   *
+   * ## 为什么由设备自己给，而不是 `DeviceScene` 统一查表
+   * 契约 JSON（`web/src/contract/devices.json`，含 `part_labels`）有 12.5KB。
+   * `DeviceScene` 在主包里（three 才是懒加载的那一层），静态引入它会直接顶破
+   * 首屏预算（余量只有 1.9KB）。而设备模块本来就是 `await import()` 进来的，
+   * 名称随设备分块走，看哪台设备就下载哪台的名称，零首屏成本。
+   *
+   * ## 口径
+   * 内容必须与后端 `models/visual.py` 的 `PART_LABELS` 一致——那是权威源，
+   * `devices.json` 由它生成。`builders.spec.ts` 有一条断言逐字比对，
+   * 漂移会当场变红，不需要人记。
+   */
+  partLabels?: Record<string, string>
   /** 当前所处阶段（用于外部状态条显示）。 */
   phase: (t: number) => string
   /** 相机取景建议：不同设备的包围盒不一样，交给载荷自己报。 */

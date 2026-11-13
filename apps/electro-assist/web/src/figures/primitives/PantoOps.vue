@@ -18,6 +18,7 @@
  *  否则第 5 步升起的弓，第 6 步又躺回去了。
  */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { splitLabel } from '../tooltip'
 
 import type { ParamValue } from '../../types'
 import DeviceScene from '../DeviceScene.vue'
@@ -139,6 +140,11 @@ function act(kind: Act): void {
   run(closeVcb())
 }
 
+/**
+ * 兜底短名。**正常路径不用它**：场景会把设备 `partLabels` 里的全名一起 emit 过来，
+ * 那份名称来自后端契约（`models/visual.py` 的 `PART_LABELS`），与悬停气泡同源。
+ * 留这张表只为一种情况——设备没声明 `partLabels`（旧场景、或契约读取失败）。
+ */
 const PART_NAME: Record<string, string> = {
   key: '主控钥匙',
   brake: '制动手柄',
@@ -151,9 +157,12 @@ const PART_NAME: Record<string, string> = {
 }
 
 /** 三维里点中某个件：按当前状态派发到同一个动作，并把"点到了什么"说出来。
- *  没有这句回执，点在背景上与被忽略无法区分——用户会直接判"功能没做"。 */
-function onPart(key: string): void {
-  const name = PART_NAME[key] ?? key
+ *  没有这句回执，点在背景上与被忽略无法区分——用户会直接判"功能没做"。
+ *
+ *  `label` 是场景带来的全名（"制动控制器 / 制动手柄（运行、B1–B7…）"），
+ *  回执只取括号前的主名——回执要短，气泡才负责把细节说完。 */
+function onPart(key: string, label = ''): void {
+  const name = (label ? splitLabel(label).name : '') || PART_NAME[key] || key
   if (key === 'key') act('key')
   else if (key === 'brake') act('brake')
   else if (key === 'switch') act('switch')
