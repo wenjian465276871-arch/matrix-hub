@@ -839,4 +839,58 @@ const foot = computed(() => {
     display: none;
   }
 }
+
+/* ---------------- 打印 ----------------
+   这块屏是深色玻璃 + 浅色字。纸上默认不印背景色，浅色字打在白纸上等于看不见，
+   所以打印时整块翻成"纸面配色"：白底、深字、细边框。
+   页签 / 软键 / 编组图 / 运行提示都是屏幕形态，纸上一屏只有一页，一律不印。 */
+@media print {
+  .mon__frame,
+  .mon__bar,
+  .mon__ribbon,
+  .mon__thead,
+  .mon__row,
+  .mon__hit,
+  .mon__body,
+  .mon__main,
+  .mon__side,
+  .mon__stat-card,
+  .mon__foot {
+    background: #fff !important;
+    color: #111 !important;
+    box-shadow: none !important;
+    border-color: #bbb !important;
+  }
+
+  .mon__frame::after {
+    display: none !important;
+  }
+
+  .mon__title,
+  .mon__stat,
+  .mon__brand,
+  .mon__clock,
+  .mon__name,
+  .mon__req,
+  .mon__val,
+  .mon__tick,
+  .mon__foot-text,
+  .mon__stat-card span,
+  .mon__stat-card strong {
+    color: #111 !important;
+  }
+
+  .mon__tabs,
+  .mon__softkeys,
+  .mon__form,
+  .mon__hint,
+  .mon__provisional,
+  .mon__meter,
+  .mon__tab-badge,
+  /* 「未上电 / 司机室占用 / 待 MCR」是运行态，纸上一律不印——
+     印出来等于对读者说"你的屏没电"。 */
+  .mon__stat {
+    display: none !important;
+  }
+}
 </style>

@@ -17,7 +17,7 @@ test('横屏两栏 / SE 回落 / 竖屏不变', async ({ page }) => {
   // ---------- 1) 844×390：两栏 ----------
   await page.setViewportSize({ width: 844, height: 390 })
   await page.goto('./')
-  await page.locator('.guide-card').filter({ hasText: '开关门' }).first().click()
+  await page.locator('.guide-card').filter({ hasText: '正式案例' }).first().click()
 
   // 2026-11-11：/guide/:id 默认是探索台，分页阅读器在 /read。
   // 本用例验的是阅读器里的流程，从探索台顶栏的「打印视图」进去。

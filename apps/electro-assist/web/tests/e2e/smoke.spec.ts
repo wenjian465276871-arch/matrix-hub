@@ -19,7 +19,7 @@ test('列表 → 引导第 1 步 → 刷新保持进度', async ({ page }) => {
   await page.goto('./')
   await expect(page.getByRole('heading', { name: '作业指导书' })).toBeVisible()
 
-  const formal = page.locator('.guide-card').filter({ hasText: '开关门' }).first()
+  const formal = page.locator('.guide-card').filter({ hasText: '正式案例' }).first()
   await expect(formal).toBeVisible()
   await formal.click()
 

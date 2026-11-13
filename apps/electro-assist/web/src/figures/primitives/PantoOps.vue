@@ -57,6 +57,12 @@ const monZoom = ref(false)
 /** `desk` 只看操纵台（第 3、4 步）；`both` 加车顶受电弓（第 5、6 步）。 */
 const view = computed(() => (props.params.view === 'desk' ? 'desk' : 'both'))
 
+const shotDesk = ref('')
+const shotPanto = ref('')
+
+/** 打印用：DeviceScene 停下后给的当前帧 PNG。
+ *  canvas 打到纸上常常是空白（`DeviceFigure` 早就踩过，改用快照图），
+ *  这里两个画布照同一套处理——纸上宁可给一张静态帧，也不要留两个白框。 */
 const notice = ref('')
 /** 全屏操作：探索台/阅读器给的舞台高度有限（1090×614 下操作区只剩 65px），
  *  靠 CSS 挤不出能点中钥匙的高度——给一个铺满视口的模式。 */
@@ -304,7 +310,7 @@ function restart(): void {
 <template>
   <div class="ops" :class="{ 'ops--expanded': expanded }">
     <!-- 浮在画布左上：不占高度，又能第一眼看见。短屏下这是"看清"的唯一入口。 -->
-    <button class="ops__float" type="button" @click="toggleExpand">
+    <button class="ops__float no-print" type="button" @click="toggleExpand">
       {{ expanded ? '退出全屏' : '放大操作' }}
     </button>
 
@@ -317,9 +323,12 @@ function restart(): void {
           :label="'司机操纵台三维示意，可拖动旋转；点钥匙、制动手柄、切换开关、升弓旋钮、VCB 按钮进行操作'"
           pick
           @part-click="onPart"
+          @snapshot="shotDesk = $event"
         />
+        <img v-if="shotDesk" class="ops__print" :src="shotDesk" alt="司机操纵台三维示意" />
+        <p v-else class="ops__print-text">司机操纵台三维示意（本次未生成静态帧，内容见本步文字说明）</p>
         <figcaption class="ops__cap">
-          司机操纵台<span class="ops__cap-tip">移到件上高亮，点一下就操作</span>
+          司机操纵台<span class="ops__cap-tip no-print">移到件上高亮，点一下就操作</span>
         </figcaption>
       </figure>
 
@@ -328,16 +337,19 @@ function restart(): void {
           subject="pantograph"
           :t="session.raiseT"
           :label="`车顶受电弓三维示意，当前${session.raised ? '已升起并保压' : session.raiseHeld ? '正在升起' : '落弓锁定'}`"
+          @snapshot="shotPanto = $event"
         />
+        <img v-if="shotPanto" class="ops__print" :src="shotPanto" alt="车顶受电弓三维示意" />
+        <p v-else class="ops__print-text">车顶受电弓三维示意（本次未生成静态帧，内容见本步文字说明）</p>
         <figcaption class="ops__cap">
           车顶受电弓<span class="ops__cap-tip">{{ session.raised ? '升起保压' : session.raiseHeld ? '升弓中' : '落弓' }}</span>
         </figcaption>
       </figure>
 
-      <p v-if="notice" class="ops__toast" role="status">{{ notice }}</p>
+      <p v-if="notice" class="ops__toast no-print" role="status">{{ notice }}</p>
     </div>
 
-    <div class="ops__hud">
+    <div class="ops__hud no-print">
       <p class="ops__next">{{ next }}</p>
       <p class="ops__line">
         <span class="ops__chip">{{ stage }}</span>
@@ -346,7 +358,7 @@ function restart(): void {
       </p>
     </div>
 
-    <div class="ops__acts">
+    <div class="ops__acts no-print">
       <button
         v-for="a in acts"
         :key="a.id"
@@ -713,6 +725,36 @@ function restart(): void {
 
   .ops__btn {
     min-height: 32px;
+  }
+}
+
+/* ---------------- 打印 ----------------
+   交互内容一律换静态帧：按钮行、HUD、浮起按钮、回执、悬停提示都不该出现在纸上。 */
+.ops__print,
+.ops__print-text {
+  display: none;
+}
+
+@media print {
+  /* 藏整个 `DeviceScene` 外壳，不只藏 canvas：只藏 canvas 会留下一个有背景色的空框
+     （2026-11-14 第一次改就是这样，截图里一块灰底）。
+     必须 `:deep`：这层由子组件渲染，不带本组件的 data-v 属性。 */
+  .ops__pane :deep(.scene) {
+    display: none !important;
+  }
+
+  .ops__print {
+    display: block !important;
+    width: 100%;
+    max-height: 110mm;
+    object-fit: contain;
+  }
+
+  .ops__print-text {
+    display: block !important;
+    color: #444;
+    font-size: 12px;
+    line-height: 1.6;
   }
 }
 </style>

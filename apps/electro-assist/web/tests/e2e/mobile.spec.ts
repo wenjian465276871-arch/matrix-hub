@@ -34,7 +34,7 @@ test('窄屏 / 键盘顶升 / 表格堆叠 / 点击放大 / 仍要提交', async
   // ---------- ① 表格在 <360px 转「标签-值」堆叠 ----------
   await page.setViewportSize({ width: 320, height: 640 })
   await page.goto('./')
-  await page.locator('.guide-card').filter({ hasText: '开关门' }).first().click()
+  await page.locator('.guide-card').filter({ hasText: '正式案例' }).first().click()
   await expect(page.getByRole('heading', { level: 1 })).toContainText('开关门')
 
   // 2026-11-11 起 /guide/:id 默认是探索台（三栏），分页阅读器在 /read。

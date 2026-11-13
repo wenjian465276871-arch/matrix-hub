@@ -55,8 +55,13 @@
     line-height: 1.5;
   }
 
+  /* `.topbar` 是全站顶栏的根（`TopBar.vue`）。`.site-nav` 是更早的类名，
+     留着只是兜底——2026-11-14 实测发现顶栏其实一直在纸上，就是因为这里只写了旧名。 */
   .site-nav,
+  .topbar,
   .site-foot,
+  /* 图片「放大看」按钮：纸上是纯交互控件 */
+  .figure__zoom,
   .no-print {
     display: none !important;
   }
