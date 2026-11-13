@@ -64,6 +64,8 @@ const props = withDefaults(
      * 设备没实现 `setMode` 时无效。
      */
     mode?: string
+    /** 受电弓单元（2U / 3U）。只有司机台实现了 `setUnit`；其余设备忽略。 */
+    unit?: '2U' | '3U'
     /**
      * 允许点击部件。打开后短按（不拖动）会射线拾取，把命中的部件键 emit 出去。
      *
@@ -484,6 +486,8 @@ async function init(): Promise<void> {
     if (!load) throw new Error(`未注册的设备场景：${props.subject}`)
     const build = await load()
     rig = build()
+    // 单元是"显示态"，要在第一帧之前就位，否则初始画面会先闪一下 2U
+    rig.setUnit?.(props.unit === '3U' ? '3U' : '2U')
     /* 调试出口：把 rig 挂到 window 上，便于用 Playwright 量每个 mesh 的包围盒。
        2026-11-10 加——「改了参数画面没变化」连续出现三次，靠眼睛猜不动了。
        生产环境也挂：它不含敏感数据，而且只在演示页生效；换来的是可测。 */
@@ -857,6 +861,14 @@ watch(
 watch(
   () => props.focus,
   (value) => setFocus(value),
+)
+
+watch(
+  () => props.unit,
+  (value) => {
+    rig?.setUnit?.(value === '3U' ? '3U' : '2U')
+    render()
+  },
 )
 
 watch(

@@ -52,6 +52,9 @@ interface Row {
 const shownRaised = computed(() => (mode.value === 'status' ? true : session.raised))
 const shownVcb = computed(() => (mode.value === 'status' ? false : session.vcbClosed))
 
+/** 当前选中的受电弓单元。2U = 04 车，3U = 06 车。 */
+const unit = computed(() => session.unit ?? '2U')
+
 const rows = computed<Row[]>(() => {
   if (tab.value === 'power') {
     return [
@@ -70,10 +73,9 @@ const rows = computed<Row[]>(() => {
   }
   // 远程控制切除页：先看"切没切"，再看"升没升"。
   // 原来把"升起"塞进切除行，出现"未切除 升起"这种两种语义挤在一行的读法。
-  const unit = session.unit ?? '2U'
-  const other = unit === '2U' ? '3U' : '2U'
+  const other = unit.value === '2U' ? '3U' : '2U'
   return [
-    { label: `${unit} 受电弓切除`, required: '应未切除', value: '未切除' },
+    { label: `${unit.value} 受电弓切除`, required: '应未切除', value: '未切除' },
     { label: `${other} 受电弓切除`, required: '应未切除', value: '未切除' },
     { label: '受电弓状态', required: '应升起', value: shownRaised.value ? '升起' : '未升起' },
     { label: 'VCB', required: '应断开', value: shownVcb.value ? '闭合' : '断开' },
@@ -127,7 +129,7 @@ const stat = computed(() => {
 
       <!-- 端号 / 车号 / 时钟：真车屏顶部固定的一条。演示值，读屏不读 -->
       <div class="mon__ribbon" aria-hidden="true">
-        <span>CRH380A · 04 车</span>
+        <span>CRH380A · {{ unit === '3U' ? '06 车' : '04 车' }}</span>
         <span>端号 1</span>
         <span class="mon__clock">14:26:08</span>
       </div>
@@ -183,7 +185,7 @@ const stat = computed(() => {
            它同时把宽屏下表格右侧那一大片空白填上。 -->
       <aside class="mon__side" aria-hidden="true">
         <div class="mon__stat-card">
-          <span>受电弓 2U</span>
+          <span>受电弓 {{ unit }}</span>
           <strong>{{ shownRaised ? '升起' : '未升起' }}</strong>
         </div>
         <div class="mon__stat-card">
@@ -591,6 +593,11 @@ const stat = computed(() => {
   color: #7fd6b4;
   font-size: 10px;
   font-style: normal;
+}
+
+.mon__cars span.is-active {
+  background: #267a55;
+  box-shadow: inset 0 0 0 2px #bff3dc;
 }
 
 .mon__cars span.is-unit {

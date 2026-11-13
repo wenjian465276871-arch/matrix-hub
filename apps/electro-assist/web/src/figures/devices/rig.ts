@@ -56,6 +56,12 @@ export interface DeviceRig {
    * 实现方自己保存状态并就地重算，不需要外部再调一次 `setT`。
    */
   setMode?: (mode: string) => void
+  /**
+   * 可选：切换显示单元（受电弓 2U / 3U）。
+   * 只影响"屏上显示哪一个单元"，不改机械件——升的是同一台受电弓，
+   * 不同的是它属于 04 车还是 06 车。
+   */
+  setUnit?: (unit: '2U' | '3U') => void
   /** 0 = 初始状态，1 = 动作结束。外部时间轴 scrub 直接喂这个。 */
   setT: (t: number) => void
   /** 可点选/高亮的部件，键名与 DSL 的 `part` 枚举一一对应。 */

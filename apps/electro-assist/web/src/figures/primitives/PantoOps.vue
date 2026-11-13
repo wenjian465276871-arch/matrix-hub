@@ -214,6 +214,7 @@ function restart(): void {
         <DeviceScene
           subject="driver_desk"
           :t="deskT()"
+          :unit="session.unit ?? '2U'"
           :label="'司机操纵台三维示意，可拖动旋转；点钥匙、制动手柄、切换开关、升弓旋钮、VCB 按钮进行操作'"
           pick
           @part-click="onPart"

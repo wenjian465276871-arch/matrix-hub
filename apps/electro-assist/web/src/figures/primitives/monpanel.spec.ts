@@ -63,6 +63,16 @@ describe('mon_panel', () => {
     expect(w.findAll('.mon__row')[0].text()).toContain('未切除')
   })
 
+  it('选 3U 时表头车号与右侧状态牌都跟着换（不能写死 2U / 04 车）', () => {
+    session.unit = '3U'
+    session.raised = true
+    const w = mountPanel('remote', 'status')
+    expect(w.get('.mon__ribbon').text()).toContain('06 车')
+    expect(w.get('.mon__side').text()).toContain('受电弓 3U')
+    expect(w.get('.mon__side').text()).not.toContain('受电弓 2U')
+    expect(w.findAll('.mon__row')[0].text()).toContain('3U')
+  })
+
   it('升弓到位后远程页显示"升起"', () => {
     session.unit = '2U'
     session.raised = true

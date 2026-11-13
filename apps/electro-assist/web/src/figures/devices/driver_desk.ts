@@ -98,25 +98,25 @@ const SCREEN: Array<{ tab: string; rows: Row[]; note: string; on: boolean }> = [
   },
   {
     tab: '车辆信息',
-    rows: [['EGS 接地保护', '断开'], ['VCB 真空断路器', '断开'], ['2U 受电弓', '未切除']],
+    rows: [['EGS 接地保护', '断开'], ['VCB 真空断路器', '断开'], ['@U 受电弓', '未切除']],
     note: '联锁条件满足 · 允许升弓',
     on: true,
   },
   {
     tab: '远程控制切除',
-    rows: [['2U 受电弓', '升弓中'], ['3U 受电弓', '未切除'], ['VCB', '断开']],
+    rows: [['@U 受电弓', '升弓中'], ['@O 受电弓', '未切除'], ['VCB', '断开']],
     note: '升弓指令已发出 · 保持旋钮',
     on: true,
   },
   {
     tab: '远程控制切除',
-    rows: [['2U 受电弓', '升起'], ['网压', '25.1 kV'], ['VCB', '断开']],
+    rows: [['@U 受电弓', '升起'], ['网压', '25.1 kV'], ['VCB', '断开']],
     note: '升弓到位 · 网压 19–31 kV 正常',
     on: true,
   },
   {
     tab: '主画面',
-    rows: [['2U 受电弓', '升起'], ['网压', '25.1 kV'], ['VCB', '闭合']],
+    rows: [['@U 受电弓', '升起'], ['网压', '25.1 kV'], ['VCB', '闭合']],
     note: '送电完成 · 可开始后续试验',
     on: true,
   },
@@ -128,7 +128,11 @@ const SCREEN: Array<{ tab: string; rows: Row[]; note: string; on: boolean }> = [
 const SOFTKEYS = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8']
 
 /** 一张可重画的屏幕贴图。`paint` 只重画内容，不重建纹理。 */
-function screenSurface(): { tex: CanvasTexture; paint: (index: number) => void } {
+function screenSurface(): {
+  tex: CanvasTexture
+  paint: (index: number) => void
+  setUnit: (unit: '2U' | '3U') => void
+} {
   const canvas = document.createElement('canvas')
   canvas.width = SW
   canvas.height = SH
@@ -137,9 +141,19 @@ function screenSurface(): { tex: CanvasTexture; paint: (index: number) => void }
   tex.colorSpace = SRGBColorSpace
   tex.anisotropy = 4
 
+  /** 当前选中的受电弓单元。2U = 04 车，3U = 06 车（与样例的对应表一致）。 */
+  let activeUnit: '2U' | '3U' = '2U'
+  /** 最近画过的状态。切单元时要按同一状态重画，不能跳回待机。 */
+  let painted = 0
+
   const paint = (index: number): void => {
     if (!ctx) return
+    painted = index
     const page = SCREEN[index] ?? SCREEN[0]
+    const other = activeUnit === '2U' ? '3U' : '2U'
+    const car = activeUnit === '2U' ? '04 车' : '06 车'
+    const rowLabel = (label: string): string =>
+      label.replace('@U', activeUnit).replace('@O', other)
     ctx.clearRect(0, 0, SW, SH)
 
     // 底色：深墨绿而不是纯黑。实拍屏在暗处仍能看出玻璃的绿灰调。
@@ -157,7 +171,7 @@ function screenSurface(): { tex: CanvasTexture; paint: (index: number) => void }
     ctx.fillText('MON', 22, 43)
     ctx.font = '20px "Microsoft YaHei", sans-serif'
     ctx.fillStyle = page.on ? '#b6d8ca' : '#2f3f39'
-    ctx.fillText('CRH380A · 04 车', 118, 41)
+    ctx.fillText(`CRH380A · ${car}`, 118, 41)
     ctx.textAlign = 'right'
     ctx.fillStyle = page.on ? '#cfece0' : '#2f3f39'
     ctx.fillText(page.on ? '司机模式  14:26' : '未上电', SW - 22, 41)
@@ -194,7 +208,8 @@ function screenSurface(): { tex: CanvasTexture; paint: (index: number) => void }
     ctx.textAlign = 'left'
 
     let y = 196
-    for (const [label, value] of page.rows) {
+    for (const [rawLabel, value] of page.rows) {
+      const label = rowLabel(rawLabel)
       ctx.fillStyle = page.on ? '#1d4a3c' : '#0f1a16'
       ctx.fillRect(30, y + 26, SW - 60, 1)
       ctx.fillStyle = page.on ? '#a9c9bd' : '#2c3a35'
@@ -241,8 +256,14 @@ function screenSurface(): { tex: CanvasTexture; paint: (index: number) => void }
     tex.needsUpdate = true
   }
 
+  const setUnit = (unit: '2U' | '3U'): void => {
+    if (unit === activeUnit) return
+    activeUnit = unit
+    paint(painted)
+  }
+
   paint(0)
-  return { tex, paint }
+  return { tex, paint, setUnit }
 }
 
 /** ATP 速度表屏：与 MON 并列的另一块大屏，只作背景（本试验不看它）。 */
@@ -504,7 +525,7 @@ export function buildDriverDesk(): DeviceRig {
   const mon = new Group()
   parts.mon = mon
 
-  const { tex: screenTex, paint } = screenSurface()
+  const { tex: screenTex, paint, setUnit: setScreenUnit } = screenSurface()
   const monUnit = screenUnit(SCR_W, SCR_H, screenTex, 'MON', bezelMat, recessMat)
   monUnit.position.set(-0.30, 0.235, 0.004)
   // 屏幕挂在后倾的面板坐标系里：世界矩阵由 panel 带过去。
@@ -861,6 +882,7 @@ export function buildDriverDesk(): DeviceRig {
 
   const phase = (t: number): string => phaseFor('driver_desk', t)
 
+
   setT(0)
   root.updateMatrixWorld(true)
 
@@ -869,6 +891,7 @@ export function buildDriverDesk(): DeviceRig {
     setT,
     parts,
     phase,
+    setUnit: setScreenUnit,
     framing: { target: [0, 0.88, 0.02], distance: 2.3 },
     // 略俯视：台面是水平面，平视只能看到一排侧影；实拍也是从司机肩后上方看
     viewDir: [0.1, 0.4, 0.92],
