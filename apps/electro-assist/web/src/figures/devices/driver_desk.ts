@@ -286,9 +286,10 @@ function atpSurface(): CanvasTexture {
     ctx.fillText('ATP', 22, 43)
     ctx.font = '20px "Microsoft YaHei", sans-serif'
     ctx.fillStyle = '#9cc7e6'
-    ctx.fillText('CTCS-3 · 允许 250', 110, 41)
+    ctx.fillText('CTCS-3 · 停车', 110, 41)
 
-    // 速度弧：0–400 km/h，允许速度圈
+    /* 速度弧：0–400 km/h。本试验全程列车静止（受电弓未升、无高压、无牵引指令），
+       所以指针环没有进度、读数就是 0——上一版写死 248，与"车根本没动"矛盾。 */
     const cx = 208
     const cy = 268
     const r = 148
@@ -297,27 +298,28 @@ function atpSurface(): CanvasTexture {
     ctx.beginPath()
     ctx.arc(cx, cy, r, Math.PI * 0.72, Math.PI * 2.28)
     ctx.stroke()
+    // 0 刻度的一小段亮环：表示"表是活的、只是没速度"
     ctx.strokeStyle = '#4fc3f7'
     ctx.lineWidth = 6
     ctx.beginPath()
-    ctx.arc(cx, cy, r, Math.PI * 0.72, Math.PI * 1.42)
+    ctx.arc(cx, cy, r, Math.PI * 0.72, Math.PI * 0.75)
     ctx.stroke()
 
     ctx.fillStyle = '#e8f6ff'
     ctx.font = 'bold 92px "Consolas", monospace'
-    ctx.fillText('248', 132, 290)
+    ctx.fillText('0', 190, 290)
     ctx.fillStyle = '#7fb6d4'
     ctx.font = '24px "Microsoft YaHei", sans-serif'
-    ctx.fillText('km/h', 168, 336)
+    ctx.fillText('km/h', 176, 336)
 
     ctx.fillStyle = '#0b1f2c'
     ctx.fillRect(400, 130, 208, 230)
     ctx.fillStyle = '#7fb6d4'
     ctx.font = '20px "Microsoft YaHei", sans-serif'
-    ctx.fillText('模式   目视', 418, 176)
-    ctx.fillText('允许   250', 418, 220)
-    ctx.fillText('目标   250', 418, 264)
-    ctx.fillText('距离  2.1 km', 418, 308)
+    ctx.fillText('模式   待机', 418, 176)
+    ctx.fillText('允许   0', 418, 220)
+    ctx.fillText('目标   0', 418, 264)
+    ctx.fillText('距离   —', 418, 308)
 
     for (let i = 0; i < 8; i += 1) {
       ctx.fillStyle = '#1c5a78'
