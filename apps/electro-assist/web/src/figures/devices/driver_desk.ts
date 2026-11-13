@@ -869,12 +869,13 @@ export function buildDriverDesk(): DeviceRig {
     setT,
     parts,
     phase,
-    framing: { target: [0, 0.95, 0.0], distance: 2.3 },
+    framing: { target: [0, 0.88, 0.02], distance: 2.3 },
     // 略俯视：台面是水平面，平视只能看到一排侧影；实拍也是从司机肩后上方看
     viewDir: [0.1, 0.4, 0.92],
     // 动的是钥匙、手柄、旋钮、按钮与屏，仪表盘与电话是背景
     focus: ['mon', 'key', 'brake', 'switch', 'knob', 'vcb', 'gauge'],
-    fitMargin: 1.16,
+    // 1.16 时，1090×614 的窄画布把钥匙牌压在下沿；1.22 让钥匙与顶梁同时完整
+    fitMargin: 1.22,
     fov: 32,
     envIntensity: 0.95,
     dispose: () => disposeTree(root),
