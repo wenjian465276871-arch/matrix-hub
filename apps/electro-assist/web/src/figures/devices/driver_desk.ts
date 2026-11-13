@@ -26,6 +26,7 @@ import {
   CylinderGeometry,
   Group,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   Object3D,
   PlaneGeometry,
@@ -288,6 +289,32 @@ function labelPlate(text: string, w = 0.07, h = 0.016): Mesh {
   return mesh
 }
 
+/**
+ * 不可见的点击热区。
+ *
+ * 为什么需要：台面宽 1.9m，五个操作件加起来不到 3% 的面积。用户点在"看起来是
+ * 按钮的位置"却有 90% 概率命中台体，反馈是"本步不需要操作"——功能在，手感像没做。
+ * 热区把每个件的可点范围放大到 ~12cm，仍远小于相邻件间距，不会串味。
+ *
+ * 三个约束都靠 `visible = false` 满足：渲染跳过、几何自检跳过（`collectBoxes`
+ * 查祖先 visible）、而 three 的 `Raycaster` **不看 visible**，照样能命中。
+ */
+function hotzone(
+  parent: Object3D,
+  w: number,
+  h: number,
+  d: number,
+  x: number,
+  y: number,
+  z: number,
+): void {
+  const mesh = roundedBox(w, h, d, new MeshBasicMaterial({ visible: false }), x, y, z)
+  mesh.visible = false
+  mesh.castShadow = false
+  mesh.receiveShadow = false
+  parent.add(mesh)
+}
+
 /* ------------------------------------------------------------------ 建模 */
 
 export function buildDriverDesk(): DeviceRig {
@@ -418,6 +445,7 @@ export function buildDriverDesk(): DeviceRig {
   keyTurn.add(head)
   // 黄色标牌：实拍里钥匙上挂着一块黄色牌子，是最容易一眼认出的特征
   keyTurn.add(roundedBox(0.026, 0.04, 0.004, paintedMaterial(0xd8b53a), 0, -0.026, 0.048, 0.002))
+  hotzone(key, 0.14, 0.13, 0.15, -0.48, 0.71, 0.335)
 
   /* ------------------------------------------------------------ 制动控制器（制动手柄） */
   const brake = new Group()
@@ -445,6 +473,7 @@ export function buildDriverDesk(): DeviceRig {
   const grip = new Mesh(new SphereGeometry(0.032, 20, 14), rubberMaterial(0x1e2024))
   grip.position.y = 0.195
   lever.add(grip)
+  hotzone(brake, 0.17, 0.31, 0.23, -0.42, 0.8, 0.22)
 
   /* ------------------------------------------------------------ 受电弓切换开关（转换开关盘2） */
   const sw = new Group()
@@ -469,6 +498,7 @@ export function buildDriverDesk(): DeviceRig {
   swTurn.position.set(-0.74, TOP_Y + 0.04, 0.02)
   sw.add(swTurn)
   swTurn.add(roundedBox(0.046, 0.008, 0.012, chromeMaterial(), 0, 0, 0.014, 0.002))
+  hotzone(sw, 0.13, 0.12, 0.13, -0.74, 0.69, 0.02)
 
   /* ------------------------------------------------------------ 升弓旋钮 PanUS */
   const knob = new Group()
@@ -486,6 +516,7 @@ export function buildDriverDesk(): DeviceRig {
   knobTurn.position.set(0.02, TOP_Y + 0.036, 0.16)
   knob.add(knobTurn)
   knobTurn.add(roundedBox(0.05, 0.008, 0.012, chromeMaterial(), 0, 0, 0.016, 0.002))
+  hotzone(knob, 0.1, 0.11, 0.11, 0.02, 0.69, 0.16)
   const knobLabel = labelPlate('升弓 PanUS', 0.1, 0.014)
   knobLabel.position.set(0.02, TOP_Y + 0.006, 0.196)
   knobLabel.rotation.x = -Math.PI / 2
@@ -502,6 +533,7 @@ export function buildDriverDesk(): DeviceRig {
   const vcbButton = new Mesh(new CylinderGeometry(0.021, 0.021, 0.018, 22), lampMaterial(0x2f8f5b))
   vcbButton.position.set(0.12, TOP_Y + 0.018, 0.16)
   vcb.add(vcbButton)
+  hotzone(vcb, 0.1, 0.1, 0.11, 0.12, 0.68, 0.16)
   const vcbLabel = labelPlate('VCB 合', 0.07, 0.014)
   vcbLabel.position.set(0.12, TOP_Y + 0.006, 0.196)
   vcbLabel.rotation.x = -Math.PI / 2

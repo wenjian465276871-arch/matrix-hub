@@ -190,6 +190,31 @@ function onKey(e: KeyboardEvent): void {
  *  而它们抢的是同一块垂直空间，让本人一键切换比替他挑一个更合适。 */
 const traceOpen = ref(true)
 
+/** 本步是否有"要动手操作"的图元。短屏下用它做两件事：自动收轨迹、收掉标题块，
+ *  把高度让给操作台（1090×614 实测：标题块吃掉 ~110px）。 */
+const hasOpsFigure = computed(() =>
+  (step.value?.figures ?? []).some((f) => f.primitive === 'operation_scene'),
+)
+
+/* 短窗口 + 交互图元：自动把轨迹收起，把高度让给操作台。
+   1090×614 实测：轨迹展开时操作区只剩 65px、三维画布 42px，点不中任何件；
+   收起后舞台多出 ~250px。只在**进入这类步骤**时自动收一次，用户自己再展开就不干预。 */
+let autoCollapsedTrace = false
+watch(
+  () => step.value?.id,
+  () => {
+    const hasOps = (step.value?.figures ?? []).some((f) => f.primitive === 'operation_scene')
+    if (hasOps && traceOpen.value && window.innerHeight < 900) {
+      traceOpen.value = false
+      autoCollapsedTrace = true
+    } else if (!hasOps && autoCollapsedTrace) {
+      traceOpen.value = true
+      autoCollapsedTrace = false
+    }
+  },
+  { immediate: true },
+)
+
 const currentRow = ref<HTMLElement | null>(null)
 const traceBox = ref<HTMLElement | null>(null)
 watch(
@@ -295,7 +320,11 @@ watch(
       </aside>
 
       <!-- 中：步骤舞台 -->
-      <section class="panel ex__stage" aria-labelledby="ex-stage-title">
+      <section
+        class="panel ex__stage"
+        :class="{ 'ex__stage--ops': hasOpsFigure }"
+        aria-labelledby="ex-stage-title"
+      >
         <!-- 顶行：看哪一种图。实物示意图与三维动作各自吃满同一块舞台，
              而不是并排各占一半——两个都看不清等于两个都没有。 -->
         <div class="stage-toolbar">
@@ -1026,6 +1055,11 @@ watch(
 /* 三维在探索台里必须"塞满"而不是守 3:2：DeviceScene 的 .scene 默认 aspect-ratio: 3/2，
    宽 900 时高 600，比舞台还高，下沿（读数与控制条）会被裁掉。
    flex 链要一路通到 .scene，断在任何一级都拿不到确定高度。 */
+.diagram__main :deep(.ops) {
+  width: 100%;
+  height: 100%;
+}
+
 .diagram__main :deep(.device) {
   width: 100%;
   height: 100%;
@@ -1460,6 +1494,23 @@ tbody tr.done {
 /* 1366×768 这类矮屏：底轨 188 占掉三分之一强，图示只剩 175px。
    矮屏把底轨收到 150（仍显示 3 行），标题行的眉标也跟着收一行高度。 */
 @media (max-height: 820px) {
+  /* 交互步的标题在左栏与顶栏都有；短屏把它收掉，把 ~110px 让给三维。
+     判据是"这一步有没有操作图元"，不是无条件隐藏——纯读的步骤仍然要标题。 */
+  .ex__stage--ops .scene-heading {
+    display: none;
+  }
+  /* 作业动作压成一行：短屏下它吃掉 91px，正好是三维缺的高度。
+     全文仍在 title 上（悬停可读），右栏判据不受影响。 */
+  .ex__stage--ops .scene-caption {
+    padding: 5px 12px;
+  }
+  .ex__stage--ops .scene-caption p {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   .ex__grid {
     grid-template-rows: minmax(320px, 1fr) 150px;
   }
@@ -1491,9 +1542,16 @@ tbody tr.done {
     height: auto;
     overflow: visible;
   }
+  /* 窄屏是纵向堆叠（舞台 / 详解 / 轨迹）。舞台必须按"一屏"定高：
+     不定高时它会被内容撑到 822px（1090×614 实测），操作条掉到折线以下，
+     用户看得到三维却点不到按钮。详解与轨迹仍然往下滚。 */
+  .ex__stage {
+    height: calc(100dvh - var(--nav-h) - 44px);
+    min-height: 440px;
+  }
   .ex__grid {
     grid-template-columns: 220px minmax(0, 1fr);
-    grid-template-rows: minmax(440px, 66vh) 300px 260px;
+    grid-template-rows: auto 300px 260px;
   }
   .ex__side {
     grid-row: 1 / 3;

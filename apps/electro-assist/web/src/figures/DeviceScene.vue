@@ -133,6 +133,8 @@ let pickListeners: {
   el: HTMLCanvasElement
   down: (event: PointerEvent) => void
   up: (event: PointerEvent) => void
+  move: (event: PointerEvent) => void
+  leave: () => void
 } | null = null
 
 /**
@@ -720,34 +722,105 @@ async function init(): Promise<void> {
 
   /* ---------------- 部件拾取 ----------------
      只在 `pick` 打开时挂。判定"点击"而不是"拖视角"用两条：位移 <6px、按下到抬起 <700ms。
-     没有这两条，用户想转个角度就会顺手把升弓指令发出去——现场最不该出现的就是这个。 */
+     没有这两条，用户想转个角度就会顺手把升弓指令发出去——现场最不该出现的就是这个。
+
+     另外加**悬停高亮**：不告诉人"哪块能点"，30px 高的画布上点不中就会被当成没实现。
+     高亮直接改材质的 emissive，退出时按保存的原值还原（包括本来就在发光的屏与指示灯）。 */
+  const raycaster = new three.Raycaster()
+  const ndc = new three.Vector2()
+  /** 悬停色与 `devices/rig.ts` 的 FOCUS 同值。
+   *  为什么不在文件头 import FOCUS：rig.ts 会带进 three 与 RoundedBoxGeometry，
+   *  一旦静态引入，首屏就要为三维付钱——这条懒加载链比一个常量重要。 */
+  const HOVER = 0x2f6fd0
+  const hoverSaved = new Map<MeshStandardMaterial, { color: number; intensity: number }>()
+  let hoverKey = ''
+  let lastHoverAt = 0
   let down: { x: number; y: number; at: number } | null = null
-  const onDown = (event: PointerEvent): void => {
-    down = { x: event.clientX, y: event.clientY, at: performance.now() }
+
+  const clearHover = (): void => {
+    for (const [mat, saved] of hoverSaved) {
+      mat.emissive.setHex(saved.color)
+      mat.emissiveIntensity = saved.intensity
+    }
+    hoverSaved.clear()
+    hoverKey = ''
+    hostEl.classList.remove('is-hot')
   }
-  const onUp = (event: PointerEvent): void => {
-    const start = down
-    down = null
-    if (!props.pick || !start || !rig || !camera || !three) return
-    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6) return
-    if (performance.now() - start.at > 700) return
+
+  const setHover = (key: string): void => {
+    // 台体不参与高亮：它占了大半屏幕，整块亮起来等于"哪里都亮"，
+    // 反而看不出哪五个件能点。
+    if (key === 'desk') key = ''
+    if (key === hoverKey) return
+    clearHover()
+    if (!key) return
+    hoverKey = key
+    const part = rig?.parts[key]
+    if (!part) return
+    part.traverse((node) => {
+      const mesh = node as Mesh
+      if (!mesh.isMesh) return
+      const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+      for (const mat of mats) {
+        const std = mat as MeshStandardMaterial
+        if (!std.isMeshStandardMaterial) continue
+        if (hoverSaved.has(std)) continue
+        hoverSaved.set(std, { color: std.emissive.getHex(), intensity: std.emissiveIntensity })
+        std.emissive.setHex(HOVER)
+        std.emissiveIntensity = 0.45
+      }
+    })
+    hostEl.classList.add('is-hot')
+  }
+
+  /** 把事件坐标换成射线，返回命中的部件键。命中不到返回空串。 */
+  const pickAt = (event: PointerEvent): string => {
+    if (!rig || !camera || !three) return ''
     const rect = canvasEl.getBoundingClientRect()
-    if (!rect.width || !rect.height) return
-    const ndc = new three.Vector2(
+    if (!rect.width || !rect.height) return ''
+    ndc.set(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
     )
-    const ray = new three.Raycaster()
-    ray.setFromCamera(ndc, camera)
-    const hits = ray.intersectObjects(Object.values(rig.parts), true)
-    const key = hits.length ? partKeyOf(rig.parts, hits[0].object) : null
+    raycaster.setFromCamera(ndc, camera)
+    const hits = raycaster.intersectObjects(Object.values(rig.parts), true)
+    return hits.length ? (partKeyOf(rig.parts, hits[0].object) ?? '') : ''
+  }
+
+  const onMove = (event: PointerEvent): void => {
+    const now = performance.now()
+    if (now - lastHoverAt < 80) return
+    lastHoverAt = now
+    const key = pickAt(event)
+    /* 调试出口（与 `__rig` 同一条纪律）：悬停命中了什么，脚本要能读到。
+       没有它，"点了没反应"只能靠猜是没命中还是没接线。 */
+    ;(window as unknown as { __hoverKey?: string }).__hoverKey = key
+    setHover(key)
+  }
+
+  const onLeave = (): void => clearHover()
+
+  const onDown = (event: PointerEvent): void => {
+    down = { x: event.clientX, y: event.clientY, at: performance.now() }
+  }
+
+  const onUp = (event: PointerEvent): void => {
+    const start = down
+    down = null
+    if (!props.pick || !start) return
+    if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6) return
+    if (performance.now() - start.at > 700) return
+    const key = pickAt(event)
     if (key) emit('part-click', key)
   }
+
   if (props.pick) {
     canvasEl.addEventListener('pointerdown', onDown)
     canvasEl.addEventListener('pointerup', onUp)
+    canvasEl.addEventListener('pointermove', onMove)
+    canvasEl.addEventListener('pointerleave', onLeave)
   }
-  pickListeners = { el: canvasEl, down: onDown, up: onUp }
+  pickListeners = { el: canvasEl, down: onDown, up: onUp, move: onMove, leave: onLeave }
 
   observer = new ResizeObserver(resize)
   observer.observe(hostEl)
@@ -829,6 +902,8 @@ onBeforeUnmount(() => {
   if (pickListeners) {
     pickListeners.el.removeEventListener('pointerdown', pickListeners.down)
     pickListeners.el.removeEventListener('pointerup', pickListeners.up)
+    pickListeners.el.removeEventListener('pointermove', pickListeners.move)
+    pickListeners.el.removeEventListener('pointerleave', pickListeners.leave)
     pickListeners = null
   }
   observer?.disconnect()
@@ -885,9 +960,13 @@ onBeforeUnmount(() => {
   cursor: grab;
 }
 
-/* 可点击时用 pointer：告诉人"这里有东西可以按"。拖动仍是 grab 的手感，
-   光标只改外观，不影响 OrbitControls。 */
+/* 可点击时的光标：默认仍是 grab（可以拖视角），只有悬停到**真的能点的件**上
+   才变 pointer。全域 pointer 会骗人——点在背景上没反应，用户就以为功能没做。 */
 .scene--picking .scene__canvas {
+  cursor: grab;
+}
+
+.scene--picking.is-hot .scene__canvas {
   cursor: pointer;
 }
 

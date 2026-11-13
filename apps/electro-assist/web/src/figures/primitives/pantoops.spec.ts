@@ -72,7 +72,7 @@ describe('operation_scene', () => {
       .trigger('click')
       .then(() => {
         expect(session.brakeFast).toBe(false)
-        expect(w.get('.ops__notice').text()).toContain('钥匙要先右旋')
+        expect(w.get('.ops__toast').text()).toContain('钥匙要先右旋')
       })
   })
 
@@ -95,7 +95,7 @@ describe('operation_scene', () => {
       .trigger('click')
       .then(() => {
         expect(session.raiseHeld).toBe(false)
-        expect(w.get('.ops__notice').text()).toContain('MON 确认未完成')
+        expect(w.get('.ops__toast').text()).toContain('MON 确认未完成')
       })
   })
 
@@ -132,6 +132,23 @@ describe('operation_scene', () => {
   it('desk 视图只挂一台三维；both 挂两台', () => {
     expect(mountOps('desk').findAll('.ops__pane')).toHaveLength(1)
     expect(mountOps('both').findAll('.ops__pane')).toHaveLength(2)
+  })
+
+  it('放大操作：点开加类，Esc 退出', () => {
+    const w = mountOps('both')
+    // 这个按钮浮在画布上（.ops__float），不在底部按钮行里
+    return w
+      .get('.ops__float')
+      .trigger('click')
+      .then(() => {
+        expect(w.get('.ops').classes()).toContain('ops--expanded')
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+        return w.vm.$nextTick()
+      })
+      .then(() => {
+        expect(w.get('.ops').classes()).not.toContain('ops--expanded')
+        w.unmount()
+      })
   })
 
   it('重新开始把状态清回落弓', () => {
