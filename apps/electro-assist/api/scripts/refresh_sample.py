@@ -153,7 +153,11 @@ def main() -> int:
     if pending and not args.yes:
         print(f"\n共 {pending} 份有差异；确认无误后加 --yes 写入。")
         print(
-            "注意：若某一步已有记录，而这次改动了它的标题/动作/安全提示/判据，"
+            "注意 1：**这些差异不会自动上线**。seed 只在样例的 `meta.revision` 比库里那份高时才刷新，"
+            "所以只改 JSON 不提 revision，线上永远停在旧版。"
+        )
+        print(
+            "注意 2：若某一步已有记录，而这次改动了它的标题/动作/安全提示/判据，"
             "会被拒绝（避免老记录被重新解释）；确认要覆盖时加 --allow-record-rewrite。"
         )
     if done:
