@@ -69,17 +69,23 @@ async function clickPart(
     [-10, 0],
     [10, 0],
   ]
-  let hit: [number, number] = [0, 0]
-  for (const [dx, dy] of offsets) {
-    await page.mouse.move(point!.x + dx, point!.y + dy)
-    await page.waitForTimeout(120)
-    const hover = await page.evaluate(() => (window as unknown as { __hoverKey?: string }).__hoverKey ?? '')
-    if (hover === key) {
-      hit = [dx, dy]
-      break
+  /* 两遍扫描：CI 的软件渲染只有 1–2 fps，`pointermove` 可能还在队列里，
+     第一遍读到的 `__hoverKey` 是**上一个点**的值。第二遍把等待拉到 240ms 再读一次。 */
+  let hit: [number, number] | null = null
+  for (const settle of [120, 240]) {
+    for (const [dx, dy] of offsets) {
+      await page.mouse.move(point!.x + dx, point!.y + dy)
+      await page.waitForTimeout(settle)
+      const hover = await page.evaluate(() => (window as unknown as { __hoverKey?: string }).__hoverKey ?? '')
+      if (hover === key) {
+        hit = [dx, dy]
+        break
+      }
     }
+    if (hit) break
   }
-  await page.mouse.click(point!.x + hit[0], point!.y + hit[1])
+  const [dx, dy] = hit ?? [0, 0]
+  await page.mouse.click(point!.x + dx, point!.y + dy)
   await page.waitForTimeout(350)
 }
 

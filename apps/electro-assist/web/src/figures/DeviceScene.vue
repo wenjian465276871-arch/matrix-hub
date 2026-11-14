@@ -850,7 +850,7 @@ async function init(): Promise<void> {
   controls = ctrl as unknown as ControlsLike
 
   /* ---------------- 部件拾取 ----------------
-     只在 `pick` 打开时挂。判定"点击"而不是"拖视角"用两条：位移 <6px、按下到抬起 <700ms。
+     只在 `pick` 打开时挂。判定"点击"而不是"拖视角"用两条：位移 <6px、按下到抬起 <3s。
      没有这两条，用户想转个角度就会顺手把升弓指令发出去——现场最不该出现的就是这个。
 
      另外加**悬停高亮**：不告诉人"哪块能点"，30px 高的画布上点不中就会被当成没实现。
@@ -1027,7 +1027,13 @@ async function init(): Promise<void> {
     pressed = false
     if (!props.pick || !start) return
     if (Math.hypot(event.clientX - start.x, event.clientY - start.y) > 6) return
-    if (performance.now() - start.at > 700) return
+    /* 按下→抬起的时间上限 **700 → 3000ms**（2026-11-15，CI run 43619640576 红在这里）。
+       这条闸门本意是"别把转视角当点击"，而**位移 6px 已经足够**区分拖拽；时间只用来
+       兜住"按住很久再松手"。700ms 在 60fps 下永远够，但 CI 是软件渲染 **1–2 fps**：
+       两帧之间主线程被占住 500–1000ms，`pointerdown` 与 `pointerup` 的处理间隔可以
+       轻易超过 700ms——于是那一次点击被当成"长按"丢掉，表现为**偶发点了没反应**
+       （车门第 4 屏点「释放」就是 2 次都撞上）。放大到 3s 不影响任何真实交互。 */
+    if (performance.now() - start.at > 3000) return
     const key = pickAt(event)
     if (key) emit('part-click', key, rig?.partLabels?.[key] ?? '')
   }
