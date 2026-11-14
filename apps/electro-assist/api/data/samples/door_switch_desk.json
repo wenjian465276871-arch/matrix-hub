@@ -1,0 +1,538 @@
+{
+  "schema_version": "1.2",
+  "id": "g_door_switch_desk",
+  "title": "客室车门开关门试验（司机台操作）",
+  "summary": "以 8 编组动车组 04 车左侧（站台侧）为例，按「条件确认 → 上电激活 → MON 确认全列门状态 → 释放与开门 → 防夹验证 → 关门与结论」六步完成集控开关门试验。未释放时开门按钮无效；中缝有障碍物时门自动反开。",
+  "meta": {
+    "system": "door",
+    "source_note": "公开网络资料改写：集控释放/开门/关门三步、零速低于 5 km/h、关门灯与门状态灯、约 40 mm 试块防夹与连续 3 次报故障，均取自公开教学课件与公开论文；车型与全部读数为演示虚构值，不含任何企业资料",
+    "model": "deepseek-flash",
+    "generated_at": "2026-11-14T00:00:00Z",
+    "is_demo": true,
+    "revision": 5
+  },
+  "steps": [
+    {
+      "id": "s01",
+      "seq": 1,
+      "title": "开关门试验前必须满足的条件",
+      "action": "逐项确认下列七条，缺一不可：列车静止、零速信号有效（低于 5 km/h 才允许集控开门）、防溜到位、主控司机室占用、门控电源与总风压力正常、试验侧（站台侧）已确认、无火警与紧急解锁、全列门关闭锁闭。任一车门未关闭时关门灯不亮，须先查明原因。",
+      "safety": [
+        "列车未停稳、零速信号无效时严禁集控开门",
+        "开门前确认站台侧无人倚靠门扇",
+        "试验期间任何人不得站在门扇运动范围内"
+      ],
+      "tools": [
+        "警示牌"
+      ],
+      "criteria": [
+        {
+          "id": "zero_speed",
+          "label": "零速信号与防溜",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        },
+        {
+          "id": "door_power",
+          "label": "门控电源电压",
+          "type": "range",
+          "unit": "V",
+          "min": 99,
+          "max": 121,
+          "options": null
+        },
+        {
+          "id": "mr_pressure",
+          "label": "总风缸压力",
+          "type": "range",
+          "unit": "kPa",
+          "min": 600,
+          "max": 900,
+          "options": null
+        },
+        {
+          "id": "side",
+          "label": "试验侧（站台侧）",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "左侧",
+            "右侧"
+          ]
+        },
+        {
+          "id": "no_emergency",
+          "label": "火警与紧急解锁",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "均无",
+            "有报警或解锁"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "device_scene",
+          "params": {
+            "subject": "door",
+            "t": 0
+          },
+          "caption": "客室侧门：关闭锁定状态",
+          "fallback_text": "双扇对开塞拉门处于关闭锁定状态：两扇门页与车体外壁平齐、中缝胶条压紧，门楣上方是门机与悬挂机构，门机罩前脸有门状态指示灯。"
+        },
+        {
+          "primitive": "table",
+          "params": {
+            "headers": [
+              "项目",
+              "要求",
+              "检查方式"
+            ],
+            "rows": [
+              "零速信号|低于 5 km/h|MON 车速显示",
+              "防溜|铁鞋 / 停放制动到位|目视确认",
+              "主控司机室|已激活占用|钥匙右旋",
+              "门控电源|DC 110 V（99–121）|MON 电源页 / 万用表",
+              "总风压力|≥600 kPa|双针压力表 / MON",
+              "试验侧|站台侧已确认|现场联控",
+              "车门状态|全列关闭锁闭、关门灯亮|MON 车门页"
+            ],
+            "label": "开关门试验前必须满足的条件（缺一不可）"
+          },
+          "caption": "七项条件与检查方式",
+          "fallback_text": "七项条件：零速低于 5 km/h、防溜到位、主控占用、门控电源 DC110 V、总风 ≥600 kPa、站台侧已确认、全列门关闭锁闭且关门灯亮。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s02",
+      "seq": 2,
+      "title": "上电激活：插钥匙、右旋、手柄快速位",
+      "action": "将主控钥匙插入制动控制器并右旋到运行位：司机室占用。再把制动手柄置于「快速」位：MCR 励磁、MON 屏点亮。只右旋钥匙屏不会亮，而车门页与集控指令都在 MON 与司机台上，这一步没做完，释放与开门都不成立。",
+      "safety": [
+        "移动制动手柄前确认列车静止、防溜到位",
+        "手柄移动后确认 MCR 励磁、无异常报警"
+      ],
+      "tools": [
+        "主控钥匙"
+      ],
+      "criteria": [
+        {
+          "id": "key_state",
+          "label": "主控钥匙状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "已插入并右旋",
+            "已插入未右旋",
+            "未插入"
+          ]
+        },
+        {
+          "id": "brake_fast",
+          "label": "制动手柄在快速位",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "是",
+            "否"
+          ]
+        },
+        {
+          "id": "mon_on",
+          "label": "MON 屏点亮",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "点亮",
+            "熄灭"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "door_switch",
+            "view": "desk",
+            "act": "power"
+          },
+          "caption": "司机操纵台：点钥匙、再推手柄",
+          "fallback_text": "在司机操纵台上：主控钥匙插入制动控制器并右旋，司机室占用；制动手柄推到快速位，MCR 励磁、MON 点亮。台面右前是六个门控按钮。"
+        },
+        {
+          "primitive": "callout",
+          "params": {
+            "target": "台面右前的车门控制盘",
+            "note": "左/右两排，每排三个：释放、开门、关门",
+            "position": "left"
+          },
+          "caption": "门控按钮位置",
+          "fallback_text": "车门控制盘在台面右前：左排控制左侧车门，右排控制右侧车门，每排自左至右为释放、开门、关门三个自复位按钮。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s03",
+      "seq": 3,
+      "title": "MON 车门页确认全列门状态",
+      "action": "点司机台 MON 屏（或下方「MON 屏」按钮）打开车门状态页：确认全列 8 辆车门「关闭锁闭」、无隔离、无故障，关门灯亮；再翻「集控操作」页确认本侧未释放、开门/关门按钮待命。点一行确认一行，三项全部确认后才允许集控开门。",
+      "safety": [
+        "MON 显示与现场门状态不一致时，以现场为准并查明原因",
+        "有车门隔离时须记录并说明，不得直接带故障试验"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "all_closed",
+          "label": "全列车门状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "8/8 关闭锁闭",
+            "有门未关闭"
+          ]
+        },
+        {
+          "id": "isolated",
+          "label": "车门隔离",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "无隔离",
+            "有隔离"
+          ]
+        },
+        {
+          "id": "fault",
+          "label": "车门故障",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "无故障",
+            "有故障"
+          ]
+        },
+        {
+          "id": "closed_led",
+          "label": "司机台关门灯",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "亮",
+            "灭"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "door_switch",
+            "view": "desk",
+            "act": "check"
+          },
+          "caption": "点司机台的 MON 屏：弹窗里逐项确认",
+          "fallback_text": "在司机操纵台上点 MON 屏（或点下方「MON 屏」按钮），弹窗打开车门状态页：全列车门、车门隔离、车门故障三行，点一行确认一行；关门灯是参考行。"
+        },
+        {
+          "primitive": "checklist",
+          "params": {
+            "items": [
+              "全列 8 辆车门关闭锁闭",
+              "无车门隔离",
+              "无车门故障记录",
+              "司机台关门灯亮",
+              "本侧尚未释放"
+            ]
+          },
+          "caption": "五项确认清单",
+          "fallback_text": "五项确认：全列关闭锁闭、无隔离、无故障、关门灯亮、本侧未释放。缺一项不得集控开门。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s04",
+      "seq": 4,
+      "title": "集控释放与开门",
+      "action": "按站台侧的【释放】按钮：按钮灯亮，全列该侧车门释放、接受集控。再按【开门】按钮：门扇先退出密封面、再沿导轨滑开，开门时间 2.5–4.0 s；开门到位后门状态指示灯转红、蜂鸣停止。确认开度与站台间隙正常，踏板动作到位。",
+      "safety": [
+        "开门前确认站台侧无人员和障碍物",
+        "门扇动作过程中不得触碰门页与导轨",
+        "开度异常或有异响立即按关门并检查导轨"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "release_led",
+          "label": "释放按钮灯",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "点亮（已释放）",
+            "未点亮"
+          ]
+        },
+        {
+          "id": "open_time",
+          "label": "开门时间",
+          "type": "range",
+          "unit": "s",
+          "min": 2.5,
+          "max": 4.0,
+          "options": null
+        },
+        {
+          "id": "open_state",
+          "label": "开门到位与门状态灯",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "开到位、指示转红",
+            "未开到位"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "door_switch",
+            "view": "both",
+            "act": "operate"
+          },
+          "caption": "按释放、再按开门：右侧门扇同步滑开",
+          "fallback_text": "在司机台按站台侧的释放按钮（灯亮），再按开门按钮：客室侧门门扇退出密封面并沿导轨滑开，门状态指示灯转红、蜂鸣停止。"
+        },
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 3.2,
+            "unit": "s",
+            "min": 2.5,
+            "max": 4.0,
+            "label": "开门时间"
+          },
+          "caption": "开门时间读数",
+          "fallback_text": "开门时间示例读数 3.2 s，要求 2.5–4.0 s。"
+        },
+        {
+          "primitive": "motion_timeline",
+          "params": {
+            "steps": [
+              "0.0s 按释放，按钮灯亮、全列该侧释放",
+              "0.3s 按开门，门锁解锁",
+              "0.8s 门扇退出密封面",
+              "3.2s 沿导轨滑开到位、指示灯转红"
+            ],
+            "total": "3.2",
+            "label": "集控开门时序（示意）"
+          },
+          "caption": "开门时序",
+          "fallback_text": "开门时序：0 秒按释放并灯亮，0.3 秒按开门、门锁解锁，0.8 秒门扇退出密封面，3.2 秒滑开到位、指示灯转红。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s05",
+      "seq": 5,
+      "title": "防夹（障碍物检测）验证",
+      "action": "点三维里**门外侧地面上的浅色卷状试块**：它移到门洞地板上、两扇门页合拢的中间；点台面上的「关门」：两扇门页同时碰到试块后关门停止并反向开门，蜂鸣报警；连续 3 次仍检测到试块时，门停在全开位并报「关门障碍物超次数」。**本步只验防夹，不撤试块**——撤块与无障碍物的正常关门在下一工步做。",
+      "safety": [
+        "试块必须是软物，严禁用金属或硬物代替",
+        "反开时手不得留在门缝内",
+        "报故障后须撤除障碍物再复位，不得强行多次关门"
+      ],
+      "tools": [
+        "约 40 mm 厚软试块"
+      ],
+      "criteria": [
+        {
+          "id": "anti_pinch",
+          "label": "防夹反开动作",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "停止并自动反开",
+            "未反开"
+          ]
+        },
+        {
+          "id": "bump_count",
+          "label": "连续受阻次数",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "3 次内反开",
+            "超过 3 次"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "door_switch",
+            "view": "both",
+            "act": "pinch"
+          },
+          "caption": "放试块后按关门：门扇碰到试块停止并反开",
+          "fallback_text": "在门洞地板中线放入约 40 mm 厚卷状试块后按关门：两扇门页合拢时碰到试块，关门停止并自动反开，蜂鸣报警；反复 3 次后停在全开位并报「关门障碍物超次数」。"
+        },
+        {
+          "primitive": "callout",
+          "params": {
+            "target": "门外侧地面（门框左前方）",
+            "note": "浅色卷状软物就摆在门外地上，点它移到门洞地板中间；再点一次移回",
+            "position": "right"
+          },
+          "caption": "试块位置",
+          "fallback_text": "防夹试块（约 40 mm 厚的卷状软物）平时放在门外侧地面、门框左前方；点它移到门洞地板上、两扇门页合拢的中间，用于防夹试验；再点一次移回原位。"
+        },
+        {
+          "primitive": "status_light",
+          "params": {
+            "state": "warn",
+            "label": "防夹触发：门已反开"
+          },
+          "caption": "反开提示",
+          "fallback_text": "防夹触发时门扇停止并反开，蜂鸣报警；反开不是故障，连续 3 次才报故障。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s06",
+      "seq": 6,
+      "title": "正常关门与试验结论",
+      "action": "**先撤块**：点三维里门洞地板上的试块，它回到门外原位（不再阻碍关门）。再点台面「关门」：无障碍物时门扇正常滑移、压紧密封面，关门时间 3.0–5.0 s，**不得再出现反开**；到位后点 MON 屏确认 8/8 关闭锁闭、关门灯亮；再按「释放」按钮复位（灯灭），确认隔离锁与紧急解锁铅封完好、无故障记录，记录开/关门时间与判定。",
+      "safety": [
+        "关门时确认门缝无人、无异物",
+        "试验结束后释放按钮必须复位，避免下次动车时误开门",
+        "黄踏板/低站台踏板须完全收回并确认指示"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "close_time",
+          "label": "关门时间",
+          "type": "range",
+          "unit": "s",
+          "min": 3.0,
+          "max": 5.0,
+          "options": null
+        },
+        {
+          "id": "recover",
+          "label": "撤除试块后复测",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "恢复正常关闭",
+            "仍报故障"
+          ]
+        },
+        {
+          "id": "closed_led",
+          "label": "关门灯与全列状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "灯亮、8/8 关闭锁闭",
+            "灯灭或有门未关闭"
+          ]
+        },
+        {
+          "id": "result",
+          "label": "试验结论",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "合格",
+            "超差复测",
+            "不合格"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "door_switch",
+            "view": "both",
+            "act": "close"
+          },
+          "caption": "撤块后按关门：正常关闭并锁闭，不再反开",
+          "fallback_text": "先点门洞里的试块让它回到门外原位，再按关门：无需避障，门扇滑移压紧密封面，3.0–5.0 s 到位，门状态指示灯转绿、司机台关门灯亮。"
+        },
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 3.6,
+            "unit": "s",
+            "min": 3.0,
+            "max": 5.0,
+            "label": "关门时间"
+          },
+          "caption": "关门时间读数",
+          "fallback_text": "关门时间示例读数 3.6 s，要求 3.0–5.0 s。"
+        },
+        {
+          "primitive": "status_light",
+          "params": {
+            "state": "pass",
+            "label": "开关门功能合格"
+          },
+          "caption": "判定指示",
+          "fallback_text": "开/关门时间、防夹反开、关门灯与全列状态四项均正常时，开关门功能判定为合格。"
+        }
+      ],
+      "duration_s": null
+    }
+  ],
+  "disclaimers": [
+    "演示数据 · 非实际作业依据",
+    "AI 辅助整理，需专业人员复核",
+    "开关门试验须在确认零速、防溜与站台侧安全后进行"
+  ]
+}

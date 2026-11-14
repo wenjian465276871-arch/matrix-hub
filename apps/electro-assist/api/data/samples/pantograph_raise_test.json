@@ -9,7 +9,7 @@
     "model": "deepseek-flash",
     "generated_at": "2026-11-13T00:00:00Z",
     "is_demo": true,
-    "revision": 2
+    "revision": 3
   },
   "steps": [
     {
@@ -169,7 +169,8 @@
           "primitive": "operation_scene",
           "params": {
             "scene": "pantograph_raise",
-            "view": "desk"
+            "view": "desk",
+            "act": "power"
           },
           "caption": "司机操纵台：点钥匙、再推手柄",
           "fallback_text": "在司机操纵台上：主控钥匙插入制动控制器并右旋，司机室占用；制动手柄推到快速位，MCR 励磁。点三维里的件或下方按钮均可操作。"
@@ -315,7 +316,8 @@
           "primitive": "operation_scene",
           "params": {
             "scene": "pantograph_raise",
-            "view": "desk"
+            "view": "desk",
+            "act": "unit"
           },
           "caption": "转换开关盘2：选 2U / 3U",
           "fallback_text": "在转换开关盘2上选择受电弓单元：2U 对应 04 车，3U 对应 06 车。原则上升运行方向的后弓；重联时前后车弓位必须一致。"
@@ -343,8 +345,8 @@
     {
       "id": "s05",
       "seq": 5,
-      "title": "发出升弓指令并保持",
-      "action": "手动方式：右旋转换开关盘2上的【受电弓升起】旋钮（PanUS），保持至 MON 屏显示受电弓已升起后松开。远程方式：MON →「远程控制切除」→ 选择单元（2U/3U）→ 点「受电弓升起」→ 点「设定」。本样板演示手动方式。",
+      "title": "升弓与 VCB 闭合",
+      "action": "手动方式：右旋转换开关盘2上的【受电弓升起】旋钮（PanUS），保持至 MON 屏显示受电弓已升起后松开；升弓到位、保压后按【VCB 合】：真空断路器闭合，网压建立（约 25 kV）。远程方式：MON →「远程控制切除」→ 选择单元（2U/3U）→ 点「受电弓升起」→ 点「设定」——本样板演示手动方式。",
       "safety": [
         "升弓过程中任何人不得进入弓网区域",
         "确认受电弓上方无异物、无接地线",
@@ -394,9 +396,10 @@
           "primitive": "operation_scene",
           "params": {
             "scene": "pantograph_raise",
-            "view": "both"
+            "view": "both",
+            "act": "raise"
           },
-          "caption": "按住升弓旋钮：右侧受电弓同步升起",
+          "caption": "按住升弓旋钮，到位后按 VCB 合",
           "fallback_text": "按住升弓旋钮不松手：升弓电磁阀得电、压缩空气进入升弓气囊，车顶受电弓升起；MON 显示升起后松开，弓保持。"
         },
         {

@@ -233,3 +233,59 @@ describe('两次构建互不共享可变状态', () => {
     b.dispose()
   })
 })
+
+describe('运转件：空调风机（2026-11-14 本人反馈「通风运行但两台风机静止」）', () => {
+  /** 读两台叶轮的角度。用 `name` 找，不靠 `children` 下标——下标会被加件打乱。 */
+  const rotorAngles = (rig: DeviceRig): number[] => {
+    const out: number[] = []
+    rig.parts.fans.traverse((o) => {
+      if (o.name === 'fan-rotor') out.push(o.rotation.y)
+    })
+    return out
+  }
+
+  it('两台叶轮都在 parts.fans 里，且都命名了', () => {
+    const rig = buildHvac()
+    expect(rotorAngles(rig)).toHaveLength(2)
+    rig.dispose()
+  })
+
+  it('停机时 tick 返回 false：不为"没动的东西"续帧', () => {
+    const rig = buildHvac()
+    rig.setT(0)
+    expect(rig.tick?.(1 / 60)).toBe(false)
+    rig.dispose()
+  })
+
+  it('通风（t=0.55）时 tick 说"还在动"，并且角度真的变了', () => {
+    const rig = buildHvac()
+    rig.setT(0.55)
+    const [a, b] = rotorAngles(rig)
+    expect(rig.tick?.(0.2)).toBe(true)
+    const [a2, b2] = rotorAngles(rig)
+    // 两台一起转（同一套转速），不是只转一台
+    expect(Math.abs(a2 - a)).toBeGreaterThan(0.1)
+    expect(a2 - a).toBeCloseTo(b2 - b, 6)
+    rig.dispose()
+  })
+
+  it('**t 不变也照样转**——这是本条反馈的实质：t 只说明"手走到哪一拍"', () => {
+    const rig = buildHvac()
+    rig.setT(0.55)
+    // 外部反复喂同一个 t（按需渲染时就是这样），叶轮不能被重置成静止
+    rig.setT(0.55)
+    const before = rotorAngles(rig)[0]
+    for (let i = 0; i < 12; i += 1) rig.tick?.(1 / 60)
+    expect(Math.abs(rotorAngles(rig)[0] - before)).toBeGreaterThan(0.2)
+    rig.dispose()
+  })
+
+  it('切回停机（t=0.4）后 tick 立刻说"停了"', () => {
+    const rig = buildHvac()
+    rig.setT(0.55)
+    rig.tick?.(1 / 60)
+    rig.setT(0.4)
+    expect(rig.tick?.(1 / 60)).toBe(false)
+    rig.dispose()
+  })
+})

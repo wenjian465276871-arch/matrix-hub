@@ -16,6 +16,7 @@ import {
   CylinderGeometry,
   Group,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   Object3D,
   PlaneGeometry,
@@ -41,6 +42,8 @@ import {
 } from './rig'
 import { facePlate, isolationLabelTexture } from './print'
 import { phaseFor } from '../../lib/devphase'
+import { parseAux } from '../../lib/auxspec'
+import contract from '../../contract/devices.json'
 
 /** 示意尺寸（米）。改这里就能整体缩放，不散落在各处。 */
 const DIM = {
@@ -100,6 +103,27 @@ function beltTeeth(): CanvasTexture {
 
 const LAMP_ALARM = 0xd1483f
 const LAMP_OK = 0x2f9e6a
+
+/**
+ * 球面热区：**投影永远是圆的**，怎么转机位都刚好围住试块本体。
+ *
+ * `visible = false` 的 mesh 不渲染、不参与几何自检，但 three 的 `Raycaster`
+ * **不看 visible**，照样能命中（与 `driver_desk.ts` 的方盒热区同一套做法）。
+ *
+ * 2026-11-14 本人实测：试块移到门洞后"鼠标指着它却点不动"。当时用的是
+ * 0.44×0.36×0.80 的方盒，往镜头方向伸了 0.65m 去抢射线——结果是
+ * **可点区域和看得见的试块错位**：顺着视线看，盒子前脸在试块上方偏右，
+ * 指着试块本体反而落在盒子外。球体没有朝向，加一个"半径 > 半宽"的余量，
+ * 指着试块附近一圈都算命中，这才是"捕获范围"该有的形状。
+ */
+function hotBall(parent: Object3D, r: number, x: number, y: number, z: number): void {
+  const mesh = new Mesh(new SphereGeometry(r, 14, 10), new MeshBasicMaterial({ visible: false }))
+  mesh.position.set(x, y, z)
+  mesh.visible = false
+  mesh.castShadow = false
+  mesh.receiveShadow = false
+  parent.add(mesh)
+}
 
 export function buildDoor(): DeviceRig {
   const root = new Group()
@@ -590,6 +614,40 @@ export function buildDoor(): DeviceRig {
   floor.receiveShadow = true
   root.add(floor)
 
+  /* ---------------------------------------------------------------- 防夹试块 */
+  /* 2026-11-14 本人指出：点「放试块」之后三维里什么都看不见，等于没放。
+     试块必须是**看得见的一件东西**，而且要放在门洞地板上、两扇门页合拢时会被
+     同时顶住的位置——否则"门碰到它停止并反开"在画面上不成立。
+
+     形体：卷起的毛巾（约 40mm 厚、0.16m 宽、0.12m 高），浅色布面 + 两道束带。
+     位置：门洞中线 x=0、落在门槛上（y 从 sill 起），z 取门页外移后的滑移面
+     附近——门页是在这个深度上作水平滑移的，块放在这里才真的挡得住。
+     默认 `visible=false`：只有「放试块」时才出现，平时不占画面。 */
+  const blockGroup = new Group()
+  const blockBody = roundedBox(0.20, 0.14, 0.12, paintedMaterial(0xd9d3c4), 0, 0.07, 0, 0.03, 3)
+  blockGroup.add(blockBody)
+  // 两道束带：有它才像"卷起来的毛巾"，而不是一块砖
+  for (const dx of [-0.045, 0.045]) {
+    blockGroup.add(roundedBox(0.018, 0.144, 0.124, paintedMaterial(0x8f8a7e), dx, 0.07, 0, 0.006))
+  }
+  /* 两个摆放位（2026-11-14 本人指定）：
+     - 原位：门外侧地面、门框左前方——平时就摆在那里，一眼看得见；
+     - 工位：门洞地板上、两扇门页合拢的中间。
+     点一次从原位移到工位，再点一次移回。所以它是**可拾取部件**（`parts.block`），
+     不是页面上的按钮。 */
+  const BLOCK_REST: [number, number, number] = [-0.98, DIM.sill, 0.88]
+  /* 工位 = **门洞地板上、两扇门页合拢的中间**（2026-11-14 本人第二次指出：
+     放到 0.58 是"门外地上"，人眼一看就知道挡不住门）。z 取门扇平面（leafZ 0.05）
+     外侧 5cm：门页合拢时会真正顶住它，同时不会被门框挡住看不见。 */
+  const BLOCK_AT_DOOR: [number, number, number] = [0, DIM.sill, DIM.leafZ + 0.12]
+  blockGroup.position.set(...BLOCK_REST)
+  /* 热区：**球面**，半径 0.32m（试块宽 0.20m，留出一圈余量）。
+     指着试块附近都算命中——本人 2026-11-14：「感觉是"捕获"范围不够」。
+     一个球不管从哪个角度看都刚好包住它，不会出现"看得见却点不中"的错位。 */
+  hotBall(blockGroup, 0.32, 0, 0.1, 0.02)
+  parts.block = blockGroup
+  root.add(blockGroup)
+
   /* ---------------------------------------------------------------- 动作 */
   const setT = (t: number): void => {
     /* 段零：解锁。**这是开门的前置条件**——锁舌没缩回，门扇一点都不能动。
@@ -639,6 +697,19 @@ export function buildDoor(): DeviceRig {
      "三维说完全开启、界面说到位检测"。阈值改动请改 devphase 的常量。 */
   const phase = (t: number): string => phaseFor('door', t)
 
+  /**
+   * 场景附加态（离散，与 `t` 正交）。目前只有一件事：试块在不在。
+   *
+   * 为什么不用 `t` 表达：试块是**人放进去的**，与门走到第几拍无关；
+   * 硬塞进时间轴会让"门开到一半"和"块有没有放"互相干扰。
+   * 格式沿用 `lib/auxspec`：`door|block=1`。
+   */
+  const setAux = (spec: string): void => {
+    const { kv } = parseAux(spec)
+    // 试块只有两个位，没有中间态：点一下是"搬过去"，再点一下是"搬回来"
+    blockGroup.position.set(...(kv.block === '1' ? BLOCK_AT_DOOR : BLOCK_REST))
+  }
+
   setT(0)
 
   return {
@@ -648,12 +719,18 @@ export function buildDoor(): DeviceRig {
     phase,
     // 「The machine fills 60-70% of its viewport」
     framing: { target: [0, 1.05, 0], distance: 5.25 },
+    /* 悬停名称取自后端契约（`models/visual.py` 的 `DEVICE_PART_LABELS`）。
+       2026-11-14 本人：试块摆在门外地上时没有任何标识，用户不知道那是试块——
+       而它恰恰是本步唯一要点的那件东西。名称随设备 chunk 走，零首屏成本；
+       `builders.spec.ts` 有一条用例逐字比对这个映射与契约。 */
+    partLabels: (contract.devices.door?.part_labels ?? {}) as Record<string, string>,
     /* 剖切沿 X（竖直切一刀，从右往左扫）。
        **不能沿 Z 切**：门扇是一块薄板，切面平行于板面时，截面正好等于整张门脸
        ——画面上只会看到两块纯色大板，比不切还难懂。剖切只有切在「薄的那一维」上
        才有信息量：截面是一道 42mm 的薄边，旁边是 90mm 的墙体断面。
        切面用暖灰、比漆面深一档：截面是材料本体，不该和表面同色。 */
     cut: { axis: 'x', from: -0.9, to: 1.5, cap: 0xa79d8c },
+    setAux,
     dispose: () => disposeTree(root),
   }
 }

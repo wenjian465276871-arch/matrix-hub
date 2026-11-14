@@ -204,6 +204,7 @@ onErrorCaptured((err) => {
         :label="spec.caption || spec.fallback_text"
         :motion="spec.motion"
         :fallback="spec.fallback_text"
+        v-bind="spec.primitive === 'mon_panel' ? { chrome: true } : {}"
       />
       <p v-else class="figure__fallback">{{ spec.fallback_text }}</p>
     </div>

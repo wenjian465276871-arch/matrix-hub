@@ -68,6 +68,11 @@ const props = withDefaults(
     /** 受电弓单元（2U / 3U）。只有司机台实现了 `setUnit`；其余设备忽略。 */
     unit?: '2U' | '3U'
     /**
+     * 场景附加态（离散，与 `t` 正交）。目前只有司机操台用：空调/车门两项试验
+     * 要在同一块 MON 上换页面、点亮被按下的门控按钮。设备没实现 `setAux` 时忽略。
+     */
+    aux?: string
+    /**
      * 允许点击部件。打开后短按（不拖动）会射线拾取，把命中的部件键 emit 出去。
      *
      * 为什么不默认开：指导书里的三维首先是"看"的，点一下跳出一个动作会吓到人；
@@ -86,6 +91,7 @@ const props = withDefaults(
     labels: false,
     mode: 'normal',
     pick: false,
+    aux: '',
   },
 )
 
@@ -129,9 +135,17 @@ const loading = ref(true)
 const tip = ref<{ name: string; note: string } | null>(null)
 const tipEl = ref<HTMLElement | null>(null)
 
-const ariaLabel = computed(
-  () => props.label || `设备三维示意（${props.subject}），可拖动旋转查看`,
-)
+/**
+ * 读屏听到的这句话要**如实**：能点就说能点，只能鼠标点就说只能鼠标点。
+ *
+ * 2026-11-14 本人裁决（决策 #62）：三维交互**只保证鼠标路径**，不做键盘等价按钮层。
+ * 那么限制就必须写在读屏读得到的地方——否则键盘用户面对一块 `role="img"`、
+ * 却要求"点一个部件"的画面，只会以为坏了，而不知道这是刻意的取舍。
+ */
+const ariaLabel = computed(() => {
+  const base = props.label || `设备三维示意（${props.subject}），可拖动旋转查看`
+  return props.pick ? `${base}；本图中的点选操作仅支持鼠标点击，键盘无法操作` : base
+})
 
 /* 模块引用不落成静态 import：`import type` 编译期擦除，运行期才拉真代码。 */
 type RigModule = typeof import('./devices/rig')
@@ -275,10 +289,27 @@ function placeCamera(t: number): void {
     frame.target[2] + view[2] * distance,
   )
   controls.update()
-  // 缩放上下限也跟着走：定死会让自适应之后的推近被 clamp 住
+  applyZoomLimits(t)
+}
+
+/**
+ * 缩放上下限**必须跟着当前姿态走**，而不是只在落机位时定一次。
+ *
+ * 2026-11-14 本人实测：第 5 步升弓，滚轮拉到最远仍看不全「受电弓 + 接触网」。
+ * 根因不是倍数不够，而是这两个数被冻在了**落弓那一刻**——`OrbitControls` 的
+ * `start` 在滚轮时也会触发（置 `userMoved`），之后 `followCamera` 一律早退，
+ * 于是升到位后距离上限还是 4.6m 档的值，怎么拉都差一截。
+ * 现在把"限位"从"落机位"里拆出来：镜头跟随仍尊重 `userMoved`，
+ * 限位则每一拍都按 `framingAt(t)` 重算。
+ */
+function applyZoomLimits(t: number): void {
+  if (!rig || !controls) return
+  const frame = rig.framingAt?.(t) ?? rig.framing
+  const fitted = fitDistance(camera?.aspect || 1)
+  const distance = fitted ?? frame.distance
   const ctrl = controls as unknown as { minDistance: number; maxDistance: number }
   ctrl.minDistance = distance * 0.55
-  ctrl.maxDistance = distance * 1.6
+  ctrl.maxDistance = distance * (rig.zoomOut ?? 1.6)
 }
 
 /**
@@ -314,8 +345,48 @@ function scheduleCapture(): void {
 }
 
 function render(): void {
+  lastPaint = performance.now()
   if (renderer && scene && camera) renderer.render(scene, camera)
   drawAnnotations()
+}
+
+/* ------------------------------------------------------------- 运转件循环 */
+/**
+ * 少数设备有"与 `t` 无关的持续运动"（空调的两台轴流风机）。场景默认**按需渲染**，
+ * 所以这里补一条只在"确实还在动"时存在的 rAF：`rig.tick()` 返回 false 就停，
+ * 停转的风机不会为它烧任何一帧。
+ *
+ * 2026-11-14 本人反馈：第 4 步写着"通风运行"，三维里两台风机却静止——
+ * 因为叶轮角度原来只由 `t` 算出来，而这一页的 `t` 是定值。
+ *
+ * `lastPaint` 有两个作用：① 与外部时间轴（演示页自己也在 rAF 里喂 `t`）同帧去重；
+ * ② 把运转件的重绘**压到约 30fps**——叶轮 1.2 转/秒在 30fps 下每帧 14°，
+ * 看不出跳；而这台演示机是 MX250 档，省下来的一半帧对滚动与点选都有用。
+ */
+let motionRaf = 0
+/** 上一帧的时间戳；0 表示这是重启后的第一帧（此时用 1/60 兜底）。 */
+let motionLast = 0
+/** 最近一次真正画到画布上的时刻，用于同帧去重。 */
+let lastPaint = 0
+
+function pumpMotion(now: number): void {
+  motionRaf = 0
+  if (!rig?.tick) return
+  const dt = motionLast ? Math.min(0.05, (now - motionLast) / 1000) : 1 / 60
+  motionLast = now
+  if (!rig.tick(dt)) {
+    motionLast = 0
+    return
+  }
+  if (now - lastPaint > 24) render()
+  motionRaf = requestAnimationFrame(pumpMotion)
+}
+
+/** 姿态变了就确保循环在跑（转不转由 `rig.tick()` 自己判）。 */
+function ensureMotion(): void {
+  if (motionRaf || !rig?.tick) return
+  motionLast = 0
+  motionRaf = requestAnimationFrame(pumpMotion)
 }
 
 /**
@@ -448,6 +519,9 @@ function resize(): void {
   // 画布比例一变，自适应距离就得重算——否则「放大画布」只放大空白，物体不放大。
   // 用户拖过视角就不动他的机位（镜头不能跟人抢）。
   if (!userMoved && rig?.focus?.length) placeCamera(props.t)
+  // 但**限位**要跟着画布比例走：自适应之后的推近被定死的 minDistance clamp 住，
+  // 是"放大画布物体不变大"的另一半原因。
+  else applyZoomLimits(props.t)
   syncAnnotSize(width, height)
   render()
 }
@@ -510,10 +584,41 @@ async function init(): Promise<void> {
        2026-11-10 加——「改了参数画面没变化」连续出现三次，靠眼睛猜不动了。
        生产环境也挂：它不含敏感数据，而且只在演示页生效；换来的是可测。 */
     ;(window as unknown as { __rig?: unknown }).__rig = rig
+    // 按 subject 再存一份：一个页面里可能同时有操纵台与侧门两台 rig，
+    // 共用一个 `__rig` 只能拿到最后建的那台（排查取景时踩过）。
+    ;(window as unknown as { __rigs?: Record<string, unknown> }).__rigs = {
+      ...((window as unknown as { __rigs?: Record<string, unknown> }).__rigs ?? {}),
+      [props.subject]: rig,
+    }
     /* 同一个出口再挂一次重绘：本场景是**按需渲染**（没有 rAF 循环），
        在控制台里改 `mesh.visible` 之类不会自己刷新——2026-11-10 排查
        「隐藏部件后截图完全没变」时发现的：15 张隔离截图 md5 全同。 */
     ;(window as unknown as { __rigRender?: () => void }).__rigRender = render
+    /* 第三个出口：**某个部件在屏幕上的位置**（视口坐标）。
+       为什么要它：2026-11-14 起交互只能点三维里的件（底部状态条不接收输入），
+       而 E2E 要点中"主控钥匙""门控按钮"这些几厘米的件——按画布比例猜坐标必然脆。
+       这里把部件包围盒中心投影到屏幕，E2E 直接 `mouse.click(x, y)`。
+       只在 `pick` 为真的场景挂：不能点的场景给了也没用。 */
+    if (props.pick) {
+      /* 按 subject 分表登记：一个页面里可能同时有操纵台与侧门两块可点画布，
+         共用一个函数名会互相覆盖（第一版就是这样，点门上的试块时拿到的是操纵台的）。 */
+      const reg = (window as unknown as { __scenePoints?: Record<string, unknown> }).__scenePoints ?? {}
+      reg[props.subject] = (key: string) => {
+        const obj = rig?.parts?.[key]
+        const el = canvas.value
+        const T = three
+        if (!obj || !el || !camera || !T) return null
+        const box = new T.Box3().setFromObject(obj)
+        if (box.isEmpty()) return null
+        const point = box.getCenter(new T.Vector3()).project(camera)
+        const rect = el.getBoundingClientRect()
+        return {
+          x: rect.left + ((point.x + 1) / 2) * rect.width,
+          y: rect.top + ((1 - point.y) / 2) * rect.height,
+        }
+      }
+      ;(window as unknown as { __scenePoints?: Record<string, unknown> }).__scenePoints = reg
+    }
 
     /* 导出 glb：给离线烘焙（Blender）用，**只在开发服务器里存在**。
        为什么挂在 DEV 分支：`import.meta.env.DEV` 在构建时被替换成常量 false，
@@ -705,6 +810,8 @@ async function init(): Promise<void> {
   rig.setT(props.t)
   // 工况要在 setT 之后设：setMode 内部会按上一次的 t 重算一遍，此时 t 已就位
   if (props.mode) rig.setMode?.(props.mode)
+  // 场景附加态同理：它要在"这一拍"的基础上换屏上页面，先摆姿态再换页
+  if (props.aux) rig.setAux?.(props.aux)
 
   if (rig.cut) {
     const { createSection } = await import('./devices/section')
@@ -819,7 +926,14 @@ async function init(): Promise<void> {
     )
     raycaster.setFromCamera(ndc, camera)
     const hits = raycaster.intersectObjects(Object.values(rig.parts), true)
-    return hits.length ? (partKeyOf(rig.parts, hits[0].object) ?? '') : ''
+    /* **只认实体**：设备上的墨线描边（`withEdges` 生成的 `EdgesGeometry`）是
+       `LineSegments`，而 `Raycaster.params.Line.threshold` 默认 **1 个世界单位**——
+       一条离射线 0.9m 的门扇轮廓线也会算"命中"，而且报的距离是它在射线上的投影位置。
+       结果就是：**指着门洞地板上的试块，最近命中却是门扇描边**，点击静默失效
+       （2026-11-14 本人实测，探针里查到的前两名命中都是 EdgesGeometry）。
+       描边没有任何交互语义，直接跳过；热区是 Mesh，不受影响。 */
+    const solid = hits.find((hit) => (hit.object as Mesh).isMesh)
+    return solid ? (partKeyOf(rig.parts, solid.object) ?? '') : ''
   }
 
   /* ------------------------------------------------------------ 悬停气泡
@@ -948,6 +1062,8 @@ async function init(): Promise<void> {
   loading.value = false
   // 第一帧渲染完再截：此时 loading 已经关掉，画布里有内容
   capture()
+  // 打开页面时设备可能已经在运转（例如直接落在"通风运行"那一步）
+  ensureMotion()
 }
 
 watch(
@@ -955,8 +1071,13 @@ watch(
   (value) => {
     rig?.setT(value)
     followCamera(value)
+    // 限位**不受 `userMoved` 影响**：人拉过视角之后，升弓这一拍的距离上限
+    // 也必须按新姿态重算，否则滚轮到最远仍框不下（见 `applyZoomLimits`）。
+    applyZoomLimits(value)
     render()
     scheduleCapture()
+    // 起机/停机都在 `setT` 里判：这里只管把循环拉起来，停转时 `tick` 会自己收尾
+    ensureMotion()
   },
 )
 
@@ -1005,8 +1126,23 @@ watch(
   (value) => {
     rig?.setMode?.(value)
     followCamera(props.t)
+    applyZoomLimits(props.t)
     render()
     scheduleCapture()
+  },
+)
+
+watch(
+  () => props.aux,
+  (value) => {
+    rig?.setAux?.(value)
+    // 场景附加态可以改"这一步要看哪几个件"（车门场景要把右前六个按钮框进来），
+    // 所以换页之后必须重新取景——只重绘的话，按钮在画面外，等于没做。
+    followCamera(props.t)
+    applyZoomLimits(props.t)
+    render()
+    scheduleCapture()
+    ensureMotion()
   },
 )
 
@@ -1022,6 +1158,11 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   window.clearTimeout(captureTimer)
+  cancelAnimationFrame(motionRaf)
+  motionRaf = 0
+  // 注销本场景的坐标出口：留着会指向已销毁的 rig，点出来是上一页的位置
+  const reg = (window as unknown as { __scenePoints?: Record<string, unknown> }).__scenePoints
+  if (reg) delete reg[props.subject]
   if (pickListeners) {
     pickListeners.el.removeEventListener('pointerdown', pickListeners.down)
     pickListeners.el.removeEventListener('pointerup', pickListeners.up)

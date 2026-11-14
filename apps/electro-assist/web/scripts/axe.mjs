@@ -67,6 +67,18 @@ const pages = [
     '/guide/g_door_switch_formal_001',
     () => document.querySelectorAll('.ex .topic').length > 0,
   ],
+  // 2026-11-14：两份「司机台操作」新样例各扫一遍——它们引入了两块新的深色 MON 屏
+  // 与一排六个状态灯，是这轮唯一新增的可交互界面，不扫等于没验收。
+  [
+    '空调制冷',
+    '/guide/g_hvac_cooling_desk',
+    () => document.querySelectorAll('.ex .topic').length > 0,
+  ],
+  [
+    '开关门',
+    '/guide/g_door_switch_desk',
+    () => document.querySelectorAll('.ex .topic').length > 0,
+  ],
   ['引导', `/run/${sid}`, () => !!document.querySelector('.run-head')],
   ['排查', '/diagnose', () => !!document.querySelector('.page-title')?.textContent?.includes('故障排查')],
 ]

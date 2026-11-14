@@ -81,6 +81,26 @@ function syncFromScroll(): void {
  * 页码口径是 `1 + steps + 尾页`（0 = 封面），所以第 i 步在 `i + 1`。
  * provide 放在这里而不是 StepPage：一页一个组件，而跳转要由分页器执行。
  */
+/* 作业台"本步完成，进入下一步"的出口：与 `next()` 同口径，
+   已经是最后一页就返回 false。 */
+provide('guide-next', () => {
+  if (current.value >= count.value - 1) return false
+  goTo(current.value + 1)
+  return true
+})
+
+/* 作业台「重新开始」的出口：回到**第一工步**（`page 0` 是封面，工步从 1 开始）。
+   已经在第一工步就返回 false，让按钮改说"状态已复位"。 */
+/* 最后一工步不该再出现「本步完成，进入下一步」——点了没反应比没按钮更差。
+   这里给的是**响应式**的能不能翻页：翻到末页时按钮自己消失。 */
+provide('guide-can-next', computed(() => current.value < count.value - 1))
+
+provide('guide-first', () => {
+  if (current.value <= 1) return false
+  goTo(1)
+  return true
+})
+
 provide('guide-goto-mon', () => {
   const index = props.steps.findIndex((s) =>
     (s.figures ?? []).some((f) => f.primitive === 'mon_panel'),

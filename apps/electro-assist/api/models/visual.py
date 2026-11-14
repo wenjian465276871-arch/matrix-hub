@@ -83,7 +83,9 @@ _ALLOWED_PARAMS: dict[Primitive, set[str]] = {
     # 交互情景：只给"哪个场景"和"打开时看哪一页"。数据（行、页签、联锁）在前端场景表里，
     # 让模型填这些等于让它编设备状态。
     Primitive.mon_panel: {"scene", "tab", "mode"},
-    Primitive.operation_scene: {"scene", "view"},
+    # `act`：**本步只允许做哪一组操作**（2026-11-14 本人要求"每页只能做本页主工步的操作"）。
+    # 取值必须是该场景在白名单里声明过的，模型不能自己编。
+    Primitive.operation_scene: {"scene", "view", "act"},
 }
 
 # 必填参数：缺了就不是"降级成文字"，而是渲染出一张没有信息量的空图。
@@ -108,7 +110,11 @@ _REQUIRED_PARAMS: dict[Primitive, set[str]] = {
 # 这张表必须与前端 `figures/devices/*.ts` 里 `parts` 的键一一对应；
 # 模型只能在这张表里选，选错即拒绝——它没有几何信息，放任自由填就等于让它编结构。
 DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
-    "door": ("leaf_l", "leaf_r", "frame", "lamp"),
+    # `block`（防夹试块）2026-11-14 加入：试块是本人在车门外侧点它才移动的，
+    # 不是页面上的按钮——所以它必须是可拾取的部件，而不是一段装饰几何。
+    # `motor` 同日补：三维里 `parts.motor` 早有这个组（门机 + 同步带），
+    # 悬停名称要逐字对上，释义表里有它就要求白名单里也有（反之亦然）。
+    "door": ("leaf_l", "leaf_r", "frame", "lamp", "block", "motor"),
     "pantograph": ("arms", "head", "frame", "drive", "drive2", "lamp"),
     "cabinet": ("breakers", "contactor", "relays", "lamps", "terminals", "board"),
     # 客室空调机组：整机一台，五步判据分别落在不同部件上，所以键分得比别的整机细。
@@ -130,8 +136,13 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
     "warning_sign": ("plate", "cord", "handle", "door"),
     "feeler_gauge": ("blades", "case", "gap", "seal"),
     "torque_wrench": ("wrench", "socket", "bolt", "bracket", "window"),
-    # 司机操纵台：升弓试验的"人这一侧"。8 个键全部是可操作件——
-    # 这台设备不是用来看的，是用来点的：点哪个键，现场就得做哪个动作。
+    # 司机操纵台：三项试验（升弓 / 空调制冷 / 开关门）共用的"人这一侧"。
+    # 全部是可操作件——这台设备不是用来看的，是用来点的：点哪个键，现场就得做哪个动作。
+    #
+    # 2026-11-14 加了 6 个门控按钮（左/右 × 释放/开门/关门）。为什么不合并成一个
+    # `door_panel`：合并之后 `part-click` 只能回一个键，点"开门"和点"关门"在事件层
+    # 就分不开，只能靠界面再问一次——那正是"点了没反应"的来源。六个键各自独立，
+    # 拾取即动作，与升弓旋钮同一套约定。
     "driver_desk": (
         "desk",
         "mon",
@@ -141,6 +152,12 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
         "knob",
         "vcb",
         "gauge",
+        "door_l_release",
+        "door_l_open",
+        "door_l_close",
+        "door_r_release",
+        "door_r_open",
+        "door_r_close",
     ),
 }
 
@@ -152,9 +169,11 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
 DEVICE_PART_LABELS: dict[str, dict[str, str]] = {
     "door": {
         "leaf_l": "左门扇（含门锁与携门架）",
+        "block": "防夹试块（卷状软物，点它在门外原位与门洞地板之间移动）",
         "leaf_r": "右门扇（含门锁与携门架）",
         "frame": "门框与门楣设备舱（门槛压条、密封面）",
         "lamp": "门状态指示灯（门机罩前脸）",
+        "motor": "门机（电机、减速箱、同步带与张紧轮）",
     },
     "pantograph": {
         "arms": "桁架臂（双下臂 + 上臂 + 平衡杆）",
@@ -219,6 +238,12 @@ DEVICE_PART_LABELS: dict[str, dict[str, str]] = {
         "knob": "升弓旋钮 PanUS（右旋保持、松手回位）",
         "vcb": "VCB 合按钮（中央开关盘，绿色带灯）",
         "gauge": "网压表（仪表盘左下，0–35 kV，正常区 19–31）",
+        "door_l_release": "左侧车门释放按钮（带灯，按下后全列左门释放）",
+        "door_l_open": "左侧车门开门按钮（集控打开全列左门）",
+        "door_l_close": "左侧车门关门按钮（集控关闭全列左门）",
+        "door_r_release": "右侧车门释放按钮（带灯，按下后全列右门释放）",
+        "door_r_open": "右侧车门开门按钮（集控打开全列右门）",
+        "door_r_close": "右侧车门关门按钮（集控关闭全列右门）",
     },
 }
 
@@ -323,8 +348,11 @@ DEVICE_SYSTEMS: dict[str, frozenset[str]] = {
     "warning_sign": frozenset({"door", "hvac", "pantograph"}),
     "feeler_gauge": frozenset({"door"}),
     "torque_wrench": frozenset({"door", "pantograph"}),
-    # 司机操纵台只服务升弓试验：车门/空调的作业在司机台上没有对应操作。
-    "driver_desk": frozenset({"pantograph"}),
+    # 司机操纵台现在服务三项试验：升弓、空调制冷、开关门。
+    # 2026-11-14 放开到 hvac / door——原表把三者共用的"人这一侧"锁死在升弓里，
+    # 结果是空调与车门指导书里连"在司机台设模式/按开门"这张图都画不出来。
+    # 放开不等于可以乱配：工位仍由本表约束，车门指导书里放受电弓照样拒绝。
+    "driver_desk": frozenset({"pantograph", "hvac", "door"}),
 }
 
 # 每份指导书最多几张三维图。与 prompt 里的约束同一处定义，避免"提示词说 2、代码放 5"。
@@ -354,6 +382,35 @@ INTERACTIVE_SCENES: dict[str, dict[str, tuple[str, ...]]] = {
         "mon_modes": ("check", "status"),
         # desk = 只看操纵台；both = 操纵台 + 车顶受电弓同框
         "ops_views": ("desk", "both"),
+        # 按步裁剪（2026-11-14 本人要求"一页只做本页的事"）：
+        # power 上电（到"手柄快速位"为止）/ unit 选受电弓单元 /
+        # raise 升弓与 VCB 闭合 / done 只看结论；all 保留给旧样例
+        "ops_acts": ("all", "power", "unit", "raise", "done"),
+    },
+    # 空调制冷试验：在 MON 上设模式与温度，操纵台只负责上电与看屏。
+    # tab：set=空调设定（模式/温度/新风门）· unit=机组状态（通信、压缩机、故障）
+    #      · cabin=客室温度（送风/回风/设定）
+    "hvac_cooling": {
+        "mon_tabs": ("set", "unit", "cabin"),
+        "mon_modes": ("check", "status"),
+        # desk = 只看操纵台；both = 操纵台 + 车顶机组同框；
+        # mon = **左侧直接是 MON 屏** + 右侧机组（2026-11-14 本人要求：
+        # 以 MON 操作为主的步骤不该再占一栏放操纵台——屏才是本步的作业面）。
+        "ops_views": ("desk", "both", "mon"),
+        # 按步裁剪：power 上电 / set 设定下发（通风） / vent 只看读数 /
+        # cool 切制冷并确认 / done 只看结论
+        "ops_acts": ("power", "set", "vent", "cool", "done"),
+    },
+    # 开关门试验：司机台上的六个门控按钮 + MON 车门页。
+    # tab：status=全列门状态 · control=集控按钮与灯 · fault=隔离与故障
+    "door_switch": {
+        "mon_tabs": ("status", "control", "fault"),
+        "mon_modes": ("check", "status"),
+        # desk = 只看操纵台；both = 操纵台 + 客室侧门同框
+        "ops_views": ("desk", "both"),
+        # power 上电 / check 只看门状态 / operate 释放+开门 / pinch 放试块+关门 /
+        # close 关门+释放复位
+        "ops_acts": ("power", "check", "operate", "pinch", "close"),
     },
 }
 
@@ -631,6 +688,11 @@ class VisualSpec(BaseModel):
                 if view not in spec["ops_views"]:
                     raise ValueError(
                         f"operation_scene.view 必须是 {sorted(spec['ops_views'])} 之一；收到 {view}"
+                    )
+                act = self.params.get("act", "all")
+                if act not in spec["ops_acts"]:
+                    raise ValueError(
+                        f"operation_scene.act 必须是 {sorted(spec['ops_acts'])} 之一；收到 {act}"
                     )
 
         self._check_motion()

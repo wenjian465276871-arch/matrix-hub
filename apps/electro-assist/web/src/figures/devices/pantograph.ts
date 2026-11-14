@@ -1407,6 +1407,10 @@ export function buildPantograph(): DeviceRig {
     fov: 26,
     envIntensity: 1.15,
     viewDir: [0.66, 0.42, 0.62],
+    /* 拉远上限 2.6（默认 1.6）：升到位后目标点抬到 1.54m、相机还带仰角，
+       右栏那种"宽而矮"的画布里 1.6 倍框不下整台弓 + 头顶接触网
+       （2026-11-14 本人滚轮拉到最小仍看不全）。 */
+    zoomOut: 2.6,
     framingAt,
     /* 标注锚点是**世界坐标**，随动作实时算。DeviceScene 把点投影到屏幕，做成 HTML 标签
        （3D 里的 Sprite 没有可用的字号：要么 1m 宽遮住设备，要么 4px 看不清）。 */

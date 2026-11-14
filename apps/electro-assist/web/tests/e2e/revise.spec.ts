@@ -30,13 +30,23 @@ test('搜索：按关键词过滤列表并给出命中数', async ({ page }) => 
   // 用 id 而不是文本：同一句话同时出现在读屏播报区（sr-only）与状态行里，
   // 按文本定位会撞上 strict mode。
   await expect(page.locator('#search-status')).toBeVisible()
-  await expect(page.locator('.guide-card')).toHaveCount(1)
-  await expect(page.locator('.guide-card').first()).toContainText('空调')
+  /* 不断言精确条数：2026-11-14 新增《客室空调制冷试验（司机台操作）》之后，
+     "空调"命中从 1 份变 2 份，写死 `toHaveCount(1)` 当场红——而搜索本身没错。
+     也不能"读一次列表就逐条断言"：结果刷新是异步的，读到一半会混进上一轮的卡片
+     （第一版就是这么红的：读到一张车门卡）。改成轮询到"每一张都含关键词"为止。 */
+  const cards = page.locator('.guide-card')
+  const allMatch = async (): Promise<boolean> => {
+    const texts = await cards.allTextContents()
+    return texts.length > 0 && texts.every((t) => t.includes('空调'))
+  }
+  await expect.poll(allMatch, { timeout: 8_000 }).toBe(true)
+  const hits = await cards.allTextContents()
 
   // 搜索词进 URL：刷新后仍然是过滤后的视图
   await expect(page).toHaveURL(/[?&]q=/)
   await page.reload()
-  await expect(page.locator('.guide-card')).toHaveCount(1)
+  await expect.poll(allMatch, { timeout: 8_000 }).toBe(true)
+  expect(await cards.allTextContents()).toEqual(hits)
 })
 
 test('搜索：没有匹配时给空状态，可一键清空', async ({ page }) => {

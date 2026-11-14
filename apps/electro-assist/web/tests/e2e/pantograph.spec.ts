@@ -26,8 +26,14 @@ import { expect, test } from '@playwright/test'
 const GUIDE = './guide/g_pantograph_raise_test'
 
 /** 下一步。版式里的按钮名就是「下一步 ›」。 */
+/**
+ * 版式里的翻页控件。探索台是 `button.play-button`（文字「下一步 ›」），
+ * 聚焦/窄版会换成 `.focus-arrow[aria-label=下一步]`——两个都指向同一件事。
+ * **不能用 `/下一步/` 选**：作业台的「本步完成，进入下一步 ›」也含这三个字，
+ * 会同时命中两个按钮（strict mode 直接报错）。
+ */
 function next(page: import('@playwright/test').Page) {
-  return page.getByRole('button', { name: /下一步/ })
+  return page.locator('button.play-button, button.focus-arrow[aria-label="下一步"]').first()
 }
 
 /** 点某个状态灯并断言它变蓝（`aria-pressed` 是"做过了"的唯一机读口径）。 */
@@ -57,33 +63,37 @@ test('六屏走完：三灯 → MON 五项 → 选弓 → 升弓到位 → 第 6
   await page.goto(GUIDE)
   await expect(page.getByRole('heading', { level: 1 })).toContainText('受电弓升弓试验')
 
-  // --- 第 2 屏：上电激活（三个状态灯） ---
+  // --- 第 2 屏：上电激活（三个状态灯 → 本步完成 → 进第 3 屏） ---
   await next(page).click()
   await expect(page.locator('.ops__btn').first()).toBeVisible()
   await press(page, '钥匙插入')
   await press(page, '钥匙右旋')
   await press(page, '手柄快速位')
-  // 上电后状态条要说"可升弓"，而不是只把按钮染色
-  await expect(page.locator('.ops__chip')).toContainText('MON')
+  // 上电后状态条要说"上电完成"，而不是只把按钮染色（2026-11-14 去掉了 MCR 那句）
+  await expect(page.locator('.ops__chip')).toContainText('上电完成')
+  // 本步只到"手柄快速位"为止：出口按钮由本步的完成判据给
+  await expect(page.locator('.ops__go')).toBeVisible()
+  await page.locator('.ops__go').click()
 
-  // --- 第 3 屏：MON 三页签五项确认 ---
-  await next(page).click()
+  // --- 第 3 屏：MON 三页签五项确认 → 屏内给"本步完成" ---
   await expect(page.getByRole('tab', { name: '电源电压' })).toBeVisible()
   for (const tab of ['电源电压', '车辆信息', '远程控制切除']) {
     await confirmTab(page, tab)
   }
   await page.getByRole('tab', { name: '电源电压' }).click()
   await expect(page.locator('.mon')).toContainText('五项已确认')
+  await expect(page.locator('.mon__go')).toBeVisible()
+  await page.locator('.mon__go').click()
 
   // --- 第 4 屏：选弓 ---
-  await next(page).click()
   await expect(page.locator('.ops__btn').first()).toBeVisible()
   await press(page, /选弓/)
   // 状态灯文案会带上选中的单元（`选弓 2U`），这是"选弓真的生效"的机读口径
   await expect(page.getByRole('button', { name: /选弓 2U/ })).toBeVisible()
+  await expect(page.locator('.ops__go')).toBeVisible()
+  await page.locator('.ops__go').click()
 
-  // --- 第 5 屏：按住升弓旋钮 ---
-  await next(page).click()
+  // --- 第 5 屏：按住升弓旋钮 → VCB 合 ---
   await page.getByRole('button', { name: '按住升弓旋钮' }).click()
   /* 等"真的升到位"，而不是等界面文案自己变。
      CI 的软件渲染只有 1–2fps（run 43460025005 卡在「升弓中」超时），按帧推进的动作
@@ -103,12 +113,17 @@ test('六屏走完：三灯 → MON 五项 → 选弓 → 升弓到位 → 第 6
     .toMatchObject({ raised: true })
   await expect(page.locator('.ops__chip')).toContainText('升弓到位')
   await expect(page.getByRole('button', { name: '松开旋钮' })).toBeVisible()
+  // 升弓到位还不算完：VCB 合上、网压建立才是本步的完成判据
+  await expect(page.locator('.ops__go')).toHaveCount(0)
+  await press(page, 'VCB 合')
+  await expect(page.locator('.ops__go')).toBeVisible()
+  await page.locator('.ops__go').click()
 
-  // --- 第 6 屏：确认网压 ---
-  await next(page).click()
+  // --- 第 6 屏：确认网压（最后一步：不该再出现"进入下一步"） ---
   const monitor = page.locator('.mon')
   await expect(monitor).toContainText('升起')
   await expect(monitor).toContainText('25.1')
+  await expect(page.locator('.ops__go')).toHaveCount(0)
 
   expect(errors, `页面抛错：${errors.join(' | ')}`).toEqual([])
 })

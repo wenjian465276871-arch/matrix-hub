@@ -30,6 +30,7 @@
  */
 import contract from '../../contract/devices.json'
 import {
+  Box3,
   CanvasTexture,
   CylinderGeometry,
   Group,
@@ -41,6 +42,7 @@ import {
   SRGBColorSpace,
   SphereGeometry,
   TorusGeometry,
+  Vector3,
 } from 'three'
 
 import type { DeviceRig } from './rig'
@@ -54,6 +56,7 @@ import {
   seg,
 } from './rig'
 import { DESK_T, phaseFor } from '../../lib/devphase'
+import { parseAux } from '../../lib/auxspec'
 
 /* ------------------------------------------------------------------ 尺寸 */
 
@@ -81,8 +84,20 @@ const SH = 480
 
 type Row = [string, string]
 
+/** 一屏 MON 画面。`tabs` 缺省是升弓试验的三页，空调/车门场景各自带一套页签——
+ *  屏是"结果指示器"，页签写错，读的人第一眼就知道这屏是假的。 */
+interface Page {
+  tab: string
+  rows: Row[]
+  note: string
+  on: boolean
+  tabs?: string[]
+}
+
+const PANTO_TABS = ['电源电压', '车辆信息', '远程控制切除']
+
 /** 八个状态的 MON 画面。索引与 `stateAt()` 对齐。 */
-const SCREEN: Array<{ tab: string; rows: Row[]; note: string; on: boolean }> = [
+const SCREEN: Page[] = [
   { tab: '待机', rows: [['主控', '未激活'], ['MON', '熄灭']], note: '插入主控钥匙并右旋', on: false },
   { tab: '待机', rows: [['主控钥匙', '已插入'], ['MON', '自检中']], note: '右旋钥匙，建立司机室占用', on: false },
   // state 2 = 钥匙右旋、司机室占用，但手柄还没到快速位 ⇒ 屏仍是暗的。
@@ -130,10 +145,17 @@ const SCREEN: Array<{ tab: string; rows: Row[]; note: string; on: boolean }> = [
 /** 屏下软键的编号：真车是 8 个，与屏内菜单一一对应。 */
 const SOFTKEYS = ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7', 'F8']
 
-/** 一张可重画的屏幕贴图。`paint` 只重画内容，不重建纹理。 */
+/** 一张可重画的屏幕贴图。`paint` 只重画内容，不重建纹理。
+ *
+ *  2026-11-14 起多了 `paintPage`：空调与车门两项试验共用同一块 MON，
+ *  屏上该显示"机组模式 / 设定温度"还是"车门释放 / 全列车门"，由场景决定。
+ *  `paint(index)` 仍走升弓那八拍；`paintPage()` 给另外两项试验用，
+ *  两者互不覆盖——切回升弓场景时 `clearAux()` 把八拍画面接回来。 */
 function screenSurface(): {
   tex: CanvasTexture
   paint: (index: number) => void
+  paintPage: (page: Page) => void
+  clearAux: () => void
   setUnit: (unit: '2U' | '3U') => void
 } {
   const canvas = document.createElement('canvas')
@@ -148,11 +170,11 @@ function screenSurface(): {
   let activeUnit: '2U' | '3U' = '2U'
   /** 最近画过的状态。切单元时要按同一状态重画，不能跳回待机。 */
   let painted = 0
+  /** 非升弓场景的常驻页面。null = 按升弓八拍画。 */
+  let auxPage: Page | null = null
 
-  const paint = (index: number): void => {
+  const paintPage = (page: Page): void => {
     if (!ctx) return
-    painted = index
-    const page = SCREEN[index] ?? SCREEN[0]
     const other = activeUnit === '2U' ? '3U' : '2U'
     const car = activeUnit === '2U' ? '04 车' : '06 车'
     const rowLabel = (label: string): string =>
@@ -165,6 +187,19 @@ function screenSurface(): {
     bg.addColorStop(1, page.on ? '#0a1d17' : '#050706')
     ctx.fillStyle = bg
     ctx.fillRect(0, 0, SW, SH)
+
+    /* 未上电就是**黑屏**：不是"内容变暗"。
+       2026-11-14 本人截图里，未上电的屏仍能读出"左侧 / 未释放 / 关闭锁闭"，
+       与旁边"未上电"三个字自相矛盾——屏没电，就不该有字。 */
+    if (!page.on && page.rows.length === 0) {
+      ctx.fillStyle = '#7fa79a'
+      ctx.font = '26px "Microsoft YaHei", sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText('未上电', SW / 2, SH / 2)
+      ctx.textAlign = 'left'
+      tex.needsUpdate = true
+      return
+    }
 
     /* 顶部状态条：车次 / 端号 / 模式。真车这一条是固定的，不随页面变。 */
     ctx.fillStyle = page.on ? '#175445' : '#101a16'
@@ -183,7 +218,7 @@ function screenSurface(): {
     /* 页面页签条 */
     ctx.fillStyle = page.on ? '#0e2c24' : '#0b1310'
     ctx.fillRect(0, 62, SW, 40)
-    const tabs = ['电源电压', '车辆信息', '远程控制切除']
+    const tabs = page.tabs ?? PANTO_TABS
     let tx = 22
     for (const name of tabs) {
       const active = page.on && name === page.tab
@@ -259,14 +294,33 @@ function screenSurface(): {
     tex.needsUpdate = true
   }
 
-  const setUnit = (unit: '2U' | '3U'): void => {
-    if (unit === activeUnit) return
-    activeUnit = unit
+  const paint = (index: number): void => {
+    painted = index
+    paintPage(SCREEN[index] ?? SCREEN[0])
+  }
+
+  /** 画一块"场景页"（空调 / 车门），并把它钉住：`setT()` 与 `setUnit()`
+   *  之后重画的仍是它——否则操纵台一进 0.12/0.22/0.36 三个节点，
+   *  屏就被升弓八拍顶掉了。 */
+  const paintAux = (page: Page): void => {
+    auxPage = page
+    paintPage(page)
+  }
+
+  const clearAux = (): void => {
+    if (!auxPage) return
+    auxPage = null
     paint(painted)
   }
 
+  const setUnit = (unit: '2U' | '3U'): void => {
+    if (unit === activeUnit) return
+    activeUnit = unit
+    paintPage(auxPage ?? SCREEN[painted] ?? SCREEN[0])
+  }
+
   paint(0)
-  return { tex, paint, setUnit }
+  return { tex, paint, paintPage: paintAux, clearAux, setUnit }
 }
 
 /** ATP 速度表屏：与 MON 并列的另一块大屏，只作背景（本试验不看它）。 */
@@ -533,7 +587,7 @@ export function buildDriverDesk(): DeviceRig {
   const mon = new Group()
   parts.mon = mon
 
-  const { tex: screenTex, paint, setUnit: setScreenUnit } = screenSurface()
+  const { tex: screenTex, paint, paintPage, clearAux, setUnit: setScreenUnit } = screenSurface()
   const monUnit = screenUnit(SCR_W, SCR_H, screenTex, 'MON', bezelMat, recessMat)
   monUnit.position.set(-0.30, 0.235, 0.004)
   // 屏幕挂在后倾的面板坐标系里：世界矩阵由 panel 带过去。
@@ -831,6 +885,210 @@ export function buildDriverDesk(): DeviceRig {
   rightLabel.position.set(0.86, TOP_Y + 0.045, 0.101)
   desk.add(rightLabel)
 
+  /* ------------------------------------------------------------ 车门控制盘（右前）
+     2026-11-14 新增：开关门试验要在司机台上"按按钮"，不是点屏幕。
+     形体依据（公开资料，非内部图纸）：CR 系列司机台两侧各三个自复位按钮
+     ——释放 / 开门 / 关门，释放按钮带灯；按下释放后全列该侧门才接受集控。
+     六个键各自是独立部件（`door_l_release` …），不合并成一个面板：
+     合并后 `part-click` 只能回一个键，点"开门"和点"关门"在事件层就分不开。 */
+  const DOOR_X = 0.78
+  const DOOR_TOP = TOP_Y
+
+  // 盘体与面板：盘体归 `desk`（它是台面的一部分，不该单独可点）
+  desk.add(roundedBox(0.36, 0.03, 0.125, paintedMaterial(0x3c4145), DOOR_X, DOOR_TOP + 0.015, 0.225, 0.008, 3))
+  desk.add(roundedBox(0.34, 0.008, 0.11, paintedMaterial(0x22262a), DOOR_X, DOOR_TOP + 0.032, 0.225, 0.004))
+
+  // 列与行的文字：六个一样大的圆柱，没有字就只能靠猜。
+  const colLabel: Array<[number, string]> = [
+    [0.69, '释放'],
+    [0.78, '开门'],
+    [0.87, '关门'],
+  ]
+  for (const [x, text] of colLabel) {
+    const plate = labelPlate(text, 0.058, 0.012)
+    plate.position.set(x, DOOR_TOP + 0.033, 0.281)
+    plate.rotation.x = -Math.PI / 2
+    desk.add(plate)
+  }
+  const rowLabel: Array<[number, string]> = [
+    [0.25, '左'],
+    [0.20, '右'],
+  ]
+  for (const [z, text] of rowLabel) {
+    const plate = labelPlate(text, 0.028, 0.011)
+    plate.position.set(0.628, DOOR_TOP + 0.033, z)
+    plate.rotation.x = -Math.PI / 2
+    desk.add(plate)
+  }
+
+  /** 六个按钮的盖帽材质：灯亮 = 自发光拉起来。按下状态要看得见，
+   *  否则"点了没反应"和"点了但被联锁拒绝"在画面上一样。 */
+  const doorCaps: Record<string, MeshStandardMaterial> = {}
+  const DOOR_KEYS = [
+    'door_l_release',
+    'door_l_open',
+    'door_l_close',
+    'door_r_release',
+    'door_r_open',
+    'door_r_close',
+  ] as const
+  const doorRows: Array<{ side: 'l' | 'r'; z: number }> = [
+    { side: 'l', z: 0.25 },
+    { side: 'r', z: 0.20 },
+  ]
+  const doorCols: Array<{ id: 'release' | 'open' | 'close'; x: number; color: number }> = [
+    { id: 'release', x: 0.69, color: 0x2f8f5b },
+    { id: 'open', x: 0.78, color: 0x2f6fd0 },
+    { id: 'close', x: 0.87, color: 0xb03a34 },
+  ]
+  for (const row of doorRows) {
+    for (const col of doorCols) {
+      const key = `door_${row.side}_${col.id}`
+      const g = new Group()
+      root.add(g)
+      parts[key] = g
+
+      const collar = new Mesh(new CylinderGeometry(0.0185, 0.0185, 0.006, 20), chromeMaterial())
+      collar.position.set(col.x, DOOR_TOP + 0.038, row.z)
+      g.add(collar)
+
+      const capMat = new MeshStandardMaterial({
+        color: 0x2a2f33,
+        emissive: col.color,
+        emissiveIntensity: 0,
+        metalness: 0,
+        roughness: 0.42,
+      })
+      const cap = new Mesh(new CylinderGeometry(0.014, 0.014, 0.013, 20), capMat)
+      cap.position.set(col.x, DOOR_TOP + 0.045, row.z)
+      g.add(cap)
+      doorCaps[key] = capMat
+
+      hotzone(g, 0.058, 0.055, 0.058, col.x, DOOR_TOP + 0.045, row.z)
+    }
+  }
+
+  /* ------------------------------------------------------------ 场景附加态 */
+
+  /** 车门页：MON 上"车门"页签的显示内容。 */
+  const doorPage = (side: string, released: boolean, open: boolean, on: boolean): Page => {
+    // 未上电 = 黑屏：rows 为空 ⇒ `paintPage` 只画"未上电"三个字
+    if (!on) return { tab: '车门', tabs: ['车门', '空调', '故障'], rows: [], note: '', on: false }
+    return {
+      tab: '车门',
+      tabs: ['车门', '空调', '故障'],
+      rows: [
+        ['集控侧', side === 'R' ? '右侧' : '左侧'],
+        ['车门释放', released ? '已释放' : '未释放'],
+        ['全列车门', open ? '有门未关闭' : '关闭锁闭'],
+      ],
+      note: open ? '关门灯灭 · 全列未关闭锁闭' : released ? '关门灯亮 · 可集控开关门' : '按释放按钮后集控有效',
+      on,
+    }
+  }
+
+  /** 空调页：模式 / 设定温度 / 新风门，与 MON 屏上的设置同一套口径。 */
+  const hvacPage = (mode: string, temp: number, fresh: string, on: boolean): Page => {
+    if (!on) return { tab: '空调', tabs: ['车门', '空调', '故障'], rows: [], note: '', on: false }
+    const label = mode === 'cool' ? '制冷' : mode === 'vent' ? '通风' : mode === 'heat' ? '制热' : '停止'
+    const rows: Row[] =
+      mode === 'cool'
+        ? [
+            ['机组模式', '制冷'],
+            ['设定温度', `${temp} ℃`],
+            ['送风/回风', '15.9 / 25.9'],
+          ]
+        : [
+            ['机组模式', label],
+            ['设定温度', `${temp} ℃`],
+            ['新风门', fresh === 'closed' ? '关闭' : '打开'],
+          ]
+    return {
+      tab: '空调',
+      tabs: ['车门', '空调', '故障'],
+      rows,
+      note: mode === 'cool' ? '压缩机与冷凝风机运行 · 制冷中' : '选择模式与设定温度后下发',
+      on,
+    }
+  }
+
+  /**
+   * 场景附加态。格式：`scene|k=v;k=v`。
+   *
+   * - `panto` 或空串：屏回到升弓八拍；
+   * - `hvac|mode=cool;temp=24;fresh=closed;on=1`：MON 显示空调页；
+   * - `door|side=L;released=1;open=0;on=1;press=door_l_open`：MON 显示车门页，
+   *   并把 `press` 那个按钮的灯点亮（按下反馈）。
+   */
+  /** 屏是否被"场景页"（空调/车门）占用。占用时 `setT()` 不许再画升弓八拍，
+   *  否则上电到 0.36 的那一刻，屏会从"空调制冷"跳回"电源电压"。 */
+  let auxActive = false
+
+  /**
+   * 取景范围按场景换。
+   *
+   * 门控按钮装在台面右前——升弓那套 `focus`（屏 / 钥匙 / 手柄 / 开关 / 旋钮 / VCB / 表）
+   * 只框到台面后缘，按钮正好在画面外：功能在、看不见、也点不中。
+   * 但把六个按钮并进升弓的 `focus` 又会让机位整体退后 1.6 倍，钥匙与旋钮变小。
+   * 所以做成**可变数组**：`DeviceScene` 拿的是同一个引用，`setAux` 就地改内容，
+   * 换场景后由组件重新取景（见 `DeviceScene.vue` 的 aux watcher）。
+   */
+  const focusPanto = ['mon', 'key', 'brake', 'switch', 'knob', 'vcb', 'gauge']
+  const focusKeys = [...focusPanto]
+  /** 当前场景：决定取景目标与屏上画哪一页。 */
+  let sceneMode: 'panto' | 'hvac' | 'door' = 'panto'
+
+  /** 给定部件集合的包围盒中心——车门场景要把相机对准"含门控盘"的那一团。 */
+  const centerOf = (keys: string[]): [number, number, number] => {
+    const box = new Box3()
+    let has = false
+    for (const key of keys) {
+      const obj = parts[key]
+      if (!obj) continue
+      const b = new Box3().setFromObject(obj)
+      if (b.isEmpty()) continue
+      if (has) box.union(b)
+      else {
+        box.copy(b)
+        has = true
+      }
+    }
+    if (!has) return [0, 0.88, 0.02]
+    const c = new Vector3()
+    box.getCenter(c)
+    return [c.x, c.y, c.z]
+  }
+
+  const setAux = (spec: string): void => {
+    // 解析在 `lib/auxspec.ts`（纯函数 + 三条用例）：这里原来自己 split('|')，
+    // 分号分隔的键值对会整段塞进第一个键，屏上回落成默认值而页面上看不出来。
+    const { scene, kv } = parseAux(spec)
+
+    // 按钮灯：先全灭，再点亮被按下的那个
+    for (const mat of Object.values(doorCaps)) mat.emissiveIntensity = 0
+    const press = kv.press ?? ''
+    if (press && doorCaps[press]) doorCaps[press].emissiveIntensity = 0.9
+
+    if (scene === 'hvac') {
+      auxActive = true
+      sceneMode = 'hvac'
+      focusKeys.splice(0, focusKeys.length, ...focusPanto)
+      paintPage(hvacPage(kv.mode ?? 'off', Number(kv.temp ?? 24), kv.fresh ?? 'closed', kv.on === '1'))
+      return
+    }
+    if (scene === 'door') {
+      auxActive = true
+      sceneMode = 'door'
+      focusKeys.splice(0, focusKeys.length, ...focusPanto, ...DOOR_KEYS)
+      paintPage(doorPage(kv.side ?? 'L', kv.released === '1', kv.open === '1', kv.on === '1'))
+      return
+    }
+    auxActive = false
+    sceneMode = 'panto'
+    focusKeys.splice(0, focusKeys.length, ...focusPanto)
+    clearAux()
+  }
+
   /* ------------------------------------------------------------ 动作 */
   let lastState = -1
 
@@ -849,7 +1107,7 @@ export function buildDriverDesk(): DeviceRig {
     const clamped = t < 0 ? 0 : t > 1 ? 1 : t
     const state = stateAt(clamped)
     if (state !== lastState) {
-      paint(state)
+      if (!auxActive) paint(state)
       // ATP 与 MON 同步上电。门槛是 state 3（MCR 励磁），不是 state 2（钥匙右旋）——
       // 屏的点亮条件只有一个出处：`monPowered()` 的同一套物理逻辑。
       atpMat.emissiveIntensity = state >= 3 ? 0.3 : 0.0
@@ -904,13 +1162,27 @@ export function buildDriverDesk(): DeviceRig {
     // 取不到就留空——气泡不显示，但模型照常渲染，不至于因为一张表让整台设备打不开。
     partLabels: (contract.devices.driver_desk?.part_labels ?? {}) as Record<string, string>,
     setUnit: setScreenUnit,
+    // 空调 / 车门两项试验要换屏上的页面、并点亮被按下的门控按钮
+    setAux,
     framing: { target: [0, 0.88, 0.02], distance: 2.3 },
+    /* 车门场景把取景目标挪到"含右前门控盘"那一团的中心：
+       否则六个按钮贴着画面下沿，投影点会落到画布外，点不中。 */
+    framingAt: () =>
+      sceneMode === 'door'
+        ? { target: centerOf(focusKeys), distance: 2.3 }
+        : { target: [0, 0.88, 0.02], distance: 2.3 },
     // 略俯视：台面是水平面，平视只能看到一排侧影；实拍也是从司机肩后上方看
     viewDir: [0.1, 0.4, 0.92],
     // 动的是钥匙、手柄、旋钮、按钮与屏，仪表盘与电话是背景
-    focus: ['mon', 'key', 'brake', 'switch', 'knob', 'vcb', 'gauge'],
-    // 1.16 时，1090×614 的窄画布把钥匙牌压在下沿；1.22 让钥匙与顶梁同时完整
-    fitMargin: 1.22,
+    // 动的是钥匙、手柄、旋钮、按钮与屏，仪表盘与电话是背景。
+    // 数组内容按场景可变（车门场景要把右前的六个按钮也框进来），见 `focusKeys`。
+    focus: focusKeys,
+    /* 1.16 时，1090×614 的窄画布把钥匙牌压在下沿；1.22 让钥匙与顶梁同时完整。
+       车门场景要再退一档（1.62）：右前门控盘在 z≈0.25（离镜头更近），
+       透视会把它推到画面右缘之外——按 1.22 实测投影点落在画布外，点不中。 */
+    get fitMargin(): number {
+      return sceneMode === 'door' ? 1.62 : 1.22
+    },
     fov: 32,
     envIntensity: 0.95,
     dispose: () => disposeTree(root),

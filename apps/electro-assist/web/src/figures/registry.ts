@@ -16,7 +16,7 @@ import GateState from './primitives/GateState.vue'
 import Meter from './primitives/Meter.vue'
 import MonPanel from './primitives/MonPanel.vue'
 import MotionTimeline from './primitives/MotionTimeline.vue'
-import PantoOps from './primitives/PantoOps.vue'
+import OperationScene from './primitives/OperationScene.vue'
 import StatusLight from './primitives/StatusLight.vue'
 import StepCard from './primitives/StepCard.vue'
 import Table from './primitives/Table.vue'
@@ -41,7 +41,8 @@ export const FIGURES: Record<string, Component> = {
   // 不进指导书页面就不下载那 191KB。
   device_scene: DeviceFigure,
   baked_figure: BakedFigure,
-  // 交互情景：带状态，不是一张图。见 `lib/panto-session.ts`。
+  // 交互情景：带状态，不是一张图。见 `lib/panto-session.ts` 与 `lib/desk-power.ts`。
   mon_panel: MonPanel,
-  operation_scene: PantoOps,
+  // 作业台按场景分发：升弓走 PantoOps（按住旋钮），空调/车门走 OpsBoard。
+  operation_scene: OperationScene,
 }

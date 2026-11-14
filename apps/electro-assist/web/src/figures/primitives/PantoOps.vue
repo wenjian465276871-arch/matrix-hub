@@ -50,6 +50,11 @@ const props = defineProps<{
 /** 跳到 MON 确认页。由阅读器 / 探索台 provide；没有提供时返回 false，
  *  PantoOps 退化成只给提示（单测里就是这样）。 */
 const gotoMonStep = inject<(() => boolean) | null>('guide-goto-mon', null)
+/** 本步做完的出口（与空调 / 车门同一个钩子）。 */
+const gotoNext = inject<(() => boolean) | null>('guide-next', null)
+const gotoFirst = inject<(() => boolean) | null>('guide-first', null)
+/** 后面还有没有工步：最后一页要藏掉出口。 */
+const canNext = inject<{ value: boolean } | null>('guide-can-next', null)
 
 /** MON 屏放大态：三维里的屏只有 0.46m 宽，投影到画布上几十像素，读不清读数。 */
 const monZoom = ref(false)
@@ -152,6 +157,40 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKey)
 })
 
+/* ---------------- 本步做到哪为止 ----------------
+ *  2026-11-14 本人实测：第 2 工步的提示还写着"MON 屏逐项确认"、底部还摆着选弓/升弓/VCB，
+ *  一页干了后面几步的事。这里按 `act` 裁剪：本步没到的件点了会被点名，按钮也变灰。
+ */
+const phase = computed(() => String(props.params.act ?? 'all'))
+
+const ALLOWED: Record<string, string[]> = {
+  // 上电：只到"手柄快速位"为止
+  power: ['key', 'brake', 'mon'],
+  // 选单元：只动转换开关
+  unit: ['switch', 'mon'],
+  // 升弓与 VCB 闭合
+  raise: ['knob', 'vcb', 'mon', 'gauge'],
+  // 结论：只看
+  done: ['mon', 'gauge'],
+  all: ['key', 'brake', 'switch', 'knob', 'vcb', 'mon', 'gauge'],
+}
+
+function allowed(key: string): boolean {
+  return (ALLOWED[phase.value] ?? ALLOWED.all).includes(key)
+}
+
+const PHASE_LABEL: Record<string, string> = {
+  power: '插钥匙 / 钥匙右旋 / 手柄快速位',
+  unit: '选受电弓单元',
+  raise: '升弓与 VCB 闭合',
+  done: '核对网压与结论',
+  all: '本步操作',
+}
+
+function outOfScope(name: string): void {
+  notice.value = `本步只做「${PHASE_LABEL[phase.value] ?? '本步操作'}」：${name} 不在本步范围内，请按提示进入对应工步`
+}
+
 /* ---------------- 动作入口 ---------------- */
 
 /** 每个按钮对应**一个原子动作**，不再是一个按钮轮流承担"插入→右旋"。
@@ -162,7 +201,22 @@ function run(result: { ok: boolean; hint: string }): void {
   notice.value = result.hint
 }
 
+/** 六个按钮各自对应哪个"件"（按步裁剪用）。 */
+const ACT_KEY: Record<Act, string> = {
+  insert: 'key',
+  turn: 'key',
+  brake: 'brake',
+  switch: 'switch',
+  knob: 'knob',
+  vcb: 'vcb',
+}
+
 function act(kind: Act): void {
+  const key = ACT_KEY[kind]
+  if (!allowed(key)) {
+    outOfScope(descOf(kind))
+    return
+  }
   if (kind === 'insert') {
     if (session.keyInserted) {
       notice.value = '钥匙已插入'
@@ -201,6 +255,19 @@ function act(kind: Act): void {
     return
   }
   run(closeVcb())
+}
+
+/** 按钮的中文名（越界提示用）。 */
+function descOf(kind: Act): string {
+  const map: Record<Act, string> = {
+    insert: '钥匙插入',
+    turn: '钥匙右旋',
+    brake: '手柄快速位',
+    switch: '选弓 2U/3U',
+    knob: '升弓旋钮',
+    vcb: 'VCB 合',
+  }
+  return map[kind]
 }
 
 /**
@@ -249,6 +316,10 @@ const PART_NAME: Record<string, string> = {
  *  回执只取括号前的主名——回执要短，气泡才负责把细节说完。 */
 function onPart(key: string, label = ''): void {
   const name = (label ? splitLabel(label).name : '') || PART_NAME[key] || key
+  if (key !== 'desk' && !allowed(key)) {
+    outOfScope(name)
+    return
+  }
   if (key === 'key') act(session.keyInserted ? 'turn' : 'insert')
   else if (key === 'brake') act('brake')
   else if (key === 'switch') act('switch')
@@ -268,7 +339,55 @@ function onPart(key: string, label = ''): void {
 /* ---------------- 显示 ---------------- */
 
 const stage = computed(() => stageText())
-const next = computed(() => nextAction())
+
+/** 本步的完成判据：与样例里的 `act` 一一对应。 */
+const stepDone = computed(() => {
+  switch (phase.value) {
+    case 'power':
+      return session.keyInserted && session.keyTurned && session.brakeFast
+    case 'unit':
+      return session.unit !== null
+    case 'raise':
+      return session.raised && session.vcbClosed
+    case 'done':
+      return false
+    default:
+      return monMissing().length === 0 && session.raised && session.vcbClosed
+  }
+})
+
+/**
+ * 本步提示：**只说本步要做的事**。
+ * 原来一律调 `nextAction()`，第 2 工步就在催"去 MON 逐项确认"——那是第 3 步的活。
+ */
+const next = computed(() => {
+  switch (phase.value) {
+    case 'power':
+      if (!session.keyInserted) return '点三维里的主控钥匙：插入'
+      if (!session.keyTurned) return '再点一次钥匙：右旋到运行位（司机室占用）'
+      if (!session.brakeFast) return '点三维里的制动手柄：推到「快速」位'
+      return '上电完成，可进入下一工步'
+    case 'unit':
+      if (!session.unit) return '点三维里转换开关盘上的受电弓切换开关：选 2U 或 3U'
+      return `已选 ${session.unit}，可进入下一工步`
+    case 'raise':
+      if (!session.raised) return '按住三维里的升弓旋钮不松手，直到 MON 显示「升起」'
+      if (!session.vcbClosed) return '点三维里的「VCB 合」按钮：合闸后网压建立'
+      return '升弓到位、VCB 闭合，可进入下一工步'
+    case 'done':
+      return '本试验最后一步：核对网压并完成呼唤应答'
+    default:
+      return nextAction()
+  }
+})
+
+/** 本步做完、且后面还有工步才给出口。 */
+const showGo = computed(() => stepDone.value && (canNext ? canNext.value : true))
+
+function goNext(): void {
+  const jumped = gotoNext?.() ?? false
+  notice.value = jumped ? '已进入下一步' : '请点右上角「下一步」进入下一工步'
+}
 const unitText = computed(() => session.unit ?? '未选择')
 const volts = computed(() => (session.raised ? '25.1 kV' : '0 kV'))
 
@@ -300,9 +419,11 @@ const acts = computed<Array<{ id: Act; label: string; done: boolean }>>(() => [
   { id: 'vcb', label: 'VCB 合', done: session.vcbClosed },
 ])
 
+/** 重新开始：复位 + 回第一工步（与空调 / 车门同一套逻辑、同一种样式）。 */
 function restart(): void {
   reset()
-  notice.value = '已复位到落弓状态'
+  const jumped = gotoFirst?.() ?? false
+  notice.value = jumped ? '已回到第一工步，状态复位' : '已在第一工步：状态已复位'
 }
 
 </script>
@@ -363,14 +484,21 @@ function restart(): void {
         v-for="a in acts"
         :key="a.id"
         class="ops__btn"
-        :class="{ 'is-done': a.done, 'is-on': a.id === 'knob' && session.raiseHeld }"
+        :class="{
+          'is-done': a.done,
+          'is-on': a.id === 'knob' && session.raiseHeld,
+          'is-muted': !allowed(ACT_KEY[a.id]),
+        }"
         type="button"
         :aria-pressed="a.done"
         @click="act(a.id)"
       >
         {{ a.label }}
       </button>
-      <button class="ops__btn ops__btn--reset" type="button" @click="restart">重新开始</button>
+      <button v-if="showGo" class="ops__go" type="button" @click="goNext">
+        本步完成，进入下一步 ›
+      </button>
+      <button class="ops__reset" type="button" @click="restart">重新开始</button>
     </div>
 
     <p class="ops__note">
@@ -584,8 +712,44 @@ function restart(): void {
   color: #fff;
 }
 
-.ops__btn--reset {
+/* 本步用不到的按钮：变虚（不是变灰不可点——点了会说明本步做什么） */
+.ops__btn.is-muted {
+  border-style: dashed;
   color: var(--c-ink-2);
+  opacity: 0.55;
+}
+
+.ops__btn.is-muted.is-done {
+  opacity: 1;
+}
+
+/* 「本步完成」与「重新开始」——与空调 / 车门那套同一个样式 */
+.ops__go {
+  flex: 0 0 auto;
+  margin-left: auto;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--c-primary);
+  border-radius: var(--radius-sm);
+  background: var(--c-primary);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ops__reset {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: var(--c-ink-2);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 

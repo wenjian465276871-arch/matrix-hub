@@ -36,6 +36,8 @@ import {
   MeshStandardMaterial,
   Object3D,
   SphereGeometry,
+  Sprite,
+  SpriteMaterial,
   TorusGeometry,
   TubeGeometry,
   Vector3,
@@ -213,6 +215,9 @@ function axialFan(material: MeshStandardMaterial): { group: Group; rotor: Group 
     arm.add(blade)
     rotor.add(arm)
   }
+  // 名字给测试与调试用：E2E 靠 `getObjectByName/traverse` 读转角验"真的在转"，
+  // 不希望为此在契约里加两个假部件键（`parts` 的键是与后端一一对应的）。
+  rotor.name = 'fan-rotor'
   rotor.position.y = 0.005
   group.add(rotor)
 
@@ -653,6 +658,75 @@ export function buildHvac(): DeviceRig {
       const slat = roundedBox(0.5, 0.006, 0.03, casing, 0, U.deck - 0.017, z - 0.056 + i * 0.028, 0.002)
       slat.rotation.x = Math.sign(z) * 0.4
       supply.add(slat)
+    }
+  }
+
+  /* ============================================================ 送风冷气 */
+  /* 通风与制冷的差别必须**看得见**。原来只有翅片结露与接水盘水位——两者都在壳里，
+     俯视机位远看几乎没变化（2026-11-14 本人：切换模式后看不出区别）。
+     这里从两条送风格栅（z = ±0.66，吊在底盘下面）各放一串朝外下方飘的白雾：
+     通风时不可见，制冷时出现并缓慢外扩。 */
+  const mist = new Group()
+  mist.name = 'cold-mist'
+  mist.visible = false
+  root.add(mist)
+
+  const mistTex = canvasTexture(64, 64, (ctx, w, h) => {
+    const grad = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2)
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.92)')
+    grad.addColorStop(0.45, 'rgba(226, 242, 252, 0.5)')
+    grad.addColorStop(1, 'rgba(226, 242, 252, 0)')
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, w, h)
+  })
+
+  interface Puff {
+    sprite: Sprite
+    side: 1 | -1
+    /** 0–1 的生命进度，各自错开，才不是"一起喷"。 */
+    age: number
+    life: number
+    swirl: number
+  }
+
+  const puffs: Puff[] = []
+  for (const side of [-1, 1] as const) {
+    for (let i = 0; i < 9; i += 1) {
+      const mat = new SpriteMaterial({
+        map: mistTex,
+        // 冷灰蓝而不是纯白：浅色地板上纯白几乎看不见（第一版就是这样，等于没做）
+        color: 0xa8cbe8,
+        transparent: true,
+        depthWrite: false,
+        opacity: 0,
+      })
+      const sprite = new Sprite(mat)
+      // 氛围不是可点的件：关掉射线，免得挡住它后面的格栅与试块
+      sprite.raycast = () => {}
+      sprite.scale.setScalar(0.16)
+      sprite.position.set(0, U.deck - 0.06, side * 0.66)
+      mist.add(sprite)
+      puffs.push({ sprite, side, age: i / 9, life: 1.7 + (i % 3) * 0.5, swirl: (i % 5) * 0.7 })
+    }
+  }
+
+  /** 制冷时推进冷气团：向外下方飘、边飘边散、末尾淡出。 */
+  const stepMist = (dt: number): void => {
+    for (const puff of puffs) {
+      puff.age += dt / puff.life
+      if (puff.age >= 1) puff.age -= 1
+      const a = puff.age
+      const size = 0.18 + a * 0.78
+      puff.sprite.scale.set(size, size, 1)
+      /* 往**外下方**走得比第一版远：贴着格栅时它整个被机组本体挡住，
+         只有飘出机体轮廓（z 到 1.4 左右）才看得见。 */
+      puff.sprite.position.set(
+        Math.sin(a * Math.PI * 2 + puff.swirl) * 0.12,
+        U.deck - 0.06 - a * 0.34,
+        puff.side * (0.66 + a * 0.78),
+      )
+      // 两头淡、中间浓；是"冷气"，不是烟——峰值压到 0.55
+      ;(puff.sprite.material as SpriteMaterial).opacity = Math.sin(Math.PI * a) * 0.66
     }
   }
 
@@ -1122,9 +1196,17 @@ export function buildHvac(): DeviceRig {
     ledMat(1, running, 0x2f9e6a)
     ledMat(2, selfTest, 0xd39a2a)
 
-    // 风机：0.5 起加速（送风机与冷凝风机同时），0.58 后满速
-    const spin = t >= 0.5 ? 0.2 + smoothStep(seg(t, 0.5, 0.58)) * 1.8 : 0
-    for (const f of fanRig) f.rotor.rotation.y = spin * Math.PI
+    // 风机：0.5 起加速（送风机与冷凝风机同时），0.58 后满速。
+    // 这里**只记"该转多快"**，角度由 `tick()` 自己累加——`setT` 绝不能重置角度：
+    // 演示页的自动播放每帧都会喂一个新 t，一重置叶轮就永远停在同一个角上（看着像卡住）。
+    spinRate = t >= 0.5 ? 0.2 + smoothStep(seg(t, 0.5, 0.58)) * 1.8 : 0
+
+    // 冷气：压缩机一起（0.68）就出现；回到通风/停机要立刻收掉，不能留在画面上
+    misting = t >= HVAC_T.cool
+    mist.visible = misting
+    if (!misting) {
+      for (const puff of puffs) (puff.sprite.material as SpriteMaterial).opacity = 0
+    }
 
     /* 制冷段：翅片结露 + 接水盘积水（2026-11-12 R11-7）。
        这一段原来画面**完全不动**——盖板/盒盖/断路器/指示灯/风机都在 0.5 之前
@@ -1144,6 +1226,17 @@ export function buildHvac(): DeviceRig {
     water.position.y = BOTTOM + 0.078 + 0.012 * wet
   }
 
+  /* ------------------------------------------------------------ 冷气与运转件 */
+  /** 制冷段是否在冒冷气（由 `t` 定：0.68 = 压缩机起动）。 */
+  let misting = false
+  /** 转速系数：0 = 停，0.2 起转、2 ≈ 满速。由 `setT` 按 t 推出。 */
+  let spinRate = 0
+  /** 叶轮当前角度（弧度）。只由 `tick` 累加；`setT` 不碰它（见上面那段注释）。 */
+  let spinAngle = 0
+  const applyRotors = (): void => {
+    for (const f of fanRig) f.rotor.rotation.y = spinAngle
+  }
+
   /* 阶段文案的唯一来源在 `lib/devphase.ts`：同一句话不该在这里再写一遍。
      2026-11-12 评审 R11-6：三维侧与读数侧各写一份，`door` 已经漂成
      "三维说完全开启、界面说到位检测"。阈值改动请改 devphase 的常量。 */
@@ -1156,9 +1249,27 @@ export function buildHvac(): DeviceRig {
     setT,
     parts,
     phase,
+    /**
+     * 叶轮按转速累加转角。**与 `t` 无关**：只要还在通风/制冷，就一直转。
+     *
+     * 满速按 1.2 转/秒算（`spinRate 2 × 0.6`）。真机 1000+ rpm 在屏幕上会打成
+     * 频闪（5 片叶片 60° 对称，每帧转过接近 60° 的整数倍就看不出在转），
+     * 所以这里取"看得出在转、又不糊成一圈"的值——示意模型要的是可读，不是转速标定。
+     */
+    tick: (dt: number): boolean => {
+      if (misting) stepMist(dt)
+      if (spinRate <= 0) return misting
+      spinAngle += dt * spinRate * Math.PI * 2 * 0.6
+      applyRotors()
+      return true
+    },
     /* 触屏演示用的整机机位：镜头在 -Z 侧前上方，与五张烘焙图同一侧。
-       不声明 `focus`：整机类要的是"看全"，声明 focus 会让自动取景按部件包围盒
-       重新算距离，把机器顶到画面外（第一版就是这样，底部被切掉）。 */
+       2026-11-14：声明 `focus`（整机主要部件）。理由是作业台右栏变窄以后，
+       固定 3.6m 距离在窄画布上会把机组横向切掉——本人正是要在这一栏看两台风机。
+       现在距离按包围盒 + 当前宽高比算：宽画面与原来一致，窄画面自动退远。
+       `fitMargin` 给到 1.35：整机类宁可略小，也不能切边（第一版 1.16 切过底部）。 */
+    focus: ['shell', 'fans', 'condenser', 'evaporator', 'compressor', 'supply', 'filters', 'control', 'piping'],
+    fitMargin: 1.35,
     framing: { target: [0, 0.8, 0], distance: 3.6 },
     viewDir: [0.42, 0.52, -0.75],
     fov: 30,

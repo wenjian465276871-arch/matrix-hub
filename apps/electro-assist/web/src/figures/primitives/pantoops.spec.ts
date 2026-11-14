@@ -22,9 +22,9 @@ const SceneStub = defineComponent({
   template: '<div class="scene-stub" />',
 })
 
-function mountOps(view = 'both', provide: Record<string, unknown> = {}) {
+function mountOps(view = 'both', provide: Record<string, unknown> = {}, act = 'all') {
   return mount(PantoOps, {
-    props: { params: { scene: 'pantograph_raise', view }, label: '升弓操作' },
+    props: { params: { scene: 'pantograph_raise', view, act }, label: '升弓操作' },
     global: { stubs: { DeviceScene: SceneStub }, provide },
   })
 }
@@ -238,15 +238,49 @@ describe('operation_scene', () => {
       })
   })
 
-  it('重新开始把状态清回落弓', () => {
-    const w = mountOps()
+  it('重新开始：状态清回落弓，并调用"回到第一工步"的出口', async () => {
+    const first = vi.fn(() => true)
+    const w = mountOps('both', { 'guide-first': first })
     session.keyInserted = true
     session.raiseT = 0.5
-    return buttonByText(w, '重新开始')
-      .trigger('click')
-      .then(() => {
-        expect(session.keyInserted).toBe(false)
-        expect(session.raiseT).toBe(0)
-      })
+    // 2026-11-14 本人要求：与空调 / 车门同一种样式（文字链）与同一条逻辑
+    await w.get('.ops__reset').trigger('click')
+    expect(session.keyInserted).toBe(false)
+    expect(session.raiseT).toBe(0)
+    expect(first).toHaveBeenCalledOnce()
+    expect(w.get('.ops__toast').text()).toContain('第一工步')
+  })
+
+  it('上电步：只做到手柄快速位，选弓被点名拒绝', async () => {
+    const w = mountOps('desk', {}, 'power')
+    await buttonByText(w, '选弓 2U/3U').trigger('click')
+    expect(session.unit).toBeNull()
+    expect(w.get('.ops__toast').text()).toContain('本步只做')
+    expect(w.get('.ops__toast').text()).toContain('手柄快速位')
+
+    session.keyInserted = true
+    session.keyTurned = true
+    await expect(w.find('.ops__go').exists()).toBe(false)
+    session.brakeFast = true
+    await w.vm.$nextTick()
+    expect(w.find('.ops__go').exists()).toBe(true)
+  })
+
+  it('升弓步：升到位但 VCB 没合，不算完成', async () => {
+    const w = mountOps('both', {}, 'raise')
+    session.raised = true
+    await w.vm.$nextTick()
+    expect(w.find('.ops__go').exists()).toBe(false)
+    session.vcbClosed = true
+    await w.vm.$nextTick()
+    expect(w.find('.ops__go').exists()).toBe(true)
+  })
+
+  it('最后一工步：不给"进入下一步"', async () => {
+    const w = mountOps('both', { 'guide-can-next': { value: false } }, 'raise')
+    session.raised = true
+    session.vcbClosed = true
+    await w.vm.$nextTick()
+    expect(w.find('.ops__go').exists()).toBe(false)
   })
 })

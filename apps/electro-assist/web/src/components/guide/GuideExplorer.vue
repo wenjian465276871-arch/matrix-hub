@@ -109,6 +109,24 @@ function prev(): void {
  * 给操作台一个钩子：点三维里的 MON 屏就能过去确认，不必自己找目录。
  * 在 MON 屏已经确认完的情况下，操作台会改走"放大看读数"，不会调它。
  */
+/* 作业台"本步完成，进入下一步"的出口。页码口径与 `next()` 同一个，
+   到最后一页就返回 false，让作业台改说"点右上角下一步"。 */
+provide('guide-next', () => {
+  if (props.page >= total.value - 1) return false
+  go(props.page + 1)
+  return true
+})
+
+/* 作业台「重新开始」：回到第一工步（探索台的 page 就是工步下标，0 = 第一步）。 */
+/* 最后一个工步：不再给「本步完成，进入下一步」（点了没反应等于骗人）。 */
+provide('guide-can-next', computed(() => props.page < total.value - 1))
+
+provide('guide-first', () => {
+  if (props.page <= 0) return false
+  go(0)
+  return true
+})
+
 provide('guide-goto-mon', () => {
   const index = steps.value.findIndex((s) =>
     (s.figures ?? []).some((f) => f.primitive === 'mon_panel'),

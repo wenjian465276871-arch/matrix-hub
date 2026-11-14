@@ -118,7 +118,7 @@ export function turnKey(): ActionResult {
   if (!session.keyInserted) return { ok: false, hint: '先插入主控钥匙，锁芯才转得动' }
   if (session.keyTurned) return OK('司机室已占用')
   session.keyTurned = true
-  session.notice = '钥匙右旋到运行位：司机室占用（MON 待 MCR 励磁后点亮）'
+  session.notice = '钥匙右旋到运行位：司机室占用'
   return OK(session.notice)
 }
 
@@ -126,7 +126,7 @@ export function moveBrakeFast(): ActionResult {
   if (!session.keyTurned) return { ok: false, hint: '主控未激活：钥匙要先右旋，司机室占用后手柄才有效' }
   if (session.brakeFast) return OK('制动手柄已在快速位')
   session.brakeFast = true
-  session.notice = '制动手柄移至快速位：MCR 励磁、MON 屏点亮'
+  session.notice = '制动手柄移至快速位：MON 屏点亮'
   return OK(session.notice)
 }
 
@@ -153,7 +153,7 @@ export function confirmMon(key: MonKey): ActionResult {
     return { ok: false, hint: 'MON 未上电：先插主控钥匙并右旋到运行位' }
   }
   if (!session.brakeFast) {
-    return { ok: false, hint: 'MON 未上电：制动手柄推到「快速」位、MCR 励磁后屏才点亮' }
+    return { ok: false, hint: 'MON 未上电：先把制动手柄推到「快速」位，屏才点亮' }
   }
   if (key === 'vcb' && session.vcbClosed) {
     return { ok: false, hint: 'VCB 已闭合：升弓前必须断开（复位后重来）' }
@@ -243,7 +243,7 @@ export function deskT(): number {
 export function nextAction(): string {
   if (!session.keyInserted) return '点制动控制器上的钥匙，插入主控钥匙'
   if (!session.keyTurned) return '再把钥匙右旋到运行位（司机室占用）'
-  if (!session.brakeFast) return '把制动手柄推到"快速"位：MCR 励磁后 MON 才点亮'
+  if (!session.brakeFast) return '把制动手柄推到"快速"位：之后 MON 才点亮'
   // 措辞跟着交互走：现在点 MON 屏就能进确认页，不必让人自己找"第 3 步"在哪。
   if (monMissing().length) return 'MON 屏还有确认项未完成，请点击 MON 屏进行逐项确认'
   if (!session.unit) return '在转换开关盘上选择受电弓单元（2U / 3U）'
@@ -257,7 +257,7 @@ export function stageText(): string {
   if (session.raised) return '升弓到位、保压'
   if (session.raiseHeld) return '升弓中'
   if (session.unit) return '已选弓，待发升弓指令'
-  if (session.brakeFast) return 'MCR 励磁、MON 已点亮，可升弓'
+  if (session.brakeFast) return '上电完成，可升弓'
   if (session.keyTurned) return '司机室占用（待手柄快速位）'
   if (session.keyInserted) return '钥匙已插入'
   return '未上电'

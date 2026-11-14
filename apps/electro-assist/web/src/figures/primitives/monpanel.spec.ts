@@ -9,7 +9,7 @@
  *  6. VCB 合上后屏上必须显示"闭合"——不能写死"断开"。
  */
 import { mount } from '@vue/test-utils'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import MonPanel from './MonPanel.vue'
 import { reset, session } from '../../lib/panto-session'
@@ -55,11 +55,12 @@ describe('mon_panel', () => {
   })
 
   it('只右旋钥匙还不够：手柄不在快速位时屏仍是暗的', () => {
-    // 2026-11-13 本人指出：钥匙右旋只建立司机室占用，MON 要等 MCR 励磁才亮。
+    // 2026-11-13 本人指出：钥匙右旋只建立司机室占用，手柄到快速位屏才亮。
+    // 2026-11-14 本人要求：状态条别写「MCR 励磁、MON 已点亮」这类内部说法。
     session.keyTurned = true
     const w = mountPanel()
     expect(w.get('.mon').classes()).toContain('mon--off')
-    expect(w.get('.mon__stat').text()).toBe('待 MCR')
+    expect(w.get('.mon__stat').text()).toBe('待手柄快速位')
     expect(w.get('.mon__foot-text').text()).toContain('快速')
     return w.findAll('.mon__hit')[0].trigger('click').then(() => {
       expect(session.mon.voltage).toBe(false)
@@ -184,5 +185,67 @@ describe('mon_panel', () => {
     expect(mountPanel('remote', 'status').findAll('.mon__provisional')).toHaveLength(0)
     session.raised = false
     expect(mountPanel('power', 'check').findAll('.mon__provisional')).toHaveLength(0)
+  })
+
+  /* ---- 页面级动作：屏外右下角（2026-11-14 本人要求）----
+     「本步完成，进入下一步」原来挤在 MON 页脚里，一块屏既是设备界面又是页面导航；
+     现在挂到屏下方（`.mon__act`），并且末页也必须有「重新开始」。 */
+
+  it('"进入下一步"不在屏里：屏外那一行才是它的位置', async () => {
+    session.keyTurned = true
+    session.brakeFast = true
+    Object.assign(session.mon, { voltage: true, mr: true, egs: true, vcb: true, panto_cut: true })
+    const w = mount(MonPanel, {
+      props: { params: { scene: 'pantograph_raise', tab: 'power', mode: 'check' }, label: 'MON', chrome: true },
+    })
+    // 屏页脚不给按钮（它就是"设备界面"）
+    expect(w.get('.mon__foot').find('button').exists()).toBe(false)
+    // 屏外那一行：右对齐的页面动作
+    const act = w.get('.mon__act')
+    expect(act.text()).toContain('本步完成，进入下一步')
+    // 点了要真的翻页
+    const next = vi.fn(() => true)
+    const w2 = mount(MonPanel, {
+      props: { params: { scene: 'pantograph_raise', tab: 'power', mode: 'check' }, label: 'MON', chrome: true },
+      global: { provide: { 'guide-next': next } },
+    })
+    await w2.get('.mon__go').trigger('click')
+    expect(next).toHaveBeenCalledOnce()
+  })
+
+  it('没确认完 / 弹层里的那一份都不出"进入下一步"', () => {
+    session.keyTurned = true
+    session.brakeFast = true
+    // 只确认一项
+    session.mon.voltage = true
+    const w = mount(MonPanel, {
+      props: { params: { scene: 'pantograph_raise', tab: 'power', mode: 'check' }, label: 'MON', chrome: true },
+    })
+    expect(w.find('.mon__go').exists()).toBe(false)
+    // 弹层（chrome 不传）：连动作行都不该有
+    Object.assign(session.mon, { mr: true, egs: true, vcb: true, panto_cut: true })
+    expect(mountPanel().findAll('.mon__act')).toHaveLength(0)
+  })
+
+  it('最后一工步（status 模式）也有「重新开始」，且真的复位 + 回第一工步', async () => {
+    session.keyInserted = true
+    session.keyTurned = true
+    session.brakeFast = true
+    session.raised = true
+    session.vcbClosed = true
+    const first = vi.fn(() => true)
+    const w = mount(MonPanel, {
+      props: { params: { scene: 'pantograph_raise', tab: 'remote', mode: 'status' }, label: 'MON', chrome: true },
+      global: { provide: { 'guide-first': first } },
+    })
+    // 结论页没有"完成"判据，所以只有「重新开始」
+    expect(w.find('.mon__go').exists()).toBe(false)
+    const reset = w.get('.mon__reset')
+    expect(reset.text()).toBe('重新开始')
+    await reset.trigger('click')
+    expect(first).toHaveBeenCalledOnce()
+    expect(session.raised).toBe(false)
+    expect(session.keyInserted).toBe(false)
+    expect(w.get('.mon__foot-text').text()).toContain('第一工步')
   })
 })

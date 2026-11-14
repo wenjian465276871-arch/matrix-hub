@@ -167,7 +167,7 @@ export function phaseFor(scene: PhaseKey, t: number, mode: PantoMode = 'normal')
       if (t < DESK_T.keyIn) return '主控未激活、MON 屏熄灭'
       if (t < DESK_T.keyOn) return '主控钥匙已插入'
       if (t < DESK_T.brake) return '钥匙右旋、司机室占用'
-      if (t < DESK_T.unit) return '制动手柄快速位、MCR 励磁'
+      if (t < DESK_T.unit) return '制动手柄快速位、屏点亮'
       if (t < DESK_T.raise) return '受电弓选择完成'
       if (t < DESK_T.raised) return '升弓旋钮保持、升弓中'
       if (t < 1) return '受电弓升起、网压正常'

@@ -329,22 +329,26 @@ def _extra_published(count: int) -> None:
 
 
 def test_list_pages_twelve_at_a_time(fresh_library):
-    _extra_published(13)  # 7 份样例 + 13 份 = 20
+    # 样例份数从目录现数，不写死：2026-11-14 新增两份试验样例时，
+    # 原来写死的 "7 份 → 20" 直接红了——数样例的用例不能靠人记。
+    seeded = len(library.load_fixtures(SAMPLES))
+    _extra_published(13)
+    total = seeded + 13
 
     first = client.get("/api/electro/guides").json()
     assert first["limit"] == 12
     assert first["count"] == 12
-    assert first["total"] == 20
+    assert first["total"] == total
     assert first["has_more"] is True
 
     second = client.get("/api/electro/guides?limit=12&offset=12").json()
-    assert second["count"] == 8
+    assert second["count"] == total - 12
     assert second["has_more"] is False
-    assert second["total"] == 20
+    assert second["total"] == total
 
     # 两页不能有重叠：排序键不稳定时这里会挂
     ids = [item["id"] for item in first["items"] + second["items"]]
-    assert len(ids) == len(set(ids)) == 20
+    assert len(ids) == len(set(ids)) == total
 
 
 def test_offset_past_the_end_returns_empty_page(fresh_library):
@@ -372,22 +376,26 @@ def _extra_published(count: int) -> None:
 
 
 def test_list_pages_twelve_at_a_time(fresh_library):
-    _extra_published(13)  # 7 份样例 + 13 份 = 20
+    # 样例份数从目录现数，不写死：2026-11-14 新增两份试验样例时，
+    # 原来写死的 "7 份 → 20" 直接红了——数样例的用例不能靠人记。
+    seeded = len(library.load_fixtures(SAMPLES))
+    _extra_published(13)
+    total = seeded + 13
 
     first = client.get("/api/electro/guides").json()
     assert first["limit"] == 12
     assert first["count"] == 12
-    assert first["total"] == 20
+    assert first["total"] == total
     assert first["has_more"] is True
 
     second = client.get("/api/electro/guides?limit=12&offset=12").json()
-    assert second["count"] == 8
+    assert second["count"] == total - 12
     assert second["has_more"] is False
-    assert second["total"] == 20
+    assert second["total"] == total
 
     # 两页不能有重叠：排序键不稳定时这里会挂
     ids = [item["id"] for item in first["items"] + second["items"]]
-    assert len(ids) == len(set(ids)) == 20
+    assert len(ids) == len(set(ids)) == total
 
 
 def test_offset_past_the_end_returns_empty_page(fresh_library):
@@ -508,6 +516,10 @@ def test_samples_carry_device_scenes_for_every_subject():
     # 映射写死在这里是有意的：场景键 → 设备是构建期的约定，不从代码里反射猜。
     ops_scene_subjects = {
         "pantograph_raise": {"driver_desk", "pantograph"},
+        # 2026-11-14：空调制冷与开关门两项试验也走 `operation_scene`，
+        # 各自带一台设备出场（机组 / 客室侧门），操纵台三者共用。
+        "hvac_cooling": {"driver_desk", "hvac"},
+        "door_switch": {"driver_desk", "door"},
     }
     ops = set()
     for path in SAMPLES.glob("*.json"):
@@ -532,3 +544,43 @@ def test_samples_carry_device_scenes_for_every_subject():
     assert seen <= set(DEVICE_SUBJECTS), f"样例里出现了未注册的设备：{seen - set(DEVICE_SUBJECTS)}"
     # device_scene 这个原语本身不能变成死代码：至少还得有一份样例用它
     assert live, "所有样例都不再用 device_scene，实时三维原语失去样例覆盖"
+
+
+def test_desk_ops_samples_keep_the_six_step_shape():
+    """两份「司机台操作」新样例的结构门禁（2026-11-14）。
+
+    锁四件事，每一条都是本人对这次需求的明确要求，不是好看：
+    1. **第一页就是设备三维**——不是先讲条件再看图；
+    2. 六步，且第 2 步是上电（钥匙 / 手柄），与升弓样板同构；
+    3. `operation_scene` 用的场景键与工位一致（空调→hvac_cooling、车门→door_switch）；
+    4. 每步都有判据——没有判据的步骤在 A1 里无法判定执行结果。
+
+    为什么写死步数而不写 `>= 3`：这三份试验是要给人对照看的样板，
+    步数一变，"同一套结构"这句话就不成立了。改结构时应当连这条用例一起改。
+    """
+    guides = {g.id: g for g in library.load_fixtures(SAMPLES)}
+    cases = [
+        ("g_hvac_cooling_desk", "hvac", "hvac_cooling"),
+        ("g_door_switch_desk", "door", "door_switch"),
+    ]
+    for gid, system, scene in cases:
+        guide = guides[gid]
+        assert guide.meta.system.value == system
+        assert len(guide.steps) == 6, f"{gid} 应为六步，实际 {len(guide.steps)}"
+
+        first = guide.steps[0]
+        primitives = [fig.primitive.value for fig in first.figures]
+        assert "device_scene" in primitives, f"{gid} 第一页没有设备三维"
+
+        ops = [
+            fig.params.get("scene")
+            for step in guide.steps
+            for fig in step.figures
+            if fig.primitive.value == "operation_scene"
+        ]
+        assert scene in ops, f"{gid} 没有用 {scene} 作业台"
+
+        for step in guide.steps:
+            assert step.criteria, f"{gid} 第 {step.seq} 步没有判据"
+            for fig in step.figures:
+                assert fig.fallback_text.strip(), f"{gid} 第 {step.seq} 步有图缺降级说明"

@@ -14,6 +14,7 @@ import { announce } from '../lib/announce'
 import { ApiError, getJson, postJson } from '../lib/http'
 import { writeStoredJob } from '../lib/jobhandoff'
 import { pageCount, pageLabels } from '../lib/paging'
+import { resetAllOps } from '../lib/ops-scope'
 import { resetTopBar, setTopBar } from '../composables/useTopBar'
 import type { TopBarAction } from '../composables/useTopBar'
 import type { AssetRef, Guide, GuideDetail, GuideStatus, PublishResult, SessionSnapshot } from '../types'
@@ -30,6 +31,17 @@ function gotoStep(index: number): void {
   const max = (guide.value?.steps.length ?? 1) - 1
   page.value = Math.min(Math.max(index, 0), Math.max(max, 0))
 }
+
+/* 换一份指导书 = 重新开始一次试验（2026-11-14 本人实测：从空调切到车门，
+   还没插钥匙司机台就已上电）。交互状态是模块级单例，必须在这里划边界。
+   **`immediate` 是必需的**：从门户进来时这个组件是**重新创建**的，
+   只监听 `props.id` 变化的话，首次挂载根本不会触发——状态就从上一次试验带过来了
+   （2026-11-14 本人第二次实测：空调第 6 步 → 车门第 2 步，三颗灯全亮）。 */
+watch(
+  () => props.id,
+  () => resetAllOps(),
+  { immediate: true },
+)
 
 const SYSTEM_LABEL: Record<string, string> = {
   door: '车门',

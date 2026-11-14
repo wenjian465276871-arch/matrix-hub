@@ -1,0 +1,535 @@
+{
+  "schema_version": "1.2",
+  "id": "g_hvac_cooling_desk",
+  "title": "客室空调制冷试验（司机台操作）",
+  "summary": "以 8 编组动车组 04 车为例，按「条件确认 → 上电激活 → MON 设定模式与温度 → 通风确认 → 制冷运行与读数 → 结论」六步完成制冷试验。MON 未上电不能设参数；设定温度不低于回风温度时压缩机不启动。",
+  "meta": {
+    "system": "hvac",
+    "source_note": "公开网络资料改写：制冷试验的环境温度、连续运行 15 分钟、高压 1.4–1.8 MPa、送回风温差 ≥5 ℃ 等判据取自公开期刊与技术科普文章；车型、机组参数与全部读数为演示虚构值，不含任何企业资料",
+    "model": "deepseek-flash",
+    "generated_at": "2026-11-14T00:00:00Z",
+    "is_demo": true,
+    "revision": 5
+  },
+  "steps": [
+    {
+      "id": "s01",
+      "seq": 1,
+      "title": "制冷试验前必须满足的条件",
+      "action": "逐项确认下列七条，缺一不可：主控司机室占用、列车静止且防溜到位、全列门关闭、空调控制电源与机组通信正常、机组无故障、环境温度不低于 25 ℃（客室 22–30 ℃）、新风门可关闭。任何一条不满足不得起动压缩机。",
+      "safety": [
+        "压缩机起动前确认机组周围无人员和工具",
+        "制冷剂相关操作须由具备资质人员执行",
+        "客室温度过高时先通风降温，不得强行起制冷"
+      ],
+      "tools": [
+        "温度计"
+      ],
+      "criteria": [
+        {
+          "id": "cab_active",
+          "label": "主控司机室已激活占用",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        },
+        {
+          "id": "train_state",
+          "label": "列车静止、防溜到位、全列门关闭",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        },
+        {
+          "id": "hvac_comm",
+          "label": "全列机组通信与故障状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "8/8 正常、无故障",
+            "有机组离线或故障"
+          ]
+        },
+        {
+          "id": "ambient_temp",
+          "label": "环境温度",
+          "type": "range",
+          "unit": "℃",
+          "min": 25,
+          "max": 40,
+          "options": null
+        },
+        {
+          "id": "cabin_temp",
+          "label": "客室初始温度",
+          "type": "range",
+          "unit": "℃",
+          "min": 22,
+          "max": 30,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "device_scene",
+          "params": {
+            "subject": "hvac",
+            "t": 0
+          },
+          "caption": "客室空调机组：检修盖板装回、机组停用",
+          "fallback_text": "顶置单元式客室空调机组架在检修台上，顶部是两台带防护网罩的冷凝风机，中段是蒸发段，另一端是压缩机舱与控制盒。此刻机组停用，检修盖板装回。"
+        },
+        {
+          "primitive": "table",
+          "params": {
+            "headers": [
+              "项目",
+              "要求",
+              "检查方式"
+            ],
+            "rows": [
+              "主控司机室|已激活占用|钥匙右旋",
+              "列车状态|静止、防溜、全门关闭|目视 + 关门灯",
+              "机组通信|8/8 正常、无故障|MON 机组状态页",
+              "控制电源|DC 110 V（99–121）|MON 电源页 / 万用表",
+              "环境温度|≥25 ℃（客室 22–30 ℃）|温度计",
+              "新风门|可关闭（制冷试验关闭）|MON 空调设定页",
+              "回风滤网|清洁、无堵塞|目视检查"
+            ],
+            "label": "制冷试验前必须满足的条件（缺一不可）"
+          },
+          "caption": "七项条件与检查方式",
+          "fallback_text": "七项条件：主控占用、列车静止防溜全门关闭、机组通信正常、控制电源 DC110 V、环境温度 ≥25 ℃、新风门可关闭、回风滤网清洁。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s02",
+      "seq": 2,
+      "title": "上电激活：插钥匙、右旋、手柄快速位",
+      "action": "将主控钥匙插入制动控制器并右旋到运行位：司机室占用。再把制动手柄置于「快速」位：主控继电器 MCR 励磁，MON 屏点亮。只右旋钥匙屏不会亮——空调页的设定与读数全在 MON 上，这一步没做完，后面两步都无从谈起。",
+      "safety": [
+        "移动制动手柄前确认列车静止、防溜到位",
+        "手柄移动后确认 MCR 励磁、无异常报警"
+      ],
+      "tools": [
+        "主控钥匙"
+      ],
+      "criteria": [
+        {
+          "id": "key_state",
+          "label": "主控钥匙状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "已插入并右旋",
+            "已插入未右旋",
+            "未插入"
+          ]
+        },
+        {
+          "id": "brake_fast",
+          "label": "制动手柄在快速位",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "是",
+            "否"
+          ]
+        },
+        {
+          "id": "mon_on",
+          "label": "MON 屏点亮",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "点亮",
+            "熄灭"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "hvac_cooling",
+            "view": "desk",
+            "act": "power"
+          },
+          "caption": "司机操纵台：点钥匙、再推手柄",
+          "fallback_text": "在司机操纵台上：主控钥匙插入制动控制器并右旋，司机室占用；制动手柄推到快速位，MCR 励磁、MON 点亮。点三维里的件或下方按钮均可操作。"
+        },
+        {
+          "primitive": "callout",
+          "params": {
+            "target": "主控钥匙在制动控制器上",
+            "note": "插到底再右旋，手柄到快速位后 MON 才亮",
+            "position": "left"
+          },
+          "caption": "钥匙与手柄",
+          "fallback_text": "主控钥匙插在制动控制器上：插到底后右旋到运行位建立司机室占用，制动手柄推到快速位后 MCR 励磁、MON 点亮。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s03",
+      "seq": 3,
+      "title": "MON 设定通风模式并下发",
+      "action": "右侧机组此刻两台风机是**静止**的。点司机台左侧那块 MON 屏：左栏随即换成 MON 屏（右侧机组保留，方便一边设一边看）。在「空调设定」页选「通风」、设定温度 24.0 ℃、新风门关闭，点「下发设定（起动）」——**模式即起动**，右侧两台冷凝风机与两台离心送风机随即转起来（压缩机不工作）。公开资料里空调没有独立的「起动通风」按钮，模式选到通风就是起动。",
+      "safety": [
+        "设定温度不得低于 16 ℃，避免客室过冷与蒸发器结霜",
+        "新风门状态与设定值应记录在试验记录上"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "ac_mode",
+          "label": "机组模式",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "通风",
+            "制冷",
+            "制热"
+          ]
+        },
+        {
+          "id": "set_temp",
+          "label": "设定温度",
+          "type": "range",
+          "unit": "℃",
+          "min": 16,
+          "max": 26,
+          "options": null
+        },
+        {
+          "id": "fresh_air",
+          "label": "新风门",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "关闭",
+            "打开"
+          ]
+        },
+        {
+          "id": "mon_comm",
+          "label": "MON 机组通信",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "8/8 正常",
+            "有机组离线"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "hvac_cooling",
+            "view": "both",
+            "act": "set"
+          },
+          "caption": "点司机台 MON 屏：左栏换成 MON 屏，右侧机组风机随即转起来",
+          "fallback_text": "点司机台 MON 屏，左栏换成 MON「空调设定」页：选「通风」、设定 24.0 ℃、新风门关闭，点「下发设定（起动）」；右侧机组两台风机由静止转为运转，压缩机不工作。"
+        },
+        {
+          "primitive": "checklist",
+          "params": {
+            "items": [
+              "模式已选「通风」并下发",
+              "设定温度 24.0 ℃",
+              "新风门已关闭",
+              "全列机组通信 8/8 正常",
+              "机组无故障代码"
+            ]
+          },
+          "caption": "设定与下发清单",
+          "fallback_text": "五项确认：模式已下发通风、设定 24 ℃、新风门关闭、通信 8/8 正常、机组无故障代码。"
+        }
+      ],
+      "duration_s": null
+    },
+    {
+      "id": "s04",
+      "seq": 4,
+      "title": "通风运行与送风确认",
+      "action": "本步在 MON「机组状态」页逐项确认**三项**：全列机组通信「8/8 正常」、冷凝/送风机「2+2 运行」、排水与滤网「畅通、清洁」。**压缩机与高压侧压力在通风模式下无法确认**——压缩机不转，就没有电流、也没有高压侧读数，这两项要到第 5 步切制冷之后再判（MON 上这两行显示「—」且不可点）。同时用风速仪测送风口风速（1.5–3.0 m/s）、记录送风温度；风量不足时不要进入制冷。",
+      "safety": [
+        "测风速时手不得伸入风机叶轮范围",
+        "风机有异音立即停机检查"
+      ],
+      "tools": [
+        "风速仪",
+        "温度计"
+      ],
+      "criteria": [
+        {
+          "id": "fan_state",
+          "label": "冷凝/送风机运转状态",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "运转平稳、无异音",
+            "有异响或卡滞"
+          ]
+        },
+        {
+          "id": "supply_speed",
+          "label": "送风口风速",
+          "type": "range",
+          "unit": "m/s",
+          "min": 1.5,
+          "max": 3.0,
+          "options": null
+        },
+        {
+          "id": "drain_ok",
+          "label": "排水口与接水盘",
+          "type": "manual",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "hvac_cooling",
+            "view": "mon",
+            "act": "vent"
+          },
+          "caption": "MON「机组状态」页：确认通信、风机、排水与滤网三项",
+          "fallback_text": "左侧为 MON「机组状态」页：全列机组通信 8/8 正常、冷凝/送风机 2+2 运行、排水与滤网畅通清洁，点一行确认一行；压缩机与高压侧压力两行显示「—」（通风模式下不判）。右侧机组两台风机在运转。"
+        },
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 2.4,
+            "unit": "m/s",
+            "min": 1.5,
+            "max": 3.0,
+            "label": "送风口风速"
+          },
+          "caption": "通风运行 5 分钟后测量",
+          "fallback_text": "通风模式运行 5 分钟后测送风口风速，示例读数 2.4 m/s，要求 1.5–3.0 m/s。"
+        },
+        {
+          "primitive": "checklist",
+          "params": {
+            "items": [
+              "全列机组通信 8/8 正常",
+              "冷凝/送风机 2+2 运转平稳",
+              "排水与滤网畅通、清洁",
+              "压缩机与高压侧压力：通风模式下不判（切制冷后确认）"
+            ]
+          },
+          "caption": "MON 三项确认（后两项待制冷）",
+          "fallback_text": "MON 三项确认：通信 8/8 正常、冷凝/送风机 2+2 运转平稳、排水与滤网畅通清洁；压缩机与高压侧压力在通风模式下无法确认。"
+        }
+      ],
+      "duration_s": 300
+    },
+    {
+      "id": "s05",
+      "seq": 5,
+      "title": "切换制冷模式并测读数",
+      "action": "在 MON「空调设定」页把模式切到「制冷」并「下发设定（起动）」：压缩机与冷凝风机随即起动（同样没有独立的「起动制冷」按钮）。**右侧机组这时会有明显变化**：风机提速、蒸发器翅片结露、接水盘开始积水、送风口冒出白色冷气。连续运行至读数稳定后，在「机组状态」页逐项确认五项；同时测送风与回风温度（温差 6–12 ℃）、钳形表测压缩机电流（10–14 A）、压力表测高压侧（1.4–1.8 MPa）与低压侧（0.2–0.5 MPa）。",
+      "safety": [
+        "测压力时软管接头不得对着人",
+        "高压超过 1.8 MPa 立即停机检查冷凝器散热"
+      ],
+      "tools": [
+        "温度计",
+        "钳形电流表",
+        "压力表"
+      ],
+      "criteria": [
+        {
+          "id": "temp_diff",
+          "label": "送回风温差",
+          "type": "range",
+          "unit": "℃",
+          "min": 6,
+          "max": 12,
+          "options": null
+        },
+        {
+          "id": "comp_current",
+          "label": "压缩机运行电流",
+          "type": "range",
+          "unit": "A",
+          "min": 10,
+          "max": 14,
+          "options": null
+        },
+        {
+          "id": "high_pressure",
+          "label": "制冷剂高压侧压力",
+          "type": "range",
+          "unit": "MPa",
+          "min": 1.4,
+          "max": 1.8,
+          "options": null
+        },
+        {
+          "id": "low_pressure",
+          "label": "制冷剂低压侧压力",
+          "type": "range",
+          "unit": "MPa",
+          "min": 0.2,
+          "max": 0.5,
+          "options": null
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "hvac_cooling",
+            "view": "mon",
+            "act": "cool"
+          },
+          "caption": "MON 切制冷并下发：右侧机组风机提速、翅片结露、送风口冒冷气",
+          "fallback_text": "在 MON「空调设定」页把模式切到「制冷」并「下发设定（起动）」；右侧机组风机提速、蒸发器翅片结露、接水盘积水、送风口冒出白色冷气，压缩机开始运行。"
+        },
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 9.8,
+            "unit": "℃",
+            "min": 6,
+            "max": 12,
+            "label": "送回风温差"
+          },
+          "caption": "稳定运行 15 分钟后",
+          "fallback_text": "制冷稳定运行 15 分钟后测送回风温差，示例读数 9.8 ℃，要求 6–12 ℃。"
+        },
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 1.7,
+            "unit": "MPa",
+            "min": 1.4,
+            "max": 1.8,
+            "label": "高压侧压力"
+          },
+          "caption": "高压侧压力（低压 0.34 MPa）",
+          "fallback_text": "高压侧压力示例读数 1.70 MPa，要求 1.4–1.8 MPa；低压侧 0.34 MPa，要求 0.2–0.5 MPa。"
+        }
+      ],
+      "duration_s": 900
+    },
+    {
+      "id": "s06",
+      "seq": 6,
+      "title": "确认制冷效果与试验结论",
+      "action": "继续运行至累计 30 分钟：点 MON 屏在「客室温度」页读到送风 15.9 ℃、回风 25.9 ℃、温差 9.8 ℃、无故障代码；确认客室温度稳定下降、排水正常；记录环境温度、初始与终了客室温度、各读数与判定。试验结束后把模式复位为「停止」，停压缩机、保留通风 5 分钟后停机。",
+      "safety": [
+        "停机前先停压缩机、后停风机，避免蒸发器余冷结霜",
+        "试验记录须与实际读数一致，不得回填估计值"
+      ],
+      "tools": [],
+      "criteria": [
+        {
+          "id": "cabin_final",
+          "label": "终了客室温度",
+          "type": "range",
+          "unit": "℃",
+          "min": 22,
+          "max": 26,
+          "options": null
+        },
+        {
+          "id": "fault_code",
+          "label": "MON 故障代码",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "无故障",
+            "有故障代码"
+          ]
+        },
+        {
+          "id": "result",
+          "label": "试验结论",
+          "type": "enum",
+          "unit": null,
+          "min": null,
+          "max": null,
+          "options": [
+            "合格",
+            "超差复测",
+            "不合格"
+          ]
+        }
+      ],
+      "figures": [
+        {
+          "primitive": "operation_scene",
+          "params": {
+            "scene": "hvac_cooling",
+            "view": "mon",
+            "act": "done"
+          },
+          "caption": "MON「客室温度」页：读送风、回风与温差",
+          "fallback_text": "左侧为 MON「客室温度」页：送风 15.9 ℃、回风 25.9 ℃、温差 9.8 ℃、设定 24 ℃，无故障代码；右侧机组制冷运行中（风机运转、送风口冒冷气）。"
+        },
+        {
+          "primitive": "status_light",
+          "params": {
+            "state": "pass",
+            "label": "制冷功能合格"
+          },
+          "caption": "判定指示",
+          "fallback_text": "温差、电流、高低压四项均在范围内且无故障代码时，制冷功能判定为合格。"
+        },
+        {
+          "primitive": "meter",
+          "params": {
+            "value": 25.9,
+            "unit": "℃",
+            "min": 22,
+            "max": 26,
+            "label": "终了客室温度"
+          },
+          "caption": "累计运行 30 分钟",
+          "fallback_text": "累计运行 30 分钟后客室温度示例读数 25.9 ℃，要求落在 22–26 ℃。"
+        }
+      ],
+      "duration_s": 1800
+    }
+  ],
+  "disclaimers": [
+    "演示数据 · 非实际作业依据",
+    "AI 辅助整理，需专业人员复核",
+    "制冷剂相关操作须由具备资质人员执行"
+  ]
+}

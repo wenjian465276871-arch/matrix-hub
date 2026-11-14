@@ -1,9 +1,9 @@
 {
-  "sha256": "cf18a215cc3b1434e9ad0b1770c658bb3505ea766cfbd0aa60d48e9d60e0d29e",
+  "sha256": "58716b9ba9546226087bcbf5e440b7d034351c01ccd4bb77d6e004471f6a0098",
   "files": {
-    "samples": 7,
+    "samples": 9,
     "knowledge": 4
   },
   "knowledge_entries": 19,
-  "note": "2026-11-13 20:45 本人指出物理逻辑：MON 需钥匙右旋+手柄快速位才点亮。改第 2/3 步 action 与条件表两行，样例 revision=2"
+  "note": "2026-11-14 23:20 受电弓样板按步裁剪（s02 power / s04 unit / s05 raise）并把 VCB 合写进第 5 步；无新增来源、判据未改（§4.32）"
 }

@@ -84,16 +84,20 @@
         }
       ],
       "part_labels": {
+        "block": "防夹试块（卷状软物，点它在门外原位与门洞地板之间移动）",
         "frame": "门框与门楣设备舱（门槛压条、密封面）",
         "lamp": "门状态指示灯（门机罩前脸）",
         "leaf_l": "左门扇（含门锁与携门架）",
-        "leaf_r": "右门扇（含门锁与携门架）"
+        "leaf_r": "右门扇（含门锁与携门架）",
+        "motor": "门机（电机、减速箱、同步带与张紧轮）"
       },
       "parts": [
         "leaf_l",
         "leaf_r",
         "frame",
-        "lamp"
+        "lamp",
+        "block",
+        "motor"
       ],
       "systems": [
         "door"
@@ -145,6 +149,12 @@
       "part_labels": {
         "brake": "制动控制器 / 制动手柄（运行、B1–B7、快速、拔取位）",
         "desk": "操纵台台体与仪表盘（含右屏 ATP、CIR 小屏、电话与按钮排）",
+        "door_l_close": "左侧车门关门按钮（集控关闭全列左门）",
+        "door_l_open": "左侧车门开门按钮（集控打开全列左门）",
+        "door_l_release": "左侧车门释放按钮（带灯，按下后全列左门释放）",
+        "door_r_close": "右侧车门关门按钮（集控关闭全列右门）",
+        "door_r_open": "右侧车门开门按钮（集控打开全列右门）",
+        "door_r_release": "右侧车门释放按钮（带灯，按下后全列右门释放）",
         "gauge": "网压表（仪表盘左下，0–35 kV，正常区 19–31）",
         "key": "主控钥匙（插在制动控制器上，拔取位可取出）",
         "knob": "升弓旋钮 PanUS（右旋保持、松手回位）",
@@ -160,9 +170,17 @@
         "switch",
         "knob",
         "vcb",
-        "gauge"
+        "gauge",
+        "door_l_release",
+        "door_l_open",
+        "door_l_close",
+        "door_r_release",
+        "door_r_open",
+        "door_r_close"
       ],
       "systems": [
+        "door",
+        "hvac",
         "pantograph"
       ]
     },
