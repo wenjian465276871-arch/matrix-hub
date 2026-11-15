@@ -29,8 +29,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from llm import LLMError, generate_guide, get_provider  # noqa: E402
+from llm.prompts import set_system_prompt_override, system_prompt, system_prompt_sha  # noqa: E402
 from models.visual import Primitive  # noqa: E402
 from scripts._bootstrap import find_env_file, load_env_file  # noqa: E402
+from scripts._evalcompare import compare_markdown, load_run  # noqa: E402
 
 CORPUS_DIR = Path(__file__).resolve().parent.parent / "data" / "corpus"
 
@@ -48,6 +50,7 @@ def percentile(values: list[float], p: float) -> float:
 class CaseResult:
     name: str
     status: str                  # ok | error:<kind> | input_error
+    run: int = 1                 # 第几遍（`--repeat 2` 时同一份语料会有两条）
     attempts: int = 0
     repaired: bool = False
     wall_ms: int = 0
@@ -120,6 +123,27 @@ def run_case(provider, name: str, text: str, budget: float, timeout: float) -> C
     )
 
 
+def result_row(r: CaseResult) -> dict:
+    """落盘用的行。**不含 `guide_json`**：几百 KB，对照表用不上，留着只会让 JSON 难读。"""
+    return {
+        "name": r.name,
+        "run": r.run,
+        "status": r.status,
+        "attempts": r.attempts,
+        "repaired": r.repaired,
+        "wall_ms": r.wall_ms,
+        "model_ms": r.model_ms,
+        "prompt_tokens": r.prompt_tokens,
+        "completion_tokens": r.completion_tokens,
+        "reasoning_tokens": r.reasoning_tokens,
+        "cached_tokens": r.cached_tokens,
+        "cost_micros": r.cost_micros,
+        "steps": r.steps,
+        "figures": r.figures,
+        "detail": r.detail[:200],
+    }
+
+
 def render_report(results: list[CaseResult], meta: dict) -> str:
     ok = [r for r in results if r.status == "ok"]
     first_pass = [r for r in ok if r.attempts == 1]
@@ -128,10 +152,15 @@ def render_report(results: list[CaseResult], meta: dict) -> str:
     missing = {p.value for p in Primitive} - used
 
     n = len(results)
+    cases_n = len({r.name for r in results})
+    repeat = n // cases_n if cases_n else 1
     lines = [
         f"# 生成评测报告（{meta['at']}）",
         "",
-        f"> 语料 {n} 份 · 模型 `{meta['model']}` · 单次 {meta['timeout']:.0f}s / 总预算 {meta['budget']:.0f}s",
+        f"> 语料 {cases_n} 份 × {repeat} 遍 = **{n} 次运行** · 模型 `{meta['model']}` · "
+        f"单次 {meta['timeout']:.0f}s / 总预算 {meta['budget']:.0f}s",
+        f"> 变体 `{meta.get('variant', '?')}` · 提示词 sha `{meta.get('prompt_sha', '?')}`"
+        "（对照用 `--compare A B`，不给孤立百分比）",
         "",
         "## 汇总",
         "",
@@ -199,7 +228,45 @@ def main() -> int:
     parser.add_argument("--out-dir", help="保存每份生成的 JSON")
     parser.add_argument("--report", help="输出 Markdown 报告路径")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--variant", default="current", help="这一跑的标签（baseline / treat / 自定义）")
+    parser.add_argument(
+        "--prompt-file",
+        help="用这份文本整体替换系统提示词（冻结的旧版本）；不给就用代码里现拼的那份",
+    )
+    parser.add_argument(
+        "--repeat", type=int, default=1, help="每份语料跑几遍；≥2 才能把'抽签'与'真差异'分开"
+    )
+    parser.add_argument("--save", help="结果 JSON 路径；缺省 eval-results/<日期>-<variant>.json")
+    parser.add_argument(
+        "--compare",
+        nargs=2,
+        metavar=("A", "B"),
+        help="只做对照：读两份结果 JSON，输出 pp 差异表，不调模型、不花钱",
+    )
+    parser.add_argument(
+        "--save-prompt",
+        help="把当前系统提示词冻结到文件后退出（不调模型）。改提示词**之前**先跑它",
+    )
     args = parser.parse_args()
+
+    if args.save_prompt:
+        # 对照组的第一块砖：改提示词之前先把旧的那份存下来，否则改完就找不回来了
+        text = system_prompt()
+        path = Path(args.save_prompt)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+        print(f"系统提示词已冻结到 {path}（{len(text)} 字符，sha {system_prompt_sha(text)}）")
+        return 0
+
+    if args.compare:
+        try:
+            a_data = load_run(args.compare[0])
+            b_data = load_run(args.compare[1])
+        except (OSError, ValueError) as exc:
+            print(f"[输入问题] {exc}", file=sys.stderr)
+            return 2
+        print(compare_markdown(a_data, b_data))
+        return 0
 
     cases = collect_cases(args.only, args.limit)
     if not cases:
@@ -215,6 +282,25 @@ def main() -> int:
         print(f"[配置错误] --env-file 指向的文件不存在：{args.env_file}", file=sys.stderr)
         return 2
     load_env_file(env_path)
+
+    # 提示词决定这一跑测的是哪一版：给了 --prompt-file 就用冻结文本，
+    # 并把 sha 写进结果——否则两份 JSON 放一起，谁也说不清哪个是旧版。
+    prompt_text = system_prompt()
+    if args.prompt_file:
+        prompt_path = Path(args.prompt_file)
+        if not prompt_path.is_file():
+            print(f"[配置错误] --prompt-file 不存在：{prompt_path}", file=sys.stderr)
+            return 2
+        prompt_text = prompt_path.read_text(encoding="utf-8")
+        set_system_prompt_override(prompt_text)
+    prompt_sha = system_prompt_sha(prompt_text)
+    print(
+        f"[提示词] variant={args.variant}  {len(prompt_text)} 字符  sha={prompt_sha}"
+        f"  repeat={args.repeat}",
+        file=sys.stderr,
+        flush=True,
+    )
+
     try:
         provider = get_provider()
     except LLMError as exc:
@@ -228,20 +314,24 @@ def main() -> int:
     results: list[CaseResult] = []
     try:
         for index, (name, text) in enumerate(cases, start=1):
-            print(f"[{index}/{len(cases)}] {name} …", file=sys.stderr, flush=True)
-            result = run_case(provider, name, text, args.budget, args.timeout)
-            results.append(result)
-            flag = "ok" if result.status == "ok" else result.status
-            print(
-                f"    {flag}  尝试 {result.attempts}  {result.wall_ms / 1000:.1f}s  "
-                f"{result.steps} 步 / {result.figures} 图  ¥{result.cost_micros / 1e6:.4f}",
-                file=sys.stderr,
-                flush=True,
-            )
-            if out_dir and result.guide_json:
-                (out_dir / f"{name}.json").write_text(
-                    json.dumps(result.guide_json, ensure_ascii=False, indent=2), encoding="utf-8"
+            for run in range(1, args.repeat + 1):
+                label = f"第 {run}/{args.repeat} 遍" if args.repeat > 1 else ""
+                print(f"[{index}/{len(cases)}] {name} {label} …", file=sys.stderr, flush=True)
+                result = run_case(provider, name, text, args.budget, args.timeout)
+                result.run = run
+                results.append(result)
+                flag = "ok" if result.status == "ok" else result.status
+                print(
+                    f"    {flag}  尝试 {result.attempts}  {result.wall_ms / 1000:.1f}s  "
+                    f"{result.steps} 步 / {result.figures} 图  ¥{result.cost_micros / 1e6:.4f}",
+                    file=sys.stderr,
+                    flush=True,
                 )
+                if out_dir and result.guide_json:
+                    suffix = f"-r{run}" if args.repeat > 1 else ""
+                    (out_dir / f"{name}{suffix}.json").write_text(
+                        json.dumps(result.guide_json, ensure_ascii=False, indent=2), encoding="utf-8"
+                    )
     finally:
         close = getattr(provider, "close", None)
         if callable(close):
@@ -252,6 +342,8 @@ def main() -> int:
         "model": getattr(provider, "name", "unknown"),
         "budget": args.budget,
         "timeout": args.timeout,
+        "variant": args.variant,
+        "prompt_sha": prompt_sha,
     }
     report = render_report(results, meta)
     print(report)
@@ -261,6 +353,34 @@ def main() -> int:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(report, encoding="utf-8")
         print(f"报告已写入 {path}")
+
+    save_path = (
+        Path(args.save)
+        if args.save
+        else Path("eval-results") / f"{datetime.now():%Y-%m-%d}-{args.variant}.json"
+    )
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    save_path.write_text(
+        json.dumps(
+            {
+                "schema": 1,
+                "variant": args.variant,
+                "at": meta["at"],
+                "model": meta["model"],
+                "prompt_sha": prompt_sha,
+                "prompt_chars": len(prompt_text),
+                "repeat": args.repeat,
+                "budget": args.budget,
+                "timeout": args.timeout,
+                "corpus": [name for name, _ in cases],
+                "results": [result_row(r) for r in results],
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    print(f"结果已写入 {save_path}（对照：--compare 旧 新）")
 
     ok = [r for r in results if r.status == "ok"]
     first_pass_rate = len([r for r in ok if r.attempts == 1]) / len(results)

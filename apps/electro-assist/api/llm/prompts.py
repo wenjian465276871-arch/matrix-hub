@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 from models.guide import REQUIRED_DISCLAIMER, SCHEMA_VERSION, Guide
@@ -27,6 +28,25 @@ from models.visual import (
 
 DOC_OPEN = "<document>"
 DOC_CLOSE = "</document>"
+
+# ---------------------------------------------------------------- 评测用的提示词覆盖
+# 为什么要有它：2026-11-15 之前改提示词全靠"跑一遍看差不多"，没有对照组——
+# 同一批语料跑旧版与新版、比较一次通过率差多少个百分点，这件事从来没做过。
+# 做法是把**旧提示词原文**冻结成文件，评测时整体替换进来；产品路径从不调用，
+# 默认 `None` 表示用代码里现拼的那份。
+_PROMPT_OVERRIDE: str | None = None
+
+
+def set_system_prompt_override(text: str | None) -> None:
+    """整体替换系统提示词（`None` 恢复）。**只给脚本用，别在路由里调。**"""
+    global _PROMPT_OVERRIDE
+    _PROMPT_OVERRIDE = text
+
+
+def system_prompt_sha(text: str | None = None) -> str:
+    """提示词指纹（sha256 前 12 位）。写进评测结果，用来证明"这一跑用的是哪一版"。"""
+    payload = (text if text is not None else system_prompt()).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:12]
 
 
 # 设备表在模块加载时从模型层取一次：枚举只在 `models/visual.py` 定义，
@@ -147,6 +167,13 @@ def output_schema() -> dict:
 
 
 def system_prompt() -> str:
+    """对外的系统提示词。评测要跑 A/B 时，可先用 `set_system_prompt_override()` 换掉。"""
+    if _PROMPT_OVERRIDE is not None:
+        return _PROMPT_OVERRIDE
+    return _build_system_prompt()
+
+
+def _build_system_prompt() -> str:
     return f"""你是电气调试作业指导书的结构化生成器。你的输出会被程序直接解析并渲染成现场作业页面，格式错误等同于失败。
 
 硬规则：
