@@ -45,12 +45,16 @@ function probe(page: import('@playwright/test').Page) {
 }
 
 /** 点三维里某个部件。`subject` 取 `driver_desk` / `door` / `hvac`。 */
-async function clickPart(
+type Pt = { x: number; y: number }
+
+/** 读某个部件的屏幕坐标。**每轮都重读**：坐标是按当下的画布矩形与相机算的，
+ *  而 CI 的软件渲染下布局可能比测试晚一步稳定，早读一次就会点偏（见 clickPart）。 */
+async function scenePoint(
   page: import('@playwright/test').Page,
   subject: string,
   key: string,
-): Promise<void> {
-  const point = await page.evaluate(
+): Promise<Pt | null> {
+  return page.evaluate(
     ({ s, k }) => {
       const reg = (window as unknown as {
         __scenePoints?: Record<string, (key: string) => { x: number; y: number } | null>
@@ -59,9 +63,26 @@ async function clickPart(
     },
     { s: subject, k: key },
   )
-  expect(point, `${subject}.${key} 没拿到屏幕坐标`).not.toBeNull()
-  /* 先悬停确认落点真的压在这个件上：小件（试块、门控按钮）中心偶有被前景挡住，
-     直接点会静默失败。偏移量按 12px 十字试一遍，命中就点。 */
+}
+
+/**
+ * 点三维里的某个部件。
+ *
+ * ## 为什么是"三轮 × 两遍扫描"而不是读一次坐标就点
+ * 两个只在慢机上出现的坑：
+ * 1. **坐标可能早读**：`__scenePoints` 用**当下**的画布矩形与相机投影，
+ *    而 CI 的软件渲染下布局（聚焦态、轨迹收起、画布 resize）可能比测试晚一步稳定，
+ *    早读到的点会整体偏几十像素 → 点空 → 没有回执（run 43675612091 车门第 4 屏就是这样红的，
+ *    快照里 `.ops__line` 是空的，等于 `onDeskPart` 压根没被调用）。
+ * 2. **悬停值可能滞后**：`pointermove` 在 1–2 fps 下还在队列里，第一遍读到的
+ *    `__hoverKey` 是上一个点的值。所以每轮扫两遍（120ms / 240ms）。
+ * 两轮都没对上就重读坐标再来，最多三轮；仍不行才点中心（保证"点了就有回执"的语义不变）。
+ */
+async function clickPart(
+  page: import('@playwright/test').Page,
+  subject: string,
+  key: string,
+): Promise<void> {
   const offsets = [
     [0, 0],
     [0, -10],
@@ -69,23 +90,34 @@ async function clickPart(
     [-10, 0],
     [10, 0],
   ]
-  /* 两遍扫描：CI 的软件渲染只有 1–2 fps，`pointermove` 可能还在队列里，
-     第一遍读到的 `__hoverKey` 是**上一个点**的值。第二遍把等待拉到 240ms 再读一次。 */
-  let hit: [number, number] | null = null
-  for (const settle of [120, 240]) {
-    for (const [dx, dy] of offsets) {
-      await page.mouse.move(point!.x + dx, point!.y + dy)
-      await page.waitForTimeout(settle)
-      const hover = await page.evaluate(() => (window as unknown as { __hoverKey?: string }).__hoverKey ?? '')
-      if (hover === key) {
-        hit = [dx, dy]
-        break
+  let last: Pt | null = null
+  for (let round = 0; round < 3; round += 1) {
+    const point = await scenePoint(page, subject, key)
+    expect(point, `${subject}.${key} 没拿到屏幕坐标`).not.toBeNull()
+    last = point
+    let hit: [number, number] | null = null
+    for (const settle of [120, 240]) {
+      for (const [dx, dy] of offsets) {
+        await page.mouse.move(point!.x + dx, point!.y + dy)
+        await page.waitForTimeout(settle)
+        const hover = await page.evaluate(() => (window as unknown as { __hoverKey?: string }).__hoverKey ?? '')
+        if (hover === key) {
+          hit = [dx, dy]
+          break
+        }
       }
+      if (hit) break
     }
-    if (hit) break
+    if (hit) {
+      await page.mouse.click(point!.x + hit[0], point!.y + hit[1])
+      await page.waitForTimeout(350)
+      return
+    }
+    // 坐标可能读早了：等一下让布局稳定，重读再试
+    await page.waitForTimeout(300)
   }
-  const [dx, dy] = hit ?? [0, 0]
-  await page.mouse.click(point!.x + dx, point!.y + dy)
+  console.warn(`[e2e] ${subject}.${key} 三轮都没命中悬停，按中心点兜底（${last?.x},${last?.y}）`)
+  await page.mouse.click(last!.x, last!.y)
   await page.waitForTimeout(350)
 }
 
