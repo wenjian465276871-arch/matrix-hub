@@ -10,7 +10,7 @@
  *  集控页的数字是**操作过程的副产物**（释放了才有、反开了才有），
  *  让人去"确认"这些等于让他确认自己刚才按了什么。核对的对象只能是状态。
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref } from 'vue'
 
 import type { ParamValue } from '../../types'
 import {
@@ -54,6 +54,11 @@ const powered = computed(() => poweredNow() || mode.value === 'status')
 
 const flash = ref('')
 let flashTimer = 0
+/* 卸载时收掉回执定时器（评审 R23-5）：翻页会真的卸载组件，定时器却会跑完
+   ——写一个已死的 ref 不会报错，但与 `OpsBoard` / `PantoOps` 的写法不一致，
+   而"同一件事两种写法"正是下一轮踩坑的地方。 */
+onBeforeUnmount(() => window.clearTimeout(flashTimer))
+
 /* 成功也回执（与空调屏同一条约定）：三行确认点完要能看到"已确认一项"。 */
 function run(result: { ok: boolean; hint: string }): void {
   flash.value = result.hint

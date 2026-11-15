@@ -496,6 +496,22 @@ def device_subjects() -> dict[str, list[str]]:
     return {name: list(parts) for name, parts in DEVICE_SUBJECTS.items()}
 
 
+def interactive_scenes() -> dict[str, dict[str, list[str]]]:
+    """交互原语的场景口径：导出给前端做*机检*用（R23-1，2026-11-15）。
+
+    ## 为什么必须导出
+    `operation_scene.act` 有**三份口径**：后端这张 `INTERACTIVE_SCENES`（校验样例）、
+    前端 `ALLOWED` 表（按步裁剪）、样例里实际写的值。三份靠人眼对齐时，只要有人
+    只改一边，前端就会静默按"全放开"处理——页面上看着正常，越界动作全放行
+    （第七轮评审 P2-1，已复现）。导出之后，前端单测可以直接断言"表覆盖了后端允许的
+    每一个 act"，漂移当场变红。
+    """
+    return {
+        name: {key: list(values) for key, values in spec.items()}
+        for name, spec in INTERACTIVE_SCENES.items()
+    }
+
+
 def device_catalog() -> dict[str, dict[str, object]]:
     """给 prompt 与 `/schema/visual` 共用：每台设备的部件、可指名瞬间、所属工位。
 

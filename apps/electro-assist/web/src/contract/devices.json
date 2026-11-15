@@ -483,5 +483,74 @@
         "pantograph"
       ]
     }
+  },
+  "scenes": {
+    "door_switch": {
+      "mon_modes": [
+        "check",
+        "status"
+      ],
+      "mon_tabs": [
+        "status",
+        "control",
+        "fault"
+      ],
+      "ops_acts": [
+        "power",
+        "check",
+        "operate",
+        "pinch",
+        "close"
+      ],
+      "ops_views": [
+        "desk",
+        "both"
+      ]
+    },
+    "hvac_cooling": {
+      "mon_modes": [
+        "check",
+        "status"
+      ],
+      "mon_tabs": [
+        "set",
+        "unit",
+        "cabin"
+      ],
+      "ops_acts": [
+        "power",
+        "set",
+        "vent",
+        "cool",
+        "done"
+      ],
+      "ops_views": [
+        "desk",
+        "both",
+        "mon"
+      ]
+    },
+    "pantograph_raise": {
+      "mon_modes": [
+        "check",
+        "status"
+      ],
+      "mon_tabs": [
+        "power",
+        "vehicle",
+        "remote"
+      ],
+      "ops_acts": [
+        "all",
+        "power",
+        "unit",
+        "raise",
+        "done"
+      ],
+      "ops_views": [
+        "desk",
+        "both"
+      ]
+    }
   }
 }

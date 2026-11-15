@@ -223,6 +223,14 @@ jobs:
         working-directory: apps/electro-assist/web
         run: npm run check:bundle
 
+      # 指标表里的首屏数字必须与实测一致（评审 R23-2，2026-11-15）。
+      # 为什么单列一步：README 的 7 项指标里原本只有 2 项被 check_metrics.py 机检，
+      # 首屏 46.04 / CSS 10.31 在文档里躺了一个月，直到 CI 红在另一条指标上才被发现。
+      # 负例已验：把 46.41 改成 46.00 → exit 1（README 引用的是与 dist 实测的对比）。
+      - name: 文档首屏指标与实测一致
+        working-directory: apps/electro-assist/web
+        run: node scripts/check-bundle.mjs dist --check-docs
+
       # 配额放开到 50：E2E 每个会话就是一次真实生成入口调用，16 条用例里
       # smoke / landscape / mobile 各建 1 个会话，正好撞上生产配额（2 次/小时）。
       # 这只影响 CI 的临时库，生产配额不受影响。
@@ -277,6 +285,13 @@ jobs:
           E2E_REVISE: "1"
         working-directory: apps/electro-assist/web
         run: npx playwright test
+
+      # 文档里的 E2E 条数必须等于实际条数（评审 R23-2）。只有这个作业装了 playwright，
+      # 所以这条放在这里；首屏数字则由上一步在构建作业里比。
+      # 负例已验：README 写 36 条（实际 37）→ exit 1。
+      - name: 文档 E2E 条数与实际一致
+        working-directory: apps/electro-assist/web
+        run: node scripts/check-doc-e2e.mjs
 
       # 可访问性门禁（计划 §12.8「axe 0 violation」）。2026-11-08 进 CI。
       # 为什么值得占 CI 时间：可访问性退化是**静默**的——颜色改浅一点、读屏标签漏一个，

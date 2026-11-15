@@ -18,10 +18,18 @@
  *  `MonPanel.vue` 现在是**按场景分发**的一层薄壳，升弓这一套原样搬到本文件，
  *  一行逻辑都没改——改的是"哪块屏"，不是"屏怎么工作"。
  */
-import { computed, inject, ref } from 'vue'
+import { computed, inject, onBeforeUnmount, ref } from 'vue'
 
 import type { ParamValue } from '../../types'
 import { MON_ITEMS, confirmMon, monDone, monPowered, reset, session, type MonKey } from '../../lib/panto-session'
+import {
+  TAB_KEYS,
+  monRows,
+  monShownRaised,
+  monShownVcb,
+  monUnit,
+  type MonTab,
+} from '../../lib/panto-mon-rows'
 
 const props = defineProps<{
   params: Record<string, ParamValue>
@@ -35,112 +43,41 @@ const props = defineProps<{
   chrome?: boolean
 }>()
 
-type Tab = 'power' | 'vehicle' | 'remote'
-
-const TABS: Array<{ id: Tab; label: string }> = [
+const TABS: Array<{ id: MonTab; label: string }> = [
   { id: 'power', label: '电源电压' },
   { id: 'vehicle', label: '车辆信息' },
   { id: 'remote', label: '远程控制切除' },
 ]
 
-/** 每个页签上有哪几项需要确认（远程控制切除页只"看"，没有确认项）。
- *
- *  有了它，页签才能标出"还有几项没确认"——否则用户点完当前页的 2 行、
- *  看到进度写 2/5，却不知道剩下 3 项藏在另外两页里（2026-11-13 实测踩到）。 */
-const TAB_KEYS: Record<Tab, MonKey[]> = {
-  power: ['voltage', 'mr'],
-  vehicle: ['egs', 'vcb', 'panto_cut'],
-  remote: [],
-}
-
-const initialTab = computed<Tab>(() => {
+const initialTab = computed<MonTab>(() => {
   const raw = props.params.tab
   return raw === 'vehicle' || raw === 'remote' ? raw : 'power'
 })
-const tab = ref<Tab>(initialTab.value)
+const tab = ref<MonTab>(initialTab.value)
 
 /** status：只看结果（第 6 步）；check：可点确认（第 2 步）。 */
 const mode = computed(() => (props.params.mode === 'status' ? 'status' : 'check'))
-
-interface Row {
-  key?: MonKey
-  label: string
-  required: string
-  value: string
-}
-
-/* 第 6 步（status）是"成功后应该看到的样子"：即使没走过前面步骤，也按成功态显示受电弓。
-   否则直接翻到第 6 步会看到一块暗屏 + "未升起"，与"读到升起即可进入下一步"自相矛盾。 */
-const shownRaised = computed(() => (mode.value === 'status' ? true : session.raised))
-
-/* VCB **不能**跟着 status 一起"示意"。
-   2026-11-13 本人实测：第 5 步合了 VCB，第 6 步屏上仍写"断开"——因为这里写死了 false。
-   VCB 是人操作的直接结果，屏必须如实反映；"升起了但还没合闸"本身也是合法中间态，
-   显示"断开"不算矛盾。 */
-const shownVcb = computed(() => session.vcbClosed)
-
-/** VCB 在两种场景下的含义不同：
- *  - 升弓前（check）：必须断开，否则升弓回路被联锁切断；
- *  - 升弓后（status）：按需要，合闸是下一步的事，不是判据。 */
-const vcbRequired = computed(() => (mode.value === 'status' ? '视需要' : '必须断开'))
-
-/** 当前选中的受电弓单元。2U = 04 车，3U = 06 车。 */
-const unit = computed(() => session.unit ?? '2U')
-
-const rows = computed<Row[]>(() => {
-  if (tab.value === 'power') {
-    return [
-      { key: 'voltage', ...pick('voltage') },
-      { key: 'mr', ...pick('mr') },
-      { label: '蓄电池电压', required: '≥87 V', value: '110.0 V' },
-    ]
-  }
-  if (tab.value === 'vehicle') {
-    return [
-      { key: 'egs', ...pick('egs') },
-      { key: 'vcb', ...pick('vcb', '视需要') },
-      // 这一行的"要求"与"显示"不能都写"未切除"：两列同字，看着像重复渲染。
-      { key: 'panto_cut', label: '受电弓远程切除', required: '应未切除', value: '均未切除' },
-    ]
-  }
-  // 远程控制切除页：先看"切没切"，再看"升没升"。
-  // 原来把"升起"塞进切除行，出现"未切除 升起"这种两种语义挤在一行的读法。
-  const other = unit.value === '2U' ? '3U' : '2U'
-  return [
-    { label: `${unit.value} 受电弓切除`, required: '应未切除', value: '未切除' },
-    { label: `${other} 受电弓切除`, required: '应未切除', value: '未切除' },
-    { label: '受电弓状态', required: mode.value === 'status' ? '已确认' : '应升起', value: shownRaised.value ? '升起' : '未升起' },
-    { label: 'VCB', required: vcbRequired.value, value: shownVcb.value ? '闭合' : '断开' },
-  ]
-})
-
-/** 有些项的"显示值"是活的，不能写死在 `MON_ITEMS` 里默认值中：
- *  VCB 是人操作的结果，写死"断开"会在用户合闸后自相矛盾。 */
-function liveValue(key: MonKey, fallback: string): string {
-  if (key === 'vcb') return shownVcb.value ? '闭合' : '断开'
-  return fallback
-}
-
-function pick(
-  key: MonKey,
-  requiredInStatus?: string,
-): { label: string; required: string; value: string } {
-  const item = MON_ITEMS.find((i) => i.key === key)!
-  return {
-    label: item.label,
-    required: mode.value === 'status' && requiredInStatus ? requiredInStatus : item.required,
-    value: liveValue(key, item.value),
-  }
-}
 
 function isDone(key?: MonKey): boolean {
   return key ? session.mon[key] : false
 }
 
+/* 页签 → 行数据的映射搬到 `lib/panto-mon-rows.ts`（评审 R23-7）。
+   这一屏只留"怎么画"，不负责"哪一页有哪些行"。 */
+const shownRaised = computed(() => monShownRaised(mode.value))
+const shownVcb = computed(() => monShownVcb())
+const unit = computed(() => monUnit())
+const rows = computed(() => monRows(tab.value, mode.value))
+
 /** 点击没被接受时的说明。放在屏内页脚——短屏下 `.mon__hint` 是隐藏的，
  *  提示挂在那里等于没提示。 */
 const flash = ref('')
 let flashTimer = 0
+/* 卸载时收掉回执定时器（评审 R23-5）：翻页会真的卸载组件，定时器却会跑完
+   ——写一个已死的 ref 不会报错，但与 `OpsBoard` / `PantoOps` 的写法不一致，
+   而"同一件事两种写法"正是下一轮踩坑的地方。 */
+onBeforeUnmount(() => window.clearTimeout(flashTimer))
+
 
 function toggle(key?: MonKey): void {
   if (mode.value !== 'check' || !key) return
@@ -195,7 +132,7 @@ function restart(): void {
 
 /** 某个页签上还没确认的项数。只在 check 模式（且屏已点亮）才算——
  *  status 模式是"结果示意"，不该催人去确认。 */
-function pendingIn(id: Tab): number {
+function pendingIn(id: MonTab): number {
   if (mode.value !== 'check' || !powered.value) return 0
   return TAB_KEYS[id].filter((key) => !session.mon[key]).length
 }

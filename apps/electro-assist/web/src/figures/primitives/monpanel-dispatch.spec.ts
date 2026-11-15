@@ -111,4 +111,20 @@ describe('车门屏：确认与只读', () => {
     const w = mountPanel({ scene: 'door_switch', tab: 'fault', mode: 'check' })
     expect(w.text()).toContain('关门障碍物超次数')
   })
+
+  /* ---- 未知场景不再兜到升弓屏（评审 R23-1）----
+     原来 `v-else` 会把任何未知场景画成升弓那块屏：页面上看着"有块屏"，
+     实际是另一份数据。现在给一句能定位的提示。 */
+  it('未知场景给明确提示，不冒充升弓屏', () => {
+    const w = mountPanel({ scene: 'nope', tab: 'power', mode: 'check' })
+    expect(w.find('.mon-unknown').exists()).toBe(true)
+    expect(w.text()).toContain('未知的 MON 场景')
+    expect(w.find('.mon__rows').exists()).toBe(false)
+  })
+
+  it('显式写 pantograph_raise 仍走升弓屏（兼容旧样例）', () => {
+    const w = mountPanel({ scene: 'pantograph_raise', tab: 'power', mode: 'check' })
+    expect(w.find('.mon-unknown').exists()).toBe(false)
+    expect(w.find('.mon__rows').exists()).toBe(true)
+  })
 })

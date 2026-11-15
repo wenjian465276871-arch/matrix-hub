@@ -29,7 +29,7 @@ from pathlib import Path
 API_DIR = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(API_DIR))
 
-from models.visual import device_catalog  # noqa: E402
+from models.visual import device_catalog, interactive_scenes  # noqa: E402
 
 WEB_DIR = API_DIR.parent / "web"
 DEFAULT_OUT = WEB_DIR / "src" / "contract" / "devices.json"
@@ -45,6 +45,9 @@ def render() -> str:
     payload = {
         **HEADER,
         "devices": device_catalog(),
+        # 交互原语的场景口径（ops_acts / ops_views / mon_tabs / mon_modes）：
+        # 前端靠它机检自己的按步裁剪表，别把这份删了（见 `interactive_scenes()`）。
+        "scenes": interactive_scenes(),
     }
     return json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 

@@ -45,5 +45,13 @@ const emit = defineEmits<{ (e: 'receipt', text: string): void }>()
     @receipt="emit('receipt', $event)"
   />
   <DoorMon v-else-if="scene === 'door_switch'" :params="params" :label="label" />
-  <PantoMon v-else :params="params" :label="label" :chrome="chrome" />
+  <PantoMon v-else-if="scene === 'pantograph_raise'" :params="params" :label="label" :chrome="chrome" />
+  <!-- 未知场景不再兜到升弓屏（评审 R23-1）：那会把"配置写错"画成一块看着正常的屏。
+       后端 `INTERACTIVE_SCENES` 会挡住新值，所以这条只在契约被绕过时出现。 -->
+  <!-- 不加专属样式：这一块在 `ConfirmDialog-*.css` 这个聚合 chunk 里，
+       而它刚好贴着 6400B 的预算（第七轮评审刚为紧凑版 MON 调过一次）。
+       一个"契约被绕过"才会出现的兜底提示，不值得再顶一次预算。 -->
+  <p v-else class="mon-unknown" role="alert">
+    未知的 MON 场景「{{ scene }}」：应为 pantograph_raise / hvac_cooling / door_switch 之一。
+  </p>
 </template>

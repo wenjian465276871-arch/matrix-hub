@@ -268,20 +268,6 @@ export function stepDoor(dt: number): boolean {
   return Math.abs(door.openT - target) > 1e-6
 }
 
-/** 一步跑到位（E2E 与讲解用）：等价于按住 3.2 / 3.6 秒。 */
-export function settleDoor(): ActionResult {
-  if (door.target === 1) {
-    door.openT = 1
-    door.reopening = false
-    return OK('门已开到位（3.2 s）')
-  }
-  door.openT = 0
-  door.pinching = false
-  door.reopening = false
-  door.closedLed = true
-  return OK('门已关到位并锁闭（3.6 s）')
-}
-
 /* ------------------------------------------------------------------ 派生 */
 
 export function stageText(): string {

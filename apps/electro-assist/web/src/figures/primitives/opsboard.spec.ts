@@ -201,4 +201,22 @@ describe('动作入口：三维与 MON', () => {
     await w.get('.ops__reset').trigger('click')
     expect(w.get('.ops__notice').text()).toContain('已在第一工步')
   })
+
+  /* ---- 未知 act 必须拒绝（评审 R23-1，2026-11-15）----
+     原来 `allowed()` 写的是 `table[phase] ?? table.all`：act 一写错，本步之外的件
+     全部放行，而且没有任何提示。这条把方向钉成 fail-closed —— 真值表在
+     `lib/ops-allowed.spec.ts`，这里验"组件真的会拒绝"。 */
+  it('act 写成未知值时一律拒绝：点门控「释放」不生效，并说明本步范围', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    power.keyInserted = true
+    power.keyTurned = true
+    power.brakeFast = true
+    const w = mountOps('door_switch', 'nope')
+    await clickPart(w, 'door_l_release')
+    expect(door.released).toBe(false)
+    expect(w.get('.ops__notice').text()).toContain('本步只做')
+    // 告警一次，不能刷屏
+    expect(warn.mock.calls.filter((c) => String(c[0]).includes('未知的 act')).length).toBe(1)
+    warn.mockRestore()
+  })
 })

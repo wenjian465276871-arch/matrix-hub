@@ -41,6 +41,7 @@ import {
   stepRaise,
   turnKey,
 } from '../../lib/panto-session'
+import { PANTO_ALLOWED, allowList, warnOnce } from '../../lib/ops-allowed'
 
 const props = defineProps<{
   params: Record<string, ParamValue>
@@ -163,20 +164,19 @@ onBeforeUnmount(() => {
  */
 const phase = computed(() => String(props.params.act ?? 'all'))
 
-const ALLOWED: Record<string, string[]> = {
-  // 上电：只到"手柄快速位"为止
-  power: ['key', 'brake', 'mon'],
-  // 选单元：只动转换开关
-  unit: ['switch', 'mon'],
-  // 升弓与 VCB 闭合
-  raise: ['knob', 'vcb', 'mon', 'gauge'],
-  // 结论：只看
-  done: ['mon', 'gauge'],
-  all: ['key', 'brake', 'switch', 'knob', 'vcb', 'mon', 'gauge'],
-}
-
+/* 表在 `lib/ops-allowed.ts`（与作业台同一份口径来源）。取不到就**拒绝**，
+   不再回退成"全放开"——评审 R23-1。 */
 function allowed(key: string): boolean {
-  return (ALLOWED[phase.value] ?? ALLOWED.all).includes(key)
+  const list = allowList(PANTO_ALLOWED, phase.value)
+  if (!list) {
+    warnOnce(
+      `panto:${phase.value}`,
+      `[PantoOps] 未知的 act「${phase.value}」：本步所有件一律拒绝。` +
+        '口径见契约 scenes.pantograph_raise.ops_acts 与 src/lib/ops-allowed.ts。',
+    )
+    return false
+  }
+  return list.includes(key)
 }
 
 const PHASE_LABEL: Record<string, string> = {

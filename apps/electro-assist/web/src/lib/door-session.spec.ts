@@ -19,7 +19,6 @@ import {
   release,
   reset,
   selectSide,
-  settleDoor,
   stepDoor,
   toggleBlock,
 } from './door-session'
@@ -28,6 +27,18 @@ function powerOn(): void {
   insertKey()
   turnKey()
   moveBrakeFast()
+}
+
+/** 一步跑到位：等价于按住 3.2 / 3.6 秒。
+ *
+ * 原来产品模块里导出一个 `settleDoor()` 专供测试（注释还写着"E2E 与讲解用"，
+ * 实际只有本文件引用）。评审 R23-4 之后改成**在测试里用真实推进函数跑到停**——
+ * 顺手让这几条用例多走一遍 `stepDoor`，少一个只在测试里存在的出口。
+ */
+function settleDoor(): void {
+  for (let i = 0; i < 80; i += 1) {
+    if (!stepDoor(0.2)) return
+  }
 }
 
 /** 上电 → 释放 → 开门 → 跑到位。 */

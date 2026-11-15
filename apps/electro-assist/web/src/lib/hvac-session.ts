@@ -182,6 +182,13 @@ export function toggleFreshAir(): ActionResult {
 export function applySettings(): ActionResult {
   if (!powered()) return { ok: false, hint: OFF_HINT }
   if (hvac.pending === 'off') return { ok: false, hint: '先在 MON 上选一个模式（通风 / 制冷 / 制热）' }
+  /* 重复下发同一份设定 = 幂等（评审 R23-3，2026-11-15）。
+     原来运行中再点一次会掉进下面的"设定温度不低于回风"分支，回一句"压缩机不会启动"
+     ——而屏上正写着「压缩机 12.4 A」。同一块屏上一句话否定自己的读数，是最难辩解的那种错。
+     真值表：设定没变 → 什么都不做；设定变了 → 才回到"压缩机运行中不许改"的拒绝。 */
+  if (hvac.cooling && hvac.pending === hvac.mode && hvac.pendingTemp === hvac.setTemp) {
+    return OK(`设定未变：机组保持「${MODE_LABEL[hvac.mode]} ${hvac.setTemp} ℃」运行`)
+  }
   if (hvac.pending === 'cool') {
     if (hvac.freshAir === 'open') {
       return { ok: false, hint: '新风门未关闭：制冷试验要求关闭新风门，否则温差测不准' }
@@ -285,13 +292,6 @@ export function stepCooling(dt: number): boolean {
   if (hvac.coolT >= 1) return false
   hvac.coolT = Math.min(1, hvac.coolT + Math.max(0, dt) / COOL_SECONDS)
   return hvac.coolT < 1
-}
-
-/** 「模拟运行 15 分钟」：直接推到稳态。讲解与 E2E 用，不改变任何判据口径。 */
-export function settleCooling(): ActionResult {
-  if (!hvac.cooling) return { ok: false, hint: '压缩机还没起动' }
-  hvac.coolT = 1
-  return OK('已按稳定运行 15 分钟取值：温差 9.8 ℃、电流 12.4 A、高压 1.70 MPa')
 }
 
 /* ------------------------------------------------------------------ 派生 */

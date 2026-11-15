@@ -10,7 +10,7 @@
  *  全部走 `lib/hvac-session`：未上电不许设、压缩机运行时不许改模式、
  *  设定温度不低于回风温度时压缩机不启动。组件只负责显示与派发。
  */
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import type { ParamValue } from '../../types'
 import {
@@ -92,6 +92,11 @@ const canSet = computed(() => phase.value === 'set' || phase.value === 'cool' ||
 
 const flash = ref('')
 let flashTimer = 0
+/* 卸载时收掉回执定时器（评审 R23-5）：翻页会真的卸载组件，定时器却会跑完
+   ——写一个已死的 ref 不会报错，但与 `OpsBoard` / `PantoOps` 的写法不一致，
+   而"同一件事两种写法"正是下一轮踩坑的地方。 */
+onBeforeUnmount(() => window.clearTimeout(flashTimer))
+
 function say(text: string): void {
   flash.value = text
   if (text) emit('receipt', text)

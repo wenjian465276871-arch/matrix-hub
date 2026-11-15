@@ -39,13 +39,8 @@ import {
   turnKey,
 } from '../../lib/desk-power'
 import {
-  confirmDone as hvacDone,
   confirmMissing,
-  ventConfirmDone,
-  ventConfirmMissing,
-  coolingStable,
   hvac,
-  nextAction as hvacNext,
   reset as resetHvac,
   compressorCurrent,
   supplyTemp,
@@ -55,9 +50,7 @@ import {
 } from '../../lib/hvac-session'
 import {
   close as doorClose,
-  confirmDone as doorConfirmed,
   door,
-  nextAction as doorNext,
   open as doorOpen,
   release as doorRelease,
   reset as resetDoor,
@@ -66,13 +59,16 @@ import {
   stepDoor,
   toggleBlock,
 } from '../../lib/door-session'
+import { OPS_ALLOWED, allowList, warnOnce } from '../../lib/ops-allowed'
+import { opsChips, opsNext, opsStepDone } from '../../lib/ops-derive'
 
 const props = defineProps<{
   params: Record<string, ParamValue>
   label?: string
 }>()
 
-/** 本步允许哪一组操作。取不到（旧样例 / 单测）时按 `all` 放开。 */
+/* 本步允许哪一组操作。样例不带 `act` 时按 `all`（旧样例兼容口径）；
+   带了但**认不得**则一律拒绝——见 `allowed()` 与 `lib/ops-allowed.ts`。 */
 const phase = computed(() => String(props.params.act ?? 'all'))
 const scene = computed(() => (props.params.scene === 'door_switch' ? 'door' : 'hvac'))
 /**
@@ -84,7 +80,15 @@ const scene = computed(() => (props.params.scene === 'door_switch' ? 'door' : 'h
 const view = computed<'desk' | 'both' | 'mon'>(() => {
   const raw = props.params.view
   if (raw === 'mon') return 'mon'
-  return raw === 'both' ? 'both' : 'desk'
+  if (raw === 'both') return 'both'
+  if (raw === 'desk') return 'desk'
+  // 未知值同样不静默（评审 R23-1）：退回 desk 但告警一次，别让"本步该显示 MON"
+  // 变成一句看着正常、实则丢了一整栏的话。
+  warnOnce(
+    `view:${String(raw)}`,
+    `[OpsBoard] 未知的 view「${String(raw)}」：按 desk 渲染。口径见契约 scenes[].ops_views。`,
+  )
+  return 'desk'
 })
 
 /** 下一步的出口：由阅读器 / 探索台 provide；单测里没有就退化成提示。 */
@@ -195,41 +199,20 @@ watch(notice, (value) => {
 
 /* ---------------- 本步允许做什么 ---------------- */
 
-/** 三维里可点的件 → 各步允不允许点。 */
-const ALLOWED: Record<string, Record<string, string[]>> = {
-  hvac: {
-    all: ['key', 'brake', 'mon'],
-    power: ['key', 'brake', 'mon'],
-    set: ['mon'],
-    vent: ['mon'],
-    cool: ['mon'],
-    done: ['mon'],
-  },
-  door: {
-    all: [
-      'key',
-      'brake',
-      'mon',
-      'block',
-      'door_l_release',
-      'door_l_open',
-      'door_l_close',
-      'door_r_release',
-      'door_r_open',
-      'door_r_close',
-    ],
-    power: ['key', 'brake', 'mon'],
-    // 只确认门状态：六个按钮一颗都不该动
-    check: ['mon'],
-    operate: ['mon', 'door_l_release', 'door_l_open', 'door_r_release', 'door_r_open'],
-    pinch: ['mon', 'block', 'door_l_close', 'door_r_close'],
-    close: ['mon', 'block', 'door_l_close', 'door_r_close', 'door_l_release', 'door_r_release'],
-  },
-}
-
+/* 表在 `lib/ops-allowed.ts`：它是**唯一口径**，并与后端契约里的 `ops_acts` 机检对齐。
+   这里只负责"按当前场景取表、取不到就拒绝"。 */
 function allowed(key: string): boolean {
-  const table = ALLOWED[scene.value]
-  const list = table[phase.value] ?? table.all
+  const list = allowList(OPS_ALLOWED[scene.value], phase.value)
+  if (!list) {
+    // fail-closed（评审 R23-1）：未知 act 一律拒绝，并告警一次。
+    // 原来这里写 `?? table.all`，等于"配置错了就全放开"。
+    warnOnce(
+      `ops:${scene.value}:${phase.value}`,
+      `[OpsBoard] 未知的 act「${phase.value}」（场景 ${scene.value}）：本步所有件一律拒绝。` +
+        '按步裁剪表见 src/lib/ops-allowed.ts，口径以契约 scenes[].ops_acts 为准。',
+    )
+    return false
+  }
   return list.includes(key)
 }
 
@@ -355,100 +338,21 @@ function restart(): void {
 
 /* ---------------- 显示 ---------------- */
 
-/** 底部只读状态：`done` 决定是否点亮，点它没有任何反应。 */
-interface Chip {
-  label: string
-  done: boolean
-}
-
-const chips = computed<Chip[]>(() => {
-  const powerChips: Chip[] = [
-    { label: '钥匙插入', done: power.keyInserted },
-    { label: '钥匙右旋', done: power.keyTurned },
-    { label: '手柄快速位', done: power.brakeFast },
-  ]
-  if (phase.value === 'power') return powerChips
-
-  if (scene.value === 'door') {
-    if (phase.value === 'check') {
-      const n = doorConfirmed()
-      return [{ label: `MON 已确认 ${n}/3`, done: n >= 3 }]
-    }
-    return [
-      { label: door.released ? `已释放（${door.side === 'L' ? '左' : '右'}）` : '未释放', done: door.released },
-      { label: `开门 ${Math.round(door.openT * 100)}%`, done: door.openT > 0.999 },
-      { label: door.blocked ? '试块在门洞' : '试块在门外', done: door.blocked },
-      { label: `防夹反开 ${door.bumps} 次`, done: door.bumps > 0 },
-      { label: door.closedLed ? '关门灯亮' : '关门灯灭', done: door.closedLed },
-    ]
-  }
-
-  const modeLabel = hvac.mode === 'cool' ? '制冷' : hvac.mode === 'vent' ? '通风' : hvac.mode === 'heat' ? '制热' : '停止'
-  // 通风阶段只有三项可判（压缩机不转，没有电流与高压）：状态灯也只在报三项
-  const ventPhase = phase.value === 'vent' || (hvac.ventRunning && !hvac.cooling)
-  const confirmChip = ventPhase
-    ? { label: `MON 已确认 ${ventConfirmDone()}/3`, done: ventConfirmDone() >= 3 }
-    : { label: `MON 已确认 ${hvacDone()}/5`, done: hvacDone() >= 5 }
-  return [
-    { label: `模式 ${modeLabel}`, done: hvac.applied },
-    { label: `设定 ${hvac.setTemp} ℃`, done: hvac.applied },
-    { label: hvac.cooling ? '压缩机运行' : hvac.ventRunning ? '通风运行' : '机组停止', done: hvac.ventRunning },
-    confirmChip,
-  ]
-})
+/* 三段派生（状态灯 / 本步提示 / 完成判据）搬到 `lib/ops-derive.ts`（评审 R23-7）。
+   它们只读会话状态、不碰 DOM，搬出去之后可以单测，组件也回到"画界面"这一件事。 */
+const chips = computed(() => opsChips(scene.value, phase.value))
 
 const stage = computed(() => (scene.value === 'door' ? doorStage() : hvacStage()))
 
-const next = computed(() => {
-  if (!power.keyTurned || !power.brakeFast) return nextPowerAction()
-  if (scene.value === 'door') {
-    if (phase.value === 'check' && doorConfirmed() < 3) return '点 MON 屏：在「车门状态」页把三项逐项确认'
-    if (phase.value === 'operate' && !door.released) return '点三维台面上的「释放」按钮（左侧），再点「开门」'
-    if (phase.value === 'operate') return '门开到位即可进入下一步（防夹验证）'
-    if (phase.value === 'pinch' && !door.blocked) return '点三维里门外侧的试块，把它移到门洞地板中间'
-    if (phase.value === 'pinch' && door.bumps === 0) return '点三维台面上的「关门」：门页碰到试块应停止并反向开门'
-    // 06 是「正常关门」：门洞里那块必须先撤回原位，否则一关就又触发防夹
-    if (phase.value === 'close' && door.blocked) {
-      return '点三维里门洞地板上的试块：把它移回门外原位（撤除障碍物）'
-    }
-    if (phase.value === 'close' && door.openT > 0.001) {
-      return '点台面「关门」：无障碍物时门扇应正常关闭并锁闭，不再反开'
-    }
-    if (phase.value === 'close') return '点「释放」按钮复位（灯灭），本步完成'
-    return doorNext()
-  }
-  if (phase.value === 'set' && !hvac.applied) return '点 MON 屏：选「通风」、设定 24 ℃，点「下发设定」'
-  if (phase.value === 'vent') {
-    if (ventConfirmMissing().length) {
-      return '在 MON「机组状态」页确认三项：全列机组通信、冷凝/送风机、排水与滤网（压缩机与高压侧压力在通风模式下不判）'
-    }
-    return '通风三项已确认：测送风口风速与送风温度，完成后进入下一工步'
-  }
-  if (phase.value === 'cool' && hvac.mode !== 'cool') return '点 MON 屏：模式切「制冷」并「下发设定」，压缩机随即起动'
-  if (phase.value === 'cool' && hvac.coolT < 1) return '制冷运行中：等读数稳定（现场约 15 分钟）'
-  if (phase.value === 'cool' && confirmMissing().length) return '点 MON 屏：在「机组状态」页把五项逐项确认'
-  return hvacNext()
-})
+const next = computed(() => opsNext(scene.value, phase.value))
 
-/** 本步是否做完：做完了才给"进入下一步"的出口。 */
-const stepDone = computed(() => {
-  if (phase.value === 'power') return power.keyInserted && power.keyTurned && power.brakeFast
-  if (scene.value === 'door') {
-    if (phase.value === 'check') return doorConfirmed() >= 3
-    if (phase.value === 'operate') return door.openT > 0.999
-    if (phase.value === 'pinch') return door.bumps > 0 && door.openT > 0.99
-    // 关门到位**且试块已撤回**才算完成：块还在门洞就"完成"，等于跳过了正常关门试验
-    if (phase.value === 'close') return !door.blocked && door.openT <= 0.001
-    return false
-  }
-  if (phase.value === 'set') return hvac.applied && hvac.mode !== 'off'
-  if (phase.value === 'vent') return hvac.ventRunning && !hvac.cooling && ventConfirmMissing().length === 0
-  if (phase.value === 'cool') return coolingStable() && confirmMissing().length === 0
-  return false
-})
+const stepDone = computed(() => opsStepDone(scene.value, phase.value))
 
 /** 本步做完**且后面还有工步**时才给出口。 */
 const showGo = computed(() => stepDone.value && (canNext ? canNext.value : true))
+
+/** 已经是最后一工步（没有下一步可走）。末步只写"本步已完成"，人会以为还有下一页。 */
+const isLastStep = computed(() => !(canNext ? canNext.value : true))
 
 function goNext(): void {
   const jumped = gotoNext?.() ?? false
@@ -592,7 +496,11 @@ const unitBadge = computed(() => {
     </div>
 
     <div class="ops__hud no-print">
-      <p class="ops__next">{{ stepDone ? '本步已完成' : next }}</p>
+      <!-- 末步补一句"到此结束"（评审 R23-6）：原来只有"本步已完成"，而出口按钮
+           按设计不出现，读完不知道还能不能往下走。 -->
+      <p class="ops__next">
+        {{ stepDone ? (isLastStep ? '本步已完成，本试验到此结束' : '本步已完成') : next }}
+      </p>
       <!-- 回执与"当前阶段"共用一行：**不用浮层**——浮层会盖住 MON 屏下发的按钮
            （2026-11-14 实测：一条"已进入下一步"正好压在控件条上）。 -->
       <p class="ops__line">

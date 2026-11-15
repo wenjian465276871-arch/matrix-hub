@@ -22,7 +22,6 @@ import {
   reset,
   returnTemp,
   selectMode,
-  settleCooling,
   stepCooling,
   supplySpeed,
   supplyTemp,
@@ -44,6 +43,12 @@ function toCooling(): void {
   powerOn()
   selectMode('cool')
   applySettings()
+}
+
+/** 直接推到稳态（等价 25 s）：原来产品模块里导出 `settleCooling()` 专供测试，
+ *  评审 R23-4 之后改成本地 helper，生产代码里不再留测试入口。 */
+function settleCooling(): void {
+  stepCooling(25)
 }
 
 beforeEach(() => {
@@ -160,6 +165,29 @@ describe('hvac 会话：推出来的读数', () => {
     // 半程：温差 5 ℃、电流已到 12.4（3 秒内爬满）
     expect(tempDiff()).toBeCloseTo(5, 1)
     expect(compressorCurrent()).toBe(12.4)
+  })
+
+  /* ---- 重复下发幂等（评审 R23-3，2026-11-15）----
+     原来运行中再点一次「下发设定」会掉进"设定温度不低于回风"分支，回一句
+     「压缩机不会启动」——而屏上正写着「压缩机 12.4 A」。同一块屏否定自己的读数。 */
+  it('同一份设定重复下发是幂等的：不重置制冷进程，也不说"不会启动"', () => {
+    toCooling()
+    settleCooling()
+    expect(hvac.coolT).toBe(1)
+    const again = applySettings()
+    expect(again.ok).toBe(true)
+    expect(again.hint).toContain('设定未变')
+    expect(again.hint).not.toContain('不会启动')
+    expect(hvac.coolT, '重复下发把 15 分钟的制冷进程打回了 0').toBe(1)
+  })
+
+  it('通风运行中重复下发同样幂等（风机不停）', () => {
+    powerOn()
+    selectMode('vent')
+    expect(applySettings().ok).toBe(true)
+    const again = applySettings()
+    expect(again.ok).toBe(true)
+    expect(hvac.ventRunning).toBe(true)
   })
 
   it('稳定后四项读数全部落在指导书的判据区间内', () => {

@@ -364,6 +364,11 @@ test('车门：MON 确认 → 释放开门 → 点试块 + 关门必须反开 �
   await expect.poll(() => probe(page).then((p) => p?.door.bumps ?? -1), { timeout: 10_000 }).toBe(0)
   // 这是**最后一工步**：不该再出现"本步完成，进入下一步"（点了没反应比没按钮更差）
   await expect(page.locator('.ops__go')).toHaveCount(0)
+  // 末步的提示要说清"到此结束"（评审 R23-6）：只写"本步已完成"、又不给出口按钮，
+  // 人会以为还有下一页。`next` 文案里的"…本步完成"已被这句替换掉（原来两句话打架）。
+  await expect(page.locator('.ops__next')).toContainText('本步已完成')
+  await expect(page.locator('.ops__next')).toContainText('到此结束')
+  await expect(page.locator('.ops__next')).not.toContainText('进入下一步')
 
   await openMon(page)
   await page.getByRole('tab', { name: '车门状态' }).click()

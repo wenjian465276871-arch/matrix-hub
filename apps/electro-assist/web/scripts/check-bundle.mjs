@@ -43,7 +43,17 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-const root = process.argv[2] ?? 'dist'
+/**
+ * ## `--check-docs`（评审 R23-2，2026-11-15）
+ * 首屏数字写在 README 的指标表里，而那张表**只有后端测试条数与端点数被机检**
+ * （`scripts/check_metrics.py`）。结果就是：首屏 46.04、CSS 10.31、E2E 26 条
+ * 在文档里躺了整整一个月，直到本轮 CI 红在另一条指标上才被发现。
+ * 这个开关让"算出来的数字"和"写出去的数字"当场对上——CI 的构建作业跑一次即可。
+ * 没有它，指标表迟早还会漂。
+ */
+const args = process.argv.slice(2)
+const checkDocs = args.includes('--check-docs')
+const root = args.find((a) => !a.startsWith('--')) ?? 'dist'
 // kB = 1000，不是 1024：与 vite build 的 `gzip: xx kB` 同口径（见文件头）
 const KB = 1000
 
@@ -147,4 +157,43 @@ if (fail.length > 0) {
   process.exit(1)
 }
 
+if (checkDocs) {
+  const docFail = checkDocNumbers(firstCss, firstJs)
+  if (docFail.length > 0) {
+    console.error('[FAIL] README 的首屏指标与实测不一致：')
+    for (const line of docFail) console.error(`  - ${line}`)
+    console.error('改 README 那一行，或确认这次体积变化是有意的（改了就写进决策）。')
+    process.exit(1)
+  }
+  console.log('[OK] README 的首屏指标与实测一致')
+}
+
 console.log(`[OK] ${rows.length} 份产物，全部在预算内`)
+
+/** README 指标表里的首屏一行与实测比对。返回不一致项（空数组 = 一致）。 */
+function checkDocNumbers(css, js) {
+  // 相对脚本自身定位（不能用 dist 的相对路径：`root` 可以被参数改掉）
+  const readme = new URL('../../../../README.md', import.meta.url)
+  let text
+  try {
+    text = readFileSync(readme, 'utf8')
+  } catch (error) {
+    return [`读不到 ${readme}：${error.message}`]
+  }
+  // | 前端首屏 | **46.42 KB** gzip（预算 50KB），CSS **5.01 KB**（预算 6KB） | … |
+  const m = /\*\*([\d.]+) KB\*\* gzip（预算 (\d+)KB），CSS \*\*([\d.]+) KB\*\*（预算 (\d+)KB）/.exec(text)
+  if (!m) return ['README 里没找到「前端首屏」那一行的标准写法（数字格式变了？）']
+  const [, docJs, docJsBudget, docCss, docCssBudget] = m
+  const want = {
+    js: (js / KB).toFixed(2),
+    css: (css / KB).toFixed(2),
+    jsBudget: String(BUDGET.firstJs / KB),
+    cssBudget: String(BUDGET.firstCss / KB),
+  }
+  const out = []
+  if (docJs !== want.js) out.push(`首屏 JS：文档 ${docJs} / 实测 ${want.js}`)
+  if (docCss !== want.css) out.push(`首屏 CSS：文档 ${docCss} / 实测 ${want.css}`)
+  if (docJsBudget !== want.jsBudget) out.push(`JS 预算：文档 ${docJsBudget} / 脚本 ${want.jsBudget}`)
+  if (docCssBudget !== want.cssBudget) out.push(`CSS 预算：文档 ${docCssBudget} / 脚本 ${want.cssBudget}`)
+  return out
+}
