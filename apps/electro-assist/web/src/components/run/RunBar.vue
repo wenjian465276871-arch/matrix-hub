@@ -61,7 +61,7 @@ const emit = defineEmits<{
   /* 软键盘顶升：--kb-inset 由 visualViewport 写入（§12.5）。没有键盘时恒为 0。 */
   bottom: var(--kb-inset, 0px);
   left: 0;
-  z-index: 20;
+  z-index: var(--z-bar);
   border-top: 1px solid var(--c-line);
   background: var(--c-surface);
   padding: 8px 16px calc(8px + env(safe-area-inset-bottom));

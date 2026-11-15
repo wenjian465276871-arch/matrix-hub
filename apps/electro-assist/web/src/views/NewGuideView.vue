@@ -1079,7 +1079,7 @@ onBeforeUnmount(() => {
 .sheet {
   position: fixed;
   inset: 0;
-  z-index: 40;
+  z-index: var(--z-sheet);
   display: flex;
   align-items: flex-end;
   justify-content: center;

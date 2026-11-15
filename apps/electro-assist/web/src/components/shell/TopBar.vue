@@ -131,7 +131,7 @@ const pad2 = (n: number): string => String(n).padStart(2, '0')
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 30;
+  z-index: var(--z-nav);
   height: var(--nav-h);
   display: flex;
   align-items: center;

@@ -1233,7 +1233,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 5;
+  z-index: var(--z-tip);
   max-width: 272px;
   display: flex;
   flex-direction: column;
@@ -1279,7 +1279,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 5;
+  z-index: var(--z-tip);
   max-width: 272px;
   display: flex;
   flex-direction: column;
@@ -1318,7 +1318,7 @@ onBeforeUnmount(() => {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 5;
+  z-index: var(--z-tip);
   max-width: 272px;
   display: flex;
   flex-direction: column;

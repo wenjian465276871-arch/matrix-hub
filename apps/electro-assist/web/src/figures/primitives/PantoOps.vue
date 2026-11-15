@@ -543,7 +543,7 @@ function restart(): void {
   position: absolute;
   top: 6px;
   right: 6px;
-  z-index: 3;
+  z-index: var(--z-float);
   min-height: 30px;
   padding: 0 10px;
   border: 1px solid var(--c-primary-line);
@@ -562,7 +562,7 @@ function restart(): void {
 .ops--expanded {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-ops);
   padding: 12px 14px;
   background: var(--c-surface);
 }
@@ -656,7 +656,7 @@ function restart(): void {
   /* 抬高 30px：下面还有一行图注（"司机操纵台 · 移上去高亮"），
      浮层压住它就等于把"这是什么"盖掉一半。 */
   bottom: 30px;
-  z-index: 2;
+  z-index: var(--z-badge);
   margin: 0;
   padding: 5px 10px;
   border-left: 3px solid var(--c-primary-line);
@@ -757,7 +757,7 @@ function restart(): void {
 .ops__mon {
   position: fixed;
   inset: 0;
-  z-index: 95;
+  z-index: var(--z-mon);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -830,7 +830,7 @@ function restart(): void {
   .ops__mon {
   position: fixed;
   inset: 0;
-  z-index: 95;
+  z-index: var(--z-mon);
   display: flex;
   align-items: center;
   justify-content: center;

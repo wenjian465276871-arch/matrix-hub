@@ -946,7 +946,7 @@ restoreToken()
 .sheet {
   position: fixed;
   inset: 0;
-  z-index: 65;
+  z-index: var(--z-elevated);
   display: flex;
   align-items: center;
   justify-content: center;

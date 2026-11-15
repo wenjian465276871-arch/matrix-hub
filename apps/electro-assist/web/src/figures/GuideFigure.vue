@@ -491,7 +491,7 @@ onErrorCaptured((err) => {
 .figure--zoomed {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--z-zoom);
   margin: 0;
   /* 双保险：父级若还有 max-height（StepPage 的 58vh），这里必须顶回去，
      否则"全屏"只剩一条横带。 */
@@ -549,7 +549,7 @@ onErrorCaptured((err) => {
 .figure__zoom-layer {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--z-zoom);
   display: flex;
   flex-direction: column;
   align-items: center;

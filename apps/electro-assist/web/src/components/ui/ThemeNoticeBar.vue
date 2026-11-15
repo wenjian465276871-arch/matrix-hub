@@ -71,7 +71,7 @@ function backToLight(): void {
   position: sticky;
   /* 顶部条高度只读同一个变量：硬编码 48 会在平板断点调高度时浮在条中间。 */
   top: var(--nav-h);
-  z-index: 28;
+  z-index: var(--z-notice);
   display: flex;
   align-items: center;
   gap: 8px;

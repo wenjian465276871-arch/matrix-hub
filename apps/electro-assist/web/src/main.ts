@@ -5,6 +5,7 @@ import './styles/base.css'
 import './styles/print.css'
 // 皮肤必须在挂载前上色：等抽屉打开才加载主题模块，刷新后暗色会掉回亮色。
 import './lib/theme'
+import { installCspReporter } from './lib/csp'
 import { reportError } from './lib/report'
 
 const app = createApp(App)
@@ -63,5 +64,10 @@ window.addEventListener('vite:preloadError', () => {
     window.location.reload()
   }
 })
+
+/** 第五条钩子：CSP 违规。上面四条**都接不到它**——被 CSP 拒掉的资源不派发 `error`，
+ *  内联脚本被拒也不抛异常，只在控制台留一行红字，线上表现是"某个功能静默失效"。
+ *  详见 `lib/csp.ts` 的注释；上报复用 `reportError` 的 20 条上限与 60 秒去重。 */
+installCspReporter()
 
 app.use(router).mount('#app')

@@ -638,7 +638,7 @@ const minutes = (): number | null => {
   position: absolute;
   top: 10px;
   left: 12px;
-  z-index: 3;
+  z-index: var(--z-float);
   max-width: calc(100% - 24px);
   padding: 6px 12px 7px;
   border-radius: 8px;
@@ -694,7 +694,7 @@ const minutes = (): number | null => {
   top: 0;
   right: 0;
   bottom: 0;
-  z-index: 70;
+  z-index: var(--z-stage);
   width: min(420px, 88vw);
   padding: 18px 20px 28px;
   overflow-y: auto;
@@ -727,7 +727,7 @@ const minutes = (): number | null => {
   /* 同上：只压暗内容区，顶栏保持可点——抽屉开着也能直接翻到下一步。 */
   position: absolute;
   inset: 0;
-  z-index: 65;
+  z-index: var(--z-elevated);
   background: rgba(12, 14, 18, 0.34);
 }
 
@@ -742,7 +742,7 @@ const minutes = (): number | null => {
   right: 0;
   bottom: 0;
   left: 0;
-  z-index: 4;
+  z-index: var(--z-step-hud);
   display: flex;
   align-items: center;
   gap: 10px;

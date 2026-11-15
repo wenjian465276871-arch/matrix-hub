@@ -77,7 +77,7 @@ function skipToMain(): void {
   position: fixed;
   top: 8px;
   left: 8px;
-  z-index: 100;
+  z-index: var(--z-skip);
   padding: 10px 14px;
   border: 2px solid var(--c-primary);
   border-radius: var(--radius-sm);

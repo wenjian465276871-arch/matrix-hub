@@ -555,7 +555,7 @@ const unitBadge = computed(() => {
   position: absolute;
   top: 6px;
   right: 6px;
-  z-index: 3;
+  z-index: var(--z-float);
   min-height: 30px;
   padding: 0 10px;
   border: 1px solid var(--c-primary-line);
@@ -572,7 +572,7 @@ const unitBadge = computed(() => {
 .ops--expanded {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-ops);
   padding: 12px 14px;
   background: var(--c-surface);
 }
@@ -594,7 +594,7 @@ const unitBadge = computed(() => {
   position: absolute;
   top: 8px;
   left: 8px;
-  z-index: 2;
+  z-index: var(--z-badge);
   margin: 0;
   padding: 3px 9px;
   border: 1px solid var(--c-line);
@@ -798,7 +798,7 @@ const unitBadge = computed(() => {
 .ops__mon {
   position: fixed;
   inset: 0;
-  z-index: 95;
+  z-index: var(--z-mon);
   display: flex;
   align-items: center;
   justify-content: center;

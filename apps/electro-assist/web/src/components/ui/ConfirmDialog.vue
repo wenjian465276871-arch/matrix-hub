@@ -121,7 +121,7 @@ function onOverlayClick(event: MouseEvent): void {
 .dialog-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: var(--z-dialog);
   display: flex;
   align-items: center;
   justify-content: center;

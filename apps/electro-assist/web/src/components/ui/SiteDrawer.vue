@@ -119,7 +119,7 @@ onBeforeUnmount(() => {
 .drawer-overlay {
   position: fixed;
   inset: 0;
-  z-index: 45;
+  z-index: var(--z-drawer);
   background: var(--c-bg);
   overflow-y: auto;
 }

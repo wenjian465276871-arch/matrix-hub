@@ -14,6 +14,9 @@
   background: var(--c-bg);
   /* 定高而不是"至少一屏"：参考站的做法是四块面板撑满视口、各自内部滚动。
      用 min-height 时底部轨迹会被顶到折叠线以下——第一版就是这么丢的。 */
+  /* 先 vh 后 dvh：不支持 dvh 的内核停在第一行（整屏高度略差几十像素，但可用），
+     支持的后一行胜出。与 base.css:66 / GuideFigure.vue:500 同一写法（R24-1）。 */
+  height: calc(100vh - var(--nav-h));
   height: calc(100dvh - var(--nav-h));
   min-height: 600px;
   overflow: hidden;
@@ -55,6 +58,7 @@
 .ex.ex--focus {
   /* 必须写成 .ex.ex--focus：<1180 的媒体查询里有一条 `.ex { height:auto }`，
      同为单类选择器且在后面，单靠 `.ex--focus` 会被它盖掉（实测舞台撑到 731px）。 */
+  height: calc(100vh - var(--nav-h));
   height: calc(100dvh - var(--nav-h));
   /* 基础规则里有 min-height:600px：614 高的窗口下它会顶出 42px，
      MON 屏底部被裁掉。聚焦模式必须让高度完全由视口决定。 */
@@ -1125,6 +1129,7 @@ tbody tr.done {
      不定高时它会被内容撑到 822px（1090×614 实测），操作条掉到折线以下，
      用户看得到三维却点不到按钮。详解与轨迹仍然往下滚。 */
   .ex__stage {
+    height: calc(100vh - var(--nav-h) - 44px);
     height: calc(100dvh - var(--nav-h) - 44px);
     min-height: 440px;
   }
