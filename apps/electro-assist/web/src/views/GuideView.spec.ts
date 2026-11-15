@@ -229,6 +229,34 @@ describe('GuideView 草稿修正（已拆到 EditPanel）', () => {
     wrapper.unmount()
   })
 
+  it('口令层的焦点纪律：焦点落在输入框，Tab 不逃出层（R24-3）', async () => {
+    mocks.getJson.mockResolvedValue(detail())
+    // 必须挂到 document 上，否则 activeElement 永远是 body，焦点断言全是假绿。
+    const wrapper = mount(GuideView, {
+      props: { id: 'g_test' },
+      global: { stubs: { GuideFigure: true, ConfirmDialog: true, RouterLink: true } },
+      attachTo: document.body,
+    })
+    await flushPromises()
+    await clickButton(wrapper, '修正内容').trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    const layer = wrapper.get('[role="dialog"]').element as HTMLElement
+    expect(layer.contains(document.activeElement)).toBe(true)
+    expect(document.activeElement?.id).toBe('passcode')
+
+    const items = Array.from(
+      layer.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    )
+    items[items.length - 1].focus()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))
+    expect(document.activeElement).toBe(items[0])
+    wrapper.unmount()
+  })
+
   it('有令牌时进入编辑态，改标题保存只发 title', async () => {
     sessionStorage.setItem(TOKEN_KEY, 'tok-1')
     mocks.getJson.mockResolvedValue(detail())

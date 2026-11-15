@@ -42,6 +42,7 @@ import {
   turnKey,
 } from '../../lib/panto-session'
 import { PANTO_ALLOWED, allowList, warnOnce } from '../../lib/ops-allowed'
+import { useDialogLayer } from '../../composables/useDialogLayer'
 
 const props = defineProps<{
   params: Record<string, ParamValue>
@@ -59,6 +60,9 @@ const canNext = inject<{ value: boolean } | null>('guide-can-next', null)
 
 /** MON 屏放大态：三维里的屏只有 0.46m 宽，投影到画布上几十像素，读不清读数。 */
 const monZoom = ref(false)
+/** MON 放大层的容器：焦点纪律要用它算"层内可聚焦元素"（R24-3）。 */
+const monPanel = ref<HTMLElement | null>(null)
+useDialogLayer(monZoom, monPanel, { onEscape: () => (monZoom.value = false) })
 
 /** `desk` 只看操纵台（第 3、4 步）；`both` 加车顶受电弓（第 5、6 步）。 */
 const view = computed(() => (props.params.view === 'desk' ? 'desk' : 'both'))
@@ -509,10 +513,12 @@ function restart(): void {
          复用 MonPanel（与第 3 步同一套联锁与状态），不是另画一张图。 -->
     <div
       v-if="monZoom"
+      ref="monPanel"
       class="ops__mon"
       role="dialog"
       aria-modal="true"
       aria-label="MON 车辆信息显示屏放大"
+      tabindex="-1"
     >
       <div class="ops__mon-box">
         <header class="ops__mon-bar">

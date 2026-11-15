@@ -156,6 +156,34 @@ describe('动作入口：三维与 MON', () => {
     expect(w.find('.ops__mon-back').exists()).toBe(true)
   })
 
+  it('车门 MON 放大层：焦点进得来、Tab 出不去（R24-3）', async () => {
+    // 空调走"左栏换屏"，车门走"弹层"——这条钉的就是弹层那一路的焦点纪律。
+    const w = mount(OpsBoard, {
+      props: { params: { scene: 'door_switch', view: 'both', act: 'all' }, label: '作业台' },
+      global: { stubs: { DeviceScene: SceneStub } },
+      attachTo: document.body,
+    })
+    power.keyInserted = true
+    power.keyTurned = true
+    power.brakeFast = true
+    await clickPart(w, 'mon')
+    await w.vm.$nextTick()
+    await w.vm.$nextTick()
+
+    const layer = w.get('.ops__mon').element as HTMLElement
+    expect(layer.contains(document.activeElement)).toBe(true)
+
+    const items = Array.from(
+      layer.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    )
+    items[items.length - 1].focus()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))
+    expect(document.activeElement).toBe(items[0])
+    w.unmount()
+  })
+
   it('view=mon 的步骤一开始就只给 MON + 机组，没有司机台画布', () => {
     const w = mountOps('hvac_cooling', 'vent', 'mon')
     expect(w.find('.ops__pane--mon').exists()).toBe(true)

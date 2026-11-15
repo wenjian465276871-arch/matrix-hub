@@ -5,6 +5,7 @@ import { ApiError, getJson, postJson } from '../lib/http'
 import { announce } from '../lib/announce'
 import { clearStoredJob, readStoredJob, writeStoredJob } from '../lib/jobhandoff'
 import { dropStoredToken, readStoredToken } from '../lib/passcode'
+import { useDialogLayer } from '../composables/useDialogLayer'
 import AssetShelf from '../components/newguide/AssetShelf.vue'
 import PasscodePanel from '../components/newguide/PasscodePanel.vue'
 import ExtractPanel from '../components/newguide/ExtractPanel.vue'
@@ -289,6 +290,14 @@ function closeSlice(): void {
   sliceRegions.value = []
   sliceError.value = ''
 }
+
+/** 切图层容器与焦点纪律（R24-3）：`sliceFor` 是对象，转成布尔给 `useDialogLayer`。 */
+const slicePanel = ref<HTMLElement | null>(null)
+useDialogLayer(
+  computed(() => sliceFor.value !== null),
+  slicePanel,
+  { onEscape: closeSlice },
+)
 
 async function adoptRegion(region: SliceRegion): Promise<void> {
   const source = sliceFor.value
@@ -814,6 +823,7 @@ onBeforeUnmount(() => {
 
   <div
     v-if="sliceFor"
+    ref="slicePanel"
     class="sheet"
     role="dialog"
     aria-modal="true"

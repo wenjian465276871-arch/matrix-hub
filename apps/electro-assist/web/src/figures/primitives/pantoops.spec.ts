@@ -155,6 +155,34 @@ describe('operation_scene', () => {
     })
   })
 
+  it('MON 放大层的焦点纪律：焦点进得来、Tab 出不去（R24-3）', async () => {
+    const w = mount(PantoOps, {
+      props: { params: { scene: 'pantograph_raise', view: 'both', act: 'all' }, label: '升弓操作' },
+      global: { stubs: { DeviceScene: SceneStub } },
+      attachTo: document.body,
+    })
+    session.keyInserted = true
+    session.keyTurned = true
+    session.brakeFast = true
+    session.mon = { voltage: true, mr: true, egs: true, vcb: true, panto_cut: true }
+    w.findAllComponents({ name: 'DeviceScene' })[0].vm.$emit('part-click', 'mon')
+    await w.vm.$nextTick()
+    await w.vm.$nextTick()
+
+    const layer = w.get('.ops__mon').element as HTMLElement
+    expect(layer.contains(document.activeElement)).toBe(true)
+
+    const items = Array.from(
+      layer.querySelectorAll<HTMLElement>(
+        'button:not([disabled]), [href], input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    )
+    items[items.length - 1].focus()
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true }))
+    expect(document.activeElement).toBe(items[0])
+    w.unmount()
+  })
+
   it('MON 全部确认后点屏：打开放大层，Esc 收起', () => {
     const w = mountOps('desk')
     session.keyInserted = true

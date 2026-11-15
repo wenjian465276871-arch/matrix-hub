@@ -23,6 +23,7 @@ import type { SectionCutter } from './devices/section'
 import { DEVICE_BUILDERS } from './devices/registry'
 import { partKeyOf } from './pick'
 import { placeTip, splitLabel } from './tooltip'
+import { recordSceneFrame } from '../lib/sceneperf'
 
 /** 只声明用得到的那几个成员，避免把整个 OrbitControls 的类型拖进主包。 */
 interface ControlsLike {
@@ -344,10 +345,21 @@ function scheduleCapture(): void {
   captureTimer = window.setTimeout(capture, 320)
 }
 
+/* 首帧计时（R24-8）：`perfStart` 在 setup 执行时取，终点是第一次真正画到画布。
+   口径不含 chunk 下载（组件挂载时它已经在跑了）；读取口是 `window.__sceneFrames()`。 */
+const perfStart = typeof performance === 'undefined' ? 0 : performance.now()
+let firstFrameRecorded = false
+
 function render(): void {
   lastPaint = performance.now()
   if (renderer && scene && camera) renderer.render(scene, camera)
   drawAnnotations()
+  if (!firstFrameRecorded) {
+    firstFrameRecorded = true
+    // 首帧计时（R24-8）：只为观测，不改任何调度。
+    // 口径 = 组件初始化 → 第一次真正画到画布；**不含** chunk 下载（那时已经在跑了）。
+    recordSceneFrame(String(props.subject ?? ''), performance.now() - perfStart)
+  }
 }
 
 /* ------------------------------------------------------------- 运转件循环 */

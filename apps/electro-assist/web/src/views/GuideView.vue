@@ -16,6 +16,7 @@ import { writeStoredJob } from '../lib/jobhandoff'
 import { pageCount, pageLabels } from '../lib/paging'
 import { resetAllOps } from '../lib/ops-scope'
 import { resetTopBar, setTopBar } from '../composables/useTopBar'
+import { useDialogLayer } from '../composables/useDialogLayer'
 import type { TopBarAction } from '../composables/useTopBar'
 import type { AssetRef, Guide, GuideDetail, GuideStatus, PublishResult, SessionSnapshot } from '../types'
 
@@ -309,6 +310,15 @@ const passcodeHint = ref('')
 const passcodeError = ref('')
 /** 验证完口令之后要做什么。修正与发布是两条不同的后续动作。 */
 const pending = ref<'edit' | 'publish' | null>(null)
+/** 口令层容器与焦点纪律（R24-3）。层是就地渲染的，Esc 从原来的"层内 keydown"
+ *  升级成"全局捕获"，所以焦点不在输入框里时也能按 Esc 退出。 */
+const passcodePanel = ref<HTMLElement | null>(null)
+useDialogLayer(passcodeOpen, passcodePanel, {
+  onEscape: () => {
+    passcodeOpen.value = false
+    pending.value = null
+  },
+})
 
 const canPublish = computed(() => guideStatus.value === 'draft' && blockers.value.length === 0)
 
@@ -675,10 +685,12 @@ restoreToken()
        ② 不放进封面插槽：编辑态下翻页器整块不渲染，插槽里的东西会一起消失。 -->
   <div
     v-if="passcodeOpen && guideStatus === 'draft'"
+    ref="passcodePanel"
     class="sheet no-print"
     role="dialog"
     aria-modal="true"
     aria-labelledby="passcode-title"
+    tabindex="-1"
     @keydown.esc="
       passcodeOpen = false;
       pending = null

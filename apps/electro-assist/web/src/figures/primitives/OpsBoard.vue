@@ -61,6 +61,7 @@ import {
 } from '../../lib/door-session'
 import { OPS_ALLOWED, allowList, warnOnce } from '../../lib/ops-allowed'
 import { opsChips, opsNext, opsStepDone } from '../../lib/ops-derive'
+import { useDialogLayer } from '../../composables/useDialogLayer'
 
 const props = defineProps<{
   params: Record<string, ParamValue>
@@ -99,6 +100,9 @@ const gotoFirst = inject<(() => boolean) | null>('guide-first', null)
 const canNext = inject<{ value: boolean } | null>('guide-can-next', null)
 
 const monZoom = ref(false)
+/** MON 放大层的容器：焦点纪律要用它算"层内可聚焦元素"（R24-3）。 */
+const monPanel = ref<HTMLElement | null>(null)
+useDialogLayer(monZoom, monPanel, { onEscape: () => (monZoom.value = false) })
 /** 空调场景：在 `both` 布局里点 MON 屏后，**左侧那一栏**换成 MON 屏（不弹窗）。 */
 const monPane = ref(false)
 const expanded = ref(false)
@@ -525,7 +529,15 @@ const unitBadge = computed(() => {
 
     <p class="ops__note">结构示意，参数为演示虚构值；动作只能来自三维里的件与 MON 屏，下方状态条只显示状态。</p>
 
-    <div v-if="monZoom" class="ops__mon" role="dialog" aria-modal="true" aria-label="MON 车辆信息显示屏放大">
+    <div
+      v-if="monZoom"
+      ref="monPanel"
+      class="ops__mon"
+      role="dialog"
+      aria-modal="true"
+      aria-label="MON 车辆信息显示屏放大"
+      tabindex="-1"
+    >
       <div class="ops__mon-box">
         <header class="ops__mon-bar">
           <span>MON 车辆信息显示屏</span>
