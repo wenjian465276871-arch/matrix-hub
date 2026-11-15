@@ -1380,10 +1380,14 @@ onBeforeUnmount(() => {
   color: var(--c-ink-2);
 }
 
-@media (prefers-color-scheme: dark) {
-  /* 暗色下浅灰底会刺眼；降成中性深灰，反射仍然成立 */
-  .scene {
-    background: #24262a;
-  }
+/* 暗色皮肤下浅灰底会刺眼；降成中性深灰，反射仍然成立。
+ *
+ * 2026-11-15（R24-11）：原来写的是 `@media (prefers-color-scheme: dark)`——听的是**系统**偏好。
+ * 但全站主题是手动切换的（`lib/theme.ts` 第 4 行：「不跟随系统……跟随系统等于把开关交给别人」），
+ * 于是出现两种错配：系统暗 + 应用亮 → 画布被刷成深灰，整页亮色里嵌一块黑；
+ * 系统亮 + 应用暗 → 画布仍留在 #cfcec9 浅灰，暗色皮肤里嵌一块亮。
+ * 改成跟 `html.theme-dark` 走，与 base.css 的其它皮肤覆盖同一套写法。 */
+html.theme-dark .scene {
+  background: #24262a;
 }
 </style>
