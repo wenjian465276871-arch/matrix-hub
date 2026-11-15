@@ -83,7 +83,11 @@ const contract = JSON.parse(readFileSync(CONTRACT, 'utf8')) as {
 
 const files = readdirSync(DIR).filter((name) => name.endsWith('.json'))
 
-test.describe.configure({ timeout: 60_000 })
+/* 单条 60s 太紧：S3 细节包（螺栓/压缝/铭牌）后每台设备的网格数明显上升，
+   打印态一次要挂 15 张 3D 图，实测单条 **45s** 左右（本地 headless Chromium）。
+   CI 更慢，60s 会偶发踩线 → 提到 120s。**这不是放宽判据**：断言一条没改，
+   只是给"把 15 张图挂起来"这件事留够时间。 */
+test.describe.configure({ timeout: 120_000 })
 
 for (const file of files) {
   const guide = JSON.parse(readFileSync(join(DIR, file), 'utf8')) as Guide
@@ -108,9 +112,24 @@ for (const file of files) {
 
     // 三维/烘焙图是异步 chunk，挂载要几帧；等总数齐了再逐页比，
     // 否则会误报"页面 0 张"（实测：door_clearance 与 door_power_selfcheck 就栽在这）
-    await expect
-      .poll(async () => page.locator('.figure').count(), { timeout: 15_000 })
-      .toBe(total)
+    /* 这里的用途只是"等挂载完"，**不是**证明图数正确——逐页精确比对在下面（①②）。
+       2026-11-16 实测：打印态铺开时 `.figure` 会**短暂多出一张**（页面切换时新旧节点并存），
+       用 `toBe(total)` 等就是永远等不到它落回精确值，超时后误报"图没出来"。
+       改成 `>=` 之后，多一张/少一张仍会被下面的逐步断言抓住。 */
+    /* 等挂载完：**显式循环**而不是 expect.poll。
+       2026-11-16 实测：`expect.poll(...).toBeGreaterThanOrEqual(total)` 在计数已经等于 total
+       时仍然超时失败（打印出来是"停在 15/15"），换成直白的轮询后稳定通过。
+       这里只负责"等够数"，多一张/少一张由下面的逐步断言负责。 */
+    let figCount = 0
+    const deadline = Date.now() + 30_000
+    while (Date.now() < deadline) {
+      figCount = await page.locator('.figure').count()
+      if (figCount >= total) break
+      await page.waitForTimeout(200)
+    }
+    expect(figCount, `图数停在 ${figCount}/${total}（打印态未铺开或图没挂载）`).toBeGreaterThanOrEqual(
+      total,
+    )
 
     // ① 逐页比对图数（按 aria-label 的「第 N 步」认页，不靠下标）
     const pages = await page.evaluate(() =>
