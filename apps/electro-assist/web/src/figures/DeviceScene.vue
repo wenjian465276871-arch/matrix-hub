@@ -46,7 +46,7 @@ const props = withDefaults(
     subject?: string
     /** 动作进度 0..1。外部时间轴直接喂。 */
     t?: number
-    /** 要高亮的部件键（`leaf_l` / `leaf_r` / `frame` / `lamp`），空串为不高亮。 */
+    /** 要高亮的部件键（`leaf` / `frame` / `lamp`），空串为不高亮。 */
     focus?: string
     /** 关掉鼠标/触摸旋转（打印预览、静态截图场景用）。 */
     interactive?: boolean
@@ -66,7 +66,7 @@ const props = withDefaults(
      * 设备没实现 `setMode` 时无效。
      */
     mode?: string
-    /** 受电弓单元（2U / 3U）。只有司机台实现了 `setUnit`；其余设备忽略。 */
+    /** 受电弓单元（2U / 3U）。只有司机室操纵台实现了 `setUnit`；其余设备忽略。 */
     unit?: '2U' | '3U'
     /**
      * 场景附加态（离散，与 `t` 正交）。目前只有司机操台用：空调/车门两项试验
@@ -675,6 +675,69 @@ async function init(): Promise<void> {
         const build = await load()
         const r = build()
         r.setT(t)
+        /* 2026-11-15：导出前把网格按**部件键**命名（覆盖已有名）。
+           原来网格名是几何类型（`RoundedBoxGeometry`）或空，GLB 里成 `Mesh_164`，
+           于是 `qa-glb.py` 报"某某<->某某共面打架"时指不到人；烘焙想按名字取景也取不到。
+           这里**无条件**改成部件键：下游要的是"哪个件"，不是"什么几何体"。 */
+        for (const [key, obj] of Object.entries(r.parts)) {
+          obj.traverse((o) => {
+            o.name = key
+          })
+        }
+        /* 2026-11-16（R25-16）：把**场景辅助面**排除出导出。
+           模型里为构图带了一块 2.4 m 的地板/台面（不在任何部件组里），它跟着 GLB 进了
+           Blender，两个后果：① 4× 近景的 alpha 蒙版被地板填满（多张图 subject = 满画幅），
+           「空白面占比」量的是地板不是产品；② 面视角按整机 bbox 取景，框到一大片地板。
+           判据：不在 `parts` 里、且包围盒超出「部件包围盒」20% 以上的网格 → 隐藏。 */
+        const inPart = new Set<object>()
+        for (const obj of Object.values(r.parts)) obj.traverse((o) => inPart.add(o))
+        const { Box3, Vector3 } = await import('three')
+        const partBox = new Box3()
+        let hasPart = false
+        r.root.traverse((o) => {
+          const m = o as Mesh & { isMesh?: boolean }
+          if (m.isMesh && inPart.has(o)) {
+            partBox.expandByObject(o)
+            hasPart = true
+          }
+        })
+        if (hasPart) {
+          const size = partBox.getSize(new Vector3())
+          const pad = 0.2 * Math.max(size.x, size.y, size.z)
+          let hidden = 0
+          r.root.traverse((o) => {
+            const m = o as Mesh & { isMesh?: boolean }
+            if (!m.isMesh || inPart.has(o)) return
+            const b = new Box3().setFromObject(o)
+            const outside =
+              b.min.x < partBox.min.x - pad || b.max.x > partBox.max.x + pad ||
+              b.min.y < partBox.min.y - pad || b.max.y > partBox.max.y + pad ||
+              b.min.z < partBox.min.z - pad || b.max.z > partBox.max.z + pad
+            if (outside) {
+              m.visible = false
+              hidden += 1
+            }
+          })
+          // eslint-disable-next-line no-console
+          console.info(`[export] ${subject}: 隐藏 ${hidden} 个场景辅助网格`)
+        }
+
+        /* 可视化特效（气流锥、冷雾、光斑等）不是零件：它们平时不可见，
+           跟着导出只会让 qa 报假阳性（`drive2.038` 就是这么来的）。
+           约定：网格加 `userData.skipExport = true` 即不导出。 */
+        let skipped = 0
+        r.root.traverse((o) => {
+          const m = o as Mesh & { userData?: { skipExport?: boolean } }
+          if (m.isMesh && m.userData?.skipExport) {
+            m.visible = false
+            skipped += 1
+          }
+        })
+        if (skipped) {
+          // eslint-disable-next-line no-console
+          console.info(`[export] ${subject}: 跳过 ${skipped} 个特效网格`)
+        }
+
         r.root.updateMatrixWorld(true)
         const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')
         const data = await new GLTFExporter().parseAsync(r.root, {
@@ -690,6 +753,44 @@ async function init(): Promise<void> {
         }
         r.dispose?.()
         return btoa(bin)
+      }
+
+      /* 按**导出顺序**列出某部件下每个网格的世界包围盒。
+         为什么需要：qa 报"`drive.046` 悬空"，而 Blender 里的 `.046` 是**导出顺序的第 47 个**
+         网格。想知道它对应代码里的哪一次 `add()`，只能在同一个遍历顺序下把包围盒列出来对齐——
+         跨软件比坐标已经错过两轮（Blender↔three、外加 root 世界变换），不再靠人脑换算。 */
+      ;(window as unknown as {
+        __partMeshes?: (
+          subject: string,
+          t: number,
+          partKey: string,
+        ) => Promise<Array<{ i: number; type: string; center: number[]; size: number[] }>>
+      }).__partMeshes = async (subject, t, partKey) => {
+        const load = DEVICE_BUILDERS[subject]
+        if (!load) throw new Error(`未注册的设备场景：${subject}`)
+        const r = (await load())()
+        r.setT(t)
+        const target = r.parts[partKey]
+        if (!target) throw new Error(`没有部件：${partKey}`)
+        r.root.updateMatrixWorld(true)
+        const { Box3, Vector3 } = await import('three')
+        const out: Array<{ i: number; type: string; center: number[]; size: number[] }> = []
+        let i = 0
+        target.traverse((o) => {
+          const m = o as Mesh & { isMesh?: boolean; geometry?: { type?: string } }
+          if (!m.isMesh) return
+          const b = new Box3().setFromObject(m)
+          const c = b.getCenter(new Vector3())
+          const sz = b.getSize(new Vector3())
+          out.push({
+            i: i++,
+            type: m.geometry?.type || '?',
+            center: [c.x, c.y, c.z].map((v) => Math.round(v * 1000) / 1000),
+            size: [sz.x, sz.y, sz.z].map((v) => Math.round(v * 1000) / 1000),
+          })
+        })
+        r.dispose?.()
+        return out
       }
 
       /* 量一台设备在某个姿态下**指定部件**的世界包围盒，给离线烘焙算机位用。
@@ -1154,7 +1255,7 @@ watch(
   () => props.aux,
   (value) => {
     rig?.setAux?.(value)
-    // 场景附加态可以改"这一步要看哪几个件"（车门场景要把右前六个按钮框进来），
+    // 场景附加态可以改"这一步要看哪几个件"（车门场景要把右前转换开关盘框进来），
     // 所以换页之后必须重新取景——只重绘的话，按钮在画面外，等于没做。
     followCamera(props.t)
     applyZoomLimits(props.t)

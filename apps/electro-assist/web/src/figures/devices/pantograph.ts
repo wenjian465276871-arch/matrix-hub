@@ -59,6 +59,10 @@ import {
   rubberMaterial,
   roundedBox,
   steelMaterial,
+  boltRun,
+  weldSeam,
+  textPlate,
+  pipeClamp,
 } from './rig'
 import {
   LOWER_ROD,
@@ -329,6 +333,10 @@ function quickReleaseValve(): {
   )
   jet.position.set(0.17, -0.05, 0)
   jet.rotation.z = deg(126)
+  /* 排气喷流是**可视化特效**，不是零件：平时 opacity=0，只在排风瞬间显示。
+     以前它跟着进了 GLB，`qa-glb` 就报 `drive2.038` 悬空（离最近件 219.5mm）——
+     拿一个"看不见的锥体"去判装配，结论必然是假阳性。导出时剔除。 */
+  jet.userData.skipExport = true
   group.add(jet)
 
   return {
@@ -566,6 +574,41 @@ export function buildPantograph(): DeviceRig {
   }
   deck.add(chassis)
   parts.frame = deck
+
+  /* R25-12：底架铭牌。型号 TSG19A 是本项目一直沿用的公开型号（见 R7 蓝本定案），
+     只写型号与名称，**不写出厂编号/日期**——那类信息我们没有，编出来就是假数据。 */
+  const pantoPlate = textPlate({
+    width: 0.2,
+    height: 0.062,
+    bg: '#c9ccd0',
+    border: '#5d6368',
+    lines: [
+      { text: '受电弓 TSG19A' },
+      { text: 'PANTOGRAPH', scale: 0.6, color: '#3f454b' },
+    ],
+  })
+  pantoPlate.rotation.y = Math.PI / 2
+  pantoPlate.position.set(0.553, DECK_Y + 0.01, 0.42)
+  deck.add(pantoPlate)
+
+  /* S3：梁节点焊道。底架是**焊接件**——没有焊道就只是一堆搭在一起的方管。
+     只打在六个节点上（2 纵 × 3 横），每个节点两条 0.12 m 的角焊缝。 */
+  for (const x of [-0.5, 0.5]) {
+    for (const z of [-0.72, 0.06, 0.72]) {
+      weldSeam(deck, [x, DECK_Y + 0.052, z - 0.06], [x, DECK_Y + 0.052, z + 0.06])
+      weldSeam(deck, [x - 0.05, DECK_Y + 0.052, z], [x + 0.05, DECK_Y + 0.052, z])
+    }
+  }
+
+  /* S3：底架纵梁顶面一溜螺栓（M8）。
+     底架是焊接件，真实件在梁端与节点板上都有螺栓/铆钉；
+     4× 近景里两根 1.86 m 的光梁是最大的空白面。 */
+  for (const x of [-0.5, 0.5]) {
+    boltRun(deck, [x, DECK_Y + 0.058, -0.80], [x, DECK_Y + 0.058, 0.80], 9, 'y', 0.012)
+  }
+  for (const z of [-0.72, 0.06, 0.72]) {
+    boltRun(deck, [-0.46, DECK_Y + 0.053, z], [0.46, DECK_Y + 0.053, z], 5, 'y', 0.012)
+  }
   root.add(deck)
 
   /* ---------------------------------------------------------------- 阀板 */
@@ -583,9 +626,13 @@ export function buildPantograph(): DeviceRig {
   const panelFace = roundedBox(0.03, 0.38, 0.54, paintedMaterial(0x6a7076), panelX, panelY, panelZ, 0.008)
   panelFace.name = 'panto-panel-face'
   drive.add(panelFace)
-  /* 支架：板不是浮在车顶上的——两根立柱落到车顶，一根横撑连回底架。 */
+  /* 支架：板不是浮在车顶上的——两根立柱落到车顶，一根横撑连回底架。
+     2026-11-15（R25-10）：立柱原来放在 `panelX - 0.02`，宽 0.07 ⇒ 外表面正好落在
+     0.975，与面板外表面**同面**；两件在 y/z 上又重叠 ⇒ 一片共面三角形互相打架
+     （qa 报 `drive.047<->drive.048` 335 对）。改成 `panelX - 0.035`：立柱外表面退到
+     0.960，仍在面板厚度内（0.945–0.975），既不脱开也不共面。 */
   for (const z of [panelZ - 0.20, panelZ + 0.20]) {
-    drive.add(roundedBox(0.07, panelY + 0.2, 0.04, frameMat, panelX - 0.02, (panelY + 0.2) / 2, z, 0.005))
+    drive.add(roundedBox(0.07, panelY + 0.2, 0.04, frameMat, panelX - 0.035, (panelY + 0.2) / 2, z, 0.005))
   }
   drive.add(roundedBox(0.42, 0.05, 0.05, frameMat, panelX - 0.22, DECK_Y + 0.03, panelZ, 0.006))
   // 汇流排：所有阀都挂在同一根气路上
@@ -770,34 +817,62 @@ export function buildPantograph(): DeviceRig {
   drive.add(lampGroup)
   parts.lamp = lampGroup
 
-  /* 总风管：车顶 → 绝缘软管 → 阀板进气口。
-     绝缘软管是**橡胶+织物**的粗管，实拍里在受电弓旁边很显眼。 */
+  /* 总风管：底架纵梁接头 → 绝缘软管 → 阀板进气口。
+     绝缘软管是**橡胶+织物**的粗管，实拍里在受电弓旁边很显眼。
+
+     2026-11-16（R25-10）：起点原来是 (1.24, 0.06, −0.86) —— 车顶上方**什么都没有**，
+     软管从空气里起头，qa 报 `drive.046` 悬空（离最近件 34.2mm）。
+     改成从**右纵梁上的车顶管路接头**起头：先落一个法兰+竖直接头，软管插进接头里。 */
+  drive.add(
+    roundedBox(0.075, 0.018, 0.075, frameMat, 0.5, DECK_Y + 0.064, -0.86, 0.004),
+  )
+  const airPort = new Mesh(new CylinderGeometry(0.018, 0.018, 0.05, 12), fitting)
+  airPort.position.set(0.5, DECK_Y + 0.09, -0.86)
+  drive.add(airPort)
   drive.add(
     hose(
       [
-        new Vector3(1.24, 0.06, -0.86),
-        new Vector3(1.18, 0.16, -0.5),
-        new Vector3(1.1, 0.24, -0.1),
+        new Vector3(0.5, DECK_Y + 0.08, -0.86),
+        new Vector3(0.74, 0.30, -0.55),
+        new Vector3(0.95, 0.34, -0.14),
         new Vector3(panelX + 0.02, panelY + 0.17, panelZ - 0.3),
       ],
       0.019,
       hoseMat,
     ),
   )
-  // 阀板 → 底架 2 个空气接口
+  /* 阀板 → 底架 2 个空气接口。
+     2026-11-15（R25-10）：原来两根管的**中间点完全相同**，只有终点 ±0.18 不同——
+     两根 Ø22mm 的管子几乎整段重合，qa 报 `drive.047<->drive.048` **335 对共面三角**，
+     画面上也读成一根管。改成左右各偏 60/50mm，成为并行的一对；起点也按侧别错开 20mm，
+     避免同点起头。 */
   for (const x of [-0.18, 0.18]) {
-    drive.add(
-      hose(
-        [
-          new Vector3(panelX - 0.02, panelY - 0.16, panelZ - 0.28),
-          new Vector3(0.66, 0.3, 0.5),
-          new Vector3(0.3, 0.24, -0.55),
-          new Vector3(x, DECK_Y - 0.01, -0.8),
-        ],
-        0.011,
-        hoseMat,
-      ),
-    )
+    const s = Math.sign(x)
+    const pts = [
+      /* 起点必须**插进阀板**里：阀板是 0.03 厚的板，占 x∈[0.945, 0.975]。
+         原来起点 x=0.94 落在板背面外 5mm，整根管子成了孤岛——
+         qa 报 `drive.046` 悬空（360 顶点），画面上也看得见管口悬在板后。 */
+      /* z 也要落在板内：阀板是 0.38×0.54 的板，z 范围 0.19~0.73。
+         原来起点 z = panelZ-0.28 = 0.18，比板的下沿还低 1 cm，管口悬在板边外——
+         这就是 qa 报 `drive.046` 离最近件 34.2mm 的真因（不是 x，x 早就改对了）。 */
+      new Vector3(panelX - 0.005, panelY - 0.16, panelZ - 0.24 + s * 0.02),
+      new Vector3(0.66 + s * 0.06, 0.3, 0.5 + s * 0.02),
+      new Vector3(0.3 + s * 0.05, 0.24, -0.55),
+      new Vector3(x, DECK_Y - 0.01, -0.8),
+    ]
+    const curve = new CatmullRomCurve3(pts, false, 'catmullrom', 0.4)
+    const tube = new Mesh(new TubeGeometry(curve, 44, 0.011, 7, false), hoseMat)
+    tube.castShadow = true
+    drive.add(tube)
+
+    /* R25-15：管卡从**同一条曲线**取点与切向（`getPointAt` / `getTangentAt`）。
+       第一次按 (x, DECK_Y+0.02, -0.8) 硬放，几何门禁当场报「脱开 9.0mm」——
+       软管是插值曲线，人眼估的坐标一定偏。 */
+    for (const u of [0.55, 0.82]) {
+      const p = curve.getPointAt(u)
+      const t = curve.getTangentAt(u)
+      pipeClamp(drive, [p.x, p.y, p.z], 'y', 0.011, [t.x, t.y, t.z])
+    }
   }
   drive.name = 'panto-panel'
   parts.drive = drive

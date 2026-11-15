@@ -52,7 +52,7 @@ export function opsChips(scene: OPScene, phase: string): Chip[] {
       return [{ label: `MON 已确认 ${n}/3`, done: n >= 3 }]
     }
     return [
-      { label: door.released ? `已释放（${door.side === 'L' ? '左' : '右'}）` : '未释放', done: door.released },
+      { label: door.released ? `集控投入（${door.side === 'L' ? '左' : '右'}）` : '集控切除', done: door.released },
       { label: `开门 ${Math.round(door.openT * 100)}%`, done: door.openT > 0.999 },
       { label: door.blocked ? '试块在门洞' : '试块在门外', done: door.blocked },
       { label: `防夹反开 ${door.bumps} 次`, done: door.bumps > 0 },
@@ -80,16 +80,16 @@ export function opsNext(scene: OPScene, phase: string): string {
   if (!power.keyTurned || !power.brakeFast) return nextPowerAction()
   if (scene === 'door') {
     if (phase === 'check' && doorConfirmed() < 3) return '点 MON 屏：在「车门状态」页把三项逐项确认'
-    if (phase === 'operate' && !door.released) return '点三维台面上的「释放」按钮（左侧），再点「开门」'
+    if (phase === 'operate' && !door.released) return '把转换开关盘的「集控」扳到「投入」，再把「开关门」扳到「开」'
     if (phase === 'operate') return '门开到位即可进入下一步（防夹验证）'
-    if (phase === 'pinch' && !door.blocked) return '点三维里门外侧的试块，把它移到门洞地板中间'
-    if (phase === 'pinch' && door.bumps === 0) return '点三维台面上的「关门」：门页碰到试块应停止并反向开门'
+    if (phase === 'pinch' && !door.blocked) return '点三维里门外侧的试块，把它移到门洞关闭边（左门框侧）'
+    if (phase === 'pinch' && door.bumps === 0) return '把「开关门」扳到「关」：门扇前缘碰到试块应停止并反向开门'
     // 06 是「正常关门」：门洞里那块必须先撤回原位，否则一关就又触发防夹
     if (phase === 'close' && door.blocked) {
       return '点三维里门洞地板上的试块：把它移回门外原位（撤除障碍物）'
     }
     if (phase === 'close' && door.openT > 0.001) {
-      return '点台面「关门」：无障碍物时门扇应正常关闭并锁闭，不再反开'
+      return '把「开关门」扳到「关」：无障碍物时门扇应正常关闭并锁闭，不再反开'
     }
     /* 不再写"…本步完成"（评审 R23-6）：门关到位就已经给出「本步完成」按钮，
        同一时刻两句话互相打架；末步更糟——按钮按设计不出现，提示却说"本步完成"。

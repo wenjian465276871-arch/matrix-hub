@@ -7,7 +7,7 @@
         "caption": "车门关闭到位",
         "fallback_text": "车门关闭状态示意（渲染失败时读这段）",
         "params": {
-          "part": "leaf_l",
+          "part": "leaf",
           "subject": "door",
           "t": 0.0
         },
@@ -84,8 +84,8 @@
     },
     "operation_scene": {
       "demo": {
-        "caption": "升弓操作台（司机台视角）",
-        "fallback_text": "司机台操作示意（渲染失败时读这段）",
+        "caption": "升弓操作台（司机室操纵台视角）",
+        "fallback_text": "司机室操纵台操作示意（渲染失败时读这段）",
         "params": {
           "act": "power",
           "scene": "pantograph_raise",

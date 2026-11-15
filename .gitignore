@@ -64,3 +64,4 @@ apps/electro-assist/web/coverage*/
 apps/electro-assist/web/cov-*/
 
 # 注意：锁文件（uv.lock / package-lock.json）必须入库，不要忽略
+eval-results/

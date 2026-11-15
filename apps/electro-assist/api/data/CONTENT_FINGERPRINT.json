@@ -1,9 +1,9 @@
 {
-  "sha256": "58716b9ba9546226087bcbf5e440b7d034351c01ccd4bb77d6e004471f6a0098",
+  "sha256": "8cfd21b1bb842b2a3150baf1ed55b7d5caba813c90ad7f2586b45db3fd7b8bd6",
   "files": {
     "samples": 9,
     "knowledge": 4
   },
   "knowledge_entries": 19,
-  "note": "2026-11-14 23:20 受电弓样板按步裁剪（s02 power / s04 unit / s05 raise）并把 VCB 合写进第 5 步；无新增来源、判据未改（§4.32）"
+  "note": "本人 2026-11-15 22:35 裁决 R25-4 钥匙顺时针；按 §4.24 口径视为已批准，见 AI2Work 内容合规确认 §4.34；无新增来源"
 }

@@ -16,6 +16,7 @@
  *  零外部文件却能得到接近产品渲染图的高光。
  */
 import {
+  BoxGeometry,
   BufferGeometry,
   CanvasTexture,
   CylinderGeometry,
@@ -28,7 +29,9 @@ import {
   MeshPhysicalMaterial,
   MeshStandardMaterial,
   Object3D,
+  PlaneGeometry,
   RepeatWrapping,
+  SRGBColorSpace,
   Texture,
   Vector3,
 } from 'three'
@@ -452,4 +455,222 @@ export function disposeTree(root: Object3D): void {
     if (Array.isArray(material)) material.forEach((m) => m.dispose())
     else material.dispose()
   })
+}
+
+
+/**
+ * 程序化文字牌：铭牌 / 回路编号 / 警示标识。
+ *
+ * **零贴图文件**：字是用 Canvas 现画的，缩放靠 `ppm`，不引任何图片。
+ * 为什么要它——S5 的 4× 近景实测里，`surfaceInfo` 九台有六台是 0 处，
+ * 面板上没有任何"可读信息"，读起来就是一块塑料。
+ *
+ * 三条硬约束：
+ * 1. **只写标识性文字**（名称、回路号、标准警示语），不写参数值。
+ *    参数一律来自样例判据，印在模型上就变成"图上的实测值"（塞尺那页踩过这个坑）。
+ * 2. 字号按牌高比例给，4× 近景要能读：牌高 0.05 m 时字号约 0.012 m，
+ *    640 px 画幅下 ≈ 15 px 一个字。
+ * 3. 贴面不透明（铭牌是金属牌+丝印），用 `MeshStandardMaterial` 保持与周围同光照。
+ */
+export interface TextPlateLine {
+  text: string
+  /** 字号比例（1 = 默认），同一块牌里混大小字用 */
+  scale?: number
+  color?: string
+}
+
+export interface TextPlateOptions {
+  lines: TextPlateLine[]
+  /** 牌面宽 / 高（米） */
+  width: number
+  height: number
+  bg?: string
+  border?: string
+  /** 每米像素：默认 4096（0.1 m 的牌 → 410 px 宽） */
+  ppm?: number
+  /** 粗糙度：金属牌 0.4，贴纸 0.7 */
+  roughness?: number
+}
+
+export function textPlate(o: TextPlateOptions): Mesh {
+  const ppm = o.ppm ?? 4096
+  const W = Math.min(1024, Math.max(48, Math.round(o.width * ppm)))
+  const H = Math.min(1024, Math.max(24, Math.round((o.height / o.width) * W)))
+  const canvas = document.createElement('canvas')
+  canvas.width = W
+  canvas.height = H
+  const ctx = canvas.getContext('2d')
+  if (ctx) {
+    ctx.fillStyle = o.bg ?? '#d8d5cd'
+    ctx.fillRect(0, 0, W, H)
+    if (o.border) {
+      ctx.strokeStyle = o.border
+      ctx.lineWidth = Math.max(2, Math.round(H * 0.06))
+      ctx.strokeRect(ctx.lineWidth / 2, ctx.lineWidth / 2, W - ctx.lineWidth, H - ctx.lineWidth)
+    }
+    const n = Math.max(1, o.lines.length)
+    const base = (H * 0.78) / n
+    o.lines.forEach((line, i) => {
+      const size = base * (line.scale ?? 1)
+      ctx.fillStyle = line.color ?? '#23262a'
+      ctx.font = `600 ${Math.round(size)}px "Noto Sans SC","Microsoft YaHei",system-ui,sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillText(line.text, W / 2, (H * 0.11) + base * (i + 0.5) * 0.92, W * 0.9)
+    })
+  }
+  const tex = new CanvasTexture(canvas)
+  tex.colorSpace = SRGBColorSpace
+  tex.anisotropy = 8
+  tex.needsUpdate = true
+  const mesh = new Mesh(
+    new PlaneGeometry(o.width, o.height),
+    new MeshStandardMaterial({ map: tex, roughness: o.roughness ?? 0.45, metalness: 0.05 }),
+  )
+  // 文字牌是"信息层"，剖切时不该跟着被裁掉（否则剖切态下铭牌凭空消失）
+  mesh.userData.cutKeep = true
+  return mesh
+}
+
+
+/**
+ * 六角螺栓（M6/M8）：头 + 垫圈，沿给定轴向贴在板面上。
+ *
+ * 为什么值得单独做一个组件：S5 的 4× 近景里，大平板空白面 50%~70%，
+ * 而真实钣金的"密度感"一半来自**规则排列的紧固件**——它们是画面里唯一的
+ * 高频结构。用 6 边柱（12 个三角面）就够，4× 下能看出六角，1× 下是一条压边。
+ *
+ * @param axis 螺栓轴：贴在顶面用 'y'，贴在 ±Z 侧板用 'z'，贴在 ±X 端板用 'x'
+ */
+export function hexBolt(
+  parent: Object3D,
+  x: number,
+  y: number,
+  z: number,
+  axis: 'x' | 'y' | 'z' = 'y',
+  diameter = 0.009,
+  /** 沿轴的正负方向（贴在 -Z 侧板时要传 -1，否则螺栓会陷进板里） */
+  sign = 1,
+): void {
+  const d = diameter
+  const head = new Mesh(new CylinderGeometry(d / 2, d / 2, d * 0.44, 6), steelMaterial(0xb9bdc1))
+  const washer = new Mesh(new CylinderGeometry(d * 0.82, d * 0.82, d * 0.10, 14), steelMaterial(0x9aa0a6))
+  /* 圆柱默认沿 Y；转到目标轴。垫圈在里、六角头在外。
+     **两者必须留缝**：第一版垫圈顶面与六角头底面只差 0.005d，qa 报
+     `door.023<->door.024` 这类"每对 18 个共面三角"——全是我自己加的螺栓。
+     现在垫圈占 [0, 0.10d]、六角头占 [0.16d, 0.60d]，中间 0.06d 的空隙。 */
+  const lift = d * 0.38
+  if (axis === 'x') {
+    head.rotation.z = Math.PI / 2
+    washer.rotation.z = Math.PI / 2
+    head.position.set(x + lift * sign, y, z)
+    washer.position.set(x + (d * 0.05) * sign, y, z)
+  } else if (axis === 'z') {
+    head.rotation.x = Math.PI / 2
+    washer.rotation.x = Math.PI / 2
+    head.position.set(x, y, z + lift * sign)
+    washer.position.set(x, y, z + (d * 0.05) * sign)
+  } else {
+    head.position.set(x, y + lift * sign, z)
+    washer.position.set(x, y + (d * 0.05) * sign, z)
+  }
+  parent.add(head, washer)
+}
+
+/** 沿直线等距排一串螺栓。首尾都落在端点上（与铆钉排同一约定）。 */
+export function boltRun(
+  parent: Object3D,
+  from: [number, number, number],
+  to: [number, number, number],
+  count: number,
+  axis: 'x' | 'y' | 'z' = 'y',
+  diameter = 0.009,
+  sign = 1,
+): void {
+  for (let i = 0; i < count; i += 1) {
+    const k = count === 1 ? 0.5 : i / (count - 1)
+    hexBolt(
+      parent,
+      from[0] + (to[0] - from[0]) * k,
+      from[1] + (to[1] - from[1]) * k,
+      from[2] + (to[2] - from[2]) * k,
+      axis,
+      diameter,
+      sign,
+    )
+  }
+}
+
+
+/**
+ * 角焊缝：梁与板交接处那条"鱼鳞"。低模做法——一条 4 mm 高的窄脊 + 微凹凸，
+ * 不做真正的焊道几何（那要几万个面）。
+ *
+ * 为什么值得加：焊接件与螺栓连接件在近景里是两种东西。受电弓底架是**焊接**的，
+ * 没有一个焊道就会读成"拼装玩具"。
+ */
+export function weldSeam(
+  parent: Object3D,
+  from: [number, number, number],
+  to: [number, number, number],
+  thickness = 0.005,
+): void {
+  const dx = to[0] - from[0]
+  const dy = to[1] - from[1]
+  const dz = to[2] - from[2]
+  const len = Math.hypot(dx, dy, dz)
+  if (len < 1e-4) return
+  const seam = new Mesh(new BoxGeometry(thickness, thickness, len), steelMaterial(0x8f959a))
+  seam.position.set((from[0] + to[0]) / 2, (from[1] + to[1]) / 2, (from[2] + to[2]) / 2)
+  // 让 +Z 对准 from→to 方向
+  seam.lookAt(new Vector3(to[0], to[1], to[2]))
+  parent.add(seam)
+}
+
+/** 管卡：一圈抱箍（细环）+ 底座。管路每隔 0.4 m 一个（GB 50243 的常规间距）。 */
+export function pipeClamp(
+  parent: Object3D,
+  at: [number, number, number],
+  axis: 'x' | 'y' | 'z' = 'y',
+  radius = 0.014,
+  /** 管在该点的切向（给了就按切向摆正，比用坐标轴近似准得多）。
+   *  软管是 CatmullRom 插值的：凭"看起来在这里"放管卡，门禁会当场报脱开 9mm——
+   *  R25-15 第一次就是这么红的。正解是从**同一条曲线**取点与切向。 */
+  dir?: [number, number, number],
+): void {
+  const strap = new Mesh(
+    new CylinderGeometry(radius + 0.0022, radius + 0.0022, 0.008, 14, 1, true),
+    steelMaterial(0xa9aeb3),
+  )
+  if (dir) {
+    const from = new Vector3(0, 1, 0)
+    const to = new Vector3(dir[0], dir[1], dir[2]).normalize()
+    strap.quaternion.setFromUnitVectors(from, to)
+  } else if (axis === 'x') strap.rotation.z = Math.PI / 2
+  else if (axis === 'z') strap.rotation.x = Math.PI / 2
+  strap.position.set(at[0], at[1], at[2])
+  const foot = new Mesh(new BoxGeometry(0.018, 0.012, 0.014), steelMaterial(0x9aa0a6))
+  foot.position.set(at[0], at[1] + radius + 0.008, at[2])
+  parent.add(strap, foot)
+}
+
+/**
+ * 钣金折边：板边那道 2 mm 小圆角翻边。真实钣金没有"刀切边"，
+ * 折边既增加刚度又是最容易反光的一条细棱。
+ *
+ * 实现上只加一条 45° 的窄斜条（不是真折弯），4× 下足够读成折边。
+ */
+export function hemEdge(
+  parent: Object3D,
+  at: [number, number, number],
+  length: number,
+  axis: 'x' | 'y' | 'z' = 'x',
+  size = 0.004,
+): void {
+  const dims: [number, number, number] = axis === 'x' ? [length, size, size]
+    : axis === 'y' ? [size, length, size] : [size, size, length]
+  const edge = new Mesh(new BoxGeometry(...dims), steelMaterial(0xbfc4c9))
+  edge.position.set(at[0], at[1], at[2])
+  edge.rotation.z = Math.PI / 4
+  parent.add(edge)
 }

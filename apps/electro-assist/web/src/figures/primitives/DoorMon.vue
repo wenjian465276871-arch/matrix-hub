@@ -81,7 +81,7 @@ const rows = computed<Row[]>(() => {
   if (tab.value === 'control') {
     return [
       { label: '集控侧', required: '站台侧', value: door.side === 'L' ? '左侧' : '右侧' },
-      { label: '释放按钮', required: '按下后灯亮', value: door.released ? '已释放 · 灯亮' : '未释放 · 灯灭' },
+      { label: '集控开关', required: '扳到投入', value: door.released ? '已投入 · 该侧接受集控' : '已切除 · 不受集控' },
       { label: '开门时间', required: '2.5–4.0 s', value: `${openTime().toFixed(1)} s` },
       { label: '关门时间', required: '3.0–5.0 s', value: `${closeTime().toFixed(1)} s` },
       { label: '防夹反开', required: '≤3 次', value: `${door.bumps} 次` },

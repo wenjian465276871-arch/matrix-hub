@@ -42,13 +42,16 @@ import {
   rubberMaterial,
   seg,
   steelMaterial,
+  boltRun,
 } from './rig'
 import { phaseFor } from '../../lib/devphase'
 
 /** 门缝宽度（m）。真实 1–2mm，这里放大以便看清片插进去。 */
 const GAP = 0.008
-/** 塞尺片：长 90mm、宽 12mm、厚 2.2mm（真实 0.5mm，见文件头）。 */
-const BLADE = { len: 0.09, w: 0.016, t: 0.003 }
+/** 塞尺片：长 100mm、宽 13mm、厚 2.2mm。
+ *  长宽按 **GB/T 22523-2008**（长度 100、片宽 13），厚度刻意放大到 2.2mm（真实 0.5mm）——
+ *  按真实厚度，片在屏幕上就是一条看不见的线，见文件头。锚点只校长宽，不校厚度。 */
+export const BLADE = { len: 0.1, w: 0.013, t: 0.003 }
 /** 门边块的尺寸：只取一段（14cm 宽、10cm 高、6cm 厚）。 */
 const BLOCK = { w: 0.14, h: 0.1, d: 0.06 }
 /** 尺组（铆轴）的初始位置：门面前方 12.8cm。 */
@@ -108,6 +111,10 @@ export function buildFeelerGauge(): DeviceRig {
   const caseParts = new Group()
   gauge.add(caseParts)
   parts.case = caseParts
+
+  /* S3：尺盒壳体的三颗铆钉（真实塞尺的壳体是两片铆合的，铆钉就在轴附近）。
+     注意**不加任何厚度数字**：样例判据是 2.0 mm，片上印 0.50 会变成"图上的实测值"。 */
+  boltRun(caseParts, [-0.028, 0.012, 0.0195], [0.028, 0.012, 0.0195], 3, 'z', 0.005)
 
   const caseMat = chromeMaterial()
   for (const dx of [-0.0032, 0.0032]) {

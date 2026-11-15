@@ -362,10 +362,10 @@
           "params": {
             "subject": "door",
             "t": 0.55,
-            "part": "leaf_l"
+            "part": "leaf"
           },
           "caption": "门扇开启动作（示意）",
-          "fallback_text": "双扇门先向车外退出约 55mm，再沿车体两侧滑开；图示为开启中段、左门扇半开的位置。"
+          "fallback_text": "单扇内藏式侧拉门先向车外退出约 55mm，再沿车体向一侧滑开；图示为开启中段。"
         }
       ],
       "duration_s": 480

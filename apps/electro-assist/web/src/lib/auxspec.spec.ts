@@ -16,12 +16,12 @@ describe('parseAux', () => {
   })
 
   it('竖线与分号可以混用（车门那串本来就是 | 分隔）', () => {
-    const parsed = parseAux('door|side=L;released=1|open=0|on=1|press=door_l_open')
+    const parsed = parseAux('door|side=L;released=1|open=0|on=1|press=door_cmd')
     expect(parsed.scene).toBe('door')
     expect(parsed.kv.side).toBe('L')
     expect(parsed.kv.released).toBe('1')
     expect(parsed.kv.open).toBe('0')
-    expect(parsed.kv.press).toBe('door_l_open')
+    expect(parsed.kv.press).toBe('door_cmd')
   })
 
   it('空串与非法片段不抛错，按"没给"处理', () => {

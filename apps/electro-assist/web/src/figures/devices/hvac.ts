@@ -53,17 +53,24 @@ import {
   rubberMaterial,
   seg,
   steelMaterial,
+  boltRun,
+  hemEdge,
 } from './rig'
 import { canvasTexture, facePlate } from './print'
 import { HVAC_T, phaseFor } from '../../lib/devphase'
 
 /* ------------------------------------------------------------------ 尺寸 */
 
-/** 机组外形（米）。L 沿 X（车长方向）、W 沿 Z、H 为壳体高度。 */
-const U = {
-  L: 2.4,
-  W: 1.7,
-  H: 0.38,
+/** 机组外形（米）。L 沿 X（车长方向）、W 沿 Z、H 为壳体高度。
+ *
+ *  ## 2026-11-15（R25-2）：按公开尺寸表标定
+ *  《铁道客车空调机组暂行技术条件》表 4：KLD-40 外形 **2800×2100×650**（不含安装座与护板）。
+ *  原来写的是 2.4×1.7×0.38——长度 −14%、宽度 −19%、**高度 −42%**，是全项目比例误差最大的一台。
+ */
+export const U = {
+  L: 2.8,
+  W: 2.1,
+  H: 0.65,
   /** 检修台上表面 = 机组底面 */
   deck: 0.52,
   /** 底盘厚度 */
@@ -377,6 +384,38 @@ export function buildHvac(): DeviceRig {
   // 端板（短边）
   for (const x of [X0 + U.t / 2, X1 - U.t / 2]) {
     shell.add(roundedBox(U.t, U.H, U.W, x < 0 ? casing : casingDark, x, BOTTOM + U.H / 2, 0, 0.003))
+  }
+
+  /* S3：侧板下沿折边。钣金没有"刀切边"，下沿一定翻边——也是 4× 下
+     最容易读到的一条细亮棱。 */
+  for (const z of [Z0 + U.t / 2, Z1 - U.t / 2]) {
+    const sgn = Math.sign(z)
+    hemEdge(shell, [(X0 + XC2) / 2, BOTTOM + 0.004, z + sgn * (U.t / 2 + 0.002)], XC2 - X0, 'x', 0.005)
+  }
+
+  /* ---------------------------------------------------- 侧板分缝与紧固件（S3）
+     这条压机段+蒸发段的整板是 **1.85 m × 0.65 m** 一整块——4× 近景里它一个人
+     就贡献了一半以上的空白面。真实钣金不会是一整块：
+       · 压机段与蒸发段之间（XC1）本来就有隔板，板上必有一条竖缝；
+       · 压机段中间再有一条竖缝、腰高有一条横搭接缝；
+       · 每缝打一排 M6（间距约 0.12 m）。
+     分缝用 6mm 宽、比板面暗一档的压条，凸出 2mm —— 不做凹陷（凹陷要动几何，
+     且 z-fighting 风险高，见 R25-10）。 */
+  /* 分缝的**可见度**调过一轮：第一版 6mm 宽、与板面同色系，4× 下几乎看不见
+     （测出来占比 50.5%，跟没加一样）。改成 8mm 宽 + 深两档的压条 + Ø14 螺栓：
+     真实机组侧板的压条本来就有阴影线，纯同色是"渲染味"的来源之一。 */
+  for (const z of [Z0 + U.t / 2, Z1 - U.t / 2]) {
+    const sgn = Math.sign(z)
+    const zFace = z + sgn * (U.t / 2 + 0.0016)
+    for (const sx of [XC1, (X0 + XC1) / 2]) {
+      shell.add(roundedBox(0.008, U.H - 0.06, 0.005, casingDark, sx, BOTTOM + U.H / 2, zFace, 0.0016))
+      boltRun(shell, [sx, BOTTOM + 0.075, zFace], [sx, TOP - 0.075, zFace], 5, 'z', 0.014, sgn)
+    }
+    for (const frac of [0.30, 0.62]) {
+      const seamY = BOTTOM + U.H * frac
+      shell.add(roundedBox(XC2 - X0 - 0.06, 0.008, 0.005, casingDark, (X0 + XC2) / 2, seamY, zFace, 0.0016))
+      boltRun(shell, [X0 + 0.08, seamY, zFace], [XC2 - 0.06, seamY, zFace], 9, 'z', 0.014, sgn)
+    }
   }
 
   // 四角立柱：真实机柜的角上有折边立柱，也是铆钉的落脚点

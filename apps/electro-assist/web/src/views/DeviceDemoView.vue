@@ -49,7 +49,7 @@ const SCENES: Record<SceneKey, SceneDef> = {
     ],
     hint: '前 2% 是解锁段：锁舌没缩回、锁闭信号还在，门一点都不能动——这是门控回路的硬联锁，不是流程建议。此后先退出密封面再滑移，中途锁闭信号必须一直是「无」，否则按锁闭回路故障排查。三维动作、参数读数、验收判据共用同一条时间轴：装配看形状，调试看动作与量的时序耦合。',
     parts: [
-      { key: 'leaf_l', label: '左门扇' },
+      { key: 'leaf', label: '门扇' },
       { key: 'leaf_r', label: '右门扇' },
       { key: 'frame', label: '门框' },
       { key: 'lamp', label: '指示灯' },

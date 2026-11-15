@@ -49,7 +49,7 @@ function toOpen(): void {
   settleDoor()
 }
 
-/** 一直跑到门停下（反开是两段：先收到 0.86、再回全开）。 */
+/** 一直跑到门停下（反开是两段：先收到 PINCH_AT、再回全开）。 */
 function runToRest(): void {
   for (let i = 0; i < 60; i += 1) {
     if (!stepDoor(0.2)) return
@@ -69,11 +69,11 @@ describe('door 会话：集控三步', () => {
     expect(result.hint).toContain('MON 未上电')
   })
 
-  it('未释放就开门，被拒绝并点名释放按钮', () => {
+  it('未投入集控就开门，被拒绝并点名集控开关', () => {
     powerOn()
     const result = open()
     expect(result.ok).toBe(false)
-    expect(result.hint).toContain('释放')
+    expect(result.hint).toContain('集控')
   })
 
   it('门关闭时再按一次释放 = 复位（灯灭）', () => {
@@ -155,7 +155,7 @@ describe('door 会话：防夹', () => {
     expect(result.hint).toContain('反向开门')
     expect(door.bumps).toBe(1)
 
-    // 门页合拢到试块（开度 0.28）判定受阻，然后反向回到全开
+    // 单扇门扇前缘碰到关闭边的试块（开度 0.22）判定受阻，然后反向回到全开
     stepDoor(1)
     expect(door.openT).toBeLessThan(1)
     runToRest()

@@ -41,7 +41,9 @@ import {
   roundedBox,
   seg,
   steelMaterial,
+  textPlate,
   withEdges,
+  boltRun,
 } from './rig'
 import { phaseFor } from '../../lib/devphase'
 
@@ -279,7 +281,71 @@ export function buildCabinet(): DeviceRig {
     roundedBox(0.86, 0.03, 0.014, steelMaterial(0xb6babe), 0, 0.14, 0.018, 0.004),
   )
   board.userData.cutKeep = true
+
+  /* ------------------------------------------------------------ 信息层（铭牌 / 回路号 / 警示）
+     2026-11-16 S4：4× 近景实测这台 `surfaceInfo = 0` —— 面板上没有一个字，
+     读起来就是一块灰塑料。这里只加**标识性**内容：
+       · 柜名（"司机室配电柜" + 英文），演示用名称，不对应任何真实车号；
+       · 三个回路的编号 QF1/QF2/QF3 —— 编号是布置标识，不是参数；
+       · 一块通用警示牌"当心触电"。
+     **不写任何参数**（额定电流、电压一律不印）：印上去就变成"图上的实测值"。
+     三块牌都挂在 `board` 组上，跟着背板一起剖切/高亮，不另立部件键。 */
+  const nameplate = textPlate({
+    width: 0.17,
+    height: 0.052,
+    bg: '#cfccc3',
+    border: '#6b675f',
+    lines: [
+      { text: '司机室配电柜' },
+      { text: 'DISTRIBUTION CABINET', scale: 0.62, color: '#3c4046' },
+    ],
+  })
+  /* 位置：**贴在断路器右侧的空白区**。原来放背板顶端正中——物理上也对（真柜铭牌在顶部），
+     但四张 4× 近景都对在柜面中部，牌一次都没进画面，等于白加。
+     现在放在右侧（灯与继电器上方），既在铭牌该在的上半区，又落在近景取景范围内。 */
+  nameplate.position.set(0.31, 0.63, 0.0108)
+  board.add(nameplate)
+
+  const warn = textPlate({
+    width: 0.086,
+    height: 0.042,
+    bg: '#e8c53a',
+    border: '#2b2b2b',
+    roughness: 0.62,
+    lines: [{ text: '当心触电', color: '#1b1b1b', scale: 0.92 }],
+  })
+  warn.position.set(0.31, 0.56, 0.0108)
+  board.add(warn)
+
+  // 回路编号：正对着每台断路器上方，编号与"从左到右"的顺序一致
+  const qf: Array<[string, number]> = [
+    ['QF1', -0.26],
+    ['QF2', -0.085],
+    ['QF3', 0.01],
+  ]
+  for (const [text, x] of qf) {
+    const tag = textPlate({
+      width: 0.034,
+      height: 0.016,
+      bg: '#cfccc3',
+      lines: [{ text, scale: 1.05 }],
+    })
+    // 回路号贴在断路器**正下方**的导轨上（真柜就是这么标的），而不是柜顶
+    tag.position.set(x, 0.432, 0.0108)
+    board.add(tag)
+  }
+
   parts.board = board
+
+  /* S3：背板上下两条导轨各一排 M6。
+     导轨原来只是两根光条（0.86×0.03），4× 下一根光条读不出"这是导轨"。 */
+  for (const y of [0.55, 0.14]) {
+    boltRun(board, [-0.40, y, 0.026], [0.40, y, 0.026], 7, 'z', 0.010)
+  }
+  /* 背板四角：真实柜体的安装螺钉 */
+  for (const y of [0.05, 0.67]) {
+    boltRun(board, [-0.42, y, 0.012], [0.42, y, 0.012], 2, 'z', 0.010)
+  }
   root.add(board)
 
   /* ------------------------------------------------------------ 三极断路器 */

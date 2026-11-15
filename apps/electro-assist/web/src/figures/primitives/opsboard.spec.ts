@@ -97,17 +97,17 @@ describe('底部状态条：只读', () => {
 })
 
 describe('按步裁剪：一页只做本页的事', () => {
-  it('上电步点门控按钮：被拒绝，并说明本步只做上电三件', async () => {
+  it('上电步点车门集控开关：被拒绝，并说明本步只做上电三件', async () => {
     const w = mountOps('door_switch', 'power')
-    await clickPart(w, 'door_l_release')
+    await clickPart(w, 'door_ctrl')
     expect(door.released).toBe(false)
     expect(w.get('.ops__notice').text()).toContain('本步只做')
     expect(w.get('.ops__notice').text()).toContain('钥匙')
   })
 
-  it('确认步（check）六个按钮一颗都不该动', async () => {
+  it('确认步（check）三只转换开关一颗都不该动', async () => {
     const w = mountOps('door_switch', 'check')
-    await clickPart(w, 'door_l_open')
+    await clickPart(w, 'door_cmd')
     expect(door.openT).toBe(0)
   })
 
@@ -120,15 +120,14 @@ describe('按步裁剪：一页只做本页的事', () => {
     expect(door.blocked).toBe(false)
   })
 
-  it('operate 步点关门：不在本步（只放开门）', async () => {
+  it('operate 步点试块：不在本步（只做集控与开关门）', async () => {
     const w = mountOps('door_switch', 'operate')
     door.openT = 1
     door.released = true
-    await clickPart(w, 'door_l_close')
-    // 关门不在"释放与开门"这一步：动作没发生（门仍开着、目标是开）
-    expect(door.openT).toBe(1)
-    expect(door.target).toBe(0)
-    expect(w.get('.ops__notice').text()).toContain('释放与开门')
+    await clickPart(w, 'block', 1)
+    // 试块不在"集控与开关门"这一步：动作没发生
+    expect(door.blocked).toBe(false)
+    expect(w.get('.ops__notice').text()).toContain('集控与开关门')
   })
 })
 
@@ -152,7 +151,7 @@ describe('动作入口：三维与 MON', () => {
     const panel = w.findComponent(MonPanel)
     expect(panel.exists()).toBe(true)
     expect(panel.props('params')).toMatchObject({ scene: 'hvac_cooling', phase: 'set', compact: '1' })
-    // 能回到司机台
+    // 能回到司机室操纵台
     expect(w.find('.ops__mon-back').exists()).toBe(true)
   })
 
@@ -184,21 +183,21 @@ describe('动作入口：三维与 MON', () => {
     w.unmount()
   })
 
-  it('view=mon 的步骤一开始就只给 MON + 机组，没有司机台画布', () => {
+  it('view=mon 的步骤一开始就只给 MON + 机组，没有司机室操纵台画布', () => {
     const w = mountOps('hvac_cooling', 'vent', 'mon')
     expect(w.find('.ops__pane--mon').exists()).toBe(true)
     expect(w.findAllComponents(SceneStub)).toHaveLength(1)
     expect(w.findAllComponents(SceneStub)[0].props('subject')).toBe('hvac')
   })
 
-  it('释放后开门：门扇开始动（t 从 0 起走）', async () => {
+  it('集控投入后扳「开关门」到开：门扇开始动（t 从 0 起走）', async () => {
     const w = mountOps('door_switch', 'operate')
     power.keyInserted = true
     power.keyTurned = true
     power.brakeFast = true
-    await clickPart(w, 'door_l_release')
+    await clickPart(w, 'door_ctrl')
     expect(door.released).toBe(true)
-    await clickPart(w, 'door_l_open')
+    await clickPart(w, 'door_cmd')
     expect(door.target).toBe(1)
     expect(w.findAllComponents(SceneStub)[1].props('t')).toBe(0)
   })
@@ -212,7 +211,7 @@ describe('动作入口：三维与 MON', () => {
     power.keyInserted = true
     power.keyTurned = true
     power.brakeFast = true
-    await clickPart(w as ReturnType<typeof mountOps>, 'door_l_release')
+    await clickPart(w as ReturnType<typeof mountOps>, 'door_ctrl')
     await w.get('.ops__reset').trigger('click')
     expect(door.released).toBe(false)
     expect(power.keyInserted).toBe(false)
@@ -234,13 +233,13 @@ describe('动作入口：三维与 MON', () => {
      原来 `allowed()` 写的是 `table[phase] ?? table.all`：act 一写错，本步之外的件
      全部放行，而且没有任何提示。这条把方向钉成 fail-closed —— 真值表在
      `lib/ops-allowed.spec.ts`，这里验"组件真的会拒绝"。 */
-  it('act 写成未知值时一律拒绝：点门控「释放」不生效，并说明本步范围', async () => {
+  it('act 写成未知值时一律拒绝：点车门集控开关不生效，并说明本步范围', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     power.keyInserted = true
     power.keyTurned = true
     power.brakeFast = true
     const w = mountOps('door_switch', 'nope')
-    await clickPart(w, 'door_l_release')
+    await clickPart(w, 'door_ctrl')
     expect(door.released).toBe(false)
     expect(w.get('.ops__notice').text()).toContain('本步只做')
     // 告警一次，不能刷屏

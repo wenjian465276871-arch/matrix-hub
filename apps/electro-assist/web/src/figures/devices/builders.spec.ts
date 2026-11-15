@@ -228,7 +228,7 @@ describe('两次构建互不共享可变状态', () => {
     expect(a.root).not.toBe(b.root)
     a.setT(0.95)
     b.setT(0)
-    expect(a.parts.leaf_l.position.x).not.toBeCloseTo(b.parts.leaf_l.position.x, 6)
+    expect(a.parts.leaf.position.x).not.toBeCloseTo(b.parts.leaf.position.x, 6)
     a.dispose()
     b.dispose()
   })

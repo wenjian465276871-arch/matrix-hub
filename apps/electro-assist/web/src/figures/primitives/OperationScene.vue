@@ -5,7 +5,7 @@
  *  |---|---|---|
  *  | `pantograph_raise` | `PantoOps` | 车顶受电弓（按住旋钮升弓） |
  *  | `hvac_cooling` | `OpsBoard` | 客室空调机组（MON 设模式、起通风/制冷） |
- *  | `door_switch` | `OpsBoard` | 客室侧门（司机台六个门控按钮） |
+ *  | `door_switch` | `OpsBoard` | 客室侧门（司机室操纵台六个门控按钮） |
  *
  *  为什么升弓那份不并进 `OpsBoard`：它有一条别的场景没有的交互——"按住旋钮
  *  直到升到位"，还有"点 MON 跳到确认页"的分流。把它塞进通用组件会让三套联锁

@@ -1,11 +1,12 @@
-/** 客室车门开关门试验（司机台操作）的会话状态。
+/** 客室车门开关门试验（司机室操纵台操作）的会话状态。
  *
  *  ## 联锁来自公开资料，不是编的
  *  - 车速 < 5 km/h 才允许集控开门（零速保护）；
- *  - 顺序是**释放 → 开门 → 关门**：释放按钮按下并点亮，全列该侧门才接受集控；
+ *  - 顺序是**集控投入 → 开门 → 关门**：转换开关盘「集控」扳到投入，全列该侧门
+ *    才接受集控（2026-11-15 改：原「释放按钮」在实车操纵台上不存在，见 R25-5）；
  *  - 关门过程中碰到障碍物，门停止并**自动反开**；连续 3 次仍受阻，
  *    停在全开位并报「关门障碍物超次数」；
- *  - 任意一个门没关到位，司机台的关门灯就灭。
+ *  - 任意一个门没关到位，司机室操纵台的关门灯就灭。
  *  （见 `data/samples/door_switch_desk.json` 的 `source_note`，只引公开资料。）
  *
  *  ## 数字口径
@@ -34,13 +35,16 @@ export const CLOSE_SECONDS = 3.6
 /**
  * 防夹反开的深度：门扇从 1.0 收到这里就判定"碰到东西"。
  *
- * 这个数不是随手取的，它由**试块的宽度**反推：试块放在门洞中线、宽 0.16m，
- * 两扇门页合拢到"缝隙 = 0.16m"时就顶住了它。门页位移 `travel = 0.08m`，
- * 对应 `slide = 0.10 / 0.66 ≈ 0.152`，落在 `slide0(0.2) → slide1(0.88)` 段里
- * ⇒ `t ≈ 0.30`。取 0.86 是错的（门几乎全开就反开，看起来像"没关就弹回去"）；
- * 取 0.03 又会让门页插进试块里。改试块尺寸时这个数要跟着改。
+ * ## 2026-11-15 单扇化后重算（R25-3）
+ * 单扇门向 +X 滑开、前缘在 −X，试块摆在**左门框侧的关闭边**（中心 −0.405，
+ * 宽 0.20 ⇒ 右缘 −0.305）。门扇前缘随行程右移：`前缘 = travel − leafW/2`，
+ * 碰到的条件是 `travel − 0.535 = −0.305` ⇒ `travel = 0.23` ⇒
+ * `openT = 0.23 / 1.061 ≈ 0.217`。取 **0.22**（比理论值晚 3mm，当作软物压缩量）。
+ *
+ * 旧值 0.30 是双扇结构按「两扇中间夹一块 0.16m」算出来的，单扇化后不成立：
+ * 那时门已经滑到 0.318，前缘还在 −0.217，根本够不到左门框边的试块。
  */
-const PINCH_AT = 0.30
+const PINCH_AT = 0.22
 /** 允许集控开门的最高车速（km/h）。 */
 export const ZERO_SPEED_LIMIT = 5
 
@@ -58,7 +62,7 @@ interface State {
   bumps: number
   /** 故障文案，空串为无。 */
   fault: string
-  /** 关门灯（司机台）。 */
+  /** 关门灯（司机室操纵台）。 */
   closedLed: boolean
   /** 正在反开：pinching 收门、reopening 回开。 */
   pinching: boolean
@@ -145,7 +149,7 @@ export function release(): ActionResult {
 /** 集控开门。 */
 export function open(): ActionResult {
   if (!powered()) return { ok: false, hint: OFF_HINT }
-  if (!door.released) return { ok: false, hint: '未释放：先按同一侧的「释放」按钮，按钮灯亮后才能开门' }
+  if (!door.released) return { ok: false, hint: '未投入集控：先把转换开关盘的「集控」扳到投入，再发开门指令' }
   if (door.openT > 0.9) return OK('门已开到位')
   door.target = 1
   door.closedLed = false
@@ -162,7 +166,7 @@ export function open(): ActionResult {
  */
 export function close(): ActionResult {
   if (!powered()) return { ok: false, hint: OFF_HINT }
-  if (!door.released) return { ok: false, hint: '未释放：先按「释放」按钮' }
+  if (!door.released) return { ok: false, hint: '未投入集控：先把「集控」扳到投入' }
   if (door.openT < 0.9) return { ok: false, hint: '门没开到位：先开门，再测关门时间' }
   if (door.blocked) {
     door.bumps += 1
@@ -175,7 +179,7 @@ export function close(): ActionResult {
     }
     door.pinching = true
     door.target = 0
-    return { ok: false, hint: `两扇门页同时碰到试块：关门停止并反向开门（第 ${door.bumps} 次）` }
+    return { ok: false, hint: `门扇前缘碰到试块：关门停止并反向开门（第 ${door.bumps} 次）` }
   }
   door.pinching = false
   door.reopening = false
@@ -280,10 +284,10 @@ export function stageText(): string {
 
 export function nextAction(): string {
   if (!powered()) return '先完成上电：钥匙右旋 + 制动手柄快速位'
-  if (!door.released) return '按站台侧的「释放」按钮：按钮灯亮后全列该侧才接受集控'
-  if (door.openT <= 0.001) return '按「开门」：门扇退出密封面并滑开，计时 3.2 s'
+  if (!door.released) return '把转换开关盘的「集控」扳到「投入」：该侧全列门才接受集控'
+  if (door.openT <= 0.001) return '把「开关门」开关扳到「开」：门扇退出密封面并滑开，计时 3.2 s'
   if (door.openT < 0.999) return '门正在动作，等它到位'
-  if (door.blocked) return '按「关门」验证防夹：门应停止并自动反开'
-  if (!door.confirmed.closed) return '按「关门」：到位后确认全列关闭锁闭、关门灯亮'
+  if (door.blocked) return '把「开关门」扳到「关」验证防夹：门应停止并自动反开'
+  if (!door.confirmed.closed) return '把「开关门」扳到「关」：到位后确认全列关闭锁闭、关门灯亮'
   return '门已关闭锁闭，可进入下一步确认'
 }

@@ -41,12 +41,14 @@ import {
   rubberMaterial,
   seg,
   steelMaterial,
+  boltRun,
 } from './rig'
 import { facePlate, ferruleTexture, lcdTexture, meterPanelTexture, setGlow, terminalLabelTexture } from './print'
 import { phaseFor } from '../../lib/devphase'
 
-/** 表体尺寸（m）：183 × 90 × 49mm 的通用工业表，取整到 180 × 88 × 46。 */
-const BODY = { w: 0.088, h: 0.18, d: 0.046 }
+/** 表体尺寸（m）：按 **Fluke 15B MAX** 公开规格 183(H)×91(W)×49.5(D) mm。
+ *  2026-11-15（R25-2）：原来取整成 180×88×46，厚度差 −7.1%，超了 ±5% 的锚点门禁。 */
+export const BODY = { w: 0.091, h: 0.183, d: 0.0495 }
 /** 表体中心。整台设备偏左，右边留给端子排与表笔。 */
 const C = new Vector3(-0.105, 0.1, 0)
 /** 端子排：6 位，每位 24mm（放大 4 倍，见文件头）。y 取 0.031 让端子块底面正好落在台面上。 */
@@ -156,6 +158,12 @@ export function buildMultimeter(): DeviceRig {
   bodyGroup.rotation.set(-0.1, 0.22, 0.04)
   root.add(bodyGroup)
   parts.body = bodyGroup
+
+  /* S3：前壳四角螺钉。万用表本来就是"四颗螺丝拧后盖"的产品，
+     4× 近景里这四颗是判断"这是实物还是塑料模型"的最快线索。 */
+  for (const y of [BODY.h / 2 - 0.012, -BODY.h / 2 + 0.012]) {
+    boltRun(bodyGroup, [-BODY.w / 2 + 0.011, y, BODY.d / 2 + 0.0008], [BODY.w / 2 - 0.011, y, BODY.d / 2 + 0.0008], 2, 'z', 0.006)
+  }
 
   bodyGroup.add(roundedBox(BODY.w, BODY.h, BODY.d, new MeshStandardMaterial({
     color: DARK,

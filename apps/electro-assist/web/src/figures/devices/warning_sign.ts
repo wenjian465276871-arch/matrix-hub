@@ -39,6 +39,7 @@ import {
   roundedBox,
   rubberMaterial,
   seg,
+  boltRun,
 } from './rig'
 import { facePlate, signFaceTexture } from './print'
 import { phaseFor } from '../../lib/devphase'
@@ -61,6 +62,16 @@ export function buildWarningSign(): DeviceRig {
   const door = new Group()
   root.add(door)
   parts.door = door
+
+  /* S3：门扇四角与把手座各补一组螺钉。
+     这扇门在 4× 近景里是一整块 0.5×1.2 m 的光板（空白 81.2%，九台最差），
+     真实门扇四角一定有紧固件，把手下方也有一块加强垫板。 */
+  for (const y of [0.06, 1.14]) {
+    boltRun(door, [-0.22, y, 0.021], [0.22, y, 0.021], 4, 'z', 0.010)
+  }
+  for (const sx of [-0.07, 0.07]) {
+    boltRun(door, [sx, 0.70, 0.021], [sx, 0.86, 0.021], 2, 'z', 0.010)
+  }
 
   // 门扇：1.2m 高、0.5m 宽的单扇门（只看下半截，画面才给得到牌子）
   const leaf = roundedBox(0.5, 1.2, 0.04, paintedMaterial(0xd9d7d1), 0, 0.6, 0, 0.008, 3)

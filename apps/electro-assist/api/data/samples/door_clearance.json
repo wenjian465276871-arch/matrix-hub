@@ -98,7 +98,7 @@
           "primitive": "baked_figure",
           "params": {
             "src": "/figures/feeler_gauge/gap.webp",
-            "alt": "两扇门扇之间的竖向缝隙里插着一把塞尺，测片夹在门扇与门框之间"
+            "alt": "门扇与门框之间的竖向缝隙里插着一把塞尺，测片夹在门扇与门框之间"
           },
           "caption": "塞尺插入门缝",
           "fallback_text": "用塞尺逐片试插门扇与门框之间的缝隙，取刚好插入的叶片厚度作为间隙值。"

@@ -310,7 +310,7 @@ test('换指导书：空调里上过的电不能带到车门那份', async ({ pa
   await expect(page.locator('.ops__st.is-on')).toHaveCount(0)
 })
 
-test('重新开始：从第 2 步回到第一工步，司机台状态一并复位', async ({ page }) => {
+test('重新开始：从第 2 步回到第一工步，司机室操纵台状态一并复位', async ({ page }) => {
   await page.goto('./guide/g_door_switch_desk')
   await next(page).click()
   await expect(page.locator('.ops__st').first()).toBeVisible()
@@ -331,7 +331,7 @@ test('重新开始：从第 2 步回到第一工步，司机台状态一并复�
   await expect(page.locator('.ops__next')).toContainText('插入主控钥匙')
 })
 
-test('车门：MON 确认 → 释放开门 → 点试块 + 关门必须反开 → 试块归位后关到位', async ({ page }) => {
+test('车门：MON 确认 → 集控投入与开关门 → 点试块 + 关门必须反开 → 试块归位后关到位', async ({ page }) => {
   test.setTimeout(180_000)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
@@ -355,10 +355,10 @@ test('车门：MON 确认 → 释放开门 → 点试块 + 关门必须反开 �
   await closeMon(page)
   await page.locator('.ops__go').click()
 
-  // --- 第 4 屏：点台面「释放」→「开门」 ---
-  await clickPart(page, 'driver_desk', 'door_l_release')
+  // --- 第 4 屏：转换开关盘「集控」扳到投入 → 「开关门」扳到开 ---
+  await clickPart(page, 'driver_desk', 'door_ctrl')
   await expect.poll(() => probe(page).then((p) => p?.door.released ?? false)).toBe(true)
-  await clickPart(page, 'driver_desk', 'door_l_open')
+  await clickPart(page, 'driver_desk', 'door_cmd')
   await expect
     .poll(() => probe(page).then((p) => p?.door.openT ?? 0), {
       timeout: 40_000,
@@ -367,10 +367,10 @@ test('车门：MON 确认 → 释放开门 → 点试块 + 关门必须反开 �
     .toBeGreaterThan(0.999)
   await page.locator('.ops__go').click()
 
-  // --- 第 5 屏：点门外侧试块 → 门洞；点关门 → 必须反开 ---
+  // --- 第 5 屏：点门外侧试块 → 门洞关闭边；扳「开关门」到关 → 必须反开 ---
   await clickPart(page, 'door', 'block')
   await expect.poll(() => probe(page).then((p) => p?.block ?? false), { timeout: 10_000 }).toBe(true)
-  await clickPart(page, 'driver_desk', 'door_l_close')
+  await clickPart(page, 'driver_desk', 'door_cmd')
   await expect
     .poll(() => probe(page).then((p) => p?.door.bumps ?? 0), {
       timeout: 40_000,
@@ -395,7 +395,7 @@ test('车门：MON 确认 → 释放开门 → 点试块 + 关门必须反开 �
   // 撤块会把反开次数清零（这是会话里的既有口径），所以这里以"清零后的 0"为基准
   await expect.poll(() => probe(page).then((p) => p?.door.bumps ?? -1), { timeout: 10_000 }).toBe(0)
   await expect(page.locator('.ops__next')).toContainText('正常关闭')
-  await clickPart(page, 'driver_desk', 'door_l_close')
+  await clickPart(page, 'driver_desk', 'door_cmd')
   // 无障碍物：关门过程中不能出现新的反开
   await expect(page.locator('.ops__next')).not.toContainText('碰到试块', { timeout: 5_000 })
   await expect.poll(() => probe(page).then((p) => p?.door.openT ?? 1), { timeout: 40_000 }).toBeLessThan(0.001)

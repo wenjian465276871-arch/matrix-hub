@@ -1,5 +1,5 @@
 <script setup lang="ts">
-/** operation_scene（空调制冷 / 开关门）：司机台与设备双画布。
+/** operation_scene（空调制冷 / 开关门）：司机室操纵台与设备双画布。
  *
  *  ## 2026-11-14 本人定下的三条交互铁律（这一版就是按它重写的）
  *  1. **底部只放状态，不放动作**。一排状态灯回答"这一步做了没有"，它不接受点击
@@ -227,9 +227,9 @@ function outOfScope(name: string): void {
       ? ({
           power: '插钥匙 / 钥匙右旋 / 手柄快速位',
           check: '在 MON 上确认门状态',
-          operate: '释放与开门',
+          operate: '集控与开关门',
           pinch: '放试块与关门',
-          close: '关门与释放复位',
+          close: '关门与集控复位',
         }[phase.value] ?? '本步操作')
       : ({
           power: '插钥匙 / 钥匙右旋 / 手柄快速位',
@@ -249,18 +249,15 @@ const PART_NAME: Record<string, string> = {
   mon: 'MON 屏',
   desk: '台面',
   block: '防夹试块',
-  door_l_release: '左侧释放按钮',
-  door_l_open: '左侧开门按钮',
-  door_l_close: '左侧关门按钮',
-  door_r_release: '右侧释放按钮',
-  door_r_open: '右侧开门按钮',
-  door_r_close: '右侧关门按钮',
+  door_ctrl: '车门集控开关',
+  door_side: '集控侧开关',
+  door_cmd: '开关门开关',
 }
 
 function onDeskPart(key: string, label = ''): void {
   const name = (label ? splitLabel(label).name : '') || PART_NAME[key] || key
   if (key === 'desk') {
-    notice.value = '点在台体上了：可点的件是主控钥匙 / 制动手柄 / 门控按钮 / MON 屏'
+    notice.value = '点在台体上了：可点的件是主控钥匙 / 制动手柄 / 转换开关盘 / MON 屏'
     return
   }
   if (!allowed(key)) {
@@ -274,17 +271,21 @@ function onDeskPart(key: string, label = ''): void {
   let result: { ok: boolean; hint: string } | null = null
   if (key === 'key') result = power.keyInserted ? turnKey() : insertKey()
   else if (key === 'brake') result = moveBrakeFast()
-  else if (key.startsWith('door_')) {
-    const side = key.startsWith('door_l') ? 'L' : 'R'
-    if (door.side !== side) {
-      const picked = selectSide(side)
-      if (!picked.ok) {
-        notice.value = picked.hint
-        return
-      }
+  else if (key === 'door_ctrl') {
+    // 一只两档开关：拨一次就换一个档（切除 ⇄ 投入）。投入 = 原「释放」语义。
+    result = doorRelease()
+  } else if (key === 'door_side') {
+    const next = door.side === 'L' ? 'R' : 'L'
+    const picked = selectSide(next)
+    if (!picked.ok) {
+      notice.value = picked.hint
+      return
     }
-    if (key.endsWith('_release')) result = doorRelease()
-    else if (key.endsWith('_open')) {
+    result = picked
+  } else if (key === 'door_cmd') {
+    /* 开关门开关：门在关闭侧就往开扳，已经开着就往关扳——与真车"扳到哪一档"一致，
+       不再按"左/右 × 三个按钮"分流。 */
+    if (door.openT < 0.5) {
       result = doorOpen()
       if (door.target === 1) ensureMoving()
     } else {
@@ -323,7 +324,7 @@ function openMon(): void {
   monZoom.value = true
 }
 
-/** 左侧这一栏现在显示什么：MON 屏还是司机台。 */
+/** 左侧这一栏现在显示什么：MON 屏还是司机室操纵台。 */
 const leftIsMon = computed(() => view.value === 'mon' || (view.value === 'both' && monPane.value))
 
 /**
@@ -444,7 +445,7 @@ const unitBadge = computed(() => {
             type="button"
             @click="monPane = false"
           >
-            返回司机台
+            返回司机室操纵台
           </button>
         </header>
         <MonPanel :params="monPaneParams" label="MON 车辆信息显示屏" @receipt="notice = $event" />

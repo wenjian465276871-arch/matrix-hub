@@ -54,13 +54,14 @@ import {
   roundedBox,
   rubberMaterial,
   seg,
+  boltRun,
 } from './rig'
 import { DESK_T, phaseFor } from '../../lib/devphase'
 import { parseAux } from '../../lib/auxspec'
 
 /* ------------------------------------------------------------------ 尺寸 */
 
-/** 台体：宽 1.90（单司机台的半幅）、深 0.66、台面高 0.72。 */
+/** 台体：宽 1.90（单司机室操纵台的半幅）、深 0.66、台面高 0.72。 */
 const W = 1.9
 const D = 0.66
 const TOP_Y = 0.72
@@ -553,6 +554,16 @@ export function buildDriverDesk(): DeviceRig {
   root.add(desk)
   parts.desk = desk
 
+  /* S3：台体前脸（1.9×0.58 m）原来是一整块漆面。真实操纵台前脸是
+     两三块板螺接在骨架上，缝在立柱位置，螺钉沿缝排。 */
+  for (const sx of [-0.62, 0.62]) {
+    desk.add(roundedBox(0.008, 0.54, 0.005, paintedMaterial(0x9aa0a4), sx, 0.41, D / 2 + 0.0015, 0.0016))
+    boltRun(desk, [sx, 0.16, D / 2 + 0.003], [sx, 0.66, D / 2 + 0.003], 5, 'z', 0.011)
+  }
+  for (const y of [0.16, 0.66]) {
+    boltRun(desk, [-0.86, y, D / 2 + 0.003], [0.86, y, D / 2 + 0.003], 8, 'z', 0.011)
+  }
+
   // 踢脚：往里收 4cm，灯光下自然压出一条阴影，模型才不是"一个方块"
   desk.add(roundedBox(W - 0.12, 0.14, D - 0.10, kickMat, 0, 0.07, -0.02, 0.01))
   desk.add(roundedBox(W, 0.58, D, bodyMat, 0, 0.41, 0, 0.018, 3))
@@ -885,88 +896,71 @@ export function buildDriverDesk(): DeviceRig {
   rightLabel.position.set(0.86, TOP_Y + 0.045, 0.101)
   desk.add(rightLabel)
 
-  /* ------------------------------------------------------------ 车门控制盘（右前）
-     2026-11-14 新增：开关门试验要在司机台上"按按钮"，不是点屏幕。
-     形体依据（公开资料，非内部图纸）：CR 系列司机台两侧各三个自复位按钮
-     ——释放 / 开门 / 关门，释放按钮带灯；按下释放后全列该侧门才接受集控。
-     六个键各自是独立部件（`door_l_release` …），不合并成一个面板：
-     合并后 `part-click` 只能回一个键，点"开门"和点"关门"在事件层就分不开。 */
-  const DOOR_X = 0.78
+  /* ------------------------------------------------------ 转换开关盘（右前）
+     2026-11-15 按本人裁决改（R25-5）：**原六个门控按钮在实车上不存在**。
+     公开作业办法写的是「检查转换开关盘1（车门集控位，警惕投入位）」——车门集控
+     是一只**转换开关**，不是操纵台台面上的一排按钮。上一版按"CR 系列两侧各三个
+     自复位按钮"做，既没有出处，也违反"不虚构零件"。
+     现在改成三只带档位的转换开关，各自独立成件（`part-click` 要能分清点了哪一只）：
+       ① 集控：切除 / 投入 —— 对应"全列该侧是否接受集控"
+       ② 集控侧：左 / 右 —— 站台侧选择
+       ③ 开关门：关 / 开 —— 发出集控开、关门指令
+     指针角度由 `setAux` 按真实状态给（released / side / open），不另存一份状态。 */
+  const DOOR_X = 0.8
   const DOOR_TOP = TOP_Y
+  const DOOR_Z = 0.225
 
-  // 盘体与面板：盘体归 `desk`（它是台面的一部分，不该单独可点）
-  desk.add(roundedBox(0.36, 0.03, 0.125, paintedMaterial(0x3c4145), DOOR_X, DOOR_TOP + 0.015, 0.225, 0.008, 3))
-  desk.add(roundedBox(0.34, 0.008, 0.11, paintedMaterial(0x22262a), DOOR_X, DOOR_TOP + 0.032, 0.225, 0.004))
+  // 盘体归 `desk`（它是台面的一部分，不该单独可点）
+  desk.add(roundedBox(0.34, 0.03, 0.13, paintedMaterial(0x3c4145), DOOR_X, DOOR_TOP + 0.015, DOOR_Z, 0.008, 3))
+  desk.add(roundedBox(0.32, 0.008, 0.115, paintedMaterial(0x22262a), DOOR_X, DOOR_TOP + 0.032, DOOR_Z, 0.004))
 
-  // 列与行的文字：六个一样大的圆柱，没有字就只能靠猜。
-  const colLabel: Array<[number, string]> = [
-    [0.69, '释放'],
-    [0.78, '开门'],
-    [0.87, '关门'],
+  /** 三只开关：横向排开。`key` 同时是部件键与契约键。 */
+  const DOOR_SWITCHES: Array<{ key: string; x: number; label: string }> = [
+    { key: 'door_ctrl', x: DOOR_X - 0.105, label: '集控' },
+    { key: 'door_side', x: DOOR_X, label: '集控侧' },
+    { key: 'door_cmd', x: DOOR_X + 0.105, label: '开关门' },
   ]
-  for (const [x, text] of colLabel) {
-    const plate = labelPlate(text, 0.058, 0.012)
-    plate.position.set(x, DOOR_TOP + 0.033, 0.281)
-    plate.rotation.x = -Math.PI / 2
-    desk.add(plate)
-  }
-  const rowLabel: Array<[number, string]> = [
-    [0.25, '左'],
-    [0.20, '右'],
-  ]
-  for (const [z, text] of rowLabel) {
-    const plate = labelPlate(text, 0.028, 0.011)
-    plate.position.set(0.628, DOOR_TOP + 0.033, z)
-    plate.rotation.x = -Math.PI / 2
-    desk.add(plate)
-  }
+  /** 指针对象：`rotation.y` 两个档位 ±45°。 */
+  const doorPointers: Record<string, Group> = {}
 
-  /** 六个按钮的盖帽材质：灯亮 = 自发光拉起来。按下状态要看得见，
-   *  否则"点了没反应"和"点了但被联锁拒绝"在画面上一样。 */
-  const doorCaps: Record<string, MeshStandardMaterial> = {}
-  const DOOR_KEYS = [
-    'door_l_release',
-    'door_l_open',
-    'door_l_close',
-    'door_r_release',
-    'door_r_open',
-    'door_r_close',
-  ] as const
-  const doorRows: Array<{ side: 'l' | 'r'; z: number }> = [
-    { side: 'l', z: 0.25 },
-    { side: 'r', z: 0.20 },
-  ]
-  const doorCols: Array<{ id: 'release' | 'open' | 'close'; x: number; color: number }> = [
-    { id: 'release', x: 0.69, color: 0x2f8f5b },
-    { id: 'open', x: 0.78, color: 0x2f6fd0 },
-    { id: 'close', x: 0.87, color: 0xb03a34 },
-  ]
-  for (const row of doorRows) {
-    for (const col of doorCols) {
-      const key = `door_${row.side}_${col.id}`
-      const g = new Group()
-      root.add(g)
-      parts[key] = g
+  for (const spec of DOOR_SWITCHES) {
+    const g = new Group()
+    root.add(g)
+    parts[spec.key] = g
 
-      const collar = new Mesh(new CylinderGeometry(0.0185, 0.0185, 0.006, 20), chromeMaterial())
-      collar.position.set(col.x, DOOR_TOP + 0.038, row.z)
-      g.add(collar)
+    // 底座法兰 + 轴 + 指针：真件的三件套，缺一件就只剩"一个圆柱"
+    const flange = new Mesh(new CylinderGeometry(0.019, 0.021, 0.007, 22), chromeMaterial())
+    flange.position.set(spec.x, DOOR_TOP + 0.038, DOOR_Z)
+    g.add(flange)
+    const shaft = new Mesh(new CylinderGeometry(0.0105, 0.0105, 0.022, 18), paintedMaterial(0x2b3035))
+    shaft.position.set(spec.x, DOOR_TOP + 0.050, DOOR_Z)
+    g.add(shaft)
 
-      const capMat = new MeshStandardMaterial({
-        color: 0x2a2f33,
-        emissive: col.color,
-        emissiveIntensity: 0,
-        metalness: 0,
-        roughness: 0.42,
-      })
-      const cap = new Mesh(new CylinderGeometry(0.014, 0.014, 0.013, 20), capMat)
-      cap.position.set(col.x, DOOR_TOP + 0.045, row.z)
-      g.add(cap)
-      doorCaps[key] = capMat
+    const pointer = new Group()
+    pointer.position.set(spec.x, DOOR_TOP + 0.062, DOOR_Z)
+    // 手柄条：沿 +Z 伸出，`rotation.y` 一转就是"扳到另一档"
+    pointer.add(roundedBox(0.012, 0.008, 0.040, paintedMaterial(0xe8e4d8), 0, 0, 0.008, 0.002))
+    // 顶端一小截深色头：指针方向在浅色盘面上要一眼读出
+    pointer.add(roundedBox(0.014, 0.009, 0.008, rubberMaterial(0x1b1e22), 0, 0, 0.026, 0.002))
+    g.add(pointer)
+    doorPointers[spec.key] = pointer
 
-      hotzone(g, 0.058, 0.055, 0.058, col.x, DOOR_TOP + 0.045, row.z)
+    // 两只档位刻线：±45°，给"这是两档开关"一个视觉锚
+    for (const a of [-1, 1]) {
+      const tick = roundedBox(0.004, 0.003, 0.012, paintedMaterial(0x6f747a), spec.x, DOOR_TOP + 0.037, DOOR_Z)
+      tick.position.set(spec.x + a * 0.021, DOOR_TOP + 0.037, DOOR_Z + 0.021)
+      tick.rotation.y = a * Math.PI * 0.25
+      g.add(tick)
     }
+
+    const plate = labelPlate(spec.label, 0.052, 0.011)
+    plate.position.set(spec.x, DOOR_TOP + 0.033, DOOR_Z + 0.062)
+    plate.rotation.x = -Math.PI / 2
+    desk.add(plate)
+
+    hotzone(g, 0.062, 0.062, 0.062, spec.x, DOOR_TOP + 0.050, DOOR_Z)
   }
+  const DOOR_KEYS = DOOR_SWITCHES.map((s) => s.key)
 
   /* ------------------------------------------------------------ 场景附加态 */
 
@@ -982,7 +976,7 @@ export function buildDriverDesk(): DeviceRig {
         ['车门释放', released ? '已释放' : '未释放'],
         ['全列车门', open ? '有门未关闭' : '关闭锁闭'],
       ],
-      note: open ? '关门灯灭 · 全列未关闭锁闭' : released ? '关门灯亮 · 可集控开关门' : '按释放按钮后集控有效',
+      note: open ? '关门灯灭 · 全列未关闭锁闭' : released ? '关门灯亮 · 可集控开关门' : '集控未投入：转换开关扳到「投入」后有效',
       on,
     }
   }
@@ -1017,8 +1011,8 @@ export function buildDriverDesk(): DeviceRig {
    *
    * - `panto` 或空串：屏回到升弓八拍；
    * - `hvac|mode=cool;temp=24;fresh=closed;on=1`：MON 显示空调页；
-   * - `door|side=L;released=1;open=0;on=1;press=door_l_open`：MON 显示车门页，
-   *   并把 `press` 那个按钮的灯点亮（按下反馈）。
+   * - `door|side=L;released=1;open=0;on=1`：MON 显示车门页，三只转换开关的
+   *   指针按真实状态扳到对应档位（集控投入 / 集控侧 / 开关门）。
    */
   /** 屏是否被"场景页"（空调/车门）占用。占用时 `setT()` 不许再画升弓八拍，
    *  否则上电到 0.36 的那一刻，屏会从"空调制冷"跳回"电源电压"。 */
@@ -1027,9 +1021,10 @@ export function buildDriverDesk(): DeviceRig {
   /**
    * 取景范围按场景换。
    *
-   * 门控按钮装在台面右前——升弓那套 `focus`（屏 / 钥匙 / 手柄 / 开关 / 旋钮 / VCB / 表）
-   * 只框到台面后缘，按钮正好在画面外：功能在、看不见、也点不中。
-   * 但把六个按钮并进升弓的 `focus` 又会让机位整体退后 1.6 倍，钥匙与旋钮变小。
+   * 车门场景把整个转换开关盘框进来（台面右前三只开关）——升弓那套 `focus`
+   * （屏 / 钥匙 / 手柄 / 开关 / 旋钮 / VCB / 表）只框到台面后缘，开关正好在画面外：
+   * 功能在、看不见、也点不中。
+   * 但把三只开关并进升弓的 `focus` 又会让机位整体退后 1.6 倍，钥匙与旋钮变小。
    * 所以做成**可变数组**：`DeviceScene` 拿的是同一个引用，`setAux` 就地改内容，
    * 换场景后由组件重新取景（见 `DeviceScene.vue` 的 aux watcher）。
    */
@@ -1064,10 +1059,16 @@ export function buildDriverDesk(): DeviceRig {
     // 分号分隔的键值对会整段塞进第一个键，屏上回落成默认值而页面上看不出来。
     const { scene, kv } = parseAux(spec)
 
-    // 按钮灯：先全灭，再点亮被按下的那个
-    for (const mat of Object.values(doorCaps)) mat.emissiveIntensity = 0
-    const press = kv.press ?? ''
-    if (press && doorCaps[press]) doorCaps[press].emissiveIntensity = 0.9
+    // 三只转换开关的指针：档位取自真实状态，不另存一份
+    const knobAngles: Array<[string, boolean]> = [
+      ['door_ctrl', kv.released === '1'],
+      ['door_side', kv.side === 'R'],
+      ['door_cmd', kv.open === '1'],
+    ]
+    for (const [key, high] of knobAngles) {
+      const pointer = doorPointers[key]
+      if (pointer) pointer.rotation.y = (high ? 1 : -1) * Math.PI * 0.25
+    }
 
     if (scene === 'hvac') {
       auxActive = true
@@ -1116,11 +1117,11 @@ export function buildDriverDesk(): DeviceRig {
       lastState = state
     }
 
-    // 钥匙：0.04–0.12 推入 25mm；0.12–0.22 右旋 90°（拔取位 → 运行位）
+    // 钥匙：0.04–0.12 推入 25mm；0.12–0.22 **顺时针**旋 90°（拔取位 → 运行位，本人 2026-11-15 裁决）
     const inserted = seg(clamped, 0.04, DESK_T.keyIn)
     const turned = seg(clamped, DESK_T.keyIn, DESK_T.keyOn)
     keyTurn.position.z = KEY_Z + 0.025 * (1 - inserted)
-    keyTurn.rotation.z = (Math.PI / 2) * turned
+    keyTurn.rotation.z = -(Math.PI / 2) * turned
 
     // 制动手柄：0.30–0.36 从制动位推到快速位（向后拉 → 向前推）
     const brakeMoved = seg(clamped, 0.3, DESK_T.brake)
@@ -1166,7 +1167,7 @@ export function buildDriverDesk(): DeviceRig {
     setAux,
     framing: { target: [0, 0.88, 0.02], distance: 2.3 },
     /* 车门场景把取景目标挪到"含右前门控盘"那一团的中心：
-       否则六个按钮贴着画面下沿，投影点会落到画布外，点不中。 */
+       否则三只转换开关贴着画面下沿，投影点会落到画布外，点不中。 */
     framingAt: () =>
       sceneMode === 'door'
         ? { target: centerOf(focusKeys), distance: 2.3 }
@@ -1175,7 +1176,7 @@ export function buildDriverDesk(): DeviceRig {
     viewDir: [0.1, 0.4, 0.92],
     // 动的是钥匙、手柄、旋钮、按钮与屏，仪表盘与电话是背景
     // 动的是钥匙、手柄、旋钮、按钮与屏，仪表盘与电话是背景。
-    // 数组内容按场景可变（车门场景要把右前的六个按钮也框进来），见 `focusKeys`。
+    // 数组内容按场景可变（车门场景要把右前的转换开关盘也框进来），见 `focusKeys`。
     focus: focusKeys,
     /* 1.16 时，1090×614 的窄画布把钥匙牌压在下沿；1.22 让钥匙与顶梁同时完整。
        车门场景要再退一档（1.62）：右前门控盘在 z≈0.25（离镜头更近），

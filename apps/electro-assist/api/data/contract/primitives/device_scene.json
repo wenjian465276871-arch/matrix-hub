@@ -5,7 +5,7 @@
     "primitive": "device_scene",
     "caption": "车门关闭到位",
     "fallback_text": "车门关闭状态示意（渲染失败时读这段）",
-    "params": { "subject": "door", "t": 0.0, "part": "leaf_l" }
+    "params": { "subject": "door", "t": 0.0, "part": "leaf" }
   },
   "expectations": [
     { "kind": "node", "selector": ".scene canvas", "min": 1, "为什么": "WebGL 画布真的建起来了" },

@@ -33,6 +33,7 @@ import {
   rubberMaterial,
   seg,
   steelMaterial,
+  boltRun,
 } from './rig'
 import { facePlate, setGlow, torqueScaleTexture } from './print'
 import { phaseFor } from '../../lib/devphase'
@@ -52,6 +53,10 @@ export function buildTorqueWrench(): DeviceRig {
   const bracket = new Group()
   root.add(bracket)
   parts.bracket = bracket
+
+  /* S3：安装座正面的四颗紧固螺钉（座是 0.26×0.15 m 的板，4× 下是一块光面） */
+  boltRun(bracket, [-0.10, 0.145, -0.032], [0.10, 0.145, -0.032], 3, 'z', 0.009, -1)
+  boltRun(bracket, [-0.10, 0.032, -0.032], [0.10, 0.032, -0.032], 3, 'z', 0.009, -1)
 
   // 门机安装座：一块立板 + 一条加强筋，螺栓从这里穿过去
   bracket.add(roundedBox(0.26, 0.15, 0.024, paintedMaterial(0xc9c7c1), 0, 0.088, -0.045, 0.006, 3))

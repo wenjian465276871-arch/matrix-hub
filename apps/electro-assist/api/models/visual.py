@@ -114,7 +114,7 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
     # 不是页面上的按钮——所以它必须是可拾取的部件，而不是一段装饰几何。
     # `motor` 同日补：三维里 `parts.motor` 早有这个组（门机 + 同步带），
     # 悬停名称要逐字对上，释义表里有它就要求白名单里也有（反之亦然）。
-    "door": ("leaf_l", "leaf_r", "frame", "lamp", "block", "motor"),
+    "door": ("leaf", "frame", "lamp", "block", "motor"),
     "pantograph": ("arms", "head", "frame", "drive", "drive2", "lamp"),
     "cabinet": ("breakers", "contactor", "relays", "lamps", "terminals", "board"),
     # 客室空调机组：整机一台，五步判据分别落在不同部件上，所以键分得比别的整机细。
@@ -139,10 +139,9 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
     # 司机操纵台：三项试验（升弓 / 空调制冷 / 开关门）共用的"人这一侧"。
     # 全部是可操作件——这台设备不是用来看的，是用来点的：点哪个键，现场就得做哪个动作。
     #
-    # 2026-11-14 加了 6 个门控按钮（左/右 × 释放/开门/关门）。为什么不合并成一个
-    # `door_panel`：合并之后 `part-click` 只能回一个键，点"开门"和点"关门"在事件层
-    # 就分不开，只能靠界面再问一次——那正是"点了没反应"的来源。六个键各自独立，
-    # 拾取即动作，与升弓旋钮同一套约定。
+    # 2026-11-15 按本人裁决把 6 个门控按钮换成**转换开关盘**（R25-5）：
+    # 实车上车门集控是转换开关（公开作业办法：转换开关盘1「车门集控位」），
+    # 操纵台台面没有那一排按钮。三只开关各自独立，`part-click` 才分得清点了哪只。
     "driver_desk": (
         "desk",
         "mon",
@@ -152,12 +151,9 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
         "knob",
         "vcb",
         "gauge",
-        "door_l_release",
-        "door_l_open",
-        "door_l_close",
-        "door_r_release",
-        "door_r_open",
-        "door_r_close",
+        "door_ctrl",
+        "door_side",
+        "door_cmd",
     ),
 }
 
@@ -168,10 +164,9 @@ DEVICE_SUBJECTS: dict[str, tuple[str, ...]] = {
 # 没有人能从结果反推它理解错了。写一句说明，模型选键时才是在做语义选择。
 DEVICE_PART_LABELS: dict[str, dict[str, str]] = {
     "door": {
-        "leaf_l": "左门扇（含门锁与携门架）",
-        "block": "防夹试块（卷状软物，点它在门外原位与门洞地板之间移动）",
-        "leaf_r": "右门扇（含门锁与携门架）",
-        "frame": "门框与门楣设备舱（门槛压条、密封面）",
+        "leaf": "门扇（单扇内藏式侧拉门，含门锁、隔离锁与携门架）",
+        "block": "防夹试块（卷状软物，点它在门外原位与门洞关闭边之间移动）",
+        "frame": "门框与门楣设备舱（门槛压条、密封面、锁扣板）",
         "lamp": "门状态指示灯（门机罩前脸）",
         "motor": "门机（电机、减速箱、同步带与张紧轮）",
     },
@@ -230,7 +225,7 @@ DEVICE_PART_LABELS: dict[str, dict[str, str]] = {
         "window": "刻度窗与指针（设定值 25 N·m）",
     },
     "driver_desk": {
-        "desk": "操纵台台体与仪表盘（含右屏 ATP、CIR 小屏、电话与按钮排）",
+        "desk": "操纵台台体与仪表盘（含右屏 ATP、CIR 小屏、电话与转换开关盘）",
         "mon": "MON 车辆信息显示屏（左侧大屏，带遮光帽檐与软键）",
         "key": "主控钥匙（插在制动控制器上，拔取位可取出）",
         "brake": "制动控制器 / 制动手柄（运行、B1–B7、快速、拔取位）",
@@ -238,12 +233,9 @@ DEVICE_PART_LABELS: dict[str, dict[str, str]] = {
         "knob": "升弓旋钮 PanUS（右旋保持、松手回位）",
         "vcb": "VCB 合按钮（中央开关盘，绿色带灯）",
         "gauge": "网压表（仪表盘左下，0–35 kV，正常区 19–31）",
-        "door_l_release": "左侧车门释放按钮（带灯，按下后全列左门释放）",
-        "door_l_open": "左侧车门开门按钮（集控打开全列左门）",
-        "door_l_close": "左侧车门关门按钮（集控关闭全列左门）",
-        "door_r_release": "右侧车门释放按钮（带灯，按下后全列右门释放）",
-        "door_r_open": "右侧车门开门按钮（集控打开全列右门）",
-        "door_r_close": "右侧车门关门按钮（集控关闭全列右门）",
+        "door_ctrl": "车门集控转换开关（切除 / 投入：投入后全列该侧接受集控）",
+        "door_side": "集控侧选择开关（左 / 右，站台侧）",
+        "door_cmd": "开关门转换开关（开 / 关：发出集控开关门指令）",
     },
 }
 
@@ -350,7 +342,7 @@ DEVICE_SYSTEMS: dict[str, frozenset[str]] = {
     "torque_wrench": frozenset({"door", "pantograph"}),
     # 司机操纵台现在服务三项试验：升弓、空调制冷、开关门。
     # 2026-11-14 放开到 hvac / door——原表把三者共用的"人这一侧"锁死在升弓里，
-    # 结果是空调与车门指导书里连"在司机台设模式/按开门"这张图都画不出来。
+    # 结果是空调与车门指导书里连"在司机室操纵台设模式/按开门"这张图都画不出来。
     # 放开不等于可以乱配：工位仍由本表约束，车门指导书里放受电弓照样拒绝。
     "driver_desk": frozenset({"pantograph", "hvac", "door"}),
 }
@@ -401,7 +393,7 @@ INTERACTIVE_SCENES: dict[str, dict[str, tuple[str, ...]]] = {
         # cool 切制冷并确认 / done 只看结论
         "ops_acts": ("power", "set", "vent", "cool", "done"),
     },
-    # 开关门试验：司机台上的六个门控按钮 + MON 车门页。
+    # 开关门试验：司机室操纵台上的转换开关盘（集控 / 集控侧 / 开关门）+ MON 车门页。
     # tab：status=全列门状态 · control=集控按钮与灯 · fault=隔离与故障
     "door_switch": {
         "mon_tabs": ("status", "control", "fault"),

@@ -38,19 +38,16 @@ export const OPS_ALLOWED: Record<'hvac' | 'door', AllowTable> = {
       'brake',
       'mon',
       'block',
-      'door_l_release',
-      'door_l_open',
-      'door_l_close',
-      'door_r_release',
-      'door_r_open',
-      'door_r_close',
+      'door_ctrl',
+      'door_side',
+      'door_cmd',
     ],
     power: ['key', 'brake', 'mon'],
-    // 只确认门状态：六个按钮一颗都不该动
+    // 只确认门状态：转换开关一颗都不该动
     check: ['mon'],
-    operate: ['mon', 'door_l_release', 'door_l_open', 'door_r_release', 'door_r_open'],
-    pinch: ['mon', 'block', 'door_l_close', 'door_r_close'],
-    close: ['mon', 'block', 'door_l_close', 'door_r_close', 'door_l_release', 'door_r_release'],
+    operate: ['mon', 'door_ctrl', 'door_side', 'door_cmd'],
+    pinch: ['mon', 'block', 'door_cmd'],
+    close: ['mon', 'block', 'door_cmd', 'door_ctrl'],
   },
 }
 

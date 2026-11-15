@@ -39,30 +39,40 @@ import {
   seg,
   steelMaterial,
   withEdges,
+  boltRun,
 } from './rig'
 import { facePlate, isolationLabelTexture } from './print'
 import { phaseFor } from '../../lib/devphase'
 import { parseAux } from '../../lib/auxspec'
 import contract from '../../contract/devices.json'
 
-/** 示意尺寸（米）。改这里就能整体缩放，不散落在各处。 */
-const DIM = {
-  openW: 1.4,
-  openH: 1.98,
-  /** 侧墙只留门洞两侧各 0.8m：真实车厢侧面是 4m 级，但画面里塞满墙就看不见门了。
+/** 示意尺寸（米）。
+ *
+ * ## 2026-11-15 改单扇（R25-3，本人裁决「选 1010 宽门」）
+ * 原来做成**双扇对开**，与实车不符：CRH380A 客室侧门是**单扇内藏式侧拉门**，
+ * 净通过尺寸 720（窄门）/ **1010（宽门）** × 1850，拉门行程 771 / **1061** mm。
+ * 依据：CRH380A 侧拉门课件（净通过 720(1010)×1850、行程 771(1061)、门板与车体
+ * 错差 35 mm）+ 专利 CN201198313Y（单扇门板、携门架、上下导轨、四点压紧）。
+ *
+ * 单扇之后，门扇要**盖住门洞并留出压紧余量**（每边约 30 mm），所以
+ * `leafW = 1.07 > openW = 1.01`；门向 +X 滑开，停到右侧门机罩下（行程 1.061）。
+ */
+export const DIM = {
+  openW: 1.01,
+  openH: 1.85,
+  /** 侧墙只留门洞两侧各 1.3m：真实车厢侧面是 25m 级，但画面里塞满墙就看不见门了。
    *  演示要的是「这扇门」，不是「这节车厢」。 */
   wallW: 3.7,
   wallH: 2.25,
   wallT: 0.09,
-  /* 2026-11-12：0.70 → 0.66。原来两扇合计正好等于门洞 1.4m，门扇把门框整个盖住，
-     既看不到门框、也没有地方装门框侧的隔离锁挡。真实塞拉门门扇要留出塞拉摆出
-     与胶条压缩量，与门框单侧有 30~40mm 缝。 */
-  leafW: 0.66,
-  leafH: 1.95,
+  /* 2026-11-15：0.66 → 1.07。单扇门要盖住 1.01 的门洞并留压紧量，单边约 30mm。 */
+  leafW: 1.07,
+  leafH: 1.9,
   leafT: 0.042,
   leafZ: 0.05,
   pop: 0.055,
-  slide: 0.66,
+  /** 拉门行程：公开值 1061 mm（宽门）。 */
+  slide: 1.061,
   sill: 0.03,
 }
 
@@ -246,7 +256,9 @@ export function buildDoor(): DeviceRig {
   const boltSpots: [number, number][] = []
   for (const sx of [-1, 1]) {
     for (let i = 0; i < 5; i += 1) {
-      boltSpots.push([sx * (DIM.openW / 2 - 0.05), DIM.sill + 0.06 + i * (DIM.openH - 0.12) / 4])
+      // 螺钉必须落在竖向包边（宽 28mm）上：内缩 14mm = 包边中线。原先内缩 50mm
+      // 是按 1.4m 门洞写的，单扇化到 1.01m 后螺钉跑到包边外面 13mm，几何门禁当场抓住。
+      boltSpots.push([sx * (DIM.openW / 2 - 0.014), DIM.sill + 0.06 + i * (DIM.openH - 0.12) / 4])
     }
   }
   for (const [bx, by] of boltSpots) {
@@ -282,6 +294,15 @@ export function buildDoor(): DeviceRig {
     }
   }
 
+  /* ------------------------------------------------- 门锁锁扣板 / 密封面（单扇） */
+  /* 单扇之后锁舌只有一套：门扇上的锁舌（x=0.465）向 +X 伸出，咬进**门框侧**的
+     锁扣板。原来那套「跨中缝咬对侧门扇」的结构随双扇一起去掉了。 */
+  const lockPlateZ = DIM.leafZ + DIM.leafT / 2 + 0.03
+  frame.add(roundedBox(0.03, 0.095, 0.022, steelMaterial(0xb0b5ba), DIM.openW / 2 - 0.012, 0.93, lockPlateZ, 0.004))
+  frame.add(roundedBox(0.012, 0.034, 0.014, paintedMaterial(0x1b1e22), DIM.openW / 2 - 0.004, 0.93, lockPlateZ + 0.006, 0.003))
+  // 前缘密封面：门扇合拢时密封条压在这条不锈钢压条上（−X 侧）
+  frame.add(roundedBox(0.016, DIM.openH - 0.04, 0.03, steelMaterial(0xb4b9bf), -(DIM.openW / 2) + 0.008, DIM.openH / 2, DIM.leafZ + DIM.leafT / 2, 0.003))
+
   // 门槛压条：一条镀铬槽，门下沿的导柱就插在这条槽里
   root.add(
     roundedBox(DIM.openW - 0.02, 0.006, 0.055, chromeMaterial(), 0, DIM.sill + 0.006, 0.018, 0.003),
@@ -314,13 +335,14 @@ export function buildDoor(): DeviceRig {
 
   // 导轨：横贯门楣的圆钢，携门架挂在上面
   const railMat = steelMaterial(0x9aa0a6)
-  /* 导轨长度按**门扇总行程**给：门扇中心从 ±0.35 走到 ±1.01，两端各留 0.12 余量 */
-  const railLen = 2 * (DIM.leafW / 2 + DIM.slide + 0.12)
+  /* 导轨长度按**门扇总行程**给：门扇中心从 0 走到 +1.061，两端各留 0.12 余量 →
+     全长 = 行程 + 门扇宽 + 0.24，中心随行程右移半个行程。 */
+  const railLen = DIM.slide + DIM.leafW + 0.24
   const rail = new Mesh(new CylinderGeometry(0.011, 0.011, railLen, 14), railMat)
   rail.rotation.z = Math.PI / 2
-  rail.position.set(0, DIM.openH + 0.062, bayZ + 0.02)
+  rail.position.set(DIM.slide / 2, DIM.openH + 0.062, bayZ + 0.02)
   op.add(rail)
-  for (const rx of [-0.58, -0.2, 0.2, 0.58]) {
+  for (const rx of [-0.42, 0.18, 0.78, 1.38]) {
     op.add(roundedBox(0.028, 0.05, 0.026, railMat, rx, DIM.openH + 0.088, bayZ + 0.02, 0.006))
   }
 
@@ -338,15 +360,14 @@ export function buildDoor(): DeviceRig {
   }
   op.add(roundedBox(0.15, 0.12, 0.06, paintedMaterial(0x3d424a), -0.33, DIM.openH + 0.14, bayZ, 0.008))
 
-  // 同步带：两条直线段 + 两端带轮
-  /* 同步带要能在门开合时跑起来：给带面贴一张齿形纹理，靠 offset.x 滚动。
-     带轮同步自转（带子走多少 = 轮子转过多少弧长），两者速率对不上就会看出打滑。
-
-     **没有做携门架**：门扇行程 0.66m，滑到位时已经越过门楣里的导轨端头；
-     再加一个「骑在导轨上」的滚轮座，它会明摆着悬在导轨外面。
-     真机是靠墙里的门袋把门扇和携门架一起收进去的——那要连墙体一起改，
-     不是加个零件能解决的。宁可少一个零件，也不要一个看起来错的机构。
-     上下两段必须**反向**滚动——它们是同一条带子的两边，同向滚就等于两条独立的带子。 */
+  /**
+   * 同步带：两条直线段 + 两端带轮。
+   * 单扇之后带段要跨过行程（1.061m），长度按「行程 + 0.30」给，带轮落在行程两端。
+   *
+   * 带子要能在门开合时跑起来：给带面贴一张齿形纹理，靠 offset.x 滚动。
+   * 带轮同步自转（带子走多少 = 轮子转过多少弧长），两者速率对不上就会看出打滑。
+   * 上下两段必须**反向**滚动——它们是同一条带子的两边，同向滚就等于两条独立的带子。 */
+  const BELT_LEN = 1.36
   const beltMatUpper = new MeshStandardMaterial({
     color: 0xffffff,
     roughness: 0.9,
@@ -361,10 +382,10 @@ export function buildDoor(): DeviceRig {
   })
   const beltY = DIM.openH + 0.15
   op.add(
-    roundedBox(0.86, 0.008, 0.022, beltMatUpper, 0.09, beltY + 0.028, bayZ, 0.003),
-    roundedBox(0.86, 0.008, 0.022, beltMatLower, 0.09, beltY - 0.028, bayZ, 0.003),
+    roundedBox(BELT_LEN, 0.008, 0.022, beltMatUpper, DIM.slide / 2, beltY + 0.028, bayZ, 0.003),
+    roundedBox(BELT_LEN, 0.008, 0.022, beltMatLower, DIM.slide / 2, beltY - 0.028, bayZ, 0.003),
   )
-  for (const px of [-0.34, 0.52]) {
+  for (const px of [-0.22, DIM.slide + 0.22]) {
     /* 带轮包一层枢轴：外层负责把圆柱摆成横向（绕 Z 转 90°），
        内层绕自己的 Y 轴自转——直接在外层上转 Y 会连带把整根轴翻掉。
        轮面加一根标记条，否则光滑圆柱转不转看不出来。 */
@@ -379,19 +400,18 @@ export function buildDoor(): DeviceRig {
   }
 
   /* 携门架：把门扇吊在导轨上的那个件。
-     导轨现在够长了（伸进两侧门机罩），所以它可以从门洞一路滑到罩子里，
-     不会出现「滚轮座悬在导轨外」——这正是上一版被迫撤掉它的原因。
-     滑块挂在导轨上、吊臂向下咬住门扇顶，随门扇行程平移。 */
+   * 单扇门用**两只**携门架（相隔 0.60m）共同吊同一扇门——真机也是这个布置，
+   * 单点吊挂会让门板下垂。两只都跟着门扇走，滑块始终骑在导轨上（导轨已够长）。 */
   const hangers: Group[] = []
   const railY = DIM.openH + 0.062
-  for (const dir of [-1, 1]) {
+  for (let i = 0; i < 2; i += 1) {
     const hanger = new Group()
     // 滑块：骑在导轨上
     hanger.add(roundedBox(0.075, 0.05, 0.055, steelMaterial(0x9aa0a6), 0, railY, bayZ + 0.02, 0.006))
     /* 吊臂：从导轨降到门扇顶以下，进深做得够宽（0.11），
        门扇外移 55mm 之后仍然咬得住——真机的吊臂本来就是一块带长孔的板。 */
     hanger.add(roundedBox(0.03, 0.1, 0.11, steelMaterial(0xa8adb2), 0, railY - 0.045, 0.092, 0.005))
-    hanger.position.x = (dir * DIM.leafW) / 2
+    hanger.position.x = i === 0 ? -0.3 : 0.3
     hangers.push(hanger)
     op.add(hanger)
   }
@@ -412,7 +432,9 @@ export function buildDoor(): DeviceRig {
   const isoBolts: Array<{ mesh: Mesh; dir: number }> = []
   const buildLeaf = (dir: -1 | 1) => {
     const leaf = new Group()
-    const cx = (dir * DIM.leafW) / 2
+    /* 单扇：门扇居中于门洞（cx=0）。`dir` 只用来决定「哪条边是前缘」——
+       取 +1 时前缘在 -X（门向 +X 滑开，闭合时是左边先碰门框）。 */
+    const cx = 0
     const cy = DIM.sill + DIM.leafH / 2
 
     // 外板：拉丝不锈钢，两段分缝（真门板是拼接的，整块反而假）
@@ -426,6 +448,20 @@ export function buildDoor(): DeviceRig {
       withEdges(roundedBox(DIM.leafW, upperH, DIM.leafT, skin, 0, cy + DIM.leafH / 2 - upperH / 2, 0, 0.008, 2), 0.17),
       withEdges(roundedBox(DIM.leafW, lowerH, DIM.leafT, skin, 0, cy - DIM.leafH / 2 + lowerH / 2, 0, 0.008, 2), 0.17),
     )
+
+    /* -------------------------------------------------- 门板分缝与紧固件（S3）
+       上下两段的分缝本来就有，但**下段 1.07×0.71 m 是一整块光板**，4× 近景里
+       它是画面中最大的空白面（51%）。真实门板背面有加强筋，正面能看到两道
+       压筋线和一溜铆钉——这正是「一块塑料」与「一块钣金」的差别。
+       压条凸出 2mm、宽 5mm，比板面暗一档；铆钉 φ8，间距约 0.1 m。 */
+    const skinSeam = paintedMaterial(0xb7bcc2)
+    const jointY = cy + DIM.leafH / 2 - upperH          // 上下段接缝
+    const zFace = DIM.leafT / 2 + 0.0012
+    for (const sx of [-0.33, 0.33]) {
+      leaf.add(roundedBox(0.005, lowerH - 0.05, 0.004, skinSeam, sx, cy - DIM.leafH / 2 + lowerH / 2, zFace, 0.0012))
+      boltRun(leaf, [sx, cy - DIM.leafH / 2 + 0.05, zFace], [sx, jointY - 0.04, zFace], 5, 'z', 0.008)
+    }
+    boltRun(leaf, [-DIM.leafW / 2 + 0.06, jointY, zFace], [DIM.leafW / 2 - 0.06, jointY, zFace], 9, 'z', 0.008)
 
     // 观察窗：深色玻璃 + 凸起窗框
     const winW = 0.5
@@ -445,7 +481,7 @@ export function buildDoor(): DeviceRig {
       roundedBox(bezelT, winH, 0.012, bezelMat, winW / 2 + bezelT / 2, winY, bz, 0.004),
     )
 
-    // 中缝密封条：朝中缝那一侧外凸 12mm，是塞拉门最显著的特征件
+    // 前缘密封条：朝门框那一侧外凸 12mm，是塞拉门最显著的特征件
     const seal = roundedBox(0.02, DIM.leafH - 0.03, DIM.leafT + 0.024, rubberMaterial(), -dir * (DIM.leafW / 2 - 0.01), cy, 0, 0.006)
     leaf.add(seal)
 
@@ -455,12 +491,11 @@ export function buildDoor(): DeviceRig {
       roundedBox(DIM.leafW - 0.04, 0.014, DIM.leafT + 0.018, rubberMaterial(), 0, cy - DIM.leafH / 2 + 0.01, 0, 0.004),
     )
 
-    // 锁钩：中缝上下各一，镀铬。关闭时看得见「咬合」，开门时随门扇走。
-    const lockMat = chromeMaterial()
-    for (const ly of [cy + DIM.leafH / 2 - 0.18, cy - DIM.leafH / 2 + 0.18]) {
-      const hook = roundedBox(0.052, 0.1, 0.026, lockMat, -dir * (DIM.leafW / 2 - 0.032), ly, DIM.leafT / 2 + 0.008, 0.006)
-      leaf.add(hook)
-    }
+    /* 前缘挡边：单扇门没有「中缝」，前缘必须有一道压条把密封条压住，
+       否则那一条橡胶看起来是「贴上去的」而不是装上去的。 */
+    leaf.add(
+      roundedBox(0.026, DIM.leafH - 0.05, DIM.leafT + 0.01, steelMaterial(0xa8adb2), -dir * (DIM.leafW / 2 - 0.004), cy, 0.004, 0.004),
+    )
 
     // 内侧把手：贯穿一条，低调但能撑起「这是能拉的门」
     const handle = roundedBox(0.022, 0.34, 0.03, chromeMaterial(), -dir * (DIM.leafW / 2 - 0.07), cy - 0.12, -DIM.leafT / 2 - 0.012, 0.008)
@@ -481,21 +516,15 @@ export function buildDoor(): DeviceRig {
     leaf.add(guide)
 
     /* 门锁：塞拉门到站锁闭靠它，不是靠指示灯。
-       左扇带锁体+锁舌，右扇带锁扣板；锁舌跨过中缝咬进对侧，才是真锁闭。
-       锁舌位置在门扇顶下方 0.12m 处——那里离中缝最近，也最容易被看见。 */
+       单扇门只有一个前缘，所以锁只有**一套**：锁体在门扇后缘附近，
+       锁舌向 +X 伸出、咬进门框侧的锁扣板（不再有「跨中缝咬对侧」那种结构）。 */
     const lockY = cy - 0.05
-    if (dir === -1) {
-      leaf.add(roundedBox(0.07, 0.1, 0.052, paintedMaterial(0x2f343a), 0.3, lockY, DIM.leafT / 2 + 0.012, 0.006))
-      // 电磁铁线圈外壳：压在锁体上，解锁时嗡一下的就是它
-      leaf.add(roundedBox(0.05, 0.05, 0.03, paintedMaterial(0x1f2429), 0.3, lockY + 0.055, DIM.leafT / 2 + 0.01, 0.005))
-      const bolt = roundedBox(0.095, 0.028, 0.024, chromeMaterial(), 0.365, lockY, DIM.leafT / 2 + 0.03, 0.004)
-      lockBolts.push(bolt)
-      leaf.add(bolt)
-    } else {
-      // 对侧锁扣板：中间一道槽，锁舌插进去
-      leaf.add(roundedBox(0.06, 0.08, 0.016, steelMaterial(0xb0b5ba), -0.33, lockY, DIM.leafT / 2 + 0.006, 0.005))
-      leaf.add(roundedBox(0.04, 0.03, 0.01, paintedMaterial(0x1b1e22), -0.33, lockY, DIM.leafT / 2 + 0.016, 0.003))
-    }
+    leaf.add(roundedBox(0.07, 0.1, 0.052, paintedMaterial(0x2f343a), 0.40, lockY, DIM.leafT / 2 + 0.012, 0.006))
+    // 电磁铁线圈外壳：压在锁体上，解锁时嗡一下的就是它
+    leaf.add(roundedBox(0.05, 0.05, 0.03, paintedMaterial(0x1f2429), 0.40, lockY + 0.055, DIM.leafT / 2 + 0.01, 0.005))
+    const bolt = roundedBox(0.095, 0.028, 0.024, chromeMaterial(), 0.465, lockY, DIM.leafT / 2 + 0.03, 0.004)
+    lockBolts.push(bolt)
+    leaf.add(bolt)
 
     /* ---------------------------------------------------------- 隔离锁 */
     /* **本体在门扇、锁挡在门框**——三份独立资料写死的结构：
@@ -513,7 +542,10 @@ export function buildDoor(): DeviceRig {
        门框上 = C 形锁挡 + 到位微动开关（锁舌压下它才发隔离信号）。 */
     const ISO_Y = 0.735
     const isoBody = new Group()
-    isoBody.position.set(dir * 0.28, ISO_Y, DIM.leafT / 2)
+    /* 2026-11-15 单扇化：隔离锁挪到门扇**后缘**（+0.44），插销伸出后要真的够到
+       门框（门框内表面在 ±0.505）——放在 0.28 时插销端头离门框还有 15cm，
+       等于"锁在空气里"。 */
+    isoBody.position.set(dir * 0.44, ISO_Y, DIM.leafT / 2)
     leaf.add(isoBody)
 
     // 锁盒：凸出门面 27mm，里面是曲柄与弹簧（真实锁盒就是这个厚度）
@@ -558,11 +590,9 @@ export function buildDoor(): DeviceRig {
 
   }
 
-  const leafL = buildLeaf(-1)
-  const leafR = buildLeaf(1)
-  parts.leaf_l = leafL
-  parts.leaf_r = leafR
-  root.add(leafL, leafR)
+  const leaf = buildLeaf(1)
+  parts.leaf = leaf
+  root.add(leaf)
 
   /* ---------------------------------------------------------------- 指示灯 */
   const lampGroup = new Group()
@@ -616,12 +646,14 @@ export function buildDoor(): DeviceRig {
 
   /* ---------------------------------------------------------------- 防夹试块 */
   /* 2026-11-14 本人指出：点「放试块」之后三维里什么都看不见，等于没放。
-     试块必须是**看得见的一件东西**，而且要放在门洞地板上、两扇门页合拢时会被
-     同时顶住的位置——否则"门碰到它停止并反开"在画面上不成立。
+     试块必须是**看得见的一件东西**，而且要放在门洞地板上、门扇合拢时会被
+     顶住的位置——否则"门碰到它停止并反开"在画面上不成立。
+     2026-11-15 单扇化：门扇向 +X 滑开、前缘在 −X，所以试块要放在**左门框侧**
+     的关闭边上（人/物被夹的位置就是前缘与门框之间），不再放"两扇中间"。
 
-     形体：卷起的毛巾（约 40mm 厚、0.16m 宽、0.12m 高），浅色布面 + 两道束带。
-     位置：门洞中线 x=0、落在门槛上（y 从 sill 起），z 取门页外移后的滑移面
-     附近——门页是在这个深度上作水平滑移的，块放在这里才真的挡得住。
+     形体：卷起的毛巾（约 40mm 厚、0.20m 宽、0.14m 高），浅色布面 + 两道束带。
+     位置：x=−0.405（贴着左门框内表面 −0.505，向右占 0.20m），落在门槛上，
+     z 取门页外移后的滑移面附近——门页是在这个深度上作水平滑移的。
      默认 `visible=false`：只有「放试块」时才出现，平时不占画面。 */
   const blockGroup = new Group()
   const blockBody = roundedBox(0.20, 0.14, 0.12, paintedMaterial(0xd9d3c4), 0, 0.07, 0, 0.03, 3)
@@ -630,16 +662,15 @@ export function buildDoor(): DeviceRig {
   for (const dx of [-0.045, 0.045]) {
     blockGroup.add(roundedBox(0.018, 0.144, 0.124, paintedMaterial(0x8f8a7e), dx, 0.07, 0, 0.006))
   }
-  /* 两个摆放位（2026-11-14 本人指定）：
+  /* 两个摆放位（2026-11-14 本人指定，2026-11-15 单扇化后重定位）：
      - 原位：门外侧地面、门框左前方——平时就摆在那里，一眼看得见；
-     - 工位：门洞地板上、两扇门页合拢的中间。
+     - 工位：门洞地板上、**门扇前缘与左门框之间的关闭边**。
      点一次从原位移到工位，再点一次移回。所以它是**可拾取部件**（`parts.block`），
      不是页面上的按钮。 */
   const BLOCK_REST: [number, number, number] = [-0.98, DIM.sill, 0.88]
-  /* 工位 = **门洞地板上、两扇门页合拢的中间**（2026-11-14 本人第二次指出：
-     放到 0.58 是"门外地上"，人眼一看就知道挡不住门）。z 取门扇平面（leafZ 0.05）
-     外侧 5cm：门页合拢时会真正顶住它，同时不会被门框挡住看不见。 */
-  const BLOCK_AT_DOOR: [number, number, number] = [0, DIM.sill, DIM.leafZ + 0.12]
+  /* 工位 = **左门框侧的关闭边**（单扇门夹人的位置）。2026-11-15 前它在门洞中线，
+     那是双扇结构才成立的摆法；单扇化后中线不会被顶到，反而"看起来没挡住"。 */
+  const BLOCK_AT_DOOR: [number, number, number] = [-(DIM.openW / 2) + 0.10, DIM.sill, DIM.leafZ + 0.12]
   blockGroup.position.set(...BLOCK_REST)
   /* 热区：**球面**，半径 0.32m（试块宽 0.20m，留出一圈余量）。
      指着试块附近都算命中——本人 2026-11-14：「感觉是"捕获"范围不够」。
@@ -659,7 +690,7 @@ export function buildDoor(): DeviceRig {
     for (const iso of isoBolts) iso.mesh.position.x = iso.dir * (0.0515 - 0.008 * unisolate)
 
     const unlock = seg(t, 0.02, 0.08)
-    for (const bolt of lockBolts) bolt.position.x = 0.365 - 0.065 * unlock
+    for (const bolt of lockBolts) bolt.position.x = 0.465 - 0.065 * unlock
 
     // 段一：解锁后才外移（塞拉）。真实塞拉门必须先退出密封面才能滑，不能直接平移。
     const pop = seg(t, 0.08, 0.2)
@@ -668,8 +699,9 @@ export function buildDoor(): DeviceRig {
 
     const z = DIM.leafZ + pop * DIM.pop
     const travel = slide * DIM.slide
-    leafL.position.set(-(DIM.leafW / 2) - travel, 0, z)
-    leafR.position.set(DIM.leafW / 2 + travel, 0, z)
+    /* 单扇：门向 +X 滑开（停到右侧门机罩下）。闭合时前缘在 -X，
+       所以"关到位"是 x=0，"全开"是 x=+slide。 */
+    leaf.position.set(travel, 0, z)
 
     /* 同步带跟着门扇跑。带面纹理按齿距滚动、带轮按半径自转，
        两者速率必须一致（带子走多远 = 轮子转过多少弧长），否则一眼看出打滑。
@@ -677,9 +709,9 @@ export function buildDoor(): DeviceRig {
     if (beltMatUpper.map) beltMatUpper.map.offset.x = travel / 0.042
     if (beltMatLower.map) beltMatLower.map.offset.x = -travel / 0.042
     for (const pulley of pulleys) pulley.rotation.y = travel / 0.032
-    // 携门架跟着门扇走：左扇向左、右扇向右
-    hangers[0].position.x = -DIM.leafW / 2 - travel
-    hangers[1].position.x = DIM.leafW / 2 + travel
+    // 两只携门架与门扇同速：滑块始终在导轨上（导轨按行程 + 扇宽给足）
+    hangers[0].position.x = -0.3 + travel
+    hangers[1].position.x = 0.3 + travel
 
     /* 指示灯就是**锁闭信号**：锁闭到位绿灯，一旦解锁立刻转红。
        注意末尾是全开状态，此时门没锁，灯本来就该是红的——
