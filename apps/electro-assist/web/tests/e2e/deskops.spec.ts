@@ -156,7 +156,11 @@ async function closeMon(page: import('@playwright/test').Page) {
 }
 
 test('空调：并列看机组 → 点屏换 MON 下发通风 → 三项确认 → 切制冷五项确认', async ({ page }) => {
-  test.setTimeout(180_000)
+  /* 300s 而不是 180s（2026-11-15）：这条要等 `coolT` 走到 1，而它是**按帧**推进的
+     （单帧 dt 上限 1s，25 帧走完）。CI runner 慢的时候一帧要 2s，25 帧就是 50s，
+     再叠加六屏交互与 5 次行点击，180s 会擦线。run 43673901804 两次尝试都卡在 3.0m
+     （=180s 上限），而同一台机上另一次 9 分钟跑完的 CI 是绿的——是预算不够，不是回归。 */
+  test.setTimeout(300_000)
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
 
@@ -256,6 +260,8 @@ test('空调：并列看机组 → 点屏换 MON 下发通风 → 三项确认 �
 })
 
 test('换指导书：空调里上过的电不能带到车门那份', async ({ page }) => {
+  // 纯 SPA 导航 + 两次上电，正常 15s；慢机上一次要 30s+，给 120s 余量（2026-11-15）
+  test.setTimeout(120_000)
   await page.goto('./guide/g_hvac_cooling_desk')
   await next(page).click()
   await powerOn(page)
