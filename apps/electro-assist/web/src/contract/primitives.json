@@ -1,0 +1,146 @@
+{
+  "_comment": "由 apps/electro-assist/api/scripts/export_contract.py 生成，不要手改。",
+  "_source": "apps/electro-assist/api/data/contract/primitives/*.json（demo 经 VisualSpec 校验）",
+  "primitives": {
+    "device_scene": {
+      "demo": {
+        "caption": "车门关闭到位",
+        "fallback_text": "车门关闭状态示意（渲染失败时读这段）",
+        "params": {
+          "part": "leaf_l",
+          "subject": "door",
+          "t": 0.0
+        },
+        "primitive": "device_scene"
+      },
+      "expectations": [
+        {
+          "kind": "node",
+          "min": 1,
+          "selector": ".scene canvas",
+          "为什么": "WebGL 画布真的建起来了"
+        },
+        {
+          "kind": "text",
+          "value": "车门关闭到位",
+          "为什么": "题注在（happy-dom 里不验，真浏览器由 E2E 渲染 grader 验）"
+        }
+      ]
+    },
+    "meter": {
+      "demo": {
+        "fallback_text": "万用表读数（渲染失败时读这段）",
+        "params": {
+          "label": "蓄电池电压",
+          "max": 121,
+          "min": 99,
+          "unit": "V",
+          "value": 110
+        },
+        "primitive": "meter"
+      },
+      "expectations": [
+        {
+          "kind": "text",
+          "value": "蓄电池电压",
+          "为什么": "label 传到了 DOM"
+        },
+        {
+          "kind": "text",
+          "value": "110",
+          "为什么": "实测值画出来了"
+        },
+        {
+          "kind": "text",
+          "value": "范围内",
+          "为什么": "110 落在 99–121 内，判定文案出现"
+        }
+      ]
+    },
+    "mon_panel": {
+      "demo": {
+        "caption": "MON 屏（受电弓，电源页）",
+        "fallback_text": "MON 屏示意（渲染失败时读这段）",
+        "params": {
+          "mode": "check",
+          "scene": "pantograph_raise",
+          "tab": "power"
+        },
+        "primitive": "mon_panel"
+      },
+      "expectations": [
+        {
+          "kind": "text",
+          "value": "MON",
+          "为什么": "屏的标题渲染出来了"
+        },
+        {
+          "kind": "node",
+          "min": 1,
+          "selector": ".mon",
+          "为什么": "屏的根节点在（场景键认出来了）"
+        }
+      ]
+    },
+    "operation_scene": {
+      "demo": {
+        "caption": "升弓操作台（司机台视角）",
+        "fallback_text": "司机台操作示意（渲染失败时读这段）",
+        "params": {
+          "act": "power",
+          "scene": "pantograph_raise",
+          "view": "desk"
+        },
+        "primitive": "operation_scene"
+      },
+      "expectations": [
+        {
+          "kind": "node",
+          "min": 1,
+          "selector": ".ops",
+          "为什么": "作业台根节点在"
+        },
+        {
+          "kind": "text",
+          "value": "升弓操作台",
+          "为什么": "题注在（真浏览器由 E2E 渲染 grader 验）"
+        }
+      ]
+    },
+    "table": {
+      "demo": {
+        "caption": "门扇间隙与开关门时间",
+        "fallback_text": "参数对照表（渲染失败时读这段）",
+        "params": {
+          "headers": [
+            "检查项",
+            "限值"
+          ],
+          "label": "限值",
+          "rows": [
+            "门扇间隙|≤ 6 mm",
+            "开关门时间|3–5 s"
+          ]
+        },
+        "primitive": "table"
+      },
+      "expectations": [
+        {
+          "kind": "text",
+          "value": "检查项",
+          "为什么": "表头渲染出来了"
+        },
+        {
+          "kind": "text",
+          "value": "≤ 6 mm",
+          "为什么": "行内容没被截断或错列"
+        },
+        {
+          "kind": "text",
+          "value": "3–5 s",
+          "为什么": "第二行也在（不是只画了第一行）"
+        }
+      ]
+    }
+  }
+}

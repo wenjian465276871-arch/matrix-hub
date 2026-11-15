@@ -1,0 +1,14 @@
+{
+  "primitive": "mon_panel",
+  "为什么是它": "MON 屏的行、页签、联锁全在前端场景表里，模型只给场景键。键写错时前端拿不到场景，整块屏变成空白——而 schema 是合法的，只有渲染才知道坏了。",
+  "demo": {
+    "primitive": "mon_panel",
+    "caption": "MON 屏（受电弓，电源页）",
+    "fallback_text": "MON 屏示意（渲染失败时读这段）",
+    "params": { "scene": "pantograph_raise", "tab": "power", "mode": "check" }
+  },
+  "expectations": [
+    { "kind": "text", "value": "MON", "为什么": "屏的标题渲染出来了" },
+    { "kind": "node", "selector": ".mon", "min": 1, "为什么": "屏的根节点在（场景键认出来了）" }
+  ]
+}

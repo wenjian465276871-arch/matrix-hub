@@ -31,3 +31,45 @@ def test_contract_covers_every_device():
     for name in DEVICE_SUBJECTS:
         # 只做存在性断言：具体内容由 devices.json 与 device_catalog() 的逐字节比对保证。
         assert f'"{name}"' in payload, f"契约里缺少设备 {name}"
+
+
+# ---------------------------------------------------------------- 原语契约（R24-7）
+def test_primitives_contract_up_to_date():
+    from scripts.export_contract import PRIM_OUT, render_primitives
+
+    assert PRIM_OUT.is_file(), f"原语契约定文件不存在：{PRIM_OUT}"
+    assert PRIM_OUT.read_text(encoding="utf-8") == render_primitives(), (
+        "原语契约与 data/contract/primitives 不一致；在 api/ 下运行 "
+        "`python scripts/export_contract.py` 重新导出"
+    )
+
+
+def test_primitives_contract_covers_required():
+    import json
+
+    from scripts.export_contract import PRIM_OUT, REQUIRED_PRIMITIVES, render_primitives
+
+    exported = set(json.loads(render_primitives())["primitives"])
+    missing = REQUIRED_PRIMITIVES - exported
+    assert not missing, f"这些高风险原语没有 demo：{sorted(missing)}"
+    assert PRIM_OUT.is_file()
+
+
+def test_missing_demo_fails_loudly(tmp_path, monkeypatch):
+    """删掉一份 demo，导出必须**退出**而不是静默少一项。"""
+    import shutil
+
+    from scripts import export_contract
+
+    source = export_contract.PRIM_DIR
+    for path in source.glob("*.json"):
+        shutil.copy(path, tmp_path / path.name)
+    (tmp_path / "table.json").unlink()
+    monkeypatch.setattr(export_contract, "PRIM_DIR", tmp_path)
+
+    try:
+        export_contract.load_primitives()
+    except SystemExit as exc:  # noqa: PERF203 —— 这里就是要它抛
+        assert "table" in str(exc)
+    else:  # pragma: no cover - 走不到说明门禁失效
+        raise AssertionError("缺 demo 时没有退出，门禁形同虚设")

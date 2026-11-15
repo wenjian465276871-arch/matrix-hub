@@ -49,6 +49,7 @@ tmp/
 
 # Playwright 产物（2026-10-21）
 test-results/
+test-results-*/
 playwright-report/
 blob-report/
 .playwright/

@@ -1,0 +1,14 @@
+{
+  "primitive": "device_scene",
+  "为什么是它": "三维图最贵（每份指导书最多 3 张），也最容易停在错误的工步——`t` 编错一个数，图上完全看不出来，但显示的已经不是这一步的设备状态。",
+  "demo": {
+    "primitive": "device_scene",
+    "caption": "车门关闭到位",
+    "fallback_text": "车门关闭状态示意（渲染失败时读这段）",
+    "params": { "subject": "door", "t": 0.0, "part": "leaf_l" }
+  },
+  "expectations": [
+    { "kind": "node", "selector": ".scene canvas", "min": 1, "为什么": "WebGL 画布真的建起来了" },
+    { "kind": "text", "value": "车门关闭到位", "为什么": "题注在（happy-dom 里不验，真浏览器由 E2E 渲染 grader 验）" }
+  ]
+}
