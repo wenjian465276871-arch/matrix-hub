@@ -190,9 +190,16 @@ function checkDocNumbers(css, js) {
     jsBudget: String(BUDGET.firstJs / KB),
     cssBudget: String(BUDGET.firstCss / KB),
   }
+  /* 容差 0.06 kB（60 字节）：**同一个提交在 Windows 与 Linux 上构建出的字节数不同**。
+     源文件在这台机器上是 CRLF、在 CI 上是 LF，压缩后的产物因此差十几到几十字节
+     ——2026-11-15 第一次跑这条门禁就撞上了：本地 46.41、CI 46.42。
+     0.06 的余量足以吸收这种平台差，又远小于任何真实回归（一次误引依赖就是几百字节）。
+     真实回归仍会被拦：把 46.41 写成 46.00 → 差 0.41 > 0.06 → 红。 */
+  const TOL = 0.06
+  const off = (a, b) => Math.abs(Number(a) - Number(b)) > TOL
   const out = []
-  if (docJs !== want.js) out.push(`首屏 JS：文档 ${docJs} / 实测 ${want.js}`)
-  if (docCss !== want.css) out.push(`首屏 CSS：文档 ${docCss} / 实测 ${want.css}`)
+  if (off(docJs, want.js)) out.push(`首屏 JS：文档 ${docJs} / 实测 ${want.js}`)
+  if (off(docCss, want.css)) out.push(`首屏 CSS：文档 ${docCss} / 实测 ${want.css}`)
   if (docJsBudget !== want.jsBudget) out.push(`JS 预算：文档 ${docJsBudget} / 脚本 ${want.jsBudget}`)
   if (docCssBudget !== want.cssBudget) out.push(`CSS 预算：文档 ${docCssBudget} / 脚本 ${want.cssBudget}`)
   return out
