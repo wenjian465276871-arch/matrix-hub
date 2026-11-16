@@ -106,9 +106,21 @@ for (const file of files) {
 
     // 打印态铺开全部页：一次拿到所有步骤，不用逐页点
     await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')))
-    await expect
-      .poll(async () => page.locator('.pager__page').count(), { timeout: 10_000 })
-      .toBeGreaterThanOrEqual(steps.length)
+    /* 等页数齐：**显式轮询状态**，预算按 CI 实测给。
+       2026-11-17：原来写死 `timeout: 10_000`，hvac 这份（6 步 / 15 图，最重）
+       在 CI 上 15.3s 才铺完 → 每轮都红。CI 的 `渲染帧率实测（观测）` 打印
+       **最差帧 2417ms**，6 页 × 2.4s ≈ 15s，留 2× 余量取 30s。
+       要改这个数，先去看那一步打印的实测值，别凭感觉。 */
+    let pageCount = 0
+    const pageDeadline = Date.now() + 30_000
+    while (Date.now() < pageDeadline) {
+      pageCount = await page.locator('.pager__page').count()
+      if (pageCount >= steps.length) break
+      await page.waitForTimeout(200)
+    }
+    expect(pageCount, `页数停在 ${pageCount}/${steps.length}（打印态没铺开）`).toBeGreaterThanOrEqual(
+      steps.length,
+    )
 
     // 三维/烘焙图是异步 chunk，挂载要几帧；等总数齐了再逐页比，
     // 否则会误报"页面 0 张"（实测：door_clearance 与 door_power_selfcheck 就栽在这）
