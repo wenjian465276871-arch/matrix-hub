@@ -34,6 +34,7 @@ import {
   seg,
   steelMaterial,
   boltRun,
+  textPlate,
 } from './rig'
 import { facePlate, setGlow, torqueScaleTexture } from './print'
 import { phaseFor } from '../../lib/devphase'
@@ -52,6 +53,7 @@ export function buildTorqueWrench(): DeviceRig {
   /* ---------------------------------------------------------- 安装座 */
   const bracket = new Group()
   root.add(bracket)
+
   parts.bracket = bracket
 
   /* S3：安装座正面的四颗紧固螺钉（座是 0.26×0.15 m 的板，4× 下是一块光面） */
@@ -124,6 +126,31 @@ export function buildTorqueWrench(): DeviceRig {
   wrench.position.z = 0.032
   root.add(wrench)
   parts.wrench = wrench
+
+  /* 铭牌与检定标签：扭矩扳手是**计量器具**，本体上必有铭牌（规格/量程）与检定合格标。
+     **不写量程数字**——量程属于参数，图上印数会被误读成实测值。
+     位置取本体顶面（本体圆柱中心 y≈0.207，半径 0.016）。 */
+  const twPlate = textPlate({
+    width: 0.075,
+    height: 0.024,
+    bg: '#e9e6dc',
+    border: '#4b5057',
+    lines: [{ text: '扭矩扳手 TORQUE', scale: 0.72 }],
+  })
+  twPlate.rotation.x = -Math.PI / 2
+  twPlate.position.set(0.098, 0.2245, 0.062)
+  wrench.add(twPlate)
+
+  const twCal = textPlate({
+    width: 0.03,
+    height: 0.014,
+    bg: '#f3f1e6',
+    border: '#8a6d2f',
+    lines: [{ text: '检定合格', scale: 0.6, color: '#6b531f' }],
+  })
+  twCal.rotation.x = -Math.PI / 2
+  twCal.position.set(0.155, 0.2245, 0.062)
+  wrench.add(twCal)
 
   // 棘轮头
   const ratchet = new Mesh(new CylinderGeometry(0.023, 0.023, 0.018, 20), chromeMaterial())

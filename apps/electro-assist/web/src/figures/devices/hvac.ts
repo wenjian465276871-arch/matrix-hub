@@ -55,6 +55,7 @@ import {
   steelMaterial,
   boltRun,
   hemEdge,
+  textPlate,
 } from './rig'
 import { canvasTexture, facePlate } from './print'
 import { HVAC_T, phaseFor } from '../../lib/devphase'
@@ -445,6 +446,22 @@ export function buildHvac(): DeviceRig {
   }
 
   // 冷凝段顶面：风机平台。四边框条 + 两个风机开口的环
+  /* 当心触电：机组端板上必有。贴在 **+X 端板外表面**（端板中心已内收 1mm，外表面在 1.399），
+     只写标识文案，不写电压等级——本项目样例不涉及带电作业参数。 */
+  const shockPlate = textPlate({
+    width: 0.16,
+    height: 0.06,
+    bg: '#f0d84a',
+    border: '#2b2b2b',
+    lines: [
+      { text: '当心触电', scale: 0.9 },
+      { text: 'DANGER', scale: 0.55, color: '#2b2b2b' },
+    ],
+  })
+  shockPlate.rotation.y = Math.PI / 2
+  shockPlate.position.set(1.4005, 1.02, 0.62)
+  shell.add(shockPlate)
+
   const deckPlateY = TOP - TOP_T / 2
   /* 这两条沿 X 的顶盖板深 0.06、中心在 Z0+0.03 / Z1-0.03 ⇒ **外表面正好落在 z=±1.05**，
      与侧壁外表面同面（qa 报 `shell.020<->shell.168` 与 `shell.006<->shell.167`，

@@ -43,6 +43,7 @@ import {
   seg,
   steelMaterial,
   boltRun,
+  textPlate,
 } from './rig'
 import { phaseFor } from '../../lib/devphase'
 
@@ -62,6 +63,29 @@ const SELECTED = 7
 
 export function buildFeelerGauge(): DeviceRig {
   const root = new Group()
+
+  /* 尺盒正面铭牌 + 检定合格标。**不印任何厚度数值**——
+     样例判据里是 2.0 mm，图上若出现 0.50 之类会被当成实测值（这条早写进 SURFACE_INFO 注释）。
+     位置：框体（右块）中心 x = GAP/2 + BLOCK.w/2，正面 z = BLOCK.d/2。 */
+  const fgPlate = textPlate({
+    width: 0.062,
+    height: 0.02,
+    bg: '#e7e4d9',
+    border: '#4a4f55',
+    lines: [{ text: '塞尺 FEELER GAUGE', scale: 0.62 }],
+  })
+  fgPlate.position.set(GAP / 2 + BLOCK.w / 2, BLOCK.h * 0.62, BLOCK.d / 2 + 0.0015)
+  root.add(fgPlate)
+
+  const fgCal = textPlate({
+    width: 0.03,
+    height: 0.012,
+    bg: '#f3f1e6',
+    border: '#8a6d2f',
+    lines: [{ text: '检定合格', scale: 0.55, color: '#6b531f' }],
+  })
+  fgCal.position.set(GAP / 2 + BLOCK.w / 2, BLOCK.h * 0.44, BLOCK.d / 2 + 0.0015)
+  root.add(fgCal)
   const parts: Record<string, Object3D> = {}
 
   /* ------------------------------------------------------ 门边与门缝 */

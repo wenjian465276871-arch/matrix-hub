@@ -755,6 +755,26 @@ async function init(): Promise<void> {
         return btoa(bin)
       }
 
+      /* 数一台设备上**带字的面**：材质带 canvas 贴图的网格个数。
+         为什么要量：信息层这张表原来是**手工维护**的（`score.py` 的 SURFACE_INFO），
+         谁多写一处就多一分，等于自己给自己打分。改成现场数，才叫证据。 */
+      ;(window as unknown as {
+        __infoCount?: (subject: string) => Promise<number>
+      }).__infoCount = async (subject) => {
+        const load = DEVICE_BUILDERS[subject]
+        if (!load) throw new Error(`未注册的设备场景：${subject}`)
+        const r = (await load())()
+        let n = 0
+        r.root.traverse((o) => {
+          const m = o as Mesh & { material?: { map?: { isCanvasTexture?: boolean } } }
+          if (!m.isMesh) return
+          const mat = m.material as { map?: { isCanvasTexture?: boolean } } | undefined
+          if (mat?.map?.isCanvasTexture) n += 1
+        })
+        r.dispose?.()
+        return n
+      }
+
       /* 按**导出顺序**列出某部件下每个网格的世界包围盒。
          为什么需要：qa 报"`drive.046` 悬空"，而 Blender 里的 `.046` 是**导出顺序的第 47 个**
          网格。想知道它对应代码里的哪一次 `add()`，只能在同一个遍历顺序下把包围盒列出来对齐——

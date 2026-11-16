@@ -874,6 +874,19 @@ export function buildPantograph(): DeviceRig {
       pipeClamp(drive, [p.x, p.y, p.z], 'y', 0.011, [t.x, t.y, t.z])
     }
   }
+  /* 接地标识：车顶设备必有的标识牌。贴在**阀板外表面**（面板占 x∈[0.945,0.975]），
+     只写「接地 / EARTH」——不写接地电阻值，那类数据我们没有。 */
+  const earthPlate = textPlate({
+    width: 0.12,
+    height: 0.05,
+    bg: '#e8e4d8',
+    border: '#4a4f55',
+    lines: [{ text: '接地 EARTH', scale: 0.85 }],
+  })
+  earthPlate.rotation.y = Math.PI / 2
+  earthPlate.position.set(0.9765, 0.40, 0.60)
+  drive.add(earthPlate)
+
   drive.name = 'panto-panel'
   parts.drive = drive
   root.add(drive)
