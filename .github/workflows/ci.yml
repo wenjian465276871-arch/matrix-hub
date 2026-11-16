@@ -234,6 +234,15 @@ jobs:
         working-directory: apps/electro-assist/web
         run: node scripts/check-bundle.mjs dist --check-docs
 
+      # 测试里不许用"等时间"当判据（三日复盘 R2，2026-11-17）。
+      # 背景：三天里为让 CI 变绿改了 6 次阈值（700ms→3s、180→300s、+0.06kB、15→30min），
+      # 没有一次消除根因——CI 是软件渲染 1–2fps，用时长当判据必然随机器漂。
+      # 基线只允许下调：`--freeze` 在发现处数变多时会拒绝写入。
+      # 负例已验：往任一 spec 插一行 waitForTimeout(900) → exit 1。
+      - name: 测试不得用时长当判据
+        # 用 python3：e2e 作业是基于 Node 的 runner，没有 python 别名
+        run: python3 tools/check_test_timing.py
+
       # 配额放开到 50：E2E 每个会话就是一次真实生成入口调用，16 条用例里
       # smoke / landscape / mobile 各建 1 个会话，正好撞上生产配额（2 次/小时）。
       # 这只影响 CI 的临时库，生产配额不受影响。
@@ -282,6 +291,17 @@ jobs:
             cd apps/electro-assist/api
             DB_PATH="$RUNNER_TEMP/e2e/e2e.db" python -c "import store; from services import library; store.init_db(); g = library.load_fixtures()[0]; g.id = 'g_e2e_draft_001'; g.steps = g.steps[:3]; print(store.save_guide(g, status='draft'))"
           )
+
+      # CI 的实际帧率必须量出来（R26-2）。三天里为让 CI 变绿改了 6 次阈值，
+      # 每次都说"CI 慢机"，但从没人量过它到底多慢——"慢"于是成了可以无限解释的口袋。
+      # **但它不是门禁**：本机软件渲染 1–2fps，拿它当门槛等于用环境惩罚代码；
+      # 它只把"慢"变成数字（进作业摘要），供推导阈值用。量不出来（打不开页面）才失败。
+      - name: 渲染帧率实测（观测）
+        working-directory: apps/electro-assist/web
+        env:
+          FPS_BASE: http://127.0.0.1:4173
+          FPS_MIN: "4"
+        run: node scripts/measure-fps.mjs
 
       - name: E2E 冒烟
         env:

@@ -65,3 +65,6 @@ apps/electro-assist/web/cov-*/
 
 # 注意：锁文件（uv.lock / package-lock.json）必须入库，不要忽略
 eval-results/
+
+# Playwright 临时输出（--output 指定过的目录，别入库）
+e2e-out*/

@@ -41,6 +41,7 @@ import {
   TorusGeometry,
   TubeGeometry,
   Vector3,
+  DoubleSide,
 } from 'three'
 
 import type { DeviceRig } from './rig'
@@ -653,9 +654,13 @@ export function buildHvac(): DeviceRig {
     // 安装板：跨在冷凝器开口上，四周与顶盖框齐平
     fanPart.add(roundedBox(0.66, 0.02, 0.66, paintedMaterial(0x9aa0a6), 0.885, TOP - 0.01, z, 0.006))
     // 过渡筒：板下到盘管顶面，把"空档"填实
-    const duct = new Mesh(new CylinderGeometry(0.285, 0.30, 0.05, 32, 1, true), paintedMaterial(0x8b9196))
+    /* **别改共享材质的 side**：`paintedMaterial()` 是按色缓存的，
+       在上面写 `side = 2` 会把一堆面变成双面，软件渲染下成倍变慢
+       （2026-11-17 实测：CI 的渲染 grader 因此 10s 内铺不完 6 页而超时）。
+       过渡筒要双面就给它一份独立材质，或者干脆用闭合的短筒。 */
+    const ductMat = new MeshStandardMaterial({ color: 0x8b9196, metalness: 0.35, roughness: 0.6, side: DoubleSide })
+    const duct = new Mesh(new CylinderGeometry(0.285, 0.30, 0.05, 32, 1, true), ductMat)
     duct.position.set(0.885, TOP - 0.045, z)
-    duct.material.side = 2
     fanPart.add(duct)
     // 板面四角螺栓
     for (const dx of [-0.29, 0.29]) {
