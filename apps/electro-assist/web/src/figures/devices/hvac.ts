@@ -448,8 +448,11 @@ export function buildHvac(): DeviceRig {
   const deckPlateY = TOP - TOP_T / 2
   shell.add(roundedBox(X1 - XC2, TOP_T, 0.06, casing, (XC2 + X1) / 2, deckPlateY, Z0 + 0.03, 0.003))
   shell.add(roundedBox(X1 - XC2, TOP_T, 0.06, casing, (XC2 + X1) / 2, deckPlateY, Z1 - 0.03, 0.003))
-  shell.add(roundedBox(0.05, TOP_T, U.W, casing, XC2 + 0.025, deckPlateY, 0, 0.003))
-  shell.add(roundedBox(0.05, TOP_T, U.W, casing, X1 - 0.025, deckPlateY, 0, 0.003))
+  /* 沿 Z 的两条原来通长 `U.W`，与沿 X 的两条在四角**互相压着**：
+     顶/底两面都同平面（qa 报 `shell.167<->shell.169` 各 0.051 m²）。
+     改成对接：长度收到 `U.W - 0.12`，让出两条 60mm 的横梁宽度。 */
+  shell.add(roundedBox(0.05, TOP_T, U.W - 0.12, casing, XC2 + 0.025, deckPlateY, 0, 0.003))
+  shell.add(roundedBox(0.05, TOP_T, U.W - 0.12, casing, X1 - 0.025, deckPlateY, 0, 0.003))
   shell.add(roundedBox(X1 - XC2 - 0.1, TOP_T, 0.05, casing, (XC2 + X1) / 2, deckPlateY, 0, 0.003))
   for (const z of [-0.42, 0.42]) {
     const ring = new Mesh(new TorusGeometry(0.233, 0.012, 8, 40), casing)
