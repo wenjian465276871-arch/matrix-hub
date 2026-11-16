@@ -44,6 +44,7 @@ import {
   textPlate,
   withEdges,
   boltRun,
+  wireTag,
 } from './rig'
 import { phaseFor } from '../../lib/devphase'
 
@@ -525,6 +526,9 @@ export function buildCabinet(): DeviceRig {
       metalness: 0.05,
       roughness: 0.62,
     })
+    /* 线号管：导线横走段上套一段白套管。现场每根线的**两端**都有，
+       这里只放在槽前一段——放多了 4× 下会像"串了珠子"。 */
+    wireTag(wireGroup, [x0 + 0.05, dropY, 0.05], [1, 0, 0], 0.007)
     wireGroup.add(
       wire(
         [

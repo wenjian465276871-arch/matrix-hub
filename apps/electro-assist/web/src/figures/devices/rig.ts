@@ -674,3 +674,31 @@ export function hemEdge(
   edge.rotation.z = Math.PI / 4
   parent.add(edge)
 }
+
+
+/**
+ * 线号管（线标套管）：导线外面套的一小段白色塑料管，现场用它在两端做回路编号。
+ *
+ * 为什么值得加：配电柜、控制箱的导线上**一定**有线号管；没有它，一束彩线就只是"彩线"，
+ * 读不出"这是按图施工的线"。4× 近景里它是一圈白色套管，很显眼。
+ *
+ * **不印字**：真实线号管的字高约 2mm，4× 下也读不清；印上去只会变成糊点。
+ * 要读编号的场景请用 `textPlate()` 单独做铭牌/端子牌。
+ */
+export function wireTag(
+  parent: Object3D,
+  at: [number, number, number],
+  dir: [number, number, number] = [1, 0, 0],
+  wireRadius = 0.007,
+): void {
+  const r = wireRadius * 1.45
+  const sleeve = new Mesh(
+    new CylinderGeometry(r, r, 0.014, 12, 1, true),
+    new MeshStandardMaterial({ color: 0xf0efe9, roughness: 0.72, metalness: 0 }),
+  )
+  const from = new Vector3(0, 1, 0)
+  const to = new Vector3(dir[0], dir[1], dir[2]).normalize()
+  sleeve.quaternion.setFromUnitVectors(from, to)
+  sleeve.position.set(at[0], at[1], at[2])
+  parent.add(sleeve)
+}
