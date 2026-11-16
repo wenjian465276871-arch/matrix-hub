@@ -670,7 +670,11 @@ export function buildDoor(): DeviceRig {
   const BLOCK_REST: [number, number, number] = [-0.98, DIM.sill, 0.88]
   /* 工位 = **左门框侧的关闭边**（单扇门夹人的位置）。2026-11-15 前它在门洞中线，
      那是双扇结构才成立的摆法；单扇化后中线不会被顶到，反而"看起来没挡住"。 */
-  const BLOCK_AT_DOOR: [number, number, number] = [-(DIM.openW / 2) + 0.10, DIM.sill, DIM.leafZ + 0.12]
+  /* 2026-11-16 本人实测修正：单扇后原位置"看着不像挡着门"。
+     ① **往右**：x 由 −openW/2+0.10 提到 +0.20（原来贴着左门框，落在门扇前缘够不到的地方）；
+     ② **往门里**：z 由 leafZ+0.12 收到 leafZ+0.02——原来在门页平面之外 12cm，
+        门扇合拢时从它内侧滑过去，画面里根本没挡住；现在它**跨在门页的滑移面上**。 */
+  const BLOCK_AT_DOOR: [number, number, number] = [-(DIM.openW / 2) + 0.20, DIM.sill, DIM.leafZ + 0.02]
   blockGroup.position.set(...BLOCK_REST)
   /* 热区：**球面**，半径 0.32m（试块宽 0.20m，留出一圈余量）。
      指着试块附近都算命中——本人 2026-11-14：「感觉是"捕获"范围不够」。

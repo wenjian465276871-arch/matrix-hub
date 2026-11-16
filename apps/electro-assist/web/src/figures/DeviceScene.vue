@@ -890,6 +890,12 @@ async function init(): Promise<void> {
   renderer.shadowMap.type = T.PCFSoftShadowMap
 
   scene = new T.Scene()
+  /* DEV：把场景/相机/rig 挂到 window，便于用**射线从截图坐标反查**是哪个网格。
+     2026-11-16 加：空调那两条"多余的长线"靠看代码怎么找都对不上，
+     只有从屏幕点射回去才认得出（`__partMeshes` 只列 Mesh，Line/LineSegments 会被漏掉）。 */
+  if (import.meta.env.DEV) {
+    ;(window as unknown as { __dbg?: unknown }).__dbg = { T, scene, camera, rig }
+  }
 
   // 程序化环境光箱：零外部文件却有真实的高光形状，金属材质全靠它。
   const pmrem = new T.PMREMGenerator(renderer)
@@ -935,6 +941,10 @@ async function init(): Promise<void> {
 
   const { target, distance } = rig.framing
   camera = new T.PerspectiveCamera(rig.fov ?? 34, 1, 0.1, 60)
+  if (import.meta.env.DEV) {
+    const dbg = (window as unknown as { __dbg?: { camera: unknown } }).__dbg
+    if (dbg) dbg.camera = camera
+  }
   // 机位方向可以由设备覆盖（缝隙类细节需要俯视），默认仍是 VIEW_DIR
   const view = rig.viewDir ?? VIEW_DIR
   const dir = new T.Vector3(view[0], view[1], view[2]).normalize()
