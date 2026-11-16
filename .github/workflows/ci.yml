@@ -234,6 +234,15 @@ jobs:
         working-directory: apps/electro-assist/web
         run: node scripts/check-bundle.mjs dist --check-docs
 
+      # 测试里不许用"等时间"当判据（三日复盘 R2，2026-11-17）。
+      # 背景：三天里为让 CI 变绿改了 6 次阈值（700ms→3s、180→300s、+0.06kB、15→30min），
+      # 没有一次消除根因——CI 是软件渲染 1–2fps，用时长当判据必然随机器漂。
+      # 基线只允许下调：`--freeze` 在发现处数变多时会拒绝写入。
+      # 负例已验：往任一 spec 插一行 waitForTimeout(900) → exit 1。
+      - name: 测试不得用时长当判据
+        # 用 python3：e2e 作业是基于 Node 的 runner，没有 python 别名
+        run: python3 tools/check_test_timing.py
+
       # 配额放开到 50：E2E 每个会话就是一次真实生成入口调用，16 条用例里
       # smoke / landscape / mobile 各建 1 个会话，正好撞上生产配额（2 次/小时）。
       # 这只影响 CI 的临时库，生产配额不受影响。
