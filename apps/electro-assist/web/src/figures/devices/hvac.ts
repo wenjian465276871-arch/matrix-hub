@@ -476,7 +476,10 @@ export function buildHvac(): DeviceRig {
   shell.add(roundedBox(0.05, TOP_T, U.W - 0.12, casing, X1 - 0.025, deckPlateY, 0, 0.003))
   shell.add(roundedBox(X1 - XC2 - 0.1, TOP_T, 0.05, casing, (XC2 + X1) / 2, deckPlateY, 0, 0.003))
   for (const z of [-0.42, 0.42]) {
-    const ring = new Mesh(new TorusGeometry(0.233, 0.012, 8, 40), casing)
+    /* 安装环内径必须大于导风圈外径：导风圈 R=0.225，原环 0.233−0.012=0.221，
+       **比风机还小 4mm**，风机整圈从环体里穿出来（逐帧 BVH 实测 1763 对三角）。
+       改成 0.272−0.012=0.260——**比法兰盘外缘（R=0.255）还外 5mm**，否则法兰会顶在环上。 */
+    const ring = new Mesh(new TorusGeometry(0.272, 0.012, 8, 40), casing)
     ring.rotation.x = Math.PI / 2
     ring.position.set(0.885, TOP, z)
     shell.add(ring)
@@ -623,8 +626,12 @@ export function buildHvac(): DeviceRig {
     axialFan(casingDark),
     axialFan(casingDark),
   ]
-  fanRig[0].group.position.set(0.885, TOP, -0.42)
-  fanRig[1].group.position.set(0.885, TOP, 0.42)
+  /* 风机整体抬到顶盖**上表面**（TOP+0.012 = 法兰底面正好落在盖板顶面）。
+     原来中心在 TOP，导风圈下半截与法兰一起埋进盖板里——逐帧 BVH 实测
+     shell.173/174 共 **1763 对三角相交**。本人看到的"悬空"，实际是"埋在盖板里、
+     只在盖板之上露出一截"，所以看着像浮着。现实里顶置冷凝风机就是装在车顶板上的。 */
+  fanRig[0].group.position.set(0.885, TOP + 0.012, -0.42)
+  fanRig[1].group.position.set(0.885, TOP + 0.012, 0.42)
   /* 安装法兰：导风圈原来直接"立"在顶盖平面上，没有任何固定痕迹，看着像浮着。
      真实机组的风机是**整圈法兰坐在开口上、一圈螺栓**。这里补法兰盘 + 8 颗螺栓。
      2026-11-16 本人实测反馈："这2个风机是悬空的"。 */
@@ -641,7 +648,13 @@ export function buildHvac(): DeviceRig {
       hexBolt(f.group, Math.cos(a) * 0.238, 0.002, Math.sin(a) * 0.238, 'y', 0.008, 1)
     }
   }
-  for (const f of fanRig) fanPart.add(f.group)
+  for (const f of fanRig) {
+    /* 标记整组：干涉/悬空检查要单独看"风机与顶盖开口"的关系（2026-11-16 本人报"悬空"）。 */
+    f.group.traverse((o) => {
+      o.userData.qaGroup = 'fan'
+    })
+    fanPart.add(f.group)
+  }
 
   /* ============================================================ 蒸发段 */
   const evaporator = new Group()

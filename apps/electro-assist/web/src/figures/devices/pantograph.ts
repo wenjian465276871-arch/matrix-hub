@@ -867,18 +867,23 @@ export function buildPantograph(): DeviceRig {
   const airPort = new Mesh(new CylinderGeometry(0.018, 0.018, 0.05, 12), fitting)
   airPort.position.set(0.5, DECK_Y + 0.09, -0.86)
   drive.add(airPort)
-  drive.add(
-    hose(
-      [
-        new Vector3(0.5, DECK_Y + 0.08, -0.86),
-        new Vector3(0.74, 0.30, -0.55),
-        new Vector3(0.95, 0.34, -0.14),
-        new Vector3(panelX + 0.02, panelY + 0.17, panelZ - 0.3),
-      ],
-      0.019,
-      hoseMat,
-    ),
+  const mainsHose = hose(
+    [
+      new Vector3(0.5, DECK_Y + 0.08, -0.86),
+      /* 竖直引出段：接头（drive.047）顶面只到 0.57，而管子半径 19mm。
+         原来起点之后立刻斜走，Catmull-Rom 一弯就把管子压进接头与法兰里
+         （逐帧 BVH 实测 163 对，其中法兰 76、接头 35）。加一段竖直段把切线立起来。 */
+      new Vector3(0.5, DECK_Y + 0.20, -0.86),
+      new Vector3(0.74, 0.30, -0.55),
+      new Vector3(0.95, 0.34, -0.14),
+      new Vector3(panelX + 0.02, panelY + 0.17, panelZ - 0.3),
+    ],
+    0.019,
+    hoseMat,
   )
+  /* 打标记：干涉检查要单独查"这根管子穿没穿件"（2026-11-16 本人报的穿模）。 */
+  mainsHose.userData.qaGroup = 'hose'
+  drive.add(mainsHose)
   /* 阀板 → 底架 2 个空气接口。
      2026-11-15（R25-10）：原来两根管的**中间点完全相同**，只有终点 ±0.18 不同——
      两根 Ø22mm 的管子几乎整段重合，qa 报 `drive.047<->drive.048` **335 对共面三角**，
