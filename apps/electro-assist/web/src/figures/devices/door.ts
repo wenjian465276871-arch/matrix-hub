@@ -75,6 +75,17 @@ export const DIM = {
   slide: 1.061,
   sill: 0.03,
 }
+/**
+ * 防夹试块：尺寸与**工位**（门洞地板、门页滑移面上）。
+ * 2026-11-16 单扇化后重定位：x 右移到 −openW/2+0.20，z 收到 leafZ+0.02。
+ * 导出是为了让单测能断言"它真的跨在门页路径上"——这个靠截图很难稳定验（要点击才到工位）。
+ */
+export const BLOCK_SIZE = { w: 0.20, h: 0.14, d: 0.12 }
+export const BLOCK_AT_DOOR: [number, number, number] = [
+  -(DIM.openW / 2) + 0.24,
+  DIM.sill,
+  DIM.leafZ + 0.02,
+]
 
 /**
  * 同步带齿形：一格一颗齿。滚 offset.x 就是带子在跑。
@@ -674,7 +685,6 @@ export function buildDoor(): DeviceRig {
      ① **往右**：x 由 −openW/2+0.10 提到 +0.20（原来贴着左门框，落在门扇前缘够不到的地方）；
      ② **往门里**：z 由 leafZ+0.12 收到 leafZ+0.02——原来在门页平面之外 12cm，
         门扇合拢时从它内侧滑过去，画面里根本没挡住；现在它**跨在门页的滑移面上**。 */
-  const BLOCK_AT_DOOR: [number, number, number] = [-(DIM.openW / 2) + 0.20, DIM.sill, DIM.leafZ + 0.02]
   blockGroup.position.set(...BLOCK_REST)
   /* 热区：**球面**，半径 0.32m（试块宽 0.20m，留出一圈余量）。
      指着试块附近都算命中——本人 2026-11-14：「感觉是"捕获"范围不够」。

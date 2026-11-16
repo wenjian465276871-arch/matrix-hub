@@ -894,7 +894,13 @@ async function init(): Promise<void> {
      2026-11-16 加：空调那两条"多余的长线"靠看代码怎么找都对不上，
      只有从屏幕点射回去才认得出（`__partMeshes` 只列 Mesh，Line/LineSegments 会被漏掉）。 */
   if (import.meta.env.DEV) {
-    ;(window as unknown as { __dbg?: unknown }).__dbg = { T, scene, camera, rig }
+    ;(window as unknown as { __dbg?: unknown }).__dbg = {
+      T, scene, camera, rig,
+      /* 把**本实例的 canvas** 一起挂上：页面上可能同时存在多个 canvas
+         （页面本体 + 放大浮层），取 `document.querySelector('canvas')` 会取错，
+         投影出来的点击坐标就会跑到屏幕外（实测算到 x=1723，视口只有 1400）。 */
+      canvas: canvasEl,
+    }
   }
 
   // 程序化环境光箱：零外部文件却有真实的高光形状，金属材质全靠它。
