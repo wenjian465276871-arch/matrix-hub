@@ -268,10 +268,16 @@ function airSpring(len: number, color: number, plateMat: Material, inner: Materi
   foot.position.y = -0.012
   const cap = new Mesh(new CylinderGeometry(0.104, 0.104, 0.022, 22), plateMat)
   cap.position.y = L + 0.011
-  // 活塞杆：从气囊顶盖伸出去，行程全在这根杆上
+  /* 囊体与端盖、活塞杆分开挂：**囊体要能随行程伸缩**。
+     2026-11-16 本人指出"升降弓时气囊应该会伸缩"，并给了检索方向；
+     查中车/教材/专利三处口径一致：气囊**下端固定底架、上端接蝴蝶座**，
+     充气膨胀抬升、排气收缩，靠钢丝绳拉下臂。原来只有活塞杆在动、囊体长度恒定，
+     那是液压缸的画法，不是气囊。 */
+  const bellows = new Group()
+  bellows.add(shell)
   const rod = new Mesh(new CylinderGeometry(0.028, 0.028, 1, 14), chromeMaterial())
   const eye = roundedBox(0.075, 0.055, 0.06, plateMat, 0, 0, 0, 0.008)
-  group.add(shell, bladder, foot, cap, rod, eye)
+  group.add(bellows, bladder, foot, cap, rod, eye)
 
   const dir = new Vector3()
   return {
@@ -281,9 +287,16 @@ function airSpring(len: number, color: number, plateMat: Material, inner: Materi
       const l = dir.length()
       if (l < 1e-4) return
       placeAxis(group, from, to)
-      const rodLen = Math.max(l - L, 0.02)
+      /* 囊体长度随行程变：压缩到 0.78L、拉伸到 (l−0.05)。
+         端盖跟着囊体顶端走，活塞杆只剩很短一段——这才是"气囊顶着蝴蝶座"的样子。 */
+      const bodyLen = Math.max(L * 0.78, l - 0.05)
+      bellows.scale.y = bodyLen / L
+      bladder.scale.y = bodyLen * 0.92
+      bladder.position.y = bodyLen * 0.48
+      cap.position.y = bodyLen + 0.011
+      const rodLen = Math.max(l - bodyLen, 0.02)
       rod.scale.y = rodLen
-      rod.position.y = L + rodLen / 2
+      rod.position.y = bodyLen + rodLen / 2
       eye.position.y = l
     },
   }
