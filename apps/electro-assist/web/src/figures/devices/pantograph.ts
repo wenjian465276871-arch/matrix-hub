@@ -310,7 +310,11 @@ function airSpring(len: number, color: number, plateMat: Material, inner: Materi
       placeAxis(group, from, to)
       /* 囊体长度随行程变：压缩到 0.78L、拉伸到 (l−0.05)。
          端盖跟着囊体顶端走，活塞杆只剩很短一段——这才是"气囊顶着蝴蝶座"的样子。 */
-      const bodyLen = Math.max(L * 0.78, l - 0.05)
+      /* **囊体长度上限 0.26m**。原来 bodyLen 跟着 l 一直长（l 最大约 0.56），
+         囊体就成了横跨整个驱动舱的长筒，静态穿进底座横梁与导向筒——
+         逐帧 BVH 实测 590~655 对三角相交，且六帧都在，说明是**静态埋进去**。
+         真实空气弹簧行程有限（约 100~150mm），伸长靠钢丝绳，不靠囊体自己变长。 */
+      const bodyLen = Math.min(Math.max(L * 0.78, l - 0.05), 0.26)
       bellows.scale.y = bodyLen / L
       bladder.scale.y = bodyLen * 0.92
       bladder.position.y = bodyLen * 0.48
@@ -933,16 +937,25 @@ export function buildPantograph(): DeviceRig {
      上一版把它做成竖着装在下臂 32% 处的长杆，底座还写在车顶面以下（y=0.04），
      结果是一根 0.9m 长的细肠子从车顶穿出来顶到臂上——三处都错。 */
   const bag = airSpring(0.22, 0x3a3f45, plateMat, innerMat)
-  const BAG_Y = DECK_Y + 0.14
+  /* 2026-11-16：+0.14 → +0.20。中段（t 0.35~0.75）气囊下半圆扫进车架托
+     （frame.093/094 顶面 three y≈0.565，囊底 0.488）→ 逐帧 BVH 报 52~147 对。
+     抬高 6cm 后囊底到 0.578，让开托面。 */
+  const BAG_Y = DECK_Y + 0.23
   const BAG_Z0 = -0.6
 
   const driveMech = new Group()
   driveMech.add(bag.group)
   /* 气囊支座：两道抱箍把它架在底架上。没有它，气囊是一段悬空的圆筒——
      上一版它更糟，整根从车顶面以下穿上来。 */
+  /* 抱箍**按囊体外径定高**：原来高 0.10m，而气囊半径 0.118、底面在 BAG_Y−0.118，
+     于是整只囊体陷进抱箍里 8.8cm（逐帧 BVH：drive2.010/011 共 204 对三角）。
+     现在座面刚好托在囊体底面下 2mm，抱箍只做"垫块"，不再咬进去。 */
+  const BAG_R = 0.118
+  const SEAT_TOP = BAG_Y - BAG_R - 0.002
+  const seatH = Math.max(0.01, SEAT_TOP - DECK_Y)
   for (const z of [BAG_Z0 + 0.04, BAG_Z0 + 0.2]) {
     driveMech.add(
-      roundedBox(0.15, BAG_Y - DECK_Y - 0.04, 0.05, frameMat, 0, (BAG_Y + DECK_Y) / 2 - 0.01, z, 0.005),
+      roundedBox(0.15, seatH, 0.05, frameMat, 0, DECK_Y + seatH / 2, z, 0.005),
     )
   }
 
@@ -1400,7 +1413,10 @@ export function buildPantograph(): DeviceRig {
        上一版气囊是竖着直接顶在臂上的长杆，画面上是"一根肠子从车顶穿出来"。 */
     const stroke = 0.16 * p
     const carZ = BAG_Z0 + 0.22 + stroke + 0.05
-    bag.set(bagBase0, cA.set(0, BAG_Y, carZ))
+    /* 气囊**止于 carrriage 梁的近端面**（梁厚 0.14，近面在 carZ−0.07）。
+       原来直接顶到梁心，囊体与活塞杆穿进梁里 4cm——逐帧 BVH 实测这一处就 292 对三角。
+       改成"贴着梁面推"，接触但不相交。 */
+    bag.set(bagBase0, cA.set(0, BAG_Y, carZ - 0.10))
     carriage.position.set(0, BAG_Y, carZ)
     for (let i = 0; i < 2; i += 1) {
       // 钢索：导盘滑轮 → **弧形调整板的弧面**（不是臂身上的一个点）
