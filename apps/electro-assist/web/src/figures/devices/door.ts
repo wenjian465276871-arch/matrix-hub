@@ -88,10 +88,7 @@ export const BLOCK_AT_DOOR: [number, number, number] = [
   DIM.leafZ + 0.02,
 ]
 
-/** 关门时门扇**前缘**到试块 +X 面就停：此时 `travel = BLOCK_AT_DOOR[0] + BLOCK_SIZE.w/2 + leafW/2`。 */
-export const TRAVEL_STOP_AT_BLOCK = BLOCK_AT_DOOR[0] + BLOCK_SIZE.w / 2 + 1.07 / 2
-/** 触到后反开的行程上限（m）。0.16 能在画面里一眼看出"退回去了"，又不至于像全开。 */
-export const REBOUND_MAX = 0.16
+
 
 /**
  * 同步带齿形：一格一颗齿。滚 offset.x 就是带子在跑。
@@ -731,12 +728,7 @@ export function buildDoor(): DeviceRig {
   root.add(blockGroup)
 
   /* ---------------------------------------------------------------- 动作 */
-  /* 试块在不在工位（由 `setAux` 置位）与最近一次的 t——防夹约束要能按当前 t 重算。 */
-  let blockAtDoor = false
-  let lastT = 0
-
   const setT = (t: number): void => {
-    lastT = t
     /* 段零：解锁。**这是开门的前置条件**——锁舌没缩回，门扇一点都不能动。
        以前从 t=0 就开始外移，等于「锁着也能开门」，现场不可能。 */
     /* 段负一：**解除隔离**。t=0 是隔离位——长插销插在门框锁挡里（搭接 8mm），
@@ -760,10 +752,11 @@ export function buildDoor(): DeviceRig {
        本人 2026-11-17 截图指出这一点。真实顺序是：碰到 → 停止 → 反开。
        实现：关门方向上把 travel 夹在 `TRAVEL_STOP_AT_BLOCK`，
        再按"还想关多少"给一个反开量（上限 `REBOUND_MAX`），读起来就是撞到后往回退。 */
-    if (blockAtDoor) {
-      const over = TRAVEL_STOP_AT_BLOCK - travel
-      if (over > 0) travel = TRAVEL_STOP_AT_BLOCK + Math.min(over * 0.9, REBOUND_MAX)
-    }
+    /* **这里不再做防夹判断**（2026-11-17 更正）。
+       防夹是会话的事（`door-session.ts`：碰到 → 停止 → 反开到全开位），
+       三维姿态只是 `t`（= 会话 `openT`）的纯函数。
+       上一版在这里又夹了一次 travel，于是"逻辑已反开、画面却还卡在块上"，
+       两套判断各说各话——本人看到的"反开一段又自己关回去"就是这种错位。 */
     /* 单扇：门向 +X 滑开（停到右侧门机罩下）。闭合时前缘在 -X，
        所以"关到位"是 x=0，"全开"是 x=+slide。 */
     leaf.position.set(travel, 0, z)
@@ -804,10 +797,7 @@ export function buildDoor(): DeviceRig {
   const setAux = (spec: string): void => {
     const { kv } = parseAux(spec)
     // 试块只有两个位，没有中间态：点一下是"搬过去"，再点一下是"搬回来"
-    blockAtDoor = kv.block === '1'
-    blockGroup.position.set(...(blockAtDoor ? BLOCK_AT_DOOR : BLOCK_REST))
-    // 位置变了要**按当前 t 重算一次**，否则防夹约束要等下一次时间变化才生效
-    setT(lastT)
+    blockGroup.position.set(...(kv.block === '1' ? BLOCK_AT_DOOR : BLOCK_REST))
   }
 
   setT(0)
