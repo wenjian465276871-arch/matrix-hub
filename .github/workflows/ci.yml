@@ -137,7 +137,10 @@ jobs:
     # 这条 job 需要的是**可复现的 apt 源**，不是最新发行版；
     # test / build 两条不碰 apt，继续跟 latest。
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # 2026-11-16：15 → 30。图量从 118 涨到 130+，渲染 grader 每条要挂 15 张 3D 图，
+    # 本地全量实测 12.5 分钟、CI 更慢；run 43803742708 就是被 15 分钟上限**取消**的
+    # （GitHub 对作业超时的结论显示为 cancelled，不是 failure，很容易误读成"被并发挤掉"）。
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262  # v4
 
