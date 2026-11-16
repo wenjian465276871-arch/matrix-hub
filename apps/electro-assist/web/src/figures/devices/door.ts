@@ -81,11 +81,17 @@ export const DIM = {
  * 导出是为了让单测能断言"它真的跨在门页路径上"——这个靠截图很难稳定验（要点击才到工位）。
  */
 export const BLOCK_SIZE = { w: 0.20, h: 0.14, d: 0.12 }
+
 export const BLOCK_AT_DOOR: [number, number, number] = [
   -(DIM.openW / 2) + 0.24,
   DIM.sill,
   DIM.leafZ + 0.02,
 ]
+
+/** 关门时门扇**前缘**到试块 +X 面就停：此时 `travel = BLOCK_AT_DOOR[0] + BLOCK_SIZE.w/2 + leafW/2`。 */
+export const TRAVEL_STOP_AT_BLOCK = BLOCK_AT_DOOR[0] + BLOCK_SIZE.w / 2 + 1.07 / 2
+/** 触到后反开的行程上限（m）。0.16 能在画面里一眼看出"退回去了"，又不至于像全开。 */
+export const REBOUND_MAX = 0.16
 
 /**
  * 同步带齿形：一格一颗齿。滚 offset.x 就是带子在跑。
@@ -308,7 +314,9 @@ export function buildDoor(): DeviceRig {
   /* ------------------------------------------------- 门锁锁扣板 / 密封面（单扇） */
   /* 单扇之后锁舌只有一套：门扇上的锁舌（x=0.465）向 +X 伸出，咬进**门框侧**的
      锁扣板。原来那套「跨中缝咬对侧门扇」的结构随双扇一起去掉了。 */
-  const lockPlateZ = DIM.leafZ + DIM.leafT / 2 + 0.03
+  /* 锁扣板收进**门缝里**：原来在 leafZ + leafT/2 + 0.03（门外 30mm），
+     从车外看是贴在车体上的一块异形板。真实件藏在门扇后方、门框的凹槽里。 */
+  const lockPlateZ = DIM.leafZ - 0.032
   const lockPlate = roundedBox(0.03, 0.095, 0.022, steelMaterial(0xb0b5ba), DIM.openW / 2 - 0.012, 0.93, lockPlateZ, 0.004)
   lockPlate.userData.qaGroup = 'lockplate'
   frame.add(lockPlate)
@@ -549,10 +557,15 @@ export function buildDoor(): DeviceRig {
        单扇门只有一个前缘，所以锁只有**一套**：锁体在门扇后缘附近，
        锁舌向 +X 伸出、咬进门框侧的锁扣板（不再有「跨中缝咬对侧」那种结构）。 */
     const lockY = cy - 0.05
-    leaf.add(roundedBox(0.07, 0.1, 0.052, paintedMaterial(0x2f343a), 0.40, lockY, DIM.leafT / 2 + 0.012, 0.006))
+    /* **锁体装在门扇内部，车外表面不该出现它**（2026-11-17 本人：CRH380A 是电控气动
+       内藏侧拉门，外面只有平整门板和玻璃）。原来锁体、线圈、锁舌全都摆在
+       `leafT/2 + 0.012…0.03`，即门外 1~3cm，从外面看就是两块黑疙瘩。
+       现在：锁体与线圈埋进门扇厚度里（只作剖切时的内部结构），
+       只有锁舌从**前缘中缝**探出去咬锁扣——这也符合塞拉门的实际形态。 */
+    leaf.add(roundedBox(0.07, 0.1, 0.052, paintedMaterial(0x2f343a), 0.40, lockY, -DIM.leafT / 2 + 0.026, 0.006))
     // 电磁铁线圈外壳：压在锁体上，解锁时嗡一下的就是它
-    leaf.add(roundedBox(0.05, 0.05, 0.03, paintedMaterial(0x1f2429), 0.40, lockY + 0.055, DIM.leafT / 2 + 0.01, 0.005))
-    const bolt = roundedBox(0.095, 0.028, 0.024, chromeMaterial(), 0.465, lockY, DIM.leafT / 2 + 0.03, 0.004)
+    leaf.add(roundedBox(0.05, 0.05, 0.03, paintedMaterial(0x1f2429), 0.40, lockY + 0.055, -DIM.leafT / 2 + 0.02, 0.005))
+    const bolt = roundedBox(0.095, 0.028, 0.024, chromeMaterial(), 0.465, lockY, 0, 0.004)
     lockBolts.push(bolt)
     leaf.add(bolt)
 
@@ -575,7 +588,12 @@ export function buildDoor(): DeviceRig {
     /* 2026-11-15 单扇化：隔离锁挪到门扇**后缘**（+0.44），插销伸出后要真的够到
        门框（门框内表面在 ±0.505）——放在 0.28 时插销端头离门框还有 15cm，
        等于"锁在空气里"。 */
-    isoBody.position.set(dir * 0.44, ISO_Y, DIM.leafT / 2)
+    /* **装在内侧**（2026-11-17 本人：CRH380A 车门是电控气动内藏侧拉门，车外表面
+       没有这种凸出的锁；隔离锁在门扇内侧/门柱上，要开也得先开隔离锁再操作内外解锁）。
+       原来装在 +leafT/2（外表面），一开门就是门上两个黑疙瘩。
+       挪到内侧并转 180°，锁盒与三角锁芯朝向车内。 */
+    isoBody.position.set(dir * 0.44, ISO_Y, -DIM.leafT / 2)
+    isoBody.rotation.y = Math.PI
     leaf.add(isoBody)
 
     // 锁盒：凸出门面 27mm，里面是曲柄与弹簧（真实锁盒就是这个厚度）
@@ -713,7 +731,12 @@ export function buildDoor(): DeviceRig {
   root.add(blockGroup)
 
   /* ---------------------------------------------------------------- 动作 */
+  /* 试块在不在工位（由 `setAux` 置位）与最近一次的 t——防夹约束要能按当前 t 重算。 */
+  let blockAtDoor = false
+  let lastT = 0
+
   const setT = (t: number): void => {
+    lastT = t
     /* 段零：解锁。**这是开门的前置条件**——锁舌没缩回，门扇一点都不能动。
        以前从 t=0 就开始外移，等于「锁着也能开门」，现场不可能。 */
     /* 段负一：**解除隔离**。t=0 是隔离位——长插销插在门框锁挡里（搭接 8mm），
@@ -731,7 +754,16 @@ export function buildDoor(): DeviceRig {
     const slide = seg(t, 0.2, 0.88)
 
     const z = DIM.leafZ + pop * DIM.pop
-    const travel = slide * DIM.slide
+    let travel = slide * DIM.slide
+    /* **防夹：门扇到底被试块挡住。**
+       原来试块只改自己的位置，门扇照常走到 0，于是"越过试块继续关"——
+       本人 2026-11-17 截图指出这一点。真实顺序是：碰到 → 停止 → 反开。
+       实现：关门方向上把 travel 夹在 `TRAVEL_STOP_AT_BLOCK`，
+       再按"还想关多少"给一个反开量（上限 `REBOUND_MAX`），读起来就是撞到后往回退。 */
+    if (blockAtDoor) {
+      const over = TRAVEL_STOP_AT_BLOCK - travel
+      if (over > 0) travel = TRAVEL_STOP_AT_BLOCK + Math.min(over * 0.9, REBOUND_MAX)
+    }
     /* 单扇：门向 +X 滑开（停到右侧门机罩下）。闭合时前缘在 -X，
        所以"关到位"是 x=0，"全开"是 x=+slide。 */
     leaf.position.set(travel, 0, z)
@@ -772,7 +804,10 @@ export function buildDoor(): DeviceRig {
   const setAux = (spec: string): void => {
     const { kv } = parseAux(spec)
     // 试块只有两个位，没有中间态：点一下是"搬过去"，再点一下是"搬回来"
-    blockGroup.position.set(...(kv.block === '1' ? BLOCK_AT_DOOR : BLOCK_REST))
+    blockAtDoor = kv.block === '1'
+    blockGroup.position.set(...(blockAtDoor ? BLOCK_AT_DOOR : BLOCK_REST))
+    // 位置变了要**按当前 t 重算一次**，否则防夹约束要等下一次时间变化才生效
+    setT(lastT)
   }
 
   setT(0)

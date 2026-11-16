@@ -645,6 +645,26 @@ export function buildHvac(): DeviceRig {
       hexBolt(f.group, Math.cos(a) * 0.238, 0.002, Math.sin(a) * 0.238, 'y', 0.008, 1)
     }
   }
+  /* **风机安装板 + 过渡筒**：原来风机底面在 y≈1.179、冷凝器顶面在 1.13，
+     中间空了 49mm，从任何角度看都是"飘着的"（2026-11-17 本人反复换角度确认）。
+     真实机组是：冷凝器上方一张**安装板**横跨开口、四周螺栓固定，
+     板下接一圈**过渡筒**罩住盘管，风机再装在板上。 */
+  for (const z of [-0.42, 0.42]) {
+    // 安装板：跨在冷凝器开口上，四周与顶盖框齐平
+    fanPart.add(roundedBox(0.66, 0.02, 0.66, paintedMaterial(0x9aa0a6), 0.885, TOP - 0.01, z, 0.006))
+    // 过渡筒：板下到盘管顶面，把"空档"填实
+    const duct = new Mesh(new CylinderGeometry(0.285, 0.30, 0.05, 32, 1, true), paintedMaterial(0x8b9196))
+    duct.position.set(0.885, TOP - 0.045, z)
+    duct.material.side = 2
+    fanPart.add(duct)
+    // 板面四角螺栓
+    for (const dx of [-0.29, 0.29]) {
+      for (const dz of [-0.29, 0.29]) {
+        hexBolt(fanPart, 0.885 + dx, TOP - 0.001, z + dz, 'y', 0.01, 1)
+      }
+    }
+  }
+
   for (const f of fanRig) {
     /* 标记整组：干涉/悬空检查要单独看"风机与顶盖开口"的关系（2026-11-16 本人报"悬空"）。 */
     f.group.traverse((o) => {

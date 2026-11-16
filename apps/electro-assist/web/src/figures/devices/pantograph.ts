@@ -625,8 +625,12 @@ export function buildPantograph(): DeviceRig {
       { text: 'PANTOGRAPH', scale: 0.6, color: '#3f454b' },
     ],
   })
-  pantoPlate.rotation.y = Math.PI / 2
-  pantoPlate.position.set(0.553, DECK_Y + 0.01, 0.42)
+  /* **铭牌必须完整可见**（2026-11-17 本人：不允许被别的东西挡住导致看不全）。
+     原来贴在 +X 侧纵梁外面、又被横梁/抱箍挡掉一截。挪到**前横梁的正面**
+     （z=+0.72 那条横梁，外表面 0.765），正对默认机位、四周无件遮挡。
+     现场也是这样：铭牌一律贴在外露的正面，装完还要拍照留档。 */
+  pantoPlate.rotation.y = 0
+  pantoPlate.position.set(0, DECK_Y + 0.002, 0.72 + 0.045 + 0.002)
   deck.add(pantoPlate)
 
   /* S3：梁节点焊道。底架是**焊接件**——没有焊道就只是一堆搭在一起的方管。
@@ -867,6 +871,17 @@ export function buildPantograph(): DeviceRig {
   const airPort = new Mesh(new CylinderGeometry(0.018, 0.018, 0.05, 12), fitting)
   airPort.position.set(0.5, DECK_Y + 0.09, -0.86)
   drive.add(airPort)
+  /* 阀板进气接头：管口得有"插进去"的座，否则软管末端永远是断头。 */
+  const inletPos = new Vector3(0.945, panelY - 0.10, panelZ - 0.18)
+  const inlet = new Mesh(new CylinderGeometry(0.022, 0.022, 0.05, 14), fitting)
+  inlet.rotation.z = Math.PI / 2
+  inlet.position.set(inletPos.x - 0.012, inletPos.y, inletPos.z)
+  drive.add(inlet)
+  const inletNut = new Mesh(new CylinderGeometry(0.027, 0.027, 0.012, 14), fitting)
+  inletNut.rotation.z = Math.PI / 2
+  inletNut.position.set(inletPos.x - 0.036, inletPos.y, inletPos.z)
+  drive.add(inletNut)
+
   const mainsHose = hose(
     [
       new Vector3(0.5, DECK_Y + 0.08, -0.86),
@@ -876,7 +891,9 @@ export function buildPantograph(): DeviceRig {
       new Vector3(0.5, DECK_Y + 0.20, -0.86),
       new Vector3(0.74, 0.30, -0.55),
       new Vector3(0.95, 0.34, -0.14),
-      new Vector3(panelX + 0.02, panelY + 0.17, panelZ - 0.3),
+      /* 终点落在**阀板上的进气接头**（原来落在 z=0.16，而阀板下沿是 0.19——
+         管子停在板外，看起来根本没接上；本人 2026-11-17 截图指出）。 */
+      inletPos,
     ],
     0.019,
     hoseMat,
