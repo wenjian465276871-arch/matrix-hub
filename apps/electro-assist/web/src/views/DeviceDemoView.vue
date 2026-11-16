@@ -221,7 +221,14 @@ const SCENE_KEYS: SceneKey[] = [
 const scene = ref<SceneKey>('door')
 const def = computed(() => SCENES[scene.value])
 
+/* 每台设备**打开时停在哪个时刻**。
+   塞尺 t=0 是"收纳扇形"（12 片全开），一眼看不出怎么用；0.62 是 DEVICE_MOMENTS 的"插入"读数，
+   选中片已进缝——打开就是"在测量"。其余设备保持 0（从起机前一拍开始看）。 */
+const START_T: Record<string, number> = { feeler_gauge: 0.62 }
+/* `def` 里带 subject（设备键），用它查表 */
+const curSubject = () => String((def.value as unknown as { subject?: string })?.subject ?? '')
 const t = ref(0)
+/* 首次进入按当前设备的起始时刻摆位（onMounted 里再校正一次） */
 const playing = ref(false)
 const focus = ref('')
 
@@ -285,7 +292,7 @@ function seek(event: Event): void {
 
 function reset(): void {
   stop()
-  t.value = 0
+  t.value = START_T[curSubject()] ?? 0
 }
 
 function toggleFocus(key: string): void {
@@ -296,7 +303,7 @@ function switchScene(key: SceneKey): void {
   if (key === scene.value) return
   stop()
   scene.value = key
-  t.value = 0
+  t.value = START_T[curSubject()] ?? 0
   focus.value = ''
   cut.value = false
   pantoMode.value = 'normal'

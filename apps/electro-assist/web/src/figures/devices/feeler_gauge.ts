@@ -258,6 +258,9 @@ export function buildFeelerGauge(): DeviceRig {
     setT,
     parts,
     phase,
+    /* 打开就停在"插入"那一态：t=0 是收纳扇形（12 片全开），看不出怎么用。
+       0.62 是 DEVICE_MOMENTS 里"插入"的读数，选中片已进缝。 */
+    defaultT: 0.62,
     // 长焦 26°：缝是窄长条，广角会把两侧门板拉成斜面，缝宽就看不出是"缝"
     fov: 26,
     envIntensity: 1.0,
