@@ -446,8 +446,11 @@ export function buildHvac(): DeviceRig {
 
   // 冷凝段顶面：风机平台。四边框条 + 两个风机开口的环
   const deckPlateY = TOP - TOP_T / 2
-  shell.add(roundedBox(X1 - XC2, TOP_T, 0.06, casing, (XC2 + X1) / 2, deckPlateY, Z0 + 0.03, 0.003))
-  shell.add(roundedBox(X1 - XC2, TOP_T, 0.06, casing, (XC2 + X1) / 2, deckPlateY, Z1 - 0.03, 0.003))
+  /* 这两条沿 X 的顶盖板深 0.06、中心在 Z0+0.03 / Z1-0.03 ⇒ **外表面正好落在 z=±1.05**，
+     与侧壁外表面同面（qa 报 `shell.020<->shell.168` 与 `shell.006<->shell.167`，
+     真实交集各 0.0132 m²）。中心内收 2mm：外表面退到 ±1.048，被侧壁挡住，看不出来。 */
+  shell.add(roundedBox(X1 - XC2, TOP_T, 0.06, casing, (XC2 + X1) / 2, deckPlateY, Z0 + 0.032, 0.003))
+  shell.add(roundedBox(X1 - XC2, TOP_T, 0.06, casing, (XC2 + X1) / 2, deckPlateY, Z1 - 0.032, 0.003))
   /* 沿 Z 的两条原来通长 `U.W`，与沿 X 的两条在四角**互相压着**：
      顶/底两面都同平面（qa 报 `shell.167<->shell.169` 各 0.051 m²）。
      改成对接：长度收到 `U.W - 0.12`，让出两条 60mm 的横梁宽度。 */
