@@ -111,15 +111,10 @@ for (const file of files) {
        在 CI 上 15.3s 才铺完 → 每轮都红。CI 的 `渲染帧率实测（观测）` 打印
        **最差帧 2417ms**，6 页 × 2.4s ≈ 15s，留 2× 余量取 30s。
        要改这个数，先去看那一步打印的实测值，别凭感觉。 */
-    let pageCount = 0
-    const pageDeadline = Date.now() + 30_000
-    while (Date.now() < pageDeadline) {
-      pageCount = await page.locator('.pager__page').count()
-      if (pageCount >= steps.length) break
-      await page.waitForTimeout(200)
-    }
-    expect(pageCount, `页数停在 ${pageCount}/${steps.length}（打印态没铺开）`).toBeGreaterThanOrEqual(
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('.pager__page').length >= n,
       steps.length,
+      { timeout: 30_000, polling: 200 },
     )
 
     // 三维/烘焙图是异步 chunk，挂载要几帧；等总数齐了再逐页比，
@@ -132,15 +127,10 @@ for (const file of files) {
        2026-11-16 实测：`expect.poll(...).toBeGreaterThanOrEqual(total)` 在计数已经等于 total
        时仍然超时失败（打印出来是"停在 15/15"），换成直白的轮询后稳定通过。
        这里只负责"等够数"，多一张/少一张由下面的逐步断言负责。 */
-    let figCount = 0
-    const deadline = Date.now() + 30_000
-    while (Date.now() < deadline) {
-      figCount = await page.locator('.figure').count()
-      if (figCount >= total) break
-      await page.waitForTimeout(200)
-    }
-    expect(figCount, `图数停在 ${figCount}/${total}（打印态未铺开或图没挂载）`).toBeGreaterThanOrEqual(
+    await page.waitForFunction(
+      (n) => document.querySelectorAll('.figure').length >= n,
       total,
+      { timeout: 30_000, polling: 200 },
     )
 
     // ① 逐页比对图数（按 aria-label 的「第 N 步」认页，不靠下标）

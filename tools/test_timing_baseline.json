@@ -2,6 +2,5 @@
   "apps/electro-assist/web/tests/e2e/deskops.spec.ts": 3,
   "apps/electro-assist/web/tests/e2e/polish.spec.ts": 1,
   "apps/electro-assist/web/tests/e2e/print.spec.ts": 2,
-  "apps/electro-assist/web/tests/e2e/render-grader.spec.ts": 1,
   "apps/electro-assist/web/tests/e2e/theme.spec.ts": 1
 }
