@@ -309,8 +309,16 @@ export function buildDoor(): DeviceRig {
   /* 单扇之后锁舌只有一套：门扇上的锁舌（x=0.465）向 +X 伸出，咬进**门框侧**的
      锁扣板。原来那套「跨中缝咬对侧门扇」的结构随双扇一起去掉了。 */
   const lockPlateZ = DIM.leafZ + DIM.leafT / 2 + 0.03
-  frame.add(roundedBox(0.03, 0.095, 0.022, steelMaterial(0xb0b5ba), DIM.openW / 2 - 0.012, 0.93, lockPlateZ, 0.004))
-  frame.add(roundedBox(0.012, 0.034, 0.014, paintedMaterial(0x1b1e22), DIM.openW / 2 - 0.004, 0.93, lockPlateZ + 0.006, 0.003))
+  const lockPlate = roundedBox(0.03, 0.095, 0.022, steelMaterial(0xb0b5ba), DIM.openW / 2 - 0.012, 0.93, lockPlateZ, 0.004)
+  lockPlate.userData.qaGroup = 'lockplate'
+  frame.add(lockPlate)
+  /* 锁孔（深色凹槽）**贴在钢板前面，不再嵌进去**。
+     原来：钢板 z 0.090~0.112、孔盒 z 0.100~0.114 —— 两个实体重叠 12mm，
+     前表面又在同一高度附近互相穿插，于是从某些角度孔会"闪一下有、闪一下没有"
+     （本人报的"锁孔会出现和消失"）。现在孔盒 z 0.1135~0.1165，与板面留 1.5mm。 */
+  const lockHole = roundedBox(0.012, 0.034, 0.003, paintedMaterial(0x1b1e22), DIM.openW / 2 - 0.004, 0.93, lockPlateZ + 0.014, 0.001)
+  lockHole.userData.qaGroup = 'lockhole'
+  frame.add(lockHole)
   // 前缘密封面：门扇合拢时密封条压在这条不锈钢压条上（−X 侧）
   frame.add(roundedBox(0.016, DIM.openH - 0.04, 0.03, steelMaterial(0xb4b9bf), -(DIM.openW / 2) + 0.008, DIM.openH / 2, DIM.leafZ + DIM.leafT / 2, 0.003))
 
