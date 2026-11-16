@@ -95,8 +95,49 @@ def review_hints() -> list[str]:
     return out
 
 
-def main() -> int:
+METRICS_JSON = ROOT / "docs" / "metrics.json"
+
+
+def check_metrics_json(tests: int, write: bool) -> int:
+    """`docs/metrics.json` 是**唯一数源**：跨仓文档只引用它，不再手抄数字。
+
+    2026-11-17（三日复盘 R3 / R26-4）：`AGENTS.md` 顶部曾累积 35 段「上一版」，
+    每段手抄一遍测试数与体积，读到哪段都可能过期。现在数字只落在这里，
+    并由本函数与实算比对——**写错或忘了刷新都会红**。
+
+    只放"能在一处算出来"的字段：`backend_tests` 由 pytest 收集数得到；
+    前端条数在 e2e 作业里另有门禁（`tools/check_test_timing.py` 那条链），
+    不在本文件里存一个没人校验的镜像值——那正是漂移的来源。
+    """
+    import json as _json
+
+    data = {"backend_tests": tests,
+            "generated_by": "apps/electro-assist/api/scripts/check_metrics.py --write-metrics"}
+    if write:
+        METRICS_JSON.parent.mkdir(parents=True, exist_ok=True)
+        METRICS_JSON.write_text(_json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        print(f"[WRITE] docs/metrics.json 已刷新：backend_tests={tests}")
+        return 0
+    if not METRICS_JSON.exists():
+        print("[FAIL] 缺 docs/metrics.json —— 跑 `python scripts/check_metrics.py --write-metrics` 生成")
+        return 1
+    old = _json.loads(METRICS_JSON.read_text(encoding="utf-8"))
+    recorded = old.get("backend_tests")
+    if recorded != tests:
+        print(f"[FAIL] docs/metrics.json 记录 {recorded}，实算 {tests} —— 跑 --write-metrics 刷新")
+        return 1
+    print(f"[OK  ] docs/metrics.json 后端 {tests}（与实算一致）")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    write_metrics = "--write-metrics" in argv
+
     tests = collected_tests()
+    if write_metrics:
+        return check_metrics_json(tests, write=True)
+
     business, total = endpoint_counts()
 
     rows: list[tuple[str, str, int, int]] = []
@@ -127,6 +168,10 @@ def main() -> int:
         print("\n文档与代码不一致。改完代码记得同步上面这些文件（或反过来）。")
         return 1
     print(f"\n一致：{tests} 条测试、{business} 个业务端点（共 {total} 个端点）。")
+
+    metrics_rc = check_metrics_json(tests, write=False)
+    if metrics_rc:
+        return metrics_rc
 
     hints = review_hints()
     if hints:
