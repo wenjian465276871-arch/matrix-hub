@@ -60,6 +60,7 @@ import {
   roundedBox,
   steelMaterial,
   boltRun,
+  hexBolt,
   weldSeam,
   textPlate,
   pipeClamp,
@@ -245,7 +246,7 @@ function cylinderActuator(opts: {
  * 还从车顶面下一直穿到臂上（底座写在 y=0.04，比车顶还低）——这是画面上最假的一处。
  * 真机的气囊是短粗的一段（Ø200×220 量级），行程靠中间的活塞杆给出。
  */
-function airSpring(len: number, color: number, plateMat: Material, inner: Material): Linear {
+function airSpring(len: number, color: number, plateMat: Material, inner: Material, piston = true): Linear {
   const group = new Group()
   const L = len
   const profile: Vector2[] = []
@@ -314,13 +315,17 @@ function airSpring(len: number, color: number, plateMat: Material, inner: Materi
          囊体就成了横跨整个驱动舱的长筒，静态穿进底座横梁与导向筒——
          逐帧 BVH 实测 590~655 对三角相交，且六帧都在，说明是**静态埋进去**。
          真实空气弹簧行程有限（约 100~150mm），伸长靠钢丝绳，不靠囊体自己变长。 */
-      const bodyLen = Math.min(Math.max(L * 0.78, l - 0.05), 0.26)
+      /* 竖装气囊（piston=false）没有活塞杆：行程全靠囊体自身膨胀，
+         所以囊体长度直接等于两点距离，不封顶、也不留杆。 */
+      const bodyLen = piston ? Math.min(Math.max(L * 0.78, l - 0.05), 0.26) : l
       bellows.scale.y = bodyLen / L
       bladder.scale.y = bodyLen * 0.92
       bladder.position.y = bodyLen * 0.48
       cap.position.y = bodyLen + 0.011
-      const rodLen = Math.max(l - bodyLen, 0.02)
-      rod.scale.y = rodLen
+      const rodLen = piston ? Math.max(l - bodyLen, 0.02) : 0
+      rod.visible = piston
+      eye.visible = piston
+      rod.scale.y = Math.max(rodLen, 0.001)
       rod.position.y = bodyLen + rodLen / 2
       eye.position.y = l
     },
@@ -958,12 +963,15 @@ export function buildPantograph(): DeviceRig {
      导盘上的钢索绕过下臂根部的定滑轮 → 把下臂拉起来"。
      上一版把它做成竖着装在下臂 32% 处的长杆，底座还写在车顶面以下（y=0.04），
      结果是一根 0.9m 长的细肠子从车顶穿出来顶到臂上——三处都错。 */
-  const bag = airSpring(0.22, 0x3a3f45, plateMat, innerMat)
+  const bag = airSpring(0.26, 0x3a3f45, plateMat, innerMat, false)
   /* 2026-11-16：+0.14 → +0.20。中段（t 0.35~0.75）气囊下半圆扫进车架托
      （frame.093/094 顶面 three y≈0.565，囊底 0.488）→ 逐帧 BVH 报 52~147 对。
      抬高 6cm 后囊底到 0.578，让开托面。 */
   const BAG_Y = DECK_Y + 0.23
-  const BAG_Z0 = -0.6
+  /* 位置：原来在 -0.6，囊脚 Ø236 的边越过 z=-0.675，扎进后横梁 frame.070
+     （梁在 z -0.675~-0.765、y 0.41~0.51，逐帧 BVH 61 对）。前移到 -0.50，
+     底板后缘让出 5mm。 */
+  const BAG_Z0 = -0.53
 
   const driveMech = new Group()
   driveMech.add(bag.group)
@@ -972,13 +980,17 @@ export function buildPantograph(): DeviceRig {
   /* 抱箍**按囊体外径定高**：原来高 0.10m，而气囊半径 0.118、底面在 BAG_Y−0.118，
      于是整只囊体陷进抱箍里 8.8cm（逐帧 BVH：drive2.010/011 共 204 对三角）。
      现在座面刚好托在囊体底面下 2mm，抱箍只做"垫块"，不再咬进去。 */
-  const BAG_R = 0.118
-  const SEAT_TOP = BAG_Y - BAG_R - 0.002
-  const seatH = Math.max(0.01, SEAT_TOP - DECK_Y)
-  for (const z of [BAG_Z0 + 0.04, BAG_Z0 + 0.2]) {
-    driveMech.add(
-      roundedBox(0.15, seatH, 0.05, frameMat, 0, DECK_Y + seatH / 2, z, 0.005),
-    )
+  /* **气囊竖着装**（2026-11-17 R26-3）。三处公开资料口径一致：
+     气囊下端装在底架的**气囊安装座**上、上端接**蝴蝶座**；蝴蝶座顶起一根与底架铰接的
+     **驱动杆**，驱动杆活端经**钢丝绳**拉下臂转轴（专利 CN119494240A / 教材 §7.2.4）。
+     原来做成卧式、靠"导盘在导轨上平移"推进——那是液压缸的画法。 */
+  const BAG_BASE_Y = DECK_Y + 0.044
+  /* 底座：一块落在底架上的安装板 + 四颗螺栓（真实件就是 4 个螺柱连接） */
+  driveMech.add(roundedBox(0.34, 0.02, 0.34, plateMat, 0, DECK_Y + 0.01, BAG_Z0, 0.006))
+  for (const dx of [-0.13, 0.13]) {
+    for (const dz of [-0.13, 0.13]) {
+      hexBolt(driveMech, dx, DECK_Y + 0.021, BAG_Z0 + dz, 'y', 0.012)
+    }
   }
 
   // 导盘：一块横跨左右的滑块，两端各一个小滑轮，钢索从这里出去
@@ -990,13 +1002,35 @@ export function buildPantograph(): DeviceRig {
     sheave.position.set(sx * PDIM.armX, 0.02, 0)
     carriage.add(sheave)
   }
-  // 导盘坐在两根导轨上（没有导轨，它就是悬在空中的一块板）
-  for (const sx of [-1, 1]) {
-    driveMech.add(
-      roundedBox(0.03, 0.03, 0.72, frameMat, sx * PDIM.armX, BAG_Y - 0.03, -0.42, 0.005),
-    )
-  }
+  /* 原来这里有两根导轨给"导盘"滑动用。改成竖直气囊 + 驱动杆之后，
+     导盘不再平移，它挂在那根杆的活端——导轨没有存在理由，删掉。 */
   driveMech.add(carriage)
+
+  /* 蝴蝶座：坐在气囊顶板上，随顶板升降；中脊压在驱动杆下表面。
+     "蝴蝶"来自两侧的斜翼——实物就是这个形状，也是它名字的来由。 */
+  const butterfly = new Group()
+  butterfly.add(roundedBox(0.15, 0.03, 0.13, plateMat, 0, 0, 0, 0.006))
+  butterfly.add(roundedBox(0.06, 0.05, 0.17, frameMat, 0, 0.03, 0, 0.006))
+  for (const sx of [-1, 1]) {
+    const wing = roundedBox(0.10, 0.022, 0.10, frameMat, sx * 0.075, 0.035, 0, 0.005)
+    wing.rotation.z = sx * deg(18)
+    butterfly.add(wing)
+  }
+  driveMech.add(butterfly)
+
+  /* 驱动杆：**一端与底架铰接**，中部压在蝴蝶座上，活端挂钢丝绳安装座（导盘）。
+     气囊顶升 h → 杆绕铰点转过 asin(h/d)，活端升高 R·sinθ、前移 R·cosθ。 */
+  const ROD_PIVOT = new Vector3(0, BAG_BASE_Y + 0.26 + 0.037 + 0.055 + 0.034, BAG_Z0 - 0.30)
+  const ROD_LEN = 0.90
+  const ROD_ARM = 0.40              // 铰点到蝴蝶座压点的距离
+  const rodPivot = new Group()
+  rodPivot.position.copy(ROD_PIVOT)
+  rodPivot.add(roundedBox(0.07, 0.055, ROD_LEN, frameMat, 0, 0, ROD_LEN / 2, 0.008))
+  // 铰点耳板：两端各一块，杆要"看得出是绕它转的"
+  for (const sx of [-1, 1]) {
+    rodPivot.add(roundedBox(0.012, 0.10, 0.06, frameMat, sx * 0.045, -0.02, 0, 0.004))
+  }
+  driveMech.add(rodPivot)
 
   /* 两根钢索：导盘滑轮 → 下臂根部的定滑轮。长度随行程变，但永远连着两端；
      这一根线才是"气压怎么变成升弓动作"的答案，比任何文字都直白。 */
@@ -1375,7 +1409,7 @@ export function buildPantograph(): DeviceRig {
 
   /* ---------------------------------------------------------------- 机构 */
   const pivots = [new Vector3(-PDIM.armX, PDIM.pivotY, PDIM.pivotZ), new Vector3(PDIM.armX, PDIM.pivotY, PDIM.pivotZ)]
-  const bagBase0 = new Vector3(0, BAG_Y, BAG_Z0)
+  const bagBase0 = new Vector3(0, BAG_BASE_Y, BAG_Z0)
   const cA = new Vector3()
   const cB = new Vector3()
   const cU = new Vector3()
@@ -1433,17 +1467,22 @@ export function buildPantograph(): DeviceRig {
     /* 升弓链路：气囊伸长 → 导盘前移 → 钢索缩短 → 下臂转。
        角度仍由 `panto-kin` 给（那是唯一来源），这里只把**看得见的因果**接上：
        上一版气囊是竖着直接顶在臂上的长杆，画面上是"一根肠子从车顶穿出来"。 */
-    const stroke = 0.16 * p
-    const carZ = BAG_Z0 + 0.22 + stroke + 0.05
-    /* 气囊**止于 carrriage 梁的近端面**（梁厚 0.14，近面在 carZ−0.07）。
-       原来直接顶到梁心，囊体与活塞杆穿进梁里 4cm——逐帧 BVH 实测这一处就 292 对三角。
-       改成"贴着梁面推"，接触但不相交。 */
-    bag.set(bagBase0, cA.set(0, BAG_Y, carZ - 0.10))
-    carriage.position.set(0, BAG_Y, carZ)
+    /* 竖直气囊：底不动，顶随行程升高；蝴蝶座顶在气囊顶板上。 */
+    const lift = 0.16 * p
+    const bagTopY = BAG_BASE_Y + 0.22 + lift
+    bag.set(bagBase0, cA.set(0, bagTopY, BAG_Z0))
+    butterfly.position.set(0, bagTopY + 0.0385, BAG_Z0)
+
+    /* 驱动杆被蝴蝶座顶起 → 绕铰点转；活端挂着导盘（钢丝绳安装座） */
+    const theta = Math.asin(Math.min(0.5, lift / ROD_ARM))
+    rodPivot.rotation.x = -theta
+    const carZ = ROD_PIVOT.z + ROD_LEN * Math.cos(theta)
+    const carY = ROD_PIVOT.y + ROD_LEN * Math.sin(theta)
+    carriage.position.set(0, carY, carZ)
     for (let i = 0; i < 2; i += 1) {
       // 钢索：导盘滑轮 → **弧形调整板的弧面**（不是臂身上的一个点）
       const sx = i === 0 ? -1 : 1
-      cA.set(sx * PDIM.armX, BAG_Y + 0.02, carZ)
+      cA.set(sx * PDIM.armX, carY + 0.02, carZ)
       cU.subVectors(p1[i], pivots[i]).normalize()
       // 弧板 90° 正对臂身，锚点取 200°（后下方）——钢索从导盘过来正好切在这里
       const th = Math.atan2(cU.y, cU.z) + deg(110)

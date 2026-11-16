@@ -292,6 +292,17 @@ jobs:
             DB_PATH="$RUNNER_TEMP/e2e/e2e.db" python -c "import store; from services import library; store.init_db(); g = library.load_fixtures()[0]; g.id = 'g_e2e_draft_001'; g.steps = g.steps[:3]; print(store.save_guide(g, status='draft'))"
           )
 
+      # CI 的实际帧率必须量出来（R26-2）。三天里为让 CI 变绿改了 6 次阈值，
+      # 每次都说"CI 慢机"，但从没人量过它到底多慢——"慢"于是成了可以无限解释的口袋。
+      # 这一步把它变成数字：低于门槛说明这台机器撑不住按帧推进的断言，
+      # 应该改断言（等状态），而不是继续放宽超时。
+      - name: 渲染帧率实测（阻断）
+        working-directory: apps/electro-assist/web
+        env:
+          FPS_BASE: http://127.0.0.1:4173
+          FPS_MIN: "4"
+        run: node scripts/measure-fps.mjs
+
       - name: E2E 冒烟
         env:
           E2E_REVISE: "1"
