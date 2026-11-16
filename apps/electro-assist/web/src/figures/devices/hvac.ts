@@ -54,6 +54,7 @@ import {
   seg,
   steelMaterial,
   boltRun,
+  hexBolt,
   hemEdge,
   textPlate,
 } from './rig'
@@ -624,6 +625,22 @@ export function buildHvac(): DeviceRig {
   ]
   fanRig[0].group.position.set(0.885, TOP, -0.42)
   fanRig[1].group.position.set(0.885, TOP, 0.42)
+  /* 安装法兰：导风圈原来直接"立"在顶盖平面上，没有任何固定痕迹，看着像浮着。
+     真实机组的风机是**整圈法兰坐在开口上、一圈螺栓**。这里补法兰盘 + 8 颗螺栓。
+     2026-11-16 本人实测反馈："这2个风机是悬空的"。 */
+  for (const f of fanRig) {
+    const flange = new Mesh(
+      new CylinderGeometry(0.255, 0.255, 0.012, 32),
+      paintedMaterial(0x6f757b),
+    )
+    flange.position.y = -0.006
+    flange.castShadow = true
+    f.group.add(flange)
+    for (let i = 0; i < 8; i += 1) {
+      const a = (i / 8) * Math.PI * 2
+      hexBolt(f.group, Math.cos(a) * 0.238, 0.002, Math.sin(a) * 0.238, 'y', 0.008, 1)
+    }
+  }
   for (const f of fanRig) fanPart.add(f.group)
 
   /* ============================================================ 蒸发段 */
