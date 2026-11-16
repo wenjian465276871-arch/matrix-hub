@@ -1,9 +1,9 @@
 {
-  "sha256": "8cfd21b1bb842b2a3150baf1ed55b7d5caba813c90ad7f2586b45db3fd7b8bd6",
+  "sha256": "49fbda4f0b0a7d968f82c01fb6accb59469e1ff96796dd6bfa2ca905d3aeed1c",
   "files": {
     "samples": 9,
     "knowledge": 4
   },
   "knowledge_entries": 19,
-  "note": "本人 2026-11-15 22:35 裁决 R25-4 钥匙顺时针；按 §4.24 口径视为已批准，见 AI2Work 内容合规确认 §4.34；无新增来源"
+  "note": "2026-11-17 R26-5：车门防夹改按本人要求——碰块即停、反开到全开位、不自动重试；同步指导书正文与判据（原写连续3次报故障）。仅改表述，未引入新资料。"
 }

@@ -258,7 +258,11 @@ function airSpring(len: number, color: number, plateMat: Material, inner: Materi
     profile.push(new Vector2(0.088 + 0.026 * wave * mouth + 0.004, y * L))
   }
   const shell = new Mesh(
-    new LatheGeometry(profile, 26, deg(18), deg(270)),
+    /* **整圈 360°**。原来从 18° 起、扫 270°，留了 90° 缺口，
+       内胆（深色圆柱）就从缺口里露出来——远看像囊体上贴了一块亮面。
+       2026-11-17 本人截图指出"气囊外面应该是一整块橡胶"。
+       要看内部靠全局剖切（`cut` 平面），不靠给囊体开窗。 */
+    new LatheGeometry(profile, 36),
     new MeshStandardMaterial({ color, metalness: 0, roughness: 0.94, side: DoubleSide }),
   )
   shell.castShadow = true
@@ -283,6 +287,8 @@ function airSpring(len: number, color: number, plateMat: Material, inner: Materi
      有了这个组名，干涉检查才能把"气囊"与"车架"分开查。 */
   const namedBag = new Group()
   namedBag.name = 'bag'
+  /* 内胆不再需要：囊体整圈闭合之后它只会在剖切时露出一圈同心圆，反而像异物。 */
+  bladder.visible = false
   namedBag.add(bellows, bladder, foot, cap, rod, eye)
   /* 名字带不出去（实测：导出后按 `bag` 一个都匹配不到，节点名一律是 `<部件键>.<序号>`）。
      改用 `userData.qaGroup` → glTF `extras`，Blender 导入后是自定义属性，

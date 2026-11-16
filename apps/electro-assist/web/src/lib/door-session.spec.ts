@@ -163,19 +163,20 @@ describe('door 会话：防夹', () => {
     expect(door.closedLed).toBe(false)
   })
 
-  it('连续 3 次受阻报故障，停在全开位', () => {
+  it('**只动作一次**：反开到全开后，再按关门被拒（不自动重试）', () => {
     toOpen()
     toggleBlock()
     close()
     runToRest()
-    close()
-    runToRest()
-    const third = close()
-    expect(third.ok).toBe(false)
-    expect(door.bumps).toBe(3)
-    expect(door.fault).toContain('关门障碍物超次数')
-    runToRest()
     expect(door.openT).toBe(1)
+    expect(door.bumps).toBe(1)
+
+    // 2026-11-17 本人要求：第一次碰到就停并全开，不能自己再关一次
+    const again = close()
+    expect(again.ok).toBe(false)
+    expect(again.hint).toContain('不会自动重试')
+    expect(door.openT).toBe(1)
+    expect(door.bumps).toBe(1)
   })
 
   it('撤除试块后复测能正常关门，反开次数与故障清零', () => {
@@ -191,12 +192,17 @@ describe('door 会话：防夹', () => {
     expect(door.openT).toBe(0)
   })
 
-  it('有故障时不能确认「无故障」', () => {
-    powerOn()
-    door.fault = '关门障碍物超次数：门停在全开位'
-    const result = confirmDoor('nofault')
-    expect(result.ok).toBe(false)
-    expect(result.hint).toContain('复位')
+  it('防夹动作后撤块复位，可以正常关门到锁闭', () => {
+    toOpen()
+    toggleBlock()
+    close()
+    runToRest()
+    expect(door.bumps).toBe(1)
+    toggleBlock() // 撤块 = 复位（bumps 清零）
+    expect(close().ok).toBe(true)
+    settleDoor()
+    expect(door.openT).toBe(0)
+    expect(door.closedLed).toBe(true)
   })
 })
 

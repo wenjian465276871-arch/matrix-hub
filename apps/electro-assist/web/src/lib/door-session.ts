@@ -4,8 +4,8 @@
  *  - 车速 < 5 km/h 才允许集控开门（零速保护）；
  *  - 顺序是**集控投入 → 开门 → 关门**：转换开关盘「集控」扳到投入，全列该侧门
  *    才接受集控（2026-11-15 改：原「释放按钮」在实车操纵台上不存在，见 R25-5）；
- *  - 关门过程中碰到障碍物，门停止并**自动反开**；连续 3 次仍受阻，
- *    停在全开位并报「关门障碍物超次数」；
+ *  - 关门过程中碰到障碍物，门**立即停止并反向开门到位**，
+ *    **不自动重试**（2026-11-17 本人：第一次碰到就该停并全开，不能再自己关回去）；
  *  - 任意一个门没关到位，司机室操纵台的关门灯就灭。
  *  （见 `data/samples/door_switch_desk.json` 的 `source_note`，只引公开资料。）
  *
@@ -169,17 +169,21 @@ export function close(): ActionResult {
   if (!door.released) return { ok: false, hint: '未投入集控：先把「集控」扳到投入' }
   if (door.openT < 0.9) return { ok: false, hint: '门没开到位：先开门，再测关门时间' }
   if (door.blocked) {
-    door.bumps += 1
-    if (door.bumps >= 3) {
-      door.fault = '关门障碍物超次数：门停在全开位'
-      door.pinching = false
-      door.reopening = true
-      door.target = 1
-      return { ok: false, hint: `第 3 次仍检测到障碍物：停在全开位并报故障，须撤除障碍物后复位` }
+    /* **第一次碰到就终止**（2026-11-17 本人实测反馈）。
+       原逻辑是"最多试 3 次、3 次才停"：第一次碰到反开一小段，又自己关回去，
+       第三次才停在全开位。现场不是这样——障碍物检测一旦动作，门立即停止并
+       **反向开门到位**，不会自己再关。所以这里改成**终止态**：
+       记 `bumps = 1`，之后任何一次关门都被拒，直到撤块（`toggleBlock` 清零）。 */
+    if (door.bumps > 0) {
+      return {
+        ok: false,
+        hint: '防夹已动作过：门保持全开、不会自动重试；撤除试块并复位后再关门',
+      }
     }
+    door.bumps = 1
     door.pinching = true
     door.target = 0
-    return { ok: false, hint: `门扇前缘碰到试块：关门停止并反向开门（第 ${door.bumps} 次）` }
+    return { ok: false, hint: '门扇前缘碰到试块：立即停止关门、反向开门到位（不自动重试）' }
   }
   door.pinching = false
   door.reopening = false
