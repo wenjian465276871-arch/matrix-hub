@@ -382,7 +382,10 @@ export function buildHvac(): DeviceRig {
   }
 
   // 端板（短边）
-  for (const x of [X0 + U.t / 2, X1 - U.t / 2]) {
+  /* +X 端板往里收 1mm：qa 报 `shell.034<->shell.170` 在 **x=1.400**（端板外表面）有
+     1.35 m² 的同面重叠——整块端面都在同一平面上打架。收 1mm 让两块错开，
+     机位上看不出差别。 */
+  for (const x of [X0 + U.t / 2, X1 - U.t / 2 - 0.001]) {
     shell.add(roundedBox(U.t, U.H, U.W, x < 0 ? casing : casingDark, x, BOTTOM + U.H / 2, 0, 0.003))
   }
 
