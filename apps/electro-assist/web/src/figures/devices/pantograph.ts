@@ -277,7 +277,28 @@ function airSpring(len: number, color: number, plateMat: Material, inner: Materi
   bellows.add(shell)
   const rod = new Mesh(new CylinderGeometry(0.028, 0.028, 1, 14), chromeMaterial())
   const eye = roundedBox(0.075, 0.055, 0.06, plateMat, 0, 0, 0, 0.008)
-  group.add(bellows, bladder, foot, cap, rod, eye)
+  /* 整体放进一个**具名组** `bag`：导出 GLB 时节点名按父组名走（`bag.001`…），
+     只给 mesh 起名是带不出去的——这一点是实测出来的（导出后 `bag_` 前缀匹配 0 个）。
+     有了这个组名，干涉检查才能把"气囊"与"车架"分开查。 */
+  const namedBag = new Group()
+  namedBag.name = 'bag'
+  namedBag.add(bellows, bladder, foot, cap, rod, eye)
+  /* 名字带不出去（实测：导出后按 `bag` 一个都匹配不到，节点名一律是 `<部件键>.<序号>`）。
+     改用 `userData.qaGroup` → glTF `extras`，Blender 导入后是自定义属性，
+     干涉检查就按它分组。 */
+  namedBag.traverse((o) => {
+    o.userData.qaGroup = 'bag'
+  })
+  group.add(namedBag)
+  /* 给气囊的每个网格**起可识别的名字**：导出 GLB 之后要靠名字把它和车架分开，
+     否则干涉检查只能按 `drive.*` 这种粗粒度部件键，查不出"气囊插进支架"。
+     （2026-11-16：为了跑逐帧 BVH 干涉检测加的名字，命名前缀 `bag_`。） */
+  shell.name = 'bag_shell'
+  bladder.name = 'bag_bladder'
+  foot.name = 'bag_foot'
+  cap.name = 'bag_cap'
+  rod.name = 'bag_rod'
+  eye.name = 'bag_eye'
 
   const dir = new Vector3()
   return {
