@@ -42,7 +42,6 @@ import {
   rubberMaterial,
   seg,
   steelMaterial,
-  boltRun,
   textPlate,
 } from './rig'
 import { phaseFor } from '../../lib/devphase'
@@ -144,7 +143,11 @@ export function buildFeelerGauge(): DeviceRig {
   /* 放在**右块正面**（与铭牌同侧，x 0.016..0.132、y 0.015 低于铭牌），
      这样从常规机位看得见，且都落在盒面上；原来横跨 x −0.028..0.028，
      中间那颗正好在 8mm 缝里、悬空。 */
-  boltRun(caseParts, [0.016, 0.015, 0.0305], [0.132, 0.015, 0.0305], 3, 'z', 0.005)
+  /* 原来这里有三颗铆钉（`boltRun`），是照着截图臆造出来的——**已删除**。
+     实测它们的坐标落在尺套之外的空气里：尺套只有 6.4mm 宽、z 0~0.019，
+     而三颗钉摆在 x 0.016~0.132、z 0.0305（前方 30mm、旁边 130mm）。
+     真实塞尺的尺套只有**端部一根铰链销**（下面那个 pivot），没有三颗螺栓。
+     2026-11-16 本人报"3 颗螺栓悬浮在空中"——根因就是这条臆造件。 */
 
   const caseMat = chromeMaterial()
   for (const dx of [-0.0032, 0.0032]) {
