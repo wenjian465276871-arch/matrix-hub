@@ -322,7 +322,12 @@ export function buildDoor(): DeviceRig {
        ② 4mm 厚完全嵌进板内 → 整块被板包住，正面就看不见了（等于没有孔）。
      薄片外贴是唯一既能"正面读成孔"、又不会在侧面凸出的做法。
      注：本人报的"锁孔会出现和消失"仍未复现，原因未定（见 30.19）。 */
-  const lockHole = roundedBox(0.012, 0.034, 0.003, paintedMaterial(0x1b1e22), DIM.openW / 2 - 0.004, 0.93, lockPlateZ + 0.014, 0.001)
+  /* **凹进板面 0.3mm**，不再贴在板外。
+     隔离后绕到侧面才看清：贴面那块黑片会从板的轮廓里**伸出一小截**，
+     正面读成"孔"、侧面读成"多出来一块黑板"——这就是"锁孔会出现和消失"。
+     板面在 0.112；这里把暗片前沿放到 0.1117（内缩 0.3mm），厚 2mm，
+     于是正面仍是暗孔，侧面被板的厚度挡死，任何角度都不露头。 */
+  const lockHole = roundedBox(0.012, 0.034, 0.002, paintedMaterial(0x1b1e22), DIM.openW / 2 - 0.004, 0.93, lockPlateZ + 0.0097, 0.001)
   lockHole.userData.qaGroup = 'lockhole'
   frame.add(lockHole)
   // 前缘密封面：门扇合拢时密封条压在这条不锈钢压条上（−X 侧）

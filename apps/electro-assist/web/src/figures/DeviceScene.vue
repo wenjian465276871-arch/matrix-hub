@@ -160,6 +160,8 @@ let renderer: WebGLRenderer | null = null
    （2026-11-16 实测：t=0.05 与 t=0.90 两张截图 sha256 完全相同）。
    冻结后 watch 直接 return，视觉复核才拿得到"某一时刻"的确定画面。 */
 let frozenT: number | null = null
+/* DEV：把 OrbitControls 存下来，隔离查看时要靠它重设目标点。 */
+let devControls: any = null
 let scene: Scene | null = null
 let camera: PerspectiveCamera | null = null
 let controls: ControlsLike | null = null
@@ -906,6 +908,51 @@ async function init(): Promise<void> {
          投影出来的点击坐标就会跑到屏幕外（实测算到 x=1723，视口只有 1400）。 */
       canvas: canvasEl,
       /* 冻结/解冻时间。传数字=冻在该 t 并立刻重绘；传 null=解冻。 */
+      /* **只显示指定的件**，其余隐藏，并把机位挪到"刚好框住它们"。
+         用途：面板上"某块黑的东西是什么"这类问题，靠全景图猜必然出错
+         （2026-11-16 两次把门洞暗面当成锁孔）。isolate 之后没什么可猜的。
+         参数：qaGroup 名数组；传 null 恢复全部。 */
+      isolate: (groups: string[] | null) => {
+        if (!rig) return 0
+        const box = new T.Box3()
+        let n = 0
+        let camPos: number[] | null = null
+        rig.root.traverse((o: unknown) => {
+          const m = o as { isMesh?: boolean; userData: { qaGroup?: string }; visible: boolean }
+          if (!m.isMesh) return
+          const g = m.userData.qaGroup
+          m.visible = groups === null ? true : Boolean(g && groups.includes(g))
+          if (m.visible) {
+            box.expandByObject(o as never)
+            n += 1
+          }
+        })
+        if (groups !== null && n > 0) {
+          /* 相机要**调用时**取：`__dbg` 建在 `scene` 刚 new 的地方，那时 camera 还是 null，
+             闭包里直接引用会静默拿到 null（`camera?.position` 于是什么都没做——
+             2026-11-16 第一次跑就踩了这个坑：isolate 成功但机位没动）。 */
+          const cam = (window as unknown as { __dbg?: { camera?: { fov: number; position: { copy: (v: unknown) => { addScaledVector: (d: unknown, s: number) => void } } } } }).__dbg?.camera
+          const c = box.getCenter(new T.Vector3())
+          const size = box.getSize(new T.Vector3())
+          const maxSize = Math.max(size.x, size.y, size.z)
+          const dist = (maxSize / 2) / Math.tan(((cam?.fov ?? 34) * Math.PI) / 360) * 1.7
+          const dir = new T.Vector3(...(rig.viewDir ?? [0.6, 0.4, 0.8])).normalize()
+          /* 必须先放开 zoom 限位：`applyZoomLimits` 把 minDistance 定在整机取景的 0.55 倍（约 2m），
+             近距离特写的 target 距离只有 0.2m，会被 `OrbitControls.update()` 直接弹回去——
+             2026-11-16 第二次踩坑：位置设了却被夹回来，相机坐标纹丝不动。 */
+          const lim = devControls as unknown as { minDistance: number; maxDistance: number }
+          if (lim) {
+            lim.minDistance = 0.01
+            lim.maxDistance = 100
+          }
+          devControls?.target.set(c.x, c.y, c.z)
+          cam?.position.copy(c).addScaledVector(dir, dist)
+          devControls?.update()
+          camPos = cam ? (cam.position as unknown as { toArray: () => number[] }).toArray().map((v) => +v.toFixed(2)) : null
+        }
+        render()
+        return { n, hasCtrl: Boolean(devControls), camPos }
+      },
       freezeT: (v: number | null) => {
         frozenT = v
         if (v !== null && rig) {
@@ -989,6 +1036,7 @@ async function init(): Promise<void> {
     'three/examples/jsm/controls/OrbitControls.js'
   )
   const ctrl = new OrbitControls(camera, canvasEl)
+  devControls = ctrl as unknown as typeof devControls
   ctrl.target.set(target[0], target[1], target[2])
   /* 顺序有坑：OrbitControls 构造时会用**当时**的 target（默认原点）重算一次朝向，
      如果先摆机位再 new controls，模型会整体偏上——画面中心对着地面原点。
