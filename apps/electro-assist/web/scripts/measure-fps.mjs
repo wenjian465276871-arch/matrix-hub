@@ -87,12 +87,23 @@ if (process.env.GITHUB_STEP_SUMMARY) {
   )
 }
 
-if (fps < MIN) {
-  console.error(
-    `[FAIL] 实测 ${fps.toFixed(1)} fps，低于门槛 ${MIN} fps。\n` +
-      `这说明本机撑不住按帧推进的断言——应该改断言（等状态），而不是放宽超时。`,
-  )
-  process.exit(1)
-}
+/* **默认不失败**（2026-11-17 改）：第一版把 4fps 设成硬门槛，
+   结果 CI 用软件渲染跑 1–2fps，直接把自己的部署堵住了——
+   等于用环境惩罚代码，与 R2 的逻辑正好相反（R2 说的是"别用时间判对错"，
+   那就不该拿帧率当门禁）。
 
-console.log(`[OK] 帧率 ${fps.toFixed(1)} fps ≥ 门槛 ${MIN}`)
+   现在：帧率是**观测值**，写进作业摘要供推导阈值；只有"量不出来"才失败
+   （打不开页面 → exit 2）。需要硬门槛时显式传 `FPS_HARD=1`。 */
+if (fps < MIN) {
+  const msg =
+    `[WARN] 实测 ${fps.toFixed(1)} fps，低于参考线 ${MIN} fps。\n` +
+    `本环境的"等动画"断言不可信——请改断言（等状态），不要放宽超时。`
+  if (process.env.FPS_HARD === '1') {
+    console.error(msg.replace('[WARN]', '[FAIL]'))
+    process.exit(1)
+  }
+  console.warn(msg)
+  console.log(`[OK] 已记录（未设 FPS_HARD=1，不阻断）`)
+} else {
+  console.log(`[OK] 帧率 ${fps.toFixed(1)} fps ≥ 参考线 ${MIN}`)
+}
