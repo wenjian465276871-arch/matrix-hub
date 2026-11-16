@@ -155,6 +155,11 @@ let three: typeof import('three') | null = null
 let rigModule: RigModule | null = null
 let rig: DeviceRig | null = null
 let renderer: WebGLRenderer | null = null
+/* DEV：把时间冻在某个值上。null = 不冻（正常播放）。
+   为什么需要：演示页在自己 rAF 里每帧喂 `t`，外部调 `rig.setT(t)` 会被下一帧覆盖
+   （2026-11-16 实测：t=0.05 与 t=0.90 两张截图 sha256 完全相同）。
+   冻结后 watch 直接 return，视觉复核才拿得到"某一时刻"的确定画面。 */
+let frozenT: number | null = null
 let scene: Scene | null = null
 let camera: PerspectiveCamera | null = null
 let controls: ControlsLike | null = null
@@ -900,6 +905,14 @@ async function init(): Promise<void> {
          （页面本体 + 放大浮层），取 `document.querySelector('canvas')` 会取错，
          投影出来的点击坐标就会跑到屏幕外（实测算到 x=1723，视口只有 1400）。 */
       canvas: canvasEl,
+      /* 冻结/解冻时间。传数字=冻在该 t 并立刻重绘；传 null=解冻。 */
+      freezeT: (v: number | null) => {
+        frozenT = v
+        if (v !== null && rig) {
+          rig.setT(v)
+          render()
+        }
+      },
     }
   }
 
@@ -1224,6 +1237,7 @@ async function init(): Promise<void> {
 watch(
   () => props.t,
   (value) => {
+    if (frozenT !== null) return
     rig?.setT(value)
     followCamera(value)
     // 限位**不受 `userMoved` 影响**：人拉过视角之后，升弓这一拍的距离上限
