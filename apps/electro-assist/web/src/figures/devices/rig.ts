@@ -671,7 +671,12 @@ export function hemEdge(
     : axis === 'y' ? [size, length, size] : [size, size, length]
   const edge = new Mesh(new BoxGeometry(...dims), steelMaterial(0xbfc4c9))
   edge.position.set(at[0], at[1], at[2])
-  edge.rotation.z = Math.PI / 4
+  /* **绕自身轴**滚 45°，不是一律绕 Z。
+     原来写死 `rotation.z = π/4`：轴是 x 时，这条 1.85m 的窄条被斜着甩成对角线，
+     在空调侧壁上正好横穿整个面——本人看到的那两条"多余的长线"就是它
+     （两块 1.312² 的 BoxGeometry，实测 rotation.z=0.79）。
+     改成 `rotation[axis]` 后，条子仍沿各自轴，只是截面转了 45°，折边效果保留。 */
+  edge.rotation[axis] = Math.PI / 4
   parent.add(edge)
 }
 

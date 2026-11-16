@@ -475,15 +475,12 @@ export function buildHvac(): DeviceRig {
   shell.add(roundedBox(0.05, TOP_T, U.W - 0.12, casing, XC2 + 0.025, deckPlateY, 0, 0.003))
   shell.add(roundedBox(0.05, TOP_T, U.W - 0.12, casing, X1 - 0.025, deckPlateY, 0, 0.003))
   shell.add(roundedBox(X1 - XC2 - 0.1, TOP_T, 0.05, casing, (XC2 + X1) / 2, deckPlateY, 0, 0.003))
-  for (const z of [-0.42, 0.42]) {
-    /* 安装环内径必须大于导风圈外径：导风圈 R=0.225，原环 0.233−0.012=0.221，
-       **比风机还小 4mm**，风机整圈从环体里穿出来（逐帧 BVH 实测 1763 对三角）。
-       改成 0.272−0.012=0.260——**比法兰盘外缘（R=0.255）还外 5mm**，否则法兰会顶在环上。 */
-    const ring = new Mesh(new TorusGeometry(0.272, 0.012, 8, 40), casing)
-    ring.rotation.x = Math.PI / 2
-    ring.position.set(0.885, TOP, z)
-    shell.add(ring)
-  }
+  /* 风机安装环**取消**（2026-11-16）。
+     它原来是 Ø0.233 的环、内径 0.221 < 导风圈 0.225，风机整圈从环体里穿出来
+     （逐帧 BVH 实测 1763 对三角）；把环放大到 0.272 虽然把相交打到 0，
+     但环比法兰大 17mm，画面上成了一个悬空的白圈——从一个毛病换成另一个。
+     现在由风机自带的**法兰盘**（Ø0.51、坐在盖板顶面）承担"装在上面"的读数，环不再需要。 */
+
 
   /* 顶盖压框：真实机组顶部不是"一块平板盖在箱子上"，而是四周有一圈
      折边压框、盖板嵌在框里用螺栓压紧。不加这圈，整机读起来像一个浅托盘。 */
