@@ -6,6 +6,7 @@
 from .db import day_bounds_utc, db_path, init_db, now_iso, ping, schema_version, today_cst
 from .dao import (
     add_diagnose_step,
+    demote_to_draft,
     count_guides,
     count_jobs_between,
     count_jobs_by_retry_of,

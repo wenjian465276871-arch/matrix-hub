@@ -210,11 +210,13 @@ def test_seed_adds_missing_fixtures_without_touching_existing(tmp_path, monkeypa
     guide.title = "人工改过的标题"
     assert store.save_guide(guide, status="published")["skipped"] is True
 
-    shutil.copy(SAMPLES / "door_switch_formal.json", tmp_path / "b.json")
+    # 2026-11-17：原来拿 `door_switch_formal` 当"缺失样例"，该样例已下架
+    # （`library.RETIRED_SAMPLE_IDS`），不再参与 seed。换一份仍在架的。
+    shutil.copy(SAMPLES / "hvac_cooling.json", tmp_path / "b.json")
     library._seeded_paths.clear()  # 模拟进程重启
     assert library.ensure_seeded() == 1
     assert store.get_guide("g_door_clearance_001")["title"] == "客室侧门关闭间隙检查"
-    assert store.get_guide("g_door_switch_formal_001") is not None
+    assert store.get_guide("g_hvac_cooling_check") is not None
 
 
 def test_seed_refreshes_demo_when_revision_bumps(tmp_path, monkeypatch):
@@ -331,7 +333,10 @@ def _extra_published(count: int) -> None:
 def test_list_pages_twelve_at_a_time(fresh_library):
     # 样例份数从目录现数，不写死：2026-11-14 新增两份试验样例时，
     # 原来写死的 "7 份 → 20" 直接红了——数样例的用例不能靠人记。
-    seeded = len(library.load_fixtures(SAMPLES))
+    # 下架样例不参与 seed（`RETIRED_SAMPLE_IDS`），所以不能按文件数算。
+    seeded = sum(
+        1 for g in library.load_fixtures(SAMPLES) if g.id not in library.RETIRED_SAMPLE_IDS
+    )
     _extra_published(13)
     total = seeded + 13
 
@@ -378,7 +383,10 @@ def _extra_published(count: int) -> None:
 def test_list_pages_twelve_at_a_time(fresh_library):
     # 样例份数从目录现数，不写死：2026-11-14 新增两份试验样例时，
     # 原来写死的 "7 份 → 20" 直接红了——数样例的用例不能靠人记。
-    seeded = len(library.load_fixtures(SAMPLES))
+    # 下架样例不参与 seed（`RETIRED_SAMPLE_IDS`），所以不能按文件数算。
+    seeded = sum(
+        1 for g in library.load_fixtures(SAMPLES) if g.id not in library.RETIRED_SAMPLE_IDS
+    )
     _extra_published(13)
     total = seeded + 13
 

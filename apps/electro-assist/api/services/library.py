@@ -46,6 +46,21 @@ def _iter_fixtures(directory: Path):
             log.warning("跳过非法样例 %s：%s", path.name, exc)
 
 
+# 已下架样例（2026-11-17 本人：「这几份作业指导书删除不再展示」）。
+#
+# **只下架、不删行、也不删文件**：
+# - 不删行：历史**作业记录**与诊断按 guide_id 指向它们，删了就是断引用；
+# - 不删文件：它们同时是测试夹具（tests/ 有多个模块直接读这几份 JSON）。
+# 下架 = 不参与 seed（新库不会出现）+ 已有行从 published 降为 draft（列表只显示 published）。
+RETIRED_SAMPLE_IDS = frozenset(
+    {
+        "g_door_switch_formal_001",  # 客室侧门开关门功能与联锁确认（正式案例）
+        "g_door_switch_test_001",  # 客室侧门开关门功能试验
+        "g_pantograph_raise_check",  # 受电弓升弓功能检查（静态调试）
+    }
+)
+
+
 def load_fixtures(directory: Path | None = None) -> list[Guide]:
     """读取目录下所有合法样例。给 seed、兜底与"原语覆盖"测试共用。"""
     return list(_iter_fixtures(directory or guide_dir()))
@@ -107,6 +122,8 @@ def ensure_seeded() -> int:
     refreshed = 0
     drifted = 0
     for guide in load_fixtures(directory):
+        if guide.id in RETIRED_SAMPLE_IDS:
+            continue
         existing = store.get_guide(guide.id)
         if existing is not None:
             # 演示样例的内容修订：样例文件里 `meta.revision` 更高就覆盖库里那份。
@@ -161,6 +178,13 @@ def ensure_seeded() -> int:
             refreshed,
             drifted,
         )
+
+    # 库里已有的退役样例：降为 draft（列表只显示 published）。
+    # 不删行——历史作业记录按 guide_id 指向它们，删了就是断引用。
+    # 放在锁外：`demote_to_draft` 自己开事务，套在 `_seed_lock` 里没有意义。
+    for gid in RETIRED_SAMPLE_IDS:
+        if store.demote_to_draft(gid):
+            log.info("样例 %s 已下架（published → draft）", gid)
 
     with _seed_lock:
         _seeded_paths.add(key)

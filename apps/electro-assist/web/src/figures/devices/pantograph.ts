@@ -1000,14 +1000,23 @@ export function buildPantograph(): DeviceRig {
   }
 
   // 导盘：一块横跨左右的滑块，两端各一个小滑轮，钢索从这里出去
+  /* 驱动杆活端挂的是**钢丝绳安装座**，不是原来那块 1.0m 宽的"导盘"。
+     2026-11-17 本人截图：那块 1m 宽的板在升弓过程中横穿两根上臂导杆，看着像"融合"；
+     而且它挂在杆端、离气囊很远，读不出"气囊顶起来"的因果关系。
+     真机构：钢丝绳**中段**卡在座上，两端固定到下臂转轴（专利 CN119494240A）。 */
   const carriage = new Group()
-  carriage.add(roundedBox(1.0, 0.05, 0.14, armDark, 0, 0, 0, 0.008))
+  carriage.add(roundedBox(0.22, 0.06, 0.11, armDark, 0, 0, 0, 0.006))
   for (const sx of [-1, 1]) {
-    const sheave = new Mesh(new CylinderGeometry(0.055, 0.055, 0.03, 18), armDark)
+    const sheave = new Mesh(new CylinderGeometry(0.032, 0.032, 0.024, 16), armDark)
     sheave.rotation.z = Math.PI / 2
-    sheave.position.set(sx * PDIM.armX, 0.02, 0)
+    sheave.position.set(sx * 0.085, 0.015, 0)
     carriage.add(sheave)
   }
+  // 绳头压板：让"绳卡在这里"看得见
+  carriage.add(roundedBox(0.05, 0.02, 0.05, plateMat, 0, 0.04, 0, 0.004))
+  carriage.traverse((o) => {
+    o.userData.qaGroup = 'rod'
+  })
   /* 原来这里有两根导轨给"导盘"滑动用。改成竖直气囊 + 驱动杆之后，
      导盘不再平移，它挂在那根杆的活端——导轨没有存在理由，删掉。 */
   driveMech.add(carriage)
@@ -1026,12 +1035,18 @@ export function buildPantograph(): DeviceRig {
 
   /* 驱动杆：**一端与底架铰接**，中部压在蝴蝶座上，活端挂钢丝绳安装座（导盘）。
      气囊顶升 h → 杆绕铰点转过 asin(h/d)，活端升高 R·sinθ、前移 R·cosθ。 */
-  const ROD_PIVOT = new Vector3(0, BAG_BASE_Y + 0.26 + 0.037 + 0.055 + 0.034, BAG_Z0 - 0.30)
+  const ROD_PIVOT = new Vector3(0, BAG_BASE_Y + 0.26 + 0.037 + 0.055 + 0.031, BAG_Z0 - 0.30)
   const ROD_LEN = 0.90
-  const ROD_ARM = 0.40              // 铰点到蝴蝶座压点的距离
+  /* 力臂 = 铰点到**蝴蝶座压点**的实际 Z 距离。这里必须由几何算出来，不能写死：
+     原来写 0.40，而支点离蝴蝶座只有 0.30 —— 顶升 80mm 时压点只升高 60mm，
+     蝴蝶座就顶进杆里（逐帧 BVH：t=0.5 时 49 对三角，drive2.023 即座体）。 */
+  const ROD_ARM = Math.abs(ROD_PIVOT.z - BAG_Z0)
   const rodPivot = new Group()
   rodPivot.position.copy(ROD_PIVOT)
   rodPivot.add(roundedBox(0.07, 0.055, ROD_LEN, frameMat, 0, 0, ROD_LEN / 2, 0.008))
+  rodPivot.traverse((o) => {
+    o.userData.qaGroup = 'rod'
+  })
   // 铰点耳板：两端各一块，杆要"看得出是绕它转的"
   for (const sx of [-1, 1]) {
     rodPivot.add(roundedBox(0.012, 0.10, 0.06, frameMat, sx * 0.045, -0.02, 0, 0.004))

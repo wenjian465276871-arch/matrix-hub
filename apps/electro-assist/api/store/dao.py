@@ -38,6 +38,25 @@ def _row(row: sqlite3.Row | None) -> dict[str, Any] | None:
 # ---------------------------------------------------------------- guides
 
 
+def demote_to_draft(guide_id: str) -> bool:
+    """把一份样例从 published 降为 draft —— 库列表只显示 published，等于"下架"。
+
+    为什么不是删行：历史**作业记录**与诊断都按 guide_id 指向它，删了就是断引用。
+    为什么用 draft：`guides.status` 的 CHECK 只有 draft/published 两值，
+    为此加一个 `archived` 要动迁移，而"下架"与"未发布"在语义上已经够用。
+
+    只降 published，draft 保持不动（重复调用无副作用）。
+    """
+    with connect() as conn:
+        with tx(conn):
+            cur = conn.execute(
+                "UPDATE guides SET status = 'draft', updated_at = ? "
+                "WHERE id = ? AND status = 'published'",
+                (now_iso(), guide_id),
+            )
+    return cur.rowcount > 0
+
+
 def save_guide(
     guide: Guide,
     *,
