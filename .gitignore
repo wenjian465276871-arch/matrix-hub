@@ -68,3 +68,6 @@ eval-results/
 
 # Playwright 临时输出（--output 指定过的目录，别入库）
 e2e-out*/
+
+# E2E 临时截图
+mon-foot.png
