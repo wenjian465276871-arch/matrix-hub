@@ -285,13 +285,16 @@ function onDeskPart(key: string, label = ''): void {
   } else if (key === 'door_cmd') {
     /* 开关门开关：门在关闭侧就往开扳，已经开着就往关扳——与真车"扳到哪一档"一致，
        不再按"左/右 × 三个按钮"分流。 */
-    if (door.openT < 0.5) {
-      result = doorOpen()
-      if (door.target === 1) ensureMoving()
-    } else {
+    /* 判据用 `door.target`（指令），与旋钮姿态同源——否则关门途中点一下，
+       旋钮显示"关"、动作却发"开"，两者对不上（2026-11-17）。 */
+    if (door.target === 1) {
       result = doorClose()
-      ensureMoving()
+    } else {
+      result = doorOpen()
     }
+    /* 无论开关，都先把动画循环拉起来：门如果没被受理（故障/未集控），
+       `stepDoor` 自己会停，多跑一帧没有副作用。 */
+    ensureMoving()
   }
   if (result) notice.value = result.hint ? `已点「${name}」：${result.hint}` : `已点「${name}」`
 }
@@ -364,6 +367,12 @@ function goNext(): void {
   notice.value = jumped ? '已进入下一步' : '请点右上角「下一步」进入下一工序'
 }
 
+/** 在 MON 放大层里点「进入下一步」：先翻页，再关层（否则层留在新一步上，看着像没动）。 */
+function goNextFromMon(): void {
+  goNext()
+  monZoom.value = false
+}
+
 /* ---------------- MON 弹窗 ---------------- */
 
 /** 弹窗默认停在哪一页：按"此刻最该做的那件事"挑。 */
@@ -402,7 +411,11 @@ const doorAux = computed(() => `door|block=${door.blocked ? 1 : 0}`)
 const deskAux = computed(() => {
   const on = power.keyTurned && power.brakeFast ? 1 : 0
   return scene.value === 'door'
-    ? `door|side=${door.side}|released=${door.released ? 1 : 0}|open=${door.openT > 0.001 ? 1 : 0}|on=${on}`
+    /* **旋钮取"指令"，不取"门的位置"**（2026-11-17 本人：开关门旋钮不符合物理逻辑）。
+       原来用 `door.openT > 0.001`：关门过程中 openT 还大于 0，旋钮一直停在右旋位，
+       直到门关到位才"补"一个左旋 —— 而旋钮是指令发出的地方，必须**先旋、门再动**。
+       改成 `door.target`（0=关、1=开），按下即变。 */
+    ? `door|side=${door.side}|released=${door.released ? 1 : 0}|open=${door.target === 1 ? 1 : 0}|on=${on}`
     : `hvac|mode=${hvac.mode};temp=${hvac.setTemp};fresh=${hvac.freshAir};on=${on}`
 })
 
@@ -548,6 +561,12 @@ const unitBadge = computed(() => {
           本屏只做本步允许的操作（模式 / 温度 / 下发 / 逐项确认）；开关门等动作在三维台面的按钮上。
         </p>
         <MonPanel :params="monParams" label="MON 屏放大" @receipt="notice = $event" />
+        <!-- 放大层是 `position: fixed; inset: 0`，会把下面那条「本步完成，进入下一步」
+             整个盖住（2026-11-17 本人截图）。这里把出口复制一份到层内：
+             本步在 MON 上做完就能直接进下一步，不必先关层。 -->
+        <footer v-if="showGo" class="ops__mon-foot">
+          <button class="ops__go" type="button" @click="goNextFromMon">本步完成，进入下一步 ›</button>
+        </footer>
       </div>
     </div>
   </div>
@@ -859,6 +878,12 @@ const unitBadge = computed(() => {
   font: inherit;
   font-size: 12px;
   cursor: pointer;
+}
+
+.ops__mon-foot {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .ops__mon-tip {

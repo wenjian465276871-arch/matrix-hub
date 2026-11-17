@@ -1040,7 +1040,7 @@ export function buildPantograph(): DeviceRig {
   }
   linkPlate.add(roundedBox(0.09, 0.03, 0.05, frameMat, 0, 0, LINK_LEN - 0.02, 0.005))
   linkPlate.traverse((o) => {
-    o.userData.qaGroup = 'rod'
+    o.userData.qaGroup = 'linkplate'
   })
   /* 底架铰座：两块耳板 + 销。销穿孔在 BVH 里必然报相交，那是装配不是穿模。 */
   const pivotH = LINK_PIVOT.y - 0.045 - DECK_Y
@@ -1234,9 +1234,12 @@ export function buildPantograph(): DeviceRig {
   buildUpper(upperArms[1])
 
   // 横向联结：没有它，左右两片臂像两块独立的板
-  const braceLow = roundedBox(0.92, 0.05, 0.06, armDark, 0, 0, 0, 0.008)
-  const braceUp = roundedBox(1.14, 0.042, 0.05, armDark, 0, 0, 0, 0.007)
-  arms.add(braceLow, braceUp)
+  /* **两根跨中横撑已删除**（2026-11-17 本人第三次指出）。
+     实测（导出 GLB 量）：`braceUp` 长 **1.14m**，而两臂间距只有 0.92m ——
+     两端各穿出弓臂 4cm；且折叠时它落在下臂梁体上方 2cm 处、与驱动连接板在
+     默认机位**投影重叠**，看上去就是"横杆穿进弓臂 / 与驱动杆融合"。
+     真机在这个跨度上没有跨中横撑：下臂靠根部横轴与肘节横轴成框架。
+     删掉后这两处视觉冲突一并消失，也不影响任何受力表达。 */
 
   /* 两根导杆（**每侧一组**，与臂同一平面）。
      实机是 Ø25–30 的钢管，两端**叉形耳板 + 销轴**，颜色接近臂漆（不是镀铬亮杆）。
@@ -1495,8 +1498,6 @@ export function buildPantograph(): DeviceRig {
     }
 
     /* 横撑跟着两根臂的中点走。它们是横跨左右的联结件，只给位置，不参与臂的滚转。 */
-    braceLow.position.set(0, (pivots[0].y + p1[0].y) / 2, (pivots[0].z + p1[0].z) / 2)
-    braceUp.position.set(0, (p1[0].y + p2[0].y) / 2, (p1[0].z + p2[0].z) / 2)
 
     /* 升弓链路：气囊伸长 → 导盘前移 → 钢索缩短 → 下臂转。
        角度仍由 `panto-kin` 给（那是唯一来源），这里只把**看得见的因果**接上：
