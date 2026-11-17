@@ -104,17 +104,27 @@ for (const file of files) {
     await page.goto(`./guide/${guide.id}/read`)
     await expect(page.locator('.pager')).toBeVisible()
 
-    // 打印态铺开全部页：一次拿到所有步骤，不用逐页点
+    /* **先等首页挂上来，再铺开打印态**（2026-11-17）。
+       原来直接 dispatch `beforeprint`，而页面刚 `domcontentloaded` 时可能一页都还没挂
+       （分页器是异步 chunk）：铺开事件打在一张空壳上，随后 `waitForFunction` 干等 30s。
+       实测同一份 15 图样例有时 7 页秒到、有时整条超时——就是这一步的竞态。 */
+    await expect(page.locator('.pager__page').first()).toBeVisible()
     await page.evaluate(() => window.dispatchEvent(new Event('beforeprint')))
     /* 等页数齐：**显式轮询状态**，预算按 CI 实测给。
        2026-11-17：原来写死 `timeout: 10_000`，hvac 这份（6 步 / 15 图，最重）
        在 CI 上 15.3s 才铺完 → 每轮都红。CI 的 `渲染帧率实测（观测）` 打印
-       **最差帧 2417ms**，6 页 × 2.4s ≈ 15s，留 2× 余量取 30s。
-       要改这个数，先去看那一步打印的实测值，别凭感觉。 */
+       **最差帧 2417ms**，6 页 × 2.4s ≈ 15s。
+       2026-11-17 全套连跑时最重的一份（hvac 15 图）**单条 55s**、等待段实测超 30s
+       → 提到 **45s**（约 1.5× 余量）。要改这个数，先跑一遍单条并看耗时，别凭感觉。 */
+    console.log('[dbg] pages=', await page.locator('.pager__page').count(),
+      '| figures=', await page.locator('.figure').count(),
+      '| need=', steps.length,
+      '| url=', page.url(),
+      '| body=', (await page.locator('body').innerText()).slice(0, 80).replace(/\n/g, ' | '))
     await page.waitForFunction(
       (n) => document.querySelectorAll('.pager__page').length >= n,
       steps.length,
-      { timeout: 30_000, polling: 200 },
+      { timeout: 45_000, polling: 200 },
     )
 
     // 三维/烘焙图是异步 chunk，挂载要几帧；等总数齐了再逐页比，
@@ -130,7 +140,7 @@ for (const file of files) {
     await page.waitForFunction(
       (n) => document.querySelectorAll('.figure').length >= n,
       total,
-      { timeout: 30_000, polling: 200 },
+      { timeout: 45_000, polling: 200 },
     )
 
     // ① 逐页比对图数（按 aria-label 的「第 N 步」认页，不靠下标）

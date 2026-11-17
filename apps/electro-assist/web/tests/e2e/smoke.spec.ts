@@ -19,9 +19,10 @@ test('列表 → 引导第 1 步 → 刷新保持进度', async ({ page }) => {
   await page.goto('./')
   await expect(page.getByRole('heading', { name: '作业指导书' })).toBeVisible()
 
-  const formal = page.locator('.guide-card').filter({ hasText: '正式案例' }).first()
-  await expect(formal).toBeVisible()
-  await formal.click()
+  // 2026-11-17：该样例已**下架**（不再在库里展示），改用 id 直接打开。
+  // 下架样例仍可按链接访问（`test_draft_guide_can_be_run_by_link` 守这条），
+  // 本用例验的是阅读器与 A1 的行为，不是列表页入口。
+  await page.goto('./guide/g_door_switch_formal_001')
 
   await expect(page.getByRole('heading', { level: 1 })).toContainText('开关门')
 
