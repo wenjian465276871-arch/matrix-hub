@@ -69,7 +69,6 @@ import {
   LOWER_ROD,
   PDIM,
   PGAP,
-  UPPER_ROD,
   WIRE_Y,
   armAngles,
   compression,
@@ -1035,7 +1034,13 @@ export function buildPantograph(): DeviceRig {
 
   /* 驱动杆：**一端与底架铰接**，中部压在蝴蝶座上，活端挂钢丝绳安装座（导盘）。
      气囊顶升 h → 杆绕铰点转过 asin(h/d)，活端升高 R·sinθ、前移 R·cosθ。 */
+  /* 支点回到 `BAG_Z0 − 0.30`、杆长 0.90：实测这组参数下杆体与底架/阻尼器**0 对相交**
+     （前移缩短反而扎进阻尼器，254→320 对）。"看着穿过横杆"的真凶是原来那块
+     1.0m 宽的导盘，它已换成 0.22m 绳座。 */
   const ROD_PIVOT = new Vector3(0, BAG_BASE_Y + 0.26 + 0.037 + 0.055 + 0.031, BAG_Z0 - 0.30)
+  /* 杆长 0.56（原 0.90）：0.90 时活端在升弓中段会扫到上方那根横杆，
+     看着"一会儿在杆上面、一会儿在下面"。缩短后扫掠范围留在底架上方 0.35–0.62m，
+     横杆在 ~1.1m，两不相干。 */
   const ROD_LEN = 0.90
   /* 力臂 = 铰点到**蝴蝶座压点**的实际 Z 距离。这里必须由几何算出来，不能写死：
      原来写 0.40，而支点离蝴蝶座只有 0.30 —— 顶升 80mm 时压点只升高 60mm，
@@ -1047,10 +1052,24 @@ export function buildPantograph(): DeviceRig {
   rodPivot.traverse((o) => {
     o.userData.qaGroup = 'rod'
   })
-  // 铰点耳板：两端各一块，杆要"看得出是绕它转的"
+  // 杆上的双耳板
   for (const sx of [-1, 1]) {
     rodPivot.add(roundedBox(0.012, 0.10, 0.06, frameMat, sx * 0.045, -0.02, 0, 0.004))
   }
+  /* **底架上的铰座**：光有杆上耳板，杆还是"飘"在那里的（本人 2026-11-17 截图）。
+     真实结构是底架上焊两块耳板、中间穿销，杆绕销转。这里补：支座 + 销轴，
+     支座从底架大梁立起来，销穿过两侧耳板。 */
+  const pivotPillarTop = ROD_PIVOT.y - 0.02
+  const pivotH = pivotPillarTop - DECK_Y
+  for (const sx of [-1, 1]) {
+    driveMech.add(
+      roundedBox(0.03, pivotH, 0.09, frameMat, sx * 0.078, DECK_Y + pivotH / 2, ROD_PIVOT.z, 0.006),
+    )
+  }
+  const pivotPin = new Mesh(new CylinderGeometry(0.016, 0.016, 0.21, 14), chromeMaterial())
+  pivotPin.rotation.z = Math.PI / 2
+  pivotPin.position.set(0, ROD_PIVOT.y, ROD_PIVOT.z)
+  driveMech.add(pivotPin)
   driveMech.add(rodPivot)
 
   /* 两根钢索：导盘滑轮 → 下臂根部的定滑轮。长度随行程变，但永远连着两端；
@@ -1246,19 +1265,13 @@ export function buildPantograph(): DeviceRig {
     collar?: Mesh
   }
 
-  const upperRods: Rod[] = []
+  /* **上导杆已删除**（2026-11-17 本人对照 CAD：「这 2 根杆子应该是多余的」）。
+     单臂受电弓的弓头调平是一条**链路**：下臂 → 拉杆组装 → 上臂 → 平衡杆组装 → 弓头，
+     不是"两侧各一根对称长杆"。原实现给两边各加了一根下臂→弓头的定长杆，
+     CAD 里没有，且 0% 姿态下这两根又长又直地立着，明显不属于这个机构。
+     保留下面的下导杆（底架→上臂），它对应 CAD 的「拉杆组装」。 */
   const lowerRods: Rod[] = []
   for (const side of [-1, 1] as const) {
-    // 上导杆：定长刚杆（全行程差 0.5%，所以两端都是真耳板，不假装伸缩）
-    const ug = new Group()
-    const uTube = new Mesh(new CylinderGeometry(0.017, 0.017, 1, 12), rodMat)
-    uTube.position.y = 0.5
-    const uA = rodEnd()
-    const uB = rodEnd()
-    ug.add(uTube, uA, uB)
-    ug.userData.side = side
-    arms.add(ug)
-    upperRods.push({ grp: ug, tube: uTube, a: uA, b: uB })
 
     /* 下导杆：底架 → 上臂。杆长随行程变 90%，做不成定长杆（见 `panto-kin` 的说明），
        所以是**导向杆**：外套 + 滑杆 + 套口压盖。压盖是关键——没有它，外套端面
@@ -1503,7 +1516,7 @@ export function buildPantograph(): DeviceRig {
     for (let i = 0; i < 2; i += 1) {
       // 钢索：导盘滑轮 → **弧形调整板的弧面**（不是臂身上的一个点）
       const sx = i === 0 ? -1 : 1
-      cA.set(sx * PDIM.armX, carY + 0.02, carZ)
+      cA.set(sx * 0.085, carY + 0.015, carZ)
       cU.subVectors(p1[i], pivots[i]).normalize()
       // 弧板 90° 正对臂身，锚点取 200°（后下方）——钢索从导盘过来正好切在这里
       const th = Math.atan2(cU.y, cU.z) + deg(110)
@@ -1537,18 +1550,6 @@ export function buildPantograph(): DeviceRig {
          始终在臂的外侧、与臂大致平行，所以从任何角度看都不会"划"过臂的表面。 */
       const sx = i === 0 ? -1 : 1
       const rodX = pivots[i].x + sx * (PDIM.armOut + 0.07)
-
-      // 上导杆：下臂 f 处 → 弓头支架幅板下方
-      onLower(upA, i, UPPER_ROD.f, a1)
-      upA.x = rodX
-      upB.set(rodX, head.position.y + UPPER_ROD.offY, head.position.z + UPPER_ROD.offZ)
-      const ur = upperRods[i]
-      const ulen = Math.max(upA.distanceTo(upB), 0.15)
-      placeAxis(ur.grp, upA, upB)
-      // 管身两端各留 25mm 给耳板，避免管子戳出耳板外
-      ur.tube.scale.y = Math.max(ulen - 0.05, 0.08)
-      ur.tube.position.y = 0.025 + Math.max(ulen - 0.05, 0.08) / 2
-      ur.b.position.y = ulen
 
       /* 下导杆：底架 → 上臂 s 处。外套定长，滑杆从中抽出。
          套口必须带压盖——没有压盖，外套端面在斜视角下就是一个圆孔，
