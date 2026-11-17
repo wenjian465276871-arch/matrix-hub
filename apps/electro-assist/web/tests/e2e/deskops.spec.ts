@@ -356,8 +356,24 @@ test('车门：MON 确认 → 集控投入与开关门 → 点试块 + 关门必
   await page.locator('.ops__go').click()
 
   // --- 第 4 屏：转换开关盘「集控」扳到投入 → 「开关门」扳到开 ---
-  await clickPart(page, 'driver_desk', 'door_ctrl')
-  await expect.poll(() => probe(page).then((p) => p?.door.released ?? false)).toBe(true)
+  /* 3D 件点击在慢机上会**点空**（坐标对、投影抖，射线没打到热区）。
+     项目里已有 `clickPart` 的三轮重读坐标，但仍会偶发：2026-11-17 CI 上
+     "点集控没生效"连红两次，而本地单跑 59.9s 通过。
+     这里加**有界重试**（最多 3 次、每次等 3s 看状态）：不掩盖真实问题
+     （3 次都不行就照旧失败），只消除"坐标抖动导致的一次点空"。 */
+  let released = false
+  for (let attempt = 0; attempt < 3 && !released; attempt += 1) {
+    await clickPart(page, 'driver_desk', 'door_ctrl')
+    try {
+      await expect
+        .poll(() => probe(page).then((p) => p?.door.released ?? false), { timeout: 3_000 })
+        .toBe(true)
+      released = true
+    } catch {
+      released = false
+    }
+  }
+  expect(released, '集控开关点了 3 次仍未投入').toBe(true)
   await clickPart(page, 'driver_desk', 'door_cmd')
   await expect
     .poll(() => probe(page).then((p) => p?.door.openT ?? 0), {
