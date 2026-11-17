@@ -1397,13 +1397,11 @@ export function buildPantograph(): DeviceRig {
     s.position.x = x
     springs.push(s)
     susp.add(s)
-    const rod = new Mesh(new CylinderGeometry(0.011, 0.011, 1, 12), chrome)
-    rod.position.x = x
-    rod.userData.rod = true
-    susp.add(rod)
   }
   susp.add(roundedBox(0.72, 0.026, 0.12, armDark, 0, 0.005, 0, 0.006))
-  const guideRods = susp.children.filter((c) => c.userData.rod === true) as Mesh[]
+  /* **弹簧导杆已删除**（2026-11-17 本人对照 CAD：「这 2 根杆子应该是多余的」）。
+     它们是两根 Ø22 的细杆，从弓头竖直穿出去、比弓头本身长，画面上就是
+     一组交叉的细线悬在空中——既不像这个机构该有的件，CAD 里也没有。 */
   root.add(susp)
 
   /* ---------------------------------------------------------------- 接触线 */
@@ -1538,11 +1536,6 @@ export function buildPantograph(): DeviceRig {
       s.scale.y = springLen
       s.position.y = 0.012
     }
-    for (const r of guideRods) {
-      r.scale.y = Math.max(gap + 0.1, 0.02)
-      r.position.y = gap / 2 + 0.02
-    }
-
     /* ---------------- 两根导杆（每侧一组） ---------------- */
     for (let i = 0; i < 2; i += 1) {
       /* 导杆必须装在**上臂外侧**（`armX + armOut + 0.07`），不能只贴在下臂平面。
