@@ -646,6 +646,57 @@ async function init(): Promise<void> {
     if (import.meta.env.DEV) {
       // 量包围盒要用 three 的 Box3；不给出口就得在页面上手搓矩阵，容易算错
       ;(window as unknown as { __three?: unknown }).__three = three
+      /* **只读探针**（DEV）：按形状找件。2026-11-17 连续两轮"看着像杆"都没定位到，
+         因为 GLB 里名字被统一成部件键、代码里又拿不到实例。这里直接遍历当前 rig，
+         把"细、长、斜"的网格连同**所属部件键**一起报出来——判件靠尺寸与朝向，不靠眼。 */
+      type ProbeMesh = {
+        isMesh?: boolean
+        visible?: boolean
+        geometry?: { type: string; boundingBox?: import('three').Box3; computeBoundingBox?: () => void }
+        matrixWorld: import('three').Matrix4
+      }
+      ;(
+        window as unknown as {
+          __probeThin?: (opts?: { minLen?: number; maxDia?: number }) => unknown[]
+        }
+      ).__probeThin = (opts) => {
+        const T = three
+        if (!T || !rig) return []
+        const minLen = opts?.minLen ?? 0.3
+        const maxDia = opts?.maxDia ?? 0.06
+        rig.root.updateMatrixWorld(true)
+        const owner = new Map<object, string>()
+        for (const [key, obj] of Object.entries(rig.parts)) obj.traverse((o) => owner.set(o, key))
+        const out: unknown[] = []
+        const pos = new T.Vector3()
+        const quat = new T.Quaternion()
+        const scl = new T.Vector3()
+        rig.root.traverse((o) => {
+          const m = o as unknown as ProbeMesh
+          if (!m.isMesh || !m.geometry) return
+          m.matrixWorld.decompose(pos, quat, scl)
+          const geo = m.geometry
+          if (!geo.boundingBox) geo.computeBoundingBox?.()
+          const bb = geo.boundingBox
+          if (!bb) return
+          const size = new T.Vector3().subVectors(bb.max, bb.min).multiply(scl)
+          const dims = [size.x, size.y, size.z].sort((a, b) => b - a)
+          if (dims[0] < minLen || dims[1] > maxDia) return
+          // 长轴：取世界尺寸最大的那个局部轴，再按世界朝向算倾角
+          const idx = [size.x, size.y, size.z].indexOf(dims[0])
+          const axis = new T.Vector3(idx === 0 ? 1 : 0, idx === 1 ? 1 : 0, idx === 2 ? 1 : 0).applyQuaternion(quat)
+          out.push({
+            part: owner.get(o) ?? '(不在parts)',
+            geo: geo.type,
+            len: +dims[0].toFixed(3),
+            dia: +dims[1].toFixed(3),
+            dir: [axis.x, axis.y, axis.z].map((v) => +v.toFixed(2)),
+            center: [pos.x, pos.y, pos.z].map((v) => +v.toFixed(2)),
+            visible: m.visible !== false,
+          })
+        })
+        return out
+      }
       ;(window as unknown as { __exportGlb?: (t?: number) => Promise<string> }).__exportGlb =
         async (t?: number) => {
           const { GLTFExporter } = await import('three/examples/jsm/exporters/GLTFExporter.js')

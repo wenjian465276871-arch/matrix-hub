@@ -998,27 +998,6 @@ export function buildPantograph(): DeviceRig {
     }
   }
 
-  // 导盘：一块横跨左右的滑块，两端各一个小滑轮，钢索从这里出去
-  /* 驱动杆活端挂的是**钢丝绳安装座**，不是原来那块 1.0m 宽的"导盘"。
-     2026-11-17 本人截图：那块 1m 宽的板在升弓过程中横穿两根上臂导杆，看着像"融合"；
-     而且它挂在杆端、离气囊很远，读不出"气囊顶起来"的因果关系。
-     真机构：钢丝绳**中段**卡在座上，两端固定到下臂转轴（专利 CN119494240A）。 */
-  const carriage = new Group()
-  carriage.add(roundedBox(0.22, 0.06, 0.11, armDark, 0, 0, 0, 0.006))
-  for (const sx of [-1, 1]) {
-    const sheave = new Mesh(new CylinderGeometry(0.032, 0.032, 0.024, 16), armDark)
-    sheave.rotation.z = Math.PI / 2
-    sheave.position.set(sx * 0.085, 0.015, 0)
-    carriage.add(sheave)
-  }
-  // 绳头压板：让"绳卡在这里"看得见
-  carriage.add(roundedBox(0.05, 0.02, 0.05, plateMat, 0, 0.04, 0, 0.004))
-  carriage.traverse((o) => {
-    o.userData.qaGroup = 'rod'
-  })
-  /* 原来这里有两根导轨给"导盘"滑动用。改成竖直气囊 + 驱动杆之后，
-     导盘不再平移，它挂在那根杆的活端——导轨没有存在理由，删掉。 */
-  driveMech.add(carriage)
 
   /* 蝴蝶座：坐在气囊顶板上，随顶板升降；中脊压在驱动杆下表面。
      "蝴蝶"来自两侧的斜翼——实物就是这个形状，也是它名字的来由。 */
@@ -1030,56 +1009,81 @@ export function buildPantograph(): DeviceRig {
     wing.rotation.z = sx * deg(18)
     butterfly.add(wing)
   }
+  /* **连接板座耳**：后缘一对耳板，连接板末端的销就穿在这里。
+     没有它，连接板只是"停在座上方"，看着还是没连（2026-11-17 本人截图）。
+     耳顶做到 0.0545：与板下缘（座脊顶 0.055）差 0.5mm，读起来是贴合、又不算相交。 */
+  for (const sx of [-1, 1]) {
+    butterfly.add(roundedBox(0.016, 0.04, 0.026, frameMat, sx * 0.038, 0.0345, -0.065, 0.003))
+  }
   driveMech.add(butterfly)
 
-  /* 驱动杆：**一端与底架铰接**，中部压在蝴蝶座上，活端挂钢丝绳安装座（导盘）。
-     气囊顶升 h → 杆绕铰点转过 asin(h/d)，活端升高 R·sinθ、前移 R·cosθ。 */
-  /* 支点回到 `BAG_Z0 − 0.30`、杆长 0.90：实测这组参数下杆体与底架/阻尼器**0 对相交**
-     （前移缩短反而扎进阻尼器，254→320 对）。"看着穿过横杆"的真凶是原来那块
-     1.0m 宽的导盘，它已换成 0.22m 绳座。 */
-  const ROD_PIVOT = new Vector3(0, BAG_BASE_Y + 0.26 + 0.037 + 0.055 + 0.031, BAG_Z0 - 0.30)
-  /* 杆长 0.56（原 0.90）：0.90 时活端在升弓中段会扫到上方那根横杆，
-     看着"一会儿在杆上面、一会儿在下面"。缩短后扫掠范围留在底架上方 0.35–0.62m，
-     横杆在 ~1.1m，两不相干。 */
-  const ROD_LEN = 0.90
-  /* 力臂 = 铰点到**蝴蝶座压点**的实际 Z 距离。这里必须由几何算出来，不能写死：
-     原来写 0.40，而支点离蝴蝶座只有 0.30 —— 顶升 80mm 时压点只升高 60mm，
-     蝴蝶座就顶进杆里（逐帧 BVH：t=0.5 时 49 对三角，drive2.023 即座体）。 */
-  const ROD_ARM = Math.abs(ROD_PIVOT.z - BAG_Z0)
-  const rodPivot = new Group()
-  rodPivot.position.copy(ROD_PIVOT)
-  rodPivot.add(roundedBox(0.07, 0.055, ROD_LEN, frameMat, 0, 0, ROD_LEN / 2, 0.008))
-  rodPivot.traverse((o) => {
+  /* **连接板 + 钢丝绳组装**（2026-11-17 依公开教材 §7.2.4 重建）。
+     教材原文：升弓装置 = 连接板 + 钢丝绳组装 + 升弓气囊 + 调整板 + 蝴蝶座；
+     气囊充气 → 抬升蝴蝶座 → **连接板相对底架转动** → 抬升力经钢丝绳组装、
+     经固定在下臂杆上的调整板传下去 → 下臂杆旋转。
+
+     所以这条链上**没有那根 0.9m 的长杆**：蝴蝶座只被一块短连接板约束着转，
+     力靠钢丝绳直接走。上一版的长杆会在满行程时把活端抬到 1.3m（比弓头还高），
+     两端又都不连东西——本人 2026-11-17 截图指的就是这个。 */
+  /** 蝴蝶座静息时顶面高度：气囊 0.22 + 座体 0.0385 + 中脊 0.055 */
+  const SADDLE_TOP0 = BAG_BASE_Y + 0.22 + 0.0385 + 0.055
+  /** 连接板：铰点在蝴蝶座后方，销孔落在座体**后耳板**上 */
+  const EAR_DZ = 0.065
+  const LINK_LEN = 0.235
+  const LINK_PIVOT = new Vector3(0, SADDLE_TOP0 + 0.015, BAG_Z0 - EAR_DZ - LINK_LEN)
+
+  const linkPlate = new Group()
+  linkPlate.position.copy(LINK_PIVOT)
+  /* 板身：两块薄板夹在座耳两侧（真实件是一片带折边的板，这里做成两片更清楚） */
+  for (const sx of [-1, 1]) {
+    linkPlate.add(roundedBox(0.012, 0.03, LINK_LEN, frameMat, sx * 0.038, 0, LINK_LEN / 2, 0.004))
+  }
+  linkPlate.add(roundedBox(0.09, 0.03, 0.05, frameMat, 0, 0, LINK_LEN - 0.02, 0.005))
+  linkPlate.traverse((o) => {
     o.userData.qaGroup = 'rod'
   })
-  // 杆上的双耳板
-  for (const sx of [-1, 1]) {
-    rodPivot.add(roundedBox(0.012, 0.10, 0.06, frameMat, sx * 0.045, -0.02, 0, 0.004))
-  }
-  /* **底架上的铰座**：光有杆上耳板，杆还是"飘"在那里的（本人 2026-11-17 截图）。
-     真实结构是底架上焊两块耳板、中间穿销，杆绕销转。这里补：支座 + 销轴，
-     支座从底架大梁立起来，销穿过两侧耳板。 */
-  const pivotPillarTop = ROD_PIVOT.y - 0.02
-  const pivotH = pivotPillarTop - DECK_Y
+  /* 底架铰座：两块耳板 + 销。销穿孔在 BVH 里必然报相交，那是装配不是穿模。 */
+  const pivotH = LINK_PIVOT.y - 0.045 - DECK_Y
   for (const sx of [-1, 1]) {
     driveMech.add(
-      roundedBox(0.03, pivotH, 0.09, frameMat, sx * 0.078, DECK_Y + pivotH / 2, ROD_PIVOT.z, 0.006),
+      roundedBox(0.028, pivotH, 0.08, frameMat, sx * 0.056, DECK_Y + pivotH / 2, LINK_PIVOT.z, 0.006),
     )
   }
-  const pivotPin = new Mesh(new CylinderGeometry(0.016, 0.016, 0.21, 14), chromeMaterial())
+  const pivotPin = new Mesh(new CylinderGeometry(0.014, 0.014, 0.17, 14), chromeMaterial())
   pivotPin.rotation.z = Math.PI / 2
-  pivotPin.position.set(0, ROD_PIVOT.y, ROD_PIVOT.z)
+  pivotPin.position.set(0, LINK_PIVOT.y, LINK_PIVOT.z)
   driveMech.add(pivotPin)
-  driveMech.add(rodPivot)
+  driveMech.add(linkPlate)
 
-  /* 两根钢索：导盘滑轮 → 下臂根部的定滑轮。长度随行程变，但永远连着两端；
-     这一根线才是"气压怎么变成升弓动作"的答案，比任何文字都直白。 */
-  const cables: Mesh[] = []
-  for (let i = 0; i < 2; i += 1) {
-    const c = new Mesh(new CylinderGeometry(0.0065, 0.0065, 1, 8), steelMaterial(0x9aa0a6))
-    cables.push(c)
-    driveMech.add(c)
-  }
+  /* 钢丝绳组装：蝴蝶座前耳板 → 下臂根部**弧形调整板**。
+     Ø7 的绳，不是 Ø13 的杆——上一版做成粗圆柱、左右还接反了，正对镜头就是
+     两条交叉的"X 形细杆"悬在弓头上方（本人 2026-11-17 截图）。 */
+  /* **一根钢丝绳组装**（教材用词是单数）：蝴蝶座中耳板 → 下臂横撑中央的调整板。
+     走**中轴线**：气囊在中心线上，下臂两根之间的横撑也在中心线上，
+     绳自然是一条直线；左右各拉一根反而会横穿下臂本体（逐帧 BVH 207 对）。 */
+  const ropeGeo = new CylinderGeometry(0.0035, 0.0035, 1, 8)
+  /* 几何平移到 [0,1]：`placeAxis` 把局部 +Y 从 0 摆到 len，
+     CylinderGeometry 默认以中心为原点，不平移就整根偏移半个长度。 */
+  ropeGeo.translate(0, 0.5, 0)
+  const rope = new Mesh(ropeGeo, steelMaterial(0x7d858e))
+  rope.userData.qaGroup = 'rope'
+  driveMech.add(rope)
+  /* 绳头压板 ×2：座端、调整板端。让"绳卡在这两处"看得见。 */
+  const ropeClamp = new Mesh(new BoxGeometry(0.03, 0.028, 0.032), plateMat)
+  ropeClamp.userData.qaGroup = 'rope'
+  driveMech.add(ropeClamp)
+  /* **下臂横撑管**：两根下臂之间本来就有一根横撑（`arms.075`），
+     钢丝绳的调整板就焊在这根横撑的中央——不然绳头在两根臂中间的空气里，
+     看着又"没连上"（本人 2026-11-17 第二次反馈）。
+     管子随臂的 30% 站位走，绳头永远落在它的中点上。 */
+  const crossTube = new Mesh(new CylinderGeometry(0.024, 0.024, 0.94, 14), armDark)
+  crossTube.rotation.z = Math.PI / 2
+  crossTube.userData.qaGroup = 'rod'
+  driveMech.add(crossTube)
+
+  const endCleat = new Mesh(new BoxGeometry(0.05, 0.05, 0.03), plateMat)
+  endCleat.userData.qaGroup = 'rope'
+  driveMech.add(endCleat)
 
   const dampers = [0, 1].map(() =>
     cylinderActuator({
@@ -1456,8 +1460,6 @@ export function buildPantograph(): DeviceRig {
   const outB = new Vector3()
   const rodEndA = new Vector3()
   const rodEndB = new Vector3()
-  const upA = new Vector3()
-  const upB = new Vector3()
   let mode: PantoMode = 'normal'
   let lastT = 0
 
@@ -1499,30 +1501,40 @@ export function buildPantograph(): DeviceRig {
     /* 升弓链路：气囊伸长 → 导盘前移 → 钢索缩短 → 下臂转。
        角度仍由 `panto-kin` 给（那是唯一来源），这里只把**看得见的因果**接上：
        上一版气囊是竖着直接顶在臂上的长杆，画面上是"一根肠子从车顶穿出来"。 */
-    /* 竖直气囊：底不动，顶随行程升高；蝴蝶座顶在气囊顶板上。 */
+    /* **气囊 → 蝴蝶座 → 连接板 → 钢丝绳 → 调整板** 一条链（2026-11-17 重建）。
+       姿态**由蝴蝶座反算**，不再用一串常数往前推：
+       之前用 `SADDLE_TOP0 + 0.015` 之类推铰点高度，气囊顶盖的厚度没算进去，
+       于是板端比座面高 4~5cm —— 正对上本人说的"气囊没接触驱动杆"。
+       现在：气袋定座的位置 → 座的后耳定板的姿态 → 板端一定落在耳上（长度微调）。 */
     const lift = 0.16 * p
     const bagTopY = BAG_BASE_Y + 0.22 + lift
     bag.set(bagBase0, cA.set(0, bagTopY, BAG_Z0))
-    butterfly.position.set(0, bagTopY + 0.0385, BAG_Z0)
+    const saddleY = bagTopY + 0.0385
+    butterfly.position.set(0, saddleY, BAG_Z0)
 
-    /* 驱动杆被蝴蝶座顶起 → 绕铰点转；活端挂着导盘（钢丝绳安装座） */
-    const theta = Math.asin(Math.min(0.5, lift / ROD_ARM))
-    rodPivot.rotation.x = -theta
-    const carZ = ROD_PIVOT.z + ROD_LEN * Math.cos(theta)
-    const carY = ROD_PIVOT.y + ROD_LEN * Math.sin(theta)
-    carriage.position.set(0, carY, carZ)
-    for (let i = 0; i < 2; i += 1) {
-      // 钢索：导盘滑轮 → **弧形调整板的弧面**（不是臂身上的一个点）
-      const sx = i === 0 ? -1 : 1
-      cA.set(sx * 0.085, carY + 0.015, carZ)
-      cU.subVectors(p1[i], pivots[i]).normalize()
-      // 弧板 90° 正对臂身，锚点取 200°（后下方）——钢索从导盘过来正好切在这里
-      const th = Math.atan2(cU.y, cU.z) + deg(110)
-      cB.set(pivots[i].x, pivots[i].y + Math.sin(th) * ARC_R, pivots[i].z + Math.cos(th) * ARC_R)
-      const clen = Math.max(cA.distanceTo(cB), 0.05)
-      placeAxis(cables[i], cA, cB)
-      cables[i].scale.y = clen
-    }
+    /* 连接板：铰点 → 座后耳。角度与长度都按这两点算，端头永远贴着耳板。 */
+    /* 板**下缘**压在座脊面上：板厚 0.03，所以中心线要高 0.015 */
+    const earY = saddleY + 0.055 + 0.015
+    const earZ = BAG_Z0 - EAR_DZ
+    const dzE = earZ - LINK_PIVOT.z
+    const dyE = earY - LINK_PIVOT.y
+    const plateLen = Math.hypot(dzE, dyE)
+    linkPlate.rotation.x = -Math.atan2(dyE, dzE)
+    linkPlate.scale.z = plateLen / LINK_LEN
+
+    /* 钢丝绳：蝴蝶座脊面前缘 → 下臂横撑管中点的调整板（沿中轴，一根） */
+    cA.set(0, saddleY + 0.052, BAG_Z0 + 0.098)
+    cU.subVectors(p1[0], pivots[0]).normalize()
+    cB.copy(pivots[0]).addScaledVector(cU, PDIM.lower * 0.3)
+    cB.x = 0
+    crossTube.position.copy(cB)
+    const rlen = Math.max(cA.distanceTo(cB), 0.05)
+    placeAxis(rope, cA, cB)
+    rope.scale.y = rlen
+    ropeClamp.position.copy(cA)
+    endCleat.position.copy(cB)
+    endCleat.quaternion.copy(rope.quaternion)
+
     for (let i = 0; i < 2; i += 1) {
       dampers[i].set(dmpBase[i], onLower(attach, i, 0.5, a1))
     }
@@ -1592,13 +1604,27 @@ export function buildPantograph(): DeviceRig {
 
   setT(0)
 
+  /* **DEV 量具**：把传动链上的关键件挂到 window，用来量"到底贴没贴上"。
+     连续两轮靠"常数推 + 看图猜"都差几厘米（气囊顶盖厚度没算进去），
+     直接把世界包围盒读出来最快。生产构建里 `import.meta.env.DEV` 为常量 false，
+     整段会被摇掉，线上不会多出这个口子。 */
+  if (import.meta.env.DEV) {
+    ;(window as unknown as { __pantoRefs?: unknown }).__pantoRefs = {
+      bag: bag.group,
+      butterfly,
+      linkPlate,
+      rope,
+      crossTube,
+    }
+  }
+
   /* ---------------------------------------------------------------- 标注 */
   /* 术语按公开资料，不用自造词。只标"看不出是什么/看不见内部变化"的件。 */
   /* 只留 6 条：全屏演示页上 9 条会互相挤，而且"弓角""绝缘子"这种一眼就认识的件
      标了只是噪音。留下的每一条都对应一个"看不出是什么/看不见内部变化"的件。 */
   const annots = [
     { id: 'strip', text: '碳滑板', note: '×2，中心距 597mm' },
-    { id: 'urod', text: '上导杆', note: '保持滑板水平' },
+    { id: 'lrod', text: '拉杆组装', note: '与平衡杆一起保持弓头水平' },
     { id: 'bag', text: '气囊', note: '升弓动力源' },
     { id: 'damper', text: '阻尼器', note: '限下降速度' },
     { id: 'valve', text: '快排阀', note: 'ADD 时直排大气' },
@@ -1631,8 +1657,17 @@ export function buildPantograph(): DeviceRig {
     annotations: () =>
       annots.map((a) => {
         if (a.id === 'strip') return { ...a, at: new Vector3(0.5, head.position.y + 0.12, PDIM.stripZ) }
-        if (a.id === 'urod') {
-          return { ...a, at: new Vector3(PDIM.armX + 0.2, (upA.y + upB.y) / 2, (upA.z + upB.z) / 2) }
+        if (a.id === 'lrod') {
+          /* 拉到**拉杆组装**中点。原来这里指 `upA/upB`（上导杆），
+             那两根杆在 2026-11-17 已按本人要求删除，标签于是指向空气。 */
+          return {
+            ...a,
+            at: new Vector3(
+              PDIM.armX + PDIM.armOut + 0.07,
+              (rodEndA.y + rodEndB.y) / 2,
+              (rodEndA.z + rodEndB.z) / 2,
+            ),
+          }
         }
         if (a.id === 'bag') return { ...a, at: new Vector3(0, BAG_Y + 0.02, BAG_Z0 + 0.2) }
         if (a.id === 'damper') return { ...a, at: new Vector3(PDIM.armX + 0.06, DECK_Y + 0.14, 0.08) }
