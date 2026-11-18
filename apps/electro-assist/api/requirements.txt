@@ -33,3 +33,10 @@ typing-inspection==0.4.4
 # 处置：钉回 8.5.0（镜像源已有，零行为变化）；等确认阿里云同步 8.5.1 再连同上面几行一起升。
 # 升级前先查 https://mirrors.aliyun.com/pypi/simple/click/ 有没有目标版本。
 click==8.5.0
+
+# annotated-doc 第五次同类坑（2026-11-18 23:0x CI 实测）：PyPI 发布 0.0.7，
+# 阿里云镜像仍停在 0.0.6 → 锁文件门禁重新解析到 0.0.7，与已提交的 0.0.6 不一致，
+# 契约测试红、部署被跳过。它是 fastapi 的传递依赖（文档字符串处理）。
+# 处置：钉回 0.0.6（镜像源已有，零行为变化）；等确认阿里云同步 0.0.7 再连同上面几行一起升。
+# 升级前先查 https://mirrors.aliyun.com/pypi/simple/annotated-doc/ 有没有目标版本。
+annotated-doc==0.0.6
