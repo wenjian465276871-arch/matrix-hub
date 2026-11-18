@@ -47,10 +47,20 @@ try {
   process.exit(2)
 }
 
-// | 前端 E2E | **37 条**（本地 36 过 1 跳）：…
-const m = /\*\*(\d+) 条\*\*（[^）]*）/.exec(text)
+// 先**定位到「前端 E2E」那一行**，再在行内取数（2026-11-19 修）。
+// 原来直接用 /\*\*(\d+) 条\*\*（[^）]*）/ 抓全文第一个匹配——只要前面多一行
+// 形如「**N 条**（…）」的指标（比如 2026-11-18 加的「前端单测 **632 条**（51 文件…）」），
+// 抓到的就是那一行，于是 632 ≠ 48 报红，而 E2E 那条其实是对的。
+// 抓"第一个匹配"的门禁，会被排在前面的无关内容劫持——定位行才是稳的。
+const line = text.split(/\r?\n/).find((l) => l.trimStart().startsWith('| 前端 E2E |'))
+if (!line) {
+  console.error('[FAIL] README 里找不到「| 前端 E2E |」那一行')
+  process.exit(1)
+}
+const m = /\*\*(\d+) 条\*\*/.exec(line)
 if (!m) {
-  console.error('[FAIL] README 里没找到「前端 E2E」那一行的条数写法（**N 条**）')
+  console.error('[FAIL] 「前端 E2E」行里找不到 `**N 条**` 的写法')
+  console.error('  该行：' + line.slice(0, 120))
   process.exit(1)
 }
 if (m[1] !== count) {
