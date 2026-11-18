@@ -10,10 +10,11 @@
     "preview": "vite preview",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
-    "test:cov": "vitest run --coverage",
+    "test:cov": "vitest run --coverage --reporter=default --reporter=json --outputFile.json=.vitest-report.json",
     "test:a11y": "node scripts/axe.mjs",
     "test:e2e": "playwright test",
-    "check:bundle": "node scripts/check-bundle.mjs"
+    "check:bundle": "node scripts/check-bundle.mjs",
+    "check:docs": "node scripts/check-doc-metrics.mjs"
   },
   "dependencies": {
     "three": "^0.186.1",

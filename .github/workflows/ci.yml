@@ -207,6 +207,18 @@ jobs:
         working-directory: apps/electro-assist/web
         run: npm run test:cov
 
+      # 文档指标机检（2026-11-18）。补的是两个**从来没有机检**的数：
+      #   前端单测条数、前端 E2E 条数。
+      # 背景：`AGENTS.md` 把「前端单测 482 passed」写了三周，实际已是 632（差 150）；
+      # 待办 R23-2 标着「文档指标扩到首屏/CSS/E2E 两处机检」，实际 `check-bundle.mjs`
+      # 只校验 README 首屏、`check_metrics.py` 只校验后端测试数与端点数，E2E 从来没人管。
+      # 真值来源：vitest 的 JSON 报告（上一步 test:cov 产出）+ `playwright test --list`
+      # （静态收集，2 秒，不需要起服务）。
+      # 负例已验：README 的 632 改成 600 → exit 1 并报「差 32」；删掉 JSON 报告 → exit 1。
+      - name: 文档指标与实测一致（前端单测 / E2E）
+        working-directory: apps/electro-assist/web
+        run: npm run check:docs
+
       - name: 构建前端
         working-directory: apps/electro-assist/web
         run: npm run build

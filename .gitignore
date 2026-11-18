@@ -62,6 +62,9 @@ apps/electro-assist/web/coverage/
 # 覆盖率目录改名重跑时的临时目录（本机 safe-delete 拦删除，只能忽略）
 apps/electro-assist/web/coverage*/
 apps/electro-assist/web/cov-*/
+apps/electro-assist/web/.cov-*/
+# vitest 的 JSON 报告：`check:docs` 的真值来源，每次跑测试重新生成
+apps/electro-assist/web/.vitest-report.json
 
 # 注意：锁文件（uv.lock / package-lock.json）必须入库，不要忽略
 eval-results/
