@@ -1,9 +1,9 @@
 {
-  "sha256": "dbe2b616ee2e5760b38c68c146c66f33209ea41923a9ff099dc546b2cfc061df",
+  "sha256": "8b1ce862e11ffbb657f8fe1c74aaf44382380b0b4495ac23ac67fb83b962e377",
   "files": {
     "samples": 10,
     "knowledge": 4
   },
   "knowledge_entries": 19,
-  "note": "2026-11-19 00:57 本人回复「确认」：§4.36 三项（七步检查顺序、六项虚构参数量级、工序排序另定）通过复核"
+  "note": "2026-11-19 01:35 补 door_network_check 缺失的 disclaimers 字段（渲染必需，其余 9 份一致）；作业内容与参数未变，沿用 2026-11-19 00:57 本人确认（§4.37）"
 }

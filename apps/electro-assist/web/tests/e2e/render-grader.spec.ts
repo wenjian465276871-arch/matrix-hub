@@ -68,6 +68,14 @@ interface Guide {
 function normalize(guide: Guide): Guide {
   return {
     ...guide,
+    // `disclaimers` 也补（2026-11-19）：接口侧它是 `default_factory`，服务端永远会给；
+    // 样例文件则**可以省略**。新加的 door_network_check 省了它，于是 GuideView 的
+    // `guide.disclaimers.join()` 直接抛 TypeError，整页不渲染 → `.pager` 永远等不到。
+    // 这不是产品 bug：生产路径走接口，永远有值。属于"喂给渲染器的数据比接口少一个键"。
+    disclaimers: guide.disclaimers ?? [
+      '演示数据 · 非实际作业依据',
+      'AI 生成内容，需专业人员复核',
+    ],
     steps: guide.steps.map((step) => ({
       ...step,
       figures: step.figures ?? [],
