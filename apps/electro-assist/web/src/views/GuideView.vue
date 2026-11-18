@@ -14,6 +14,7 @@ import { announce } from '../lib/announce'
 import { ApiError, getJson, postJson } from '../lib/http'
 import { writeStoredJob } from '../lib/jobhandoff'
 import { pageCount, pageLabels } from '../lib/paging'
+import { formatTime } from '../lib/recordfmt'
 import { resetAllOps } from '../lib/ops-scope'
 import { resetTopBar, setTopBar } from '../composables/useTopBar'
 import { useDialogLayer } from '../composables/useDialogLayer'
@@ -105,6 +106,28 @@ async function printGuide(): Promise<void> {
   }
 }
 
+/* 纸面页眉：标题与生成日期进每页页边距盒（计划 §12.6「表头每页重复」）。
+ *
+ * 2026-11-18 打印抽检发现：指导书这一侧**从来没设过这两个变量**，只有记录页设了。
+ * 后果是第 7 页那种续页顶部一片空白——读者拿到一张纸，不知道它属于哪份指导书。
+ * （步骤号无法每页变化：Chromium 未实现 CSS Paged Media 的 running elements，
+ *  只能给恒定字段。表格的跨页重复由 `thead { table-header-group }` 负责。）
+ *
+ * 为什么不写在 printGuide 里：`window.print()` 同步阻塞，finally 一执行变量就没了。
+ * 与 RecordView 同一组变量名、同一套 CSSOM 写法（CSP 是 style-src 'self'，
+ * 内联 style 会被拦，CSSOM 不受约束）；值必须 JSON.stringify，content 要带引号的字符串。 */
+function setPrintHead(title: string, generatedAt: string): void {
+  const root = document.documentElement.style
+  root.setProperty('--print-run-id', JSON.stringify(title))
+  root.setProperty('--print-run-time', JSON.stringify(formatTime(generatedAt)))
+}
+
+function clearPrintHead(): void {
+  const root = document.documentElement.style
+  root.removeProperty('--print-run-id')
+  root.removeProperty('--print-run-time')
+}
+
 function goStep(seq: number): void {
   pager.value?.goTo(seq)
 }
@@ -181,6 +204,7 @@ async function load(): Promise<void> {
             .map((step) => `${step.id}「${step.title}」没有验收判据`)
         : []
     phase.value = 'ready'
+    setPrintHead(detail.guide.title, detail.guide.meta.generated_at)
   } catch (err) {
     if (ctrl.signal.aborted) return
     if (err instanceof ApiError && err.kind === 'notfound') {
@@ -222,6 +246,7 @@ watchEffect(() => {
 onBeforeUnmount(() => {
   ctrl?.abort()
   resetTopBar()
+  clearPrintHead()
 })
 
 /* ---------- 草稿修正（决策 #35）----------

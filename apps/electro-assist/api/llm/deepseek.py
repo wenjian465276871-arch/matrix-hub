@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from typing import Any
 
@@ -18,6 +19,20 @@ import httpx
 from .base import Completion, LLMError, Usage
 
 log = logging.getLogger("electro.llm.deepseek")
+
+# 上游的错误原文里会带**它自己回显的 Key 片段**。DeepSeek 的 401 长这样：
+#   Authentication Fails, Your api key: ****-000 is invalid
+# 这段会经 `job.error_message` 显示在公开站的生成页上——2026-11-18 密钥轮换演练
+# 用假 Key 实测到。尾号本身不可用，但本模块开头的承诺是"异常信息、日志、返回体
+# 一律不含 Key"，而这句话当时只对**请求头**成立，对**上游回显**不成立。
+# 两条规则：显式提到 api key 的片段整段抹掉；裸露的 sk- 前缀串单独兜底。
+_KEY_INLINE = re.compile(r"(api[ _-]?key[^:：\n]*[:：]\s*)\S+", re.IGNORECASE)
+_KEY_BARE = re.compile(r"\bsk-[A-Za-z0-9_\-]{6,}")
+
+
+def _scrub_secret(text: str) -> str:
+    """把上游回显里的凭据片段抹成 `****`，保留其余排障信息（含 request_id）。"""
+    return _KEY_BARE.sub("sk-****", _KEY_INLINE.sub(r"\1****", text))
 
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL = "deepseek-flash"
@@ -245,6 +260,9 @@ class DeepSeekProvider:
             detail = str(payload.get("error", {}).get("message", ""))[:300]
         except ValueError:
             detail = resp.text[:300]
+
+        # 上游回显可能带 Key 片段，先脱敏再拼进任何对外文案（见 _scrub_secret）
+        detail = _scrub_secret(detail)
 
         if status in (401, 403):
             raise LLMError("auth", f"鉴权失败：{detail or '请检查 DEEPSEEK_API_KEY'}", status=status)

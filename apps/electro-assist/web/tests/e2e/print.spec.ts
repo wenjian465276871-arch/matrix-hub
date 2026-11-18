@@ -84,3 +84,25 @@ test('打印态：MON 屏翻成浅色，页签与运行态状态牌都不印', a
     expect(await occupiesPaper(page, selector), `${selector} 不该出现在纸上`).toBe(false)
   }
 })
+
+/** 页眉每页重复（计划 §12.6）。2026-11-18 打印抽检发现指导书这一侧**从来没设过**
+ *  `--print-run-id` / `--print-run-time`：只有记录页设了，所以指导书的续页顶部
+ *  一片空白——一张纸拿在手里，不知道它属于哪份文件。
+ *  真实的"每页都有"只能看 PDF（`@page` 边距盒不参与屏幕渲染），这条守的是
+ *  更上游的一件事：**变量必须被设上、且值不是空的**。值没了，PDF 必然空。
+ *  实测记录：修复后 16 页 PDF 页页都有标题与日期（PyMuPDF 提取文本逐页核对）。 */
+test('打印页眉：指导书标题与生成日期写进 @page 变量', async ({ page }) => {
+  await page.goto(GUIDE_READ)
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('受电弓升弓试验')
+
+  const head = await page.evaluate(() => {
+    const st = document.documentElement.style
+    return {
+      id: st.getPropertyValue('--print-run-id'),
+      time: st.getPropertyValue('--print-run-time'),
+    }
+  })
+  // 值带引号是刻意的：CSS content 要字符串字面量
+  expect(head.id, '页眉标题没设上').toContain('受电弓升弓试验')
+  expect(head.time, '页眉日期没设上').toMatch(/20\d\d/)
+})

@@ -130,14 +130,37 @@
     background: none;
   }
 
+  /* 区块不许劈开：`block-label` 留在页底、内容跑到下一页，纸上就是
+     「图示」两个字下面什么都没有（2026-11-18 打印抽检在第 10 页实测到）。
+     与 .figure 同一条道理，只是保护对象从图块换成「标签 + 内容」这一整块。 */
+  .step__block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* 标签绝不与它的内容分离——块太大必须断时，这条兜住最后一层 */
+  .block-label {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
   .disclaimer {
     border: 1px solid #999;
     background: #fff;
     color: #000;
   }
 
+  /* 图块不许跨页劈开（2026-11-18 打印抽检发现）。
+     实证：车门正式案例第 1 步的「门区部位」图，标题与边框留在第 2 页底部、
+     图形本体跑到第 3 页，纸上看到的是一个空框加一张不知道属于哪一步的图。
+     根因是 `.step` 的 `break-inside: avoid` 在内容超过一页时会被浏览器忽略
+     （第 1 步实测 1427px > A4 内容高 1033px），于是步骤内部自由断裂，
+     而 `.figure` 当时只有 border、没有任何分页保护。
+     这里只保护**图块本身**：图比一页还高时该条同样会被忽略，但那属于内容问题。 */
   .figure {
     border: 1px solid #ccc;
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   /* 屏幕端用 content-visibility:auto 跳过首屏外画布；打印必须整页还原，
