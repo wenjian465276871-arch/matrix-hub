@@ -125,13 +125,17 @@ cd /opt/matrix-hub
 
 1. 记录当前 TAG
 2. `docker compose pull web`
-3. 用新 TAG 启动
-4. 健康检查：连续 3 次通过（每次间隔 5s，经 Caddy 443 检查 `/healthz?scope=ready`）
-5. 业务只读探针：列表 / 详情 / 知识库三个真实 GET（`deploy/probe.sh`）
-6. 知识库自检：`docker exec matrix-hub python -m scripts.eval_diagnose --quick --json`
+3. **迁移预演**：把生产卷里的库以只读连接打开（卷需读写挂载，WAL 的 `-shm` 要写权限），
+   在副本上跑一遍完整迁移（`python -m scripts.check_migration_copy --source /src/electro.db`）。
+   判据：版本到顶、每张业务表行数不变、`integrity_check=ok`。失败即拒绝切换，
+   线上保持原样；逃生口 `MIGRATION_CHECK=0`（会记进 `deploy.log`）。
+4. 用新 TAG 启动
+5. 健康检查：连续 3 次通过（每次间隔 5s，经 Caddy 443 检查 `/healthz?scope=ready`）
+6. 业务只读探针：列表 / 详情 / 知识库三个真实 GET（`deploy/probe.sh`）
+7. 知识库自检：`docker exec matrix-hub python -m scripts.eval_diagnose --quick --json`
    ——只跑检索、不调模型，约 50ms；Top-3 命中率低于 `EVAL_MIN_TOP3`（默认 0.8）
    或未覆盖识别不全，即判部署失败
-7. 任一步失败 → 自动切回上一 TAG 并按同一口径复查；仍不健康则退出码 1
+8. 任一步失败 → 自动切回上一 TAG 并按同一口径复查；仍不健康则退出码 1
 
 ## 4. 回滚
 
@@ -1250,3 +1254,57 @@ ROLLBACK_FAILED_ACK=1 ./deploy.sh <tag>
 
 **没验证的**：`uptime.yml` 那一步没法在本地跑（要真实 GitHub 调度），只做了逻辑等价验证；
 它本身的频率局限也没变（日均 2–8 次）。
+
+## 20. 发布纪律：分支、保护、标签（2026-11-19 补）
+
+> 背景：全仓 350 提交只有 1 个作者 PR（#22），此前所有改动都直接推 `main`。
+> 这不是"流程越多越安全"的问题——**合并到 `main` 就是部署**，所以真正的闸门
+> 必须落在合并之前，且必须能自动判红。
+
+### 20.1 一条规则
+
+**`main` 随时可发布；会改变运行时行为的改动，先在短分支上让 CI 跑一遍。**
+
+| 改动 | 走分支 | 说明 |
+|---|---|---|
+| 业务代码 / 迁移 / 样例数据 / CI / `deploy/**` | 是 | PR 阶段只跑 `契约测试 / E2E 冒烟 / 构建与校验`，**不部署** |
+| 纯文档 / 注释 | 可直推 | 仍要确认线上镜像 tag（"仅文档跳过部署"的历史洞见 §3） |
+| 线上故障 hotfix | 可直推 | 事后补一行记录：改了什么、为什么绕过 |
+
+分支寿命控制在 1–2 天；合并前 rebase 到最新 `main`；合并后删分支。一个分支只做一件事。
+
+### 20.2 分支保护（GitHub 设置，不进版本库）
+
+**当前状态（2026-11-19）**：`main` **未受保护**（API 返回 `Branch not protected`）。
+这是仓库级设置，代码里改不了；由项目所有者在网页完成一次即可：
+
+1. Settings → Branches → Add branch protection rule，分支名 `main`。
+2. 勾选 **Require status checks to pass before merging**，添加三个 check（名称必须逐字一致）：
+   - `契约测试`
+   - `E2E 冒烟`
+   - `构建与校验`
+3. 勾选 **Require branches to be up to date before merging**（strict）。
+4. 勾选 **Do not allow force pushes** 与 **Do not allow deletions**。
+5. **不要**勾选 Require approvals：单人仓库无法给自己的 PR 批准，会把自己锁死。
+6. 保留管理员绕过（Enforce admins 关闭），hotfix 时可用，但要在 PR/提交里说明。
+
+> `preflight` / `deploy` 两个 job 只在 push main 时运行，**不能**加进 required checks，
+> 否则 PR 会永远等一个不会出现的检查。
+
+### 20.3 发布标签
+
+每次上线给**被部署的那个 commit** 打 annotated tag：
+
+```bash
+git tag -a v2026.11.19 -m "上线 2026-11-19：知识库 397 条 / 5 子系统"
+git push origin v2026.11.19
+```
+
+- 分支会移动，tag 不会；回滚查"当时发的是哪版"以 tag 为准。
+- 同一天多次上线用 `v2026.11.19-2` 递增。
+- 已有基线：`v2026.11.19` → `a77d5ad`（首个标签，补于 2026-11-19 22:50）。
+
+### 20.4 PR 模板
+
+模板在 `.github/pull_request_template.md`，固定四问：改了什么 / 影响面（含 R1 同类扫描）/
+怎么验证 / 怎么回滚。PR 描述不是形式——它是合并前唯一强制你写"影响面"的地方。

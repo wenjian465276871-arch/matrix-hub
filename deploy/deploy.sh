@@ -97,6 +97,40 @@ record_state() {
 echo "==> 拉取镜像"
 TAG="$NEW_TAG" docker compose pull web
 
+# 迁移预演（2026-11-19 加）：新容器的迁移是在启动时才跑的，失败时旧容器已经被换掉，
+# 健康检查只能看见"进程起没起"。这里先在**生产库的只读副本**上跑一遍同一套迁移：
+# 版本到位、行数不变、integrity_check 通过，才允许切换。
+#
+# 三条边界：
+#   ① 源库只用只读连接（mode=ro），脚本不发写语句；卷按**读写**挂载是必须的——
+#      WAL 库的 -shm 需要写权限，只读挂载会 "unable to open database file"（已实测）；
+#   ② 超时 180s——迁移卡住时不能让部署挂到 CI 的 20 分钟上限；
+#   ③ 逃生口 MIGRATION_CHECK=0：检查脚本自身出问题时可以越过，但会记进 deploy.log。
+MIG_VOLUME="${MIG_VOLUME:-matrix-hub_app_data}"
+if [ "${MIGRATION_CHECK:-1}" = "1" ]; then
+  echo "==> 迁移预演（生产库副本，源只读）"
+  if ! docker volume inspect "$MIG_VOLUME" >/dev/null 2>&1; then
+    # 卷名不对 = 检查会静默跳过。容器已经存在却找不到卷，说明配置漂移，必须拦住；
+    # 只有"容器也不存在"才按首次部署放行。
+    if docker inspect matrix-hub >/dev/null 2>&1; then
+      echo "[FAIL] 容器存在但数据卷 $MIG_VOLUME 不存在（卷名配置漂移），拒绝部署" >&2
+      exit 1
+    fi
+    echo "[WARN] 数据卷 $MIG_VOLUME 不存在（首次部署），跳过迁移预演"
+  elif ! timeout 180 docker run --rm --network none \
+      --security-opt no-new-privileges:true \
+      --entrypoint python \
+      -v "${MIG_VOLUME}:/src" \
+      "${IMAGE}:${NEW_TAG}" -m scripts.check_migration_copy --source /src/electro.db; then
+    echo "[FAIL] 迁移预演失败，拒绝切换；线上仍是 ${PREV_TAG:-<none>}" >&2
+    echo "       排查：docker run --rm -v ${MIG_VOLUME}:/src --entrypoint python ${IMAGE}:${NEW_TAG} -m scripts.check_migration_copy --source /src/electro.db --keep" >&2
+    exit 1
+  fi
+else
+  echo "[WARN] MIGRATION_CHECK=0：跳过迁移预演（已记入 deploy.log）"
+  printf 'skip_migration_check=1 time=%s new_tag=%s\n' "$(date -Is)" "$NEW_TAG" >> deploy.log
+fi
+
 echo "==> 启动"
 TAG="$NEW_TAG" docker compose up -d web
 
