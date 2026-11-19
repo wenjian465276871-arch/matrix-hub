@@ -654,10 +654,17 @@ export function buildHvac(): DeviceRig {
     // 安装板：跨在冷凝器开口上，四周与顶盖框齐平
     fanPart.add(roundedBox(0.66, 0.02, 0.66, paintedMaterial(0x9aa0a6), 0.885, TOP - 0.01, z, 0.006))
     // 过渡筒：板下到盘管顶面，把"空档"填实
-    /* **别改共享材质的 side**：`paintedMaterial()` 是按色缓存的，
-       在上面写 `side = 2` 会把一堆面变成双面，软件渲染下成倍变慢
-       （2026-11-17 实测：CI 的渲染 grader 因此 10s 内铺不完 6 页而超时）。
-       过渡筒要双面就给它一份独立材质，或者干脆用闭合的短筒。 */
+    /* 过渡筒是开口圆柱（`openEnded = true`），从内侧看是空的，必须双面材质。
+       **别用 `duct.material.side = 2` 就地改**：`paintedMaterial()` 每次都
+       `new` 一份（不缓存，有 `rig.spec.ts` 的用例守着这条契约），所以当时那句
+       并不会污染别的件——但它把「这个材质是什么」藏进了行序里，
+       接手的人看不出它已被改过；而且改 `side` 会让 three 重编译着色器，
+       在 CI 的软件渲染下代价明显（2026-11-17 那次 6 页 10s 铺不完）。
+       要双面就显式 new 一份、把 `side` 写进构造参数，一眼能看出来。
+
+       （历史注记：原来这段注释写「`paintedMaterial()` 是按色缓存的」——**错的**，
+       2026-11-19 复盘核对：从初始提交 07ca4f7 起它就是每次 new。结论对、理由错，
+       错理由还留在了注释里，所以在这里改掉并留痕。） */
     const ductMat = new MeshStandardMaterial({ color: 0x8b9196, metalness: 0.35, roughness: 0.6, side: DoubleSide })
     const duct = new Mesh(new CylinderGeometry(0.285, 0.30, 0.05, 32, 1, true), ductMat)
     duct.position.set(0.885, TOP - 0.045, z)
