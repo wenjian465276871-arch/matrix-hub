@@ -66,15 +66,44 @@ async function scenePoint(
 }
 
 /**
+ * 等某个部件"能点"，返回它的屏幕坐标。
+ *
+ * 为什么必须等而不是断言：三维是**异步初始化**的——加载 GLB、建 `rig.parts`、
+ * 把坐标出口登记进 `__scenePoints`，全在 `init()` 里。刚翻到含三维那一屏时，
+ * 这三件事可能一件都没做完。2026-11-19 全量跑红的就是这个：
+ * `driver_desk.key` 读到 `null` 后**立刻**断言，而快照里三维已经渲染出来、
+ * 三个状态灯却还是 0/3——说明是第一次上电就没点到。
+ *
+ * 注意这**不是"等时间"**（R2）：等的是"坐标出口能返回非空坐标"这个可观测状态，
+ * 状态一到就走。45 秒只是兜底上限，正常在 100–300ms 内返回。
+ */
+async function pointOf(
+  page: import('@playwright/test').Page,
+  subject: string,
+  key: string,
+): Promise<Pt> {
+  const deadline = Date.now() + 45_000
+  for (;;) {
+    const point = await scenePoint(page, subject, key)
+    if (point) return point
+    if (Date.now() > deadline) {
+      throw new Error(`${subject}.${key} 45 秒内一直没拿到屏幕坐标（三维未就绪或部件不存在）`)
+    }
+    await page.waitForTimeout(200)
+  }
+}
+
+/**
  * 点三维里的某个部件。
  *
- * ## 为什么是"三轮 × 两遍扫描"而不是读一次坐标就点
- * 两个只在慢机上出现的坑：
- * 1. **坐标可能早读**：`__scenePoints` 用**当下**的画布矩形与相机投影，
+ * ## 为什么是"先等就绪，再三轮 × 两遍扫描"而不是读一次坐标就点
+ * 三个只在慢机上出现的坑：
+ * 1. **三维可能还没就绪**：见 `pointOf`，读到 `null` 不代表点不到，代表还没到时候。
+ * 2. **坐标可能早读**：`__scenePoints` 用**当下**的画布矩形与相机投影，
  *    而 CI 的软件渲染下布局（聚焦态、轨迹收起、画布 resize）可能比测试晚一步稳定，
  *    早读到的点会整体偏几十像素 → 点空 → 没有回执（run 43675612091 车门第 4 屏就是这样红的，
  *    快照里 `.ops__line` 是空的，等于 `onDeskPart` 压根没被调用）。
- * 2. **悬停值可能滞后**：`pointermove` 在 1–2 fps 下还在队列里，第一遍读到的
+ * 3. **悬停值可能滞后**：`pointermove` 在 1–2 fps 下还在队列里，第一遍读到的
  *    `__hoverKey` 是上一个点的值。所以每轮扫两遍（120ms / 240ms）。
  * 两轮都没对上就重读坐标再来，最多三轮；仍不行才点中心（保证"点了就有回执"的语义不变）。
  */
@@ -92,13 +121,12 @@ async function clickPart(
   ]
   let last: Pt | null = null
   for (let round = 0; round < 3; round += 1) {
-    const point = await scenePoint(page, subject, key)
-    expect(point, `${subject}.${key} 没拿到屏幕坐标`).not.toBeNull()
+    const point = await pointOf(page, subject, key)
     last = point
     let hit: [number, number] | null = null
     for (const settle of [120, 240]) {
       for (const [dx, dy] of offsets) {
-        await page.mouse.move(point!.x + dx, point!.y + dy)
+        await page.mouse.move(point.x + dx, point.y + dy)
         await page.waitForTimeout(settle)
         const hover = await page.evaluate(() => (window as unknown as { __hoverKey?: string }).__hoverKey ?? '')
         if (hover === key) {
@@ -109,7 +137,7 @@ async function clickPart(
       if (hit) break
     }
     if (hit) {
-      await page.mouse.click(point!.x + hit[0], point!.y + hit[1])
+      await page.mouse.click(point.x + hit[0], point.y + hit[1])
       await page.waitForTimeout(350)
       return
     }
