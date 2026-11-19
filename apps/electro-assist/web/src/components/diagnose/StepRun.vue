@@ -25,6 +25,8 @@ const SYSTEM_LABEL: Record<string, string> = {
   door: '客室侧门',
   hvac: '空调',
   pantograph: '受电弓',
+  brake: '制动',
+  wiper: '雨刷',
 }
 
 const CONCLUSION_LABEL: Record<string, string> = {
@@ -193,8 +195,22 @@ function submit(verdict: 'pass' | 'fail'): void {
         <p class="hit__label">安全提示</p>
         <p class="conclusion__text">{{ runData.conclusion.safety }}</p>
       </div>
-      <p v-if="runData.conclusion.sources.length" class="conclusion__sources">
-        来源：{{ runData.conclusion.sources.join('、') }}
+      <p
+        v-if="runData.conclusion.sources.length || runData.conclusion.source_links?.length"
+        class="conclusion__sources"
+      >
+        <template v-if="runData.conclusion.sources.length">
+          来源：{{ runData.conclusion.sources.join('、') }}
+        </template>
+        <a
+          v-for="(link, index) in runData.conclusion.source_links || []"
+          :key="link"
+          :href="link"
+          :title="link"
+          class="conclusion__link"
+          target="_blank"
+          rel="noopener noreferrer"
+        >原文{{ index + 1 }}</a>
       </p>
       <button class="btn btn--primary" type="button" @click="emit('reset')">重新排查</button>
     </article>

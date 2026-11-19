@@ -1,0 +1,843 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_wiper_no_action",
+      "system": "wiper",
+      "title": "雨刷完全不动作，各档位都没反应",
+      "symptoms": [
+        "旋钮打到各档雨刷都不动",
+        "喷水也不出液",
+        "电机处无任何声音"
+      ],
+      "keywords": ["雨刷不动", "刮水器不动作", "各档都没反应", "雨刮不动", "没反应"],
+      "likely_causes": [
+        { "text": "雨刷供电断路器跳闸或保险熔断", "weight": 1.0 },
+        { "text": "控制单元无供电", "weight": 0.8 },
+        { "text": "电机供电回路断路", "weight": 0.7 },
+        { "text": "雨刷开关或控制单元故障", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查雨刷断路器与保险", "expect": "断路器闭合、保险导通" },
+        { "order": 2, "action": "测量控制单元供电", "expect": "达到标称电压" },
+        { "order": 3, "action": "操作旋钮观察喷水是否出液", "expect": "喷水出液，说明控制单元有电" },
+        { "order": 4, "action": "测量电机插头供电", "expect": "对应档位有电压" }
+      ],
+      "escalation": "雨刷关系雨雪天行车视线，未修复前不得投入运用。",
+      "safety": "检查前断开雨刷电源，防止刮臂突然动作伤人。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.mlzp.cc/forum.php?mod=viewthread&tid=44245"]
+    },
+    {
+      "id": "kb_wiper_motor_hum",
+      "system": "wiper",
+      "title": "雨刷电机有嗡嗡声但刮臂不动",
+      "symptoms": [
+        "开机听到电机嗡嗡声",
+        "刮臂完全不动",
+        "电机外壳发热"
+      ],
+      "keywords": ["电机嗡嗡", "刮臂不动", "有声音不动", "电机响", "卡住"],
+      "likely_causes": [
+        { "text": "连杆或传动机构卡死", "weight": 1.0 },
+        { "text": "电机内部齿轮崩齿", "weight": 0.8 },
+        { "text": "刮臂与主轴连接松脱", "weight": 0.65 },
+        { "text": "电机转子卡滞", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "断电后手动摆动刮臂", "expect": "能摆动、无卡死" },
+        { "order": 2, "action": "检查连杆与球头", "expect": "连杆连接完好、无脱落" },
+        { "order": 3, "action": "检查刮臂与主轴连接", "expect": "连接牢固" },
+        { "order": 4, "action": "拆检电机齿轮", "expect": "齿轮无崩齿" }
+      ],
+      "escalation": "机构卡死时禁止强行通电，防止烧毁电机。",
+      "safety": "手动摆动刮臂前断电，防止电机突然启动。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_motor_burn",
+      "system": "wiper",
+      "title": "雨刷电机烧毁，通电有焦味",
+      "symptoms": [
+        "电机外壳发烫",
+        "有绝缘漆焦味",
+        "通电只有嗡嗡声不转"
+      ],
+      "keywords": ["电机烧", "焦味", "发烫", "嗡嗡不转", "线圈烧"],
+      "likely_causes": [
+        { "text": "线圈短路烧毁", "weight": 1.0 },
+        { "text": "长期卡滞强行通电导致过热", "weight": 0.8 },
+        { "text": "电压过高或进水短路", "weight": 0.6 },
+        { "text": "碳刷粉末导致内部短路", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "断电测量电机绕组电阻", "expect": "阻值在标称范围、无短路" },
+        { "order": 2, "action": "检查电机外观与焦味", "expect": "无烧蚀、无焦味" },
+        { "order": 3, "action": "检查电机是否进水", "expect": "内部干燥" },
+        { "order": 4, "action": "更换电机后复测各档", "expect": "各档正常" }
+      ],
+      "escalation": "线圈烧毁必须更换电机，禁止重绕后继续使用。",
+      "safety": "焦味明显时先断电，禁止触摸发烫外壳。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_brush_worn",
+      "system": "wiper",
+      "title": "雨刷电机碳刷磨损，时转时不转",
+      "symptoms": [
+        "雨刷时转时不转",
+        "轻拍电机外壳能短暂恢复",
+        "电机内有碳粉"
+      ],
+      "keywords": ["碳刷磨损", "时转时不转", "拍一下就好", "碳粉", "接触不良"],
+      "likely_causes": [
+        { "text": "碳刷磨耗到限", "weight": 1.0 },
+        { "text": "碳刷弹簧压力不足", "weight": 0.75 },
+        { "text": "换向器表面积碳", "weight": 0.6 },
+        { "text": "碳刷架卡滞", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "拆检碳刷长度与弹簧", "expect": "碳刷在限值以上、弹簧有效" },
+        { "order": 2, "action": "检查换向器表面", "expect": "光洁、无严重烧蚀" },
+        { "order": 3, "action": "清理碳粉并检查碳刷架", "expect": "碳刷活动自如" },
+        { "order": 4, "action": "装复后连续运行", "expect": "动作稳定" }
+      ],
+      "escalation": "碳刷到限或换向器烧蚀严重时更换电机。",
+      "safety": "拆检前断电，碳粉清理时戴口罩。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_fuse",
+      "system": "wiper",
+      "title": "雨刷保险熔断，换上新保险又熔",
+      "symptoms": [
+        "雨刷保险熔断",
+        "换保险后短时间又熔",
+        "保险座附近有焦味"
+      ],
+      "keywords": ["雨刷保险", "保险熔断", "换又烧", "保险座", "短路"],
+      "likely_causes": [
+        { "text": "雨刷回路短路或接地", "weight": 1.0 },
+        { "text": "电机内部短路", "weight": 0.8 },
+        { "text": "线束磨破搭铁", "weight": 0.65 },
+        { "text": "保险规格偏小", "weight": 0.4 }
+      ],
+      "checks": [
+        { "order": 1, "action": "核对保险规格", "expect": "规格与图纸一致" },
+        { "order": 2, "action": "断开电机后换保险上电", "expect": "保险不再熔断" },
+        { "order": 3, "action": "测量雨刷回路绝缘", "expect": "绝缘合格" },
+        { "order": 4, "action": "修复短路点后复测", "expect": "保险不再熔断" }
+      ],
+      "escalation": "同一保险连续熔断两次即停止更换，按短路故障排查。",
+      "safety": "更换保险必须断电，禁止加大规格。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_relay",
+      "system": "wiper",
+      "title": "雨刷继电器故障，间歇档失效",
+      "symptoms": [
+        "低速和高速正常，间歇档不工作",
+        "继电器无动作声",
+        "间歇档时雨刷停在中途"
+      ],
+      "keywords": ["雨刷继电器", "间歇档失效", "继电器不动作", "间歇", "停在中间"],
+      "likely_causes": [
+        { "text": "间歇继电器损坏", "weight": 1.0 },
+        { "text": "继电器线圈开路", "weight": 0.75 },
+        { "text": "继电器底座接触不良", "weight": 0.6 },
+        { "text": "间歇控制信号缺失", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "切换到间歇档听继电器动作", "expect": "有周期动作声" },
+        { "order": 2, "action": "测量继电器线圈与触点", "expect": "线圈导通、触点动作" },
+        { "order": 3, "action": "检查继电器底座", "expect": "接触良好" },
+        { "order": 4, "action": "更换继电器后复测", "expect": "间歇档正常" }
+      ],
+      "escalation": "间歇档失效可短时用低速档维持，但必须回段更换继电器。",
+      "safety": "更换继电器前断电。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_switch",
+      "system": "wiper",
+      "title": "雨刷开关接触不良，档位时有时无",
+      "symptoms": [
+        "旋钮转到某档偶尔不工作",
+        "来回转动几次又正常",
+        "开关处有轻微发热"
+      ],
+      "keywords": ["雨刷开关", "接触不良", "档位时有时无", "旋钮", "转动几次"],
+      "likely_causes": [
+        { "text": "开关触点氧化或烧蚀", "weight": 1.0 },
+        { "text": "旋钮内部凸轮磨损", "weight": 0.75 },
+        { "text": "开关插头接触不良", "weight": 0.6 },
+        { "text": "开关进水", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "逐档测量开关通断", "expect": "各档通断明确" },
+        { "order": 2, "action": "检查触点颜色与烧蚀", "expect": "触点光洁" },
+        { "order": 3, "action": "检查开关插头与线束", "expect": "插接可靠" },
+        { "order": 4, "action": "更换开关后复测", "expect": "各档正常" }
+      ],
+      "escalation": "触点烧蚀必须更换开关，禁止喷清洁剂后长期使用。",
+      "safety": "拆开关前断电。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_control_unit",
+      "system": "wiper",
+      "title": "雨刷控制单元故障，执行部件全不动作",
+      "symptoms": [
+        "电机与喷水泵都不工作",
+        "控制单元指示灯不亮",
+        "保险与供电都正常"
+      ],
+      "keywords": ["控制单元", "全不动作", "指示灯不亮", "控制盒", "雨刷控制"],
+      "likely_causes": [
+        { "text": "控制单元内部故障", "weight": 1.0 },
+        { "text": "控制单元搭铁不良", "weight": 0.7 },
+        { "text": "输入信号未送达", "weight": 0.6 },
+        { "text": "控制单元插头退针", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "测量控制单元供电与搭铁", "expect": "供电与搭铁正常" },
+        { "order": 2, "action": "检查控制单元插头", "expect": "无退针、无氧化" },
+        { "order": 3, "action": "测量输入信号", "expect": "开关信号正常" },
+        { "order": 4, "action": "更换控制单元后复测", "expect": "功能恢复" }
+      ],
+      "escalation": "控制单元为整体件，确认损坏后整体更换。",
+      "safety": "拆装控制单元前断电。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.mlzp.cc/forum.php?mod=viewthread&tid=44245"]
+    },
+    {
+      "id": "kb_wiper_plug_water",
+      "system": "wiper",
+      "title": "雨刷电机插头进水氧化，接触不良",
+      "symptoms": [
+        "雨后雨刷时好时坏",
+        "插头内有水珠或绿锈",
+        "针脚发黑"
+      ],
+      "keywords": ["插头进水", "氧化", "雨后故障", "绿锈", "针脚黑"],
+      "likely_causes": [
+        { "text": "插头密封圈老化", "weight": 1.0 },
+        { "text": "插头未插到位", "weight": 0.7 },
+        { "text": "线束护套破损进水", "weight": 0.6 },
+        { "text": "排水孔堵塞积水", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "拔下插头检查水迹与氧化", "expect": "插头干燥、针脚光洁" },
+        { "order": 2, "action": "清洁针脚并检查密封圈", "expect": "密封圈完好" },
+        { "order": 3, "action": "检查线束护套与排水", "expect": "护套完好、排水通畅" },
+        { "order": 4, "action": "处理后淋雨复测", "expect": "不再进水" }
+      ],
+      "escalation": "针脚严重腐蚀时更换插头或线束，禁止只喷除锈剂。",
+      "safety": "拔插头前断电，防止短路。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_link_detach",
+      "system": "wiper",
+      "title": "雨刷连杆脱落，电机转刮臂不动",
+      "symptoms": [
+        "电机运转正常但刮臂不动",
+        "连杆球头脱开",
+        "车外有连杆敲击声"
+      ],
+      "keywords": ["连杆脱落", "球头脱开", "电机转刮臂不动", "连杆", "敲击声"],
+      "likely_causes": [
+        { "text": "连杆球头卡簧脱落", "weight": 1.0 },
+        { "text": "球头磨损间隙过大", "weight": 0.8 },
+        { "text": "连杆变形导致脱出", "weight": 0.6 },
+        { "text": "安装螺栓松动", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查连杆球头与卡簧", "expect": "球头连接牢固、卡簧在位" },
+        { "order": 2, "action": "检查球头磨损", "expect": "间隙在限值内" },
+        { "order": 3, "action": "检查连杆变形", "expect": "连杆平直" },
+        { "order": 4, "action": "装复后手动摆动试验", "expect": "传动正常" }
+      ],
+      "escalation": "球头磨损或卡簧失效时更换连杆总成，禁止用铁丝绑扎。",
+      "safety": "装复后先手动试验，再通电。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.mlzp.cc/forum.php?mod=viewthread&tid=44245"]
+    },
+    {
+      "id": "kb_wiper_link_rust",
+      "system": "wiper",
+      "title": "雨刷连杆锈死，刮臂摆动僵硬",
+      "symptoms": [
+        "刮臂摆动僵硬、有异响",
+        "连杆关节处有锈迹",
+        "电机负载电流偏大"
+      ],
+      "keywords": ["连杆锈死", "摆动僵硬", "关节锈", "电流大", "卡滞"],
+      "likely_causes": [
+        { "text": "连杆关节缺润滑锈蚀", "weight": 1.0 },
+        { "text": "防水罩破损进水", "weight": 0.7 },
+        { "text": "长期停用导致锈死", "weight": 0.6 },
+        { "text": "润滑脂牌号不耐水", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "手动摆动刮臂感受阻力", "expect": "摆动顺畅" },
+        { "order": 2, "action": "检查关节锈蚀与防水罩", "expect": "无锈蚀、防水完好" },
+        { "order": 3, "action": "清洁除锈并加注润滑脂", "expect": "关节活动自如" },
+        { "order": 4, "action": "测量电机电流", "expect": "电流正常" }
+      ],
+      "escalation": "锈死无法恢复时更换连杆总成。",
+      "safety": "除锈时防止金属屑进入关节。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_arm_loose",
+      "system": "wiper",
+      "title": "刮臂与驱动轴连接松动，刮刷位置偏移",
+      "symptoms": [
+        "刮臂在轴上打滑",
+        "刮刷停止位置偏移",
+        "刮臂固定螺母松动"
+      ],
+      "keywords": ["刮臂松动", "轴上打滑", "位置偏移", "固定螺母", "刮臂"],
+      "likely_causes": [
+        { "text": "刮臂固定螺母松动", "weight": 1.0 },
+        { "text": "驱动轴锥面磨损", "weight": 0.75 },
+        { "text": "刮臂孔磨损", "weight": 0.6 },
+        { "text": "安装时未对正停放位", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查刮臂固定螺母扭矩", "expect": "达到标称扭矩" },
+        { "order": 2, "action": "检查驱动轴锥面与刮臂孔", "expect": "无磨损、配合紧密" },
+        { "order": 3, "action": "按停放位重新安装刮臂", "expect": "停放位置正确" },
+        { "order": 4, "action": "运行后复查", "expect": "无位移" }
+      ],
+      "escalation": "锥面磨损时必须更换刮臂或驱动轴，禁止加垫片。",
+      "safety": "拆装刮臂时防止弹起伤人。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_arm_pressure",
+      "system": "wiper",
+      "title": "刮臂压力不足，刮不干净留水膜",
+      "symptoms": [
+        "刮过后玻璃仍有水痕",
+        "刮片与玻璃贴合不紧",
+        "高速时刮片跳动"
+      ],
+      "keywords": ["刮臂压力", "刮不干净", "水膜", "贴合不紧", "刮片跳"],
+      "likely_causes": [
+        { "text": "刮臂弹簧疲劳", "weight": 1.0 },
+        { "text": "刮臂变形导致压力不均", "weight": 0.75 },
+        { "text": "刮片老化变硬", "weight": 0.65 },
+        { "text": "玻璃表面有油膜", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查刮臂弹簧弹力", "expect": "弹力在标称范围" },
+        { "order": 2, "action": "检查刮臂变形", "expect": "刮臂平直" },
+        { "order": 3, "action": "检查刮片状态与玻璃清洁", "expect": "刮片柔软、玻璃无油膜" },
+        { "order": 4, "action": "更换刮臂或刮片后复测", "expect": "刮拭干净" }
+      ],
+      "escalation": "刮臂弹簧失效时更换刮臂总成。",
+      "safety": "更换刮臂时防止刮片弹回打伤玻璃。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_blade_aged",
+      "system": "wiper",
+      "title": "刮片老化硬化，刮拭有纹路",
+      "symptoms": [
+        "刮片橡胶发硬",
+        "刮过后有条状水痕",
+        "刮片边缘有细裂纹"
+      ],
+      "keywords": ["刮片老化", "发硬", "条状水痕", "细裂纹", "雨刷片"],
+      "likely_causes": [
+        { "text": "橡胶自然老化", "weight": 1.0 },
+        { "text": "长期暴晒与温差作用", "weight": 0.75 },
+        { "text": "玻璃表面有砂粒磨损刮片", "weight": 0.6 },
+        { "text": "使用不合格刮片", "weight": 0.4 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查刮片橡胶弹性与裂纹", "expect": "橡胶柔软、无裂纹" },
+        { "order": 2, "action": "清洁玻璃与刮片", "expect": "无砂粒、无油膜" },
+        { "order": 3, "action": "更换刮片后试刮", "expect": "刮拭干净" },
+        { "order": 4, "action": "检查刮臂压力", "expect": "压力正常" }
+      ],
+      "escalation": "刮片老化必须更换，禁止用砂纸打磨后继续使用。",
+      "safety": "更换刮片时防止刮臂弹回。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_blade_broken",
+      "system": "wiper",
+      "title": "刮片破损或脱开，刮伤玻璃",
+      "symptoms": [
+        "刮片有缺口或撕裂",
+        "刮片从支架脱出",
+        "玻璃出现划痕"
+      ],
+      "keywords": ["刮片破损", "撕裂", "脱开", "刮伤玻璃", "划痕"],
+      "likely_causes": [
+        { "text": "刮片橡胶撕裂", "weight": 1.0 },
+        { "text": "刮片支架变形", "weight": 0.7 },
+        { "text": "玻璃有异物导致刮片损坏", "weight": 0.6 },
+        { "text": "刮片安装不到位", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查刮片与支架", "expect": "刮片完整、支架无变形" },
+        { "order": 2, "action": "检查玻璃划痕", "expect": "无新划痕" },
+        { "order": 3, "action": "更换刮片并清洁玻璃", "expect": "刮拭正常" },
+        { "order": 4, "action": "运行后复查玻璃", "expect": "无新划痕" }
+      ],
+      "escalation": "刮片破损会划伤玻璃，发现即更换。",
+      "safety": "处理玻璃划痕时佩戴防割手套。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_blade_noise",
+      "system": "wiper",
+      "title": "雨刷工作时异响，刮片跳动",
+      "symptoms": [
+        "刮刷时有吱吱声",
+        "刮片在玻璃上跳动",
+        "低速档更明显"
+      ],
+      "keywords": ["雨刷异响", "刮片跳动", "吱吱声", "抖动", "刮不静"],
+      "likely_causes": [
+        { "text": "刮片老化或变形", "weight": 1.0 },
+        { "text": "玻璃表面有油膜或蜡", "weight": 0.75 },
+        { "text": "刮臂压力过大", "weight": 0.6 },
+        { "text": "刮臂角度不对", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "清洁玻璃与刮片", "expect": "无异响" },
+        { "order": 2, "action": "检查刮片变形与老化", "expect": "刮片完好" },
+        { "order": 3, "action": "检查刮臂压力与角度", "expect": "压力与角度正常" },
+        { "order": 4, "action": "更换刮片后复测", "expect": "刮拭平顺" }
+      ],
+      "escalation": "异响持续且刮片正常时检查刮臂角度与玻璃平面度。",
+      "safety": "运行中不要用手触碰刮臂。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_no_return",
+      "system": "wiper",
+      "title": "雨刷关闭后不回停放位",
+      "symptoms": [
+        "关掉雨刷后刮臂停在玻璃中间",
+        "下次开机从中间开始刮",
+        "回位时有停顿"
+      ],
+      "keywords": ["不回位", "停在中间", "停放位", "回位触点", "关不掉"],
+      "likely_causes": [
+        { "text": "电机内部回位触点烧蚀", "weight": 1.0 },
+        { "text": "回位控制线断路", "weight": 0.75 },
+        { "text": "控制单元回位逻辑故障", "weight": 0.6 },
+        { "text": "刮臂安装位置偏差", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "关闭雨刷观察是否回位", "expect": "回到停放位" },
+        { "order": 2, "action": "检查回位触点与线路", "expect": "触点导通、线路完好" },
+        { "order": 3, "action": "检查控制单元回位信号", "expect": "信号正常" },
+        { "order": 4, "action": "更换电机或控制单元后复测", "expect": "回位正常" }
+      ],
+      "escalation": "回位失效会遮挡视线，未修复前不得雨雪天运用。",
+      "safety": "调整停放位时断电。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_async",
+      "system": "wiper",
+      "title": "左右刮臂不同步，互相干涉",
+      "symptoms": [
+        "左右刮臂摆动不同步",
+        "两刮臂在中线附近相碰",
+        "刮片有撞击痕"
+      ],
+      "keywords": ["左右不同步", "互相干涉", "刮臂相碰", "不同步", "撞击痕"],
+      "likely_causes": [
+        { "text": "左右刮臂安装角度不一致", "weight": 1.0 },
+        { "text": "连杆机构变形", "weight": 0.75 },
+        { "text": "驱动轴与刮臂连接打滑", "weight": 0.6 },
+        { "text": "连杆球头磨损", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "按停放位重新对正左右刮臂", "expect": "两刮臂位置一致" },
+        { "order": 2, "action": "检查连杆变形与球头", "expect": "连杆平直、球头无松旷" },
+        { "order": 3, "action": "检查驱动轴连接", "expect": "无打滑" },
+        { "order": 4, "action": "运行观察是否干涉", "expect": "全程无相碰" }
+      ],
+      "escalation": "连杆变形必须更换，禁止只调刮臂角度掩盖。",
+      "safety": "调整时断电，防止刮臂突然动作。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_intermittent",
+      "system": "wiper",
+      "title": "间歇档不工作，只有低速高速正常",
+      "symptoms": [
+        "间歇档无动作",
+        "低速与高速正常",
+        "间歇档时继电器无动作声"
+      ],
+      "keywords": ["间歇档", "不工作", "只有低速高速", "间歇失效", "雨刷档位"],
+      "likely_causes": [
+        { "text": "间歇继电器损坏", "weight": 1.0 },
+        { "text": "开关间歇档触点故障", "weight": 0.75 },
+        { "text": "控制单元间歇功能故障", "weight": 0.6 },
+        { "text": "间歇档线路断路", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "切换间歇档观察继电器", "expect": "继电器周期动作" },
+        { "order": 2, "action": "测量开关间歇档通断", "expect": "通断正常" },
+        { "order": 3, "action": "检查间歇档线路", "expect": "线路导通" },
+        { "order": 4, "action": "更换继电器后复测", "expect": "间歇档正常" }
+      ],
+      "escalation": "间歇档失效可用低速档临时维持，但需回段修复。",
+      "safety": "更换继电器前断电。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_high_speed",
+      "system": "wiper",
+      "title": "高速档失效，大雨时刮不及时",
+      "symptoms": [
+        "高速档与低速档速度一样",
+        "高速档无动作",
+        "大雨时视线跟不上"
+      ],
+      "keywords": ["高速档", "失效", "大雨刮不及", "速度一样", "高速不工作"],
+      "likely_causes": [
+        { "text": "高速档线路断路", "weight": 1.0 },
+        { "text": "开关高速档触点故障", "weight": 0.8 },
+        { "text": "电机高速绕组故障", "weight": 0.6 },
+        { "text": "控制单元输出故障", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "切换高速档测量电机供电", "expect": "高速档有对应电压" },
+        { "order": 2, "action": "测量开关高速档通断", "expect": "通断正常" },
+        { "order": 3, "action": "测量电机高速绕组", "expect": "阻值正常" },
+        { "order": 4, "action": "修复或更换后复测", "expect": "高速档正常" }
+      ],
+      "escalation": "高速档失效影响大雨视线，未修复前限速并避开大雨区段。",
+      "safety": "试验高速档时确认刮臂范围内无人。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_pump",
+      "system": "wiper",
+      "title": "喷水泵不工作，喷不出洗涤液",
+      "symptoms": [
+        "按喷水开关无泵声",
+        "喷嘴不出液",
+        "水箱有液"
+      ],
+      "keywords": ["喷水泵", "不工作", "喷不出", "无泵声", "洗涤液"],
+      "likely_causes": [
+        { "text": "喷水泵电机故障", "weight": 1.0 },
+        { "text": "喷水泵保险熔断", "weight": 0.75 },
+        { "text": "喷水开关或线路故障", "weight": 0.6 },
+        { "text": "泵体被杂质卡住", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "按喷水开关听泵声", "expect": "有泵运转声" },
+        { "order": 2, "action": "测量泵供电与保险", "expect": "供电正常、保险导通" },
+        { "order": 3, "action": "拆泵检查是否卡住", "expect": "叶轮灵活" },
+        { "order": 4, "action": "更换泵后复测", "expect": "喷水正常" }
+      ],
+      "escalation": "泵体卡死或电机烧毁时更换喷水泵。",
+      "safety": "拆泵前断开电源，防止干转。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_nozzle",
+      "system": "wiper",
+      "title": "喷嘴堵塞，喷水偏斜或不出液",
+      "symptoms": [
+        "喷嘴出水少或不出",
+        "喷水方向偏斜",
+        "喷嘴口有白色结晶"
+      ],
+      "keywords": ["喷嘴堵塞", "出水少", "喷水偏", "结晶", "喷嘴"],
+      "likely_causes": [
+        { "text": "喷嘴被水垢或杂质堵塞", "weight": 1.0 },
+        { "text": "洗涤液浓度不当产生结晶", "weight": 0.7 },
+        { "text": "喷嘴方向偏移", "weight": 0.55 },
+        { "text": "管路压力不足", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "拆下喷嘴检查堵塞", "expect": "喷嘴通畅" },
+        { "order": 2, "action": "用压缩空气或细针疏通", "expect": "出水正常" },
+        { "order": 3, "action": "调整喷嘴方向", "expect": "喷在刮刷区域" },
+        { "order": 4, "action": "复测喷水", "expect": "喷洒均匀" }
+      ],
+      "escalation": "喷嘴损坏时更换，禁止用铁丝捅大喷孔。",
+      "safety": "疏通时防止高压气体伤人。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_tube_off",
+      "system": "wiper",
+      "title": "喷水管脱落，水漏在车体内部",
+      "symptoms": [
+        "喷水时车内有水迹",
+        "喷嘴出液断续或完全不出",
+        "管接头处可见脱开"
+      ],
+      "keywords": ["喷水管脱落", "漏水", "管内水迹", "管接头", "不出液"],
+      "likely_causes": [
+        { "text": "管接头卡箍松动", "weight": 1.0 },
+        { "text": "软管老化硬化", "weight": 0.75 },
+        { "text": "管路走向被拉扯", "weight": 0.6 },
+        { "text": "接头规格不匹配", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "沿管路检查接头与管身", "expect": "接头牢固、管身完好" },
+        { "order": 2, "action": "重新连接并加卡箍", "expect": "接头不脱" },
+        { "order": 3, "action": "检查管路走向", "expect": "无拉扯、无折弯" },
+        { "order": 4, "action": "喷水复测", "expect": "无渗漏" }
+      ],
+      "escalation": "软管硬化开裂时更换整段，禁止只缠胶带。",
+      "safety": "处理时防止水进入电气部件。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_fluid_level",
+      "system": "wiper",
+      "title": "洗涤液不足报警，液位显示异常",
+      "symptoms": [
+        "液位报警灯常亮",
+        "水箱已加满仍报警",
+        "液位管看不清"
+      ],
+      "keywords": ["洗涤液不足", "液位报警", "加满还报", "液位管", "水位"],
+      "likely_causes": [
+        { "text": "液位传感器故障", "weight": 1.0 },
+        { "text": "液位管脏污看不清", "weight": 0.65 },
+        { "text": "传感器线路断路", "weight": 0.6 },
+        { "text": "水箱实际漏水", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查水箱实际液位", "expect": "液位正常" },
+        { "order": 2, "action": "检查液位传感器与线路", "expect": "传感器动作、线路导通" },
+        { "order": 3, "action": "清洁液位管", "expect": "液位可见" },
+        { "order": 4, "action": "更换传感器后复测", "expect": "报警消除" }
+      ],
+      "escalation": "传感器误报可临时断开报警，但必须回段更换。",
+      "safety": "加注洗涤液时防止溢出到电气部件。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_fluid_freeze",
+      "system": "wiper",
+      "title": "冬季洗涤液冻结，喷水系统失效",
+      "symptoms": [
+        "低温时喷不出液",
+        "水箱结冰",
+        "泵有声音但不出水"
+      ],
+      "keywords": ["洗涤液冻结", "冬季", "结冰", "喷不出", "水箱冻"],
+      "likely_causes": [
+        { "text": "洗涤液冰点不足", "weight": 1.0 },
+        { "text": "水箱加热功能失效", "weight": 0.7 },
+        { "text": "管路残留水结冰", "weight": 0.65 },
+        { "text": "喷嘴结冰", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查洗涤液冰点与结冰情况", "expect": "冰点低于环境温度" },
+        { "order": 2, "action": "检查水箱加热功能", "expect": "加热正常" },
+        { "order": 3, "action": "解冻管路与喷嘴", "expect": "管路通畅" },
+        { "order": 4, "action": "更换合格洗涤液后复测", "expect": "喷水正常" }
+      ],
+      "escalation": "禁止用开水直接浇水箱，应缓慢解冻并更换合格洗涤液。",
+      "safety": "解冻时防止热水溅到玻璃造成炸裂。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.c-eu.cn/article/1180.html"]
+    },
+    {
+      "id": "kb_wiper_tank_leak",
+      "system": "wiper",
+      "title": "洗涤液水箱漏水，加满很快没",
+      "symptoms": [
+        "水箱加水后很快见底",
+        "水箱下方有积液",
+        "水箱接缝渗水"
+      ],
+      "keywords": ["水箱漏水", "加满就没", "下方积液", "接缝渗", "水箱"],
+      "likely_causes": [
+        { "text": "水箱本体裂纹", "weight": 1.0 },
+        { "text": "水箱接缝密封失效", "weight": 0.75 },
+        { "text": "放水阀或接头渗漏", "weight": 0.6 },
+        { "text": "安装卡箍松动磨破", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查水箱本体与接缝", "expect": "无裂纹、无渗漏" },
+        { "order": 2, "action": "检查放水阀与接头", "expect": "密封良好" },
+        { "order": 3, "action": "检查安装卡箍", "expect": "无磨损" },
+        { "order": 4, "action": "更换水箱后加水复测", "expect": "无渗漏" }
+      ],
+      "escalation": "水箱裂纹必须更换，禁止用胶粘补。",
+      "safety": "拆水箱前排空洗涤液。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_tank_cap",
+      "system": "wiper",
+      "title": "水箱盖密封不良，行车时溢液",
+      "symptoms": [
+        "加满后行车溢出",
+        "水箱盖周围有液迹",
+        "盖密封圈破损"
+      ],
+      "keywords": ["水箱盖", "密封不良", "溢液", "密封圈", "加满溢出"],
+      "likely_causes": [
+        { "text": "水箱盖密封圈破损", "weight": 1.0 },
+        { "text": "盖子未拧紧", "weight": 0.7 },
+        { "text": "水箱盖变形", "weight": 0.55 },
+        { "text": "通气孔堵塞导致压力升高", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查盖密封圈与变形", "expect": "密封圈完好、盖平整" },
+        { "order": 2, "action": "检查盖子是否拧紧", "expect": "拧紧到位" },
+        { "order": 3, "action": "检查通气孔", "expect": "通气顺畅" },
+        { "order": 4, "action": "更换盖后复测", "expect": "不再溢液" }
+      ],
+      "escalation": "密封圈破损时更换盖子总成。",
+      "safety": "加注时不要超过最高液位线。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_spindle_worn",
+      "system": "wiper",
+      "title": "刮臂驱动轴磨损，轴孔旷量大",
+      "symptoms": [
+        "刮臂上下晃动",
+        "驱动轴处有旷量",
+        "刮刷轨迹不稳定"
+      ],
+      "keywords": ["驱动轴磨损", "旷量大", "刮臂晃", "轴孔", "轨迹不稳"],
+      "likely_causes": [
+        { "text": "驱动轴与轴套磨损", "weight": 1.0 },
+        { "text": "润滑不足加速磨损", "weight": 0.7 },
+        { "text": "刮臂固定螺母长期松动", "weight": 0.6 },
+        { "text": "防水失效进水锈蚀", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "晃动刮臂测量旷量", "expect": "旷量在限值内" },
+        { "order": 2, "action": "检查驱动轴与轴套磨损", "expect": "无明显磨损" },
+        { "order": 3, "action": "检查防水与润滑", "expect": "防水完好、润滑充足" },
+        { "order": 4, "action": "更换驱动轴组件后复测", "expect": "无旷量" }
+      ],
+      "escalation": "驱动轴磨损超限必须更换，禁止加垫片消除旷量。",
+      "safety": "拆驱动轴时防止刮臂弹起。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_crank_bolt",
+      "system": "wiper",
+      "title": "电机传动曲轴螺栓松脱，刮臂不跟随",
+      "symptoms": [
+        "电机转但刮臂不动",
+        "曲轴处有松动",
+        "曲轴螺栓缺失"
+      ],
+      "keywords": ["曲轴螺栓", "松脱", "刮臂不跟随", "传动曲轴", "螺栓缺失"],
+      "likely_causes": [
+        { "text": "曲轴安装螺栓未按扭矩紧固", "weight": 1.0 },
+        { "text": "防松措施失效", "weight": 0.8 },
+        { "text": "振动导致疲劳松脱", "weight": 0.65 },
+        { "text": "曲轴与电机轴配合磨损", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查曲轴螺栓扭矩与防松", "expect": "扭矩达标、防松完好" },
+        { "order": 2, "action": "检查曲轴与电机轴配合", "expect": "配合紧密、无打滑" },
+        { "order": 3, "action": "补齐螺栓并按扭矩紧固", "expect": "紧固到位" },
+        { "order": 4, "action": "运行后复查", "expect": "无松动" }
+      ],
+      "escalation": "配合面磨损时更换曲轴或电机，禁止只补螺栓。",
+      "safety": "紧固前断电，防止电机突然启动。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.mlzp.cc/forum.php?mod=viewthread&tid=44245"]
+    },
+    {
+      "id": "kb_wiper_defrost_no_heat",
+      "system": "wiper",
+      "title": "除霜器不热，冬季玻璃结霜刮不掉",
+      "symptoms": [
+        "除霜出风口不热",
+        "玻璃内侧结霜",
+        "除霜开关已开"
+      ],
+      "keywords": ["除霜器", "不热", "玻璃结霜", "除霜不出风", "冬季"],
+      "likely_causes": [
+        { "text": "除霜加热器断路", "weight": 1.0 },
+        { "text": "除霜风机不转", "weight": 0.8 },
+        { "text": "除霜风道堵塞或脱落", "weight": 0.6 },
+        { "text": "除霜开关或保险故障", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查除霜出风温度与风量", "expect": "出风热、风量正常" },
+        { "order": 2, "action": "测量加热器供电与电阻", "expect": "供电正常、阻值正常" },
+        { "order": 3, "action": "检查除霜风机与风道", "expect": "风机运转、风道通畅" },
+        { "order": 4, "action": "更换故障件后复测", "expect": "除霜正常" }
+      ],
+      "escalation": "除霜失效会影响冬季视线，未修复前不得在低温雨雪天运用。",
+      "safety": "加热器高温，检查前断电冷却。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    },
+    {
+      "id": "kb_wiper_defrost_fan",
+      "system": "wiper",
+      "title": "除霜风机不转，玻璃除霜慢",
+      "symptoms": [
+        "除霜口风量很小",
+        "风机处无声音",
+        "玻璃除霜面积小"
+      ],
+      "keywords": ["除霜风机", "不转", "风量小", "除霜慢", "风机"],
+      "likely_causes": [
+        { "text": "风机电机故障", "weight": 1.0 },
+        { "text": "风机保险熔断", "weight": 0.75 },
+        { "text": "风叶卡住", "weight": 0.6 },
+        { "text": "风机开关或线路故障", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查风机运转与风量", "expect": "风机转动、风量正常" },
+        { "order": 2, "action": "测量风机供电与保险", "expect": "供电正常、保险导通" },
+        { "order": 3, "action": "断电手动转动风叶", "expect": "转动灵活" },
+        { "order": 4, "action": "更换风机后复测", "expect": "除霜正常" }
+      ],
+      "escalation": "风机不转会严重影响除霜，未修复前限制运用。",
+      "safety": "拆风机前断电。",
+      "sources": ["K-08"],
+      "source_links": ["https://www.nra.gov.cn/jglz/fgzd/gfwj/201802/P020220801566966810420.pdf"]
+    }
+  ]
+}

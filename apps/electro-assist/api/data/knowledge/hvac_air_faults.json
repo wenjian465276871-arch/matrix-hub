@@ -1,0 +1,1697 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_hvac_supply_fan_stop",
+      "system": "hvac",
+      "title": "通风机不转，出风口无风",
+      "symptoms": [
+        "开机后出风口完全没有风",
+        "通风机处无振动、无声音",
+        "通风断路器可能跳闸"
+      ],
+      "keywords": [
+        "通风机不转",
+        "出风口无风",
+        "风机停",
+        "没风",
+        "通风机"
+      ],
+      "likely_causes": [
+        {
+          "text": "通风机电机烧毁或卡死",
+          "weight": 1.0
+        },
+        {
+          "text": "通风断路器跳闸或保险熔断",
+          "weight": 0.8
+        },
+        {
+          "text": "通风接触器不吸合",
+          "weight": 0.7
+        },
+        {
+          "text": "风机控制信号未输出",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查通风断路器与保险",
+          "expect": "断路器闭合、保险导通"
+        },
+        {
+          "order": 2,
+          "action": "测量通风机供电与控制信号",
+          "expect": "供电与控制信号正常"
+        },
+        {
+          "order": 3,
+          "action": "断电手动转动风叶",
+          "expect": "转动灵活、无卡死"
+        },
+        {
+          "order": 4,
+          "action": "测量风机绕组与绝缘",
+          "expect": "绕组对称、绝缘合格"
+        }
+      ],
+      "escalation": "电机烧毁或卡死时更换风机，禁止反复合闸试送。",
+      "safety": "风机惯性大，断电后等待停稳再检查。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_supply_fan_slow",
+      "system": "hvac",
+      "title": "通风机转速低，风量不足",
+      "symptoms": [
+        "出风口有风但明显偏弱",
+        "出风口风声比其它车厢明显弱",
+        "客室换气不足、闷"
+      ],
+      "keywords": [
+        "通风机慢",
+        "风量不足",
+        "转速低",
+        "电流低",
+        "风弱"
+      ],
+      "likely_causes": [
+        {
+          "text": "风机电容容量下降",
+          "weight": 1.0
+        },
+        {
+          "text": "风机轴承阻力大",
+          "weight": 0.75
+        },
+        {
+          "text": "风叶积尘不平衡",
+          "weight": 0.6
+        },
+        {
+          "text": "供电电压偏低",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量风机电流与电压",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查电容容量",
+          "expect": "不低于标称的 90%"
+        },
+        {
+          "order": 3,
+          "action": "清洁风叶并检查轴承",
+          "expect": "风叶清洁、轴承灵活"
+        },
+        {
+          "order": 4,
+          "action": "更换电容或风机后复测",
+          "expect": "风量恢复"
+        }
+      ],
+      "escalation": "电容更换后仍偏慢时更换风机，禁止提高电压提速。",
+      "safety": "清洁风叶时断电，防止风机突然启动。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_supply_fan_noise",
+      "system": "hvac",
+      "title": "通风机运行异音，轴承磨损",
+      "symptoms": [
+        "风机处有持续嗡嗡或摩擦声",
+        "声音随转速变化",
+        "风机外壳有振动"
+      ],
+      "keywords": [
+        "通风机异音",
+        "轴承响",
+        "嗡嗡声",
+        "摩擦声",
+        "风机噪音"
+      ],
+      "likely_causes": [
+        {
+          "text": "风机轴承磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "风叶与壳体摩擦",
+          "weight": 0.7
+        },
+        {
+          "text": "风叶积尘导致动平衡破坏",
+          "weight": 0.65
+        },
+        {
+          "text": "减振座老化",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "听诊风机轴承部位",
+          "expect": "无金属摩擦或周期异音"
+        },
+        {
+          "order": 2,
+          "action": "检查风叶与壳体间隙",
+          "expect": "无摩擦痕迹"
+        },
+        {
+          "order": 3,
+          "action": "清洁风叶并检查动平衡",
+          "expect": "风叶清洁、振动下降"
+        },
+        {
+          "order": 4,
+          "action": "更换风机或轴承",
+          "expect": "异音消除"
+        }
+      ],
+      "escalation": "轴承磨损严重时更换风机，禁止只加润滑油掩盖磨损。",
+      "safety": "拆风机前断电并等待风叶停稳。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_fan_blade",
+      "system": "hvac",
+      "title": "风机扇叶缺损，运行振动大",
+      "symptoms": [
+        "风机振动明显，壳体发麻",
+        "扇叶有缺口或裂纹",
+        "风量下降且噪音增大"
+      ],
+      "keywords": [
+        "扇叶缺损",
+        "振动大",
+        "叶片缺口",
+        "风扇裂",
+        "抖动"
+      ],
+      "likely_causes": [
+        {
+          "text": "扇叶受异物打击缺损",
+          "weight": 1.0
+        },
+        {
+          "text": "塑料扇叶老化脆裂",
+          "weight": 0.75
+        },
+        {
+          "text": "风道内异物进入风机",
+          "weight": 0.6
+        },
+        {
+          "text": "扇叶固定螺母松动",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查扇叶外观与固定",
+          "expect": "无缺损、固定牢固"
+        },
+        {
+          "order": 2,
+          "action": "检查风道内是否有异物",
+          "expect": "风道清洁"
+        },
+        {
+          "order": 3,
+          "action": "测量风机振动",
+          "expect": "振动在限值内"
+        },
+        {
+          "order": 4,
+          "action": "更换扇叶或风机后复测",
+          "expect": "振动与噪音正常"
+        }
+      ],
+      "escalation": "扇叶缺损必须更换，禁止粘接或打磨配平后继续使用。",
+      "safety": "破损扇叶可能飞出，运行时不要打开风机罩。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_evap_fan_stop",
+      "system": "hvac",
+      "title": "蒸发风机不转，出风温度异常",
+      "symptoms": [
+        "蒸发风机不转但压缩机运行",
+        "出风口无风或风很弱",
+        "蒸发器可能结霜"
+      ],
+      "keywords": [
+        "蒸发风机不转",
+        "出风弱",
+        "压缩机运行",
+        "蒸发器结霜",
+        "风机停"
+      ],
+      "likely_causes": [
+        {
+          "text": "蒸发风机电机故障",
+          "weight": 1.0
+        },
+        {
+          "text": "风机接触器或保险故障",
+          "weight": 0.8
+        },
+        {
+          "text": "风机控制信号缺失",
+          "weight": 0.6
+        },
+        {
+          "text": "风机电容失效",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量蒸发风机供电与控制信号",
+          "expect": "供电与控制正常"
+        },
+        {
+          "order": 2,
+          "action": "断电手动转动风叶",
+          "expect": "转动灵活"
+        },
+        {
+          "order": 3,
+          "action": "测量风机绕组与电容",
+          "expect": "绕组对称、电容正常"
+        },
+        {
+          "order": 4,
+          "action": "更换风机后复测",
+          "expect": "出风恢复"
+        }
+      ],
+      "escalation": "蒸发风机不转时禁止继续运行制冷，防止蒸发器结冰。",
+      "safety": "蒸发器低温，检修时防止冻伤。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_evap_fan_noise",
+      "system": "hvac",
+      "title": "蒸发风机异音，客室内噪音大",
+      "symptoms": [
+        "客室顶部有持续嗡嗡声",
+        "声音随通风档位变化",
+        "风机处振动明显"
+      ],
+      "keywords": [
+        "蒸发风机异音",
+        "客室噪音",
+        "嗡嗡",
+        "顶部响",
+        "风机振动"
+      ],
+      "likely_causes": [
+        {
+          "text": "风机轴承磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "风叶积尘不平衡",
+          "weight": 0.7
+        },
+        {
+          "text": "风机减振垫老化",
+          "weight": 0.6
+        },
+        {
+          "text": "风道内异物共振",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "听诊定位异音来源",
+          "expect": "确认来自风机"
+        },
+        {
+          "order": 2,
+          "action": "清洁风叶并检查轴承",
+          "expect": "风叶清洁、轴承灵活"
+        },
+        {
+          "order": 3,
+          "action": "检查减振垫与固定",
+          "expect": "减振良好"
+        },
+        {
+          "order": 4,
+          "action": "更换风机或减振件",
+          "expect": "噪音下降"
+        }
+      ],
+      "escalation": "轴承磨损时更换风机，禁止在客室内加装隔音棉掩盖异音。",
+      "safety": "拆装风机时防止风叶划伤。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_exhaust_fan_stop",
+      "system": "hvac",
+      "title": "废排风机不转，客室闷且压力高",
+      "symptoms": [
+        "废排风机不转",
+        "客室门关闭时略感憋闷",
+        "废排口无气流"
+      ],
+      "keywords": [
+        "废排风机",
+        "不转",
+        "客室闷",
+        "废排口无风",
+        "排风"
+      ],
+      "likely_causes": [
+        {
+          "text": "废排风机电机故障",
+          "weight": 1.0
+        },
+        {
+          "text": "废排逆变器故障",
+          "weight": 0.8
+        },
+        {
+          "text": "风机接触器或保险故障",
+          "weight": 0.6
+        },
+        {
+          "text": "控制信号缺失",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量废排风机供电与控制",
+          "expect": "供电与控制正常"
+        },
+        {
+          "order": 2,
+          "action": "检查废排逆变器状态",
+          "expect": "逆变器正常输出"
+        },
+        {
+          "order": 3,
+          "action": "断电手动转动风叶",
+          "expect": "转动灵活"
+        },
+        {
+          "order": 4,
+          "action": "更换风机或逆变器后复测",
+          "expect": "废排恢复"
+        }
+      ],
+      "escalation": "废排失效会影响客室压力与空气品质，未修复时降低客流或上报。",
+      "safety": "废排口可能吸入异物，检查时防止杂物掉入。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html",
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_exhaust_noise",
+      "system": "hvac",
+      "title": "废排风机异音，扇叶与电机轴松动",
+      "symptoms": [
+        "废排风机处有周期性异音",
+        "废排风机外壳摸起来发麻",
+        "扇叶与电机轴连接处有松动"
+      ],
+      "keywords": [
+        "废排异音",
+        "扇叶松动",
+        "周期性响",
+        "振动",
+        "电机轴"
+      ],
+      "likely_causes": [
+        {
+          "text": "扇叶与电机轴连接松动",
+          "weight": 1.0
+        },
+        {
+          "text": "风机轴承磨损",
+          "weight": 0.8
+        },
+        {
+          "text": "扇叶变形",
+          "weight": 0.6
+        },
+        {
+          "text": "固定螺栓松动",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查扇叶与电机轴连接",
+          "expect": "连接紧固、无偏摆"
+        },
+        {
+          "order": 2,
+          "action": "检查风机轴承",
+          "expect": "无松旷、无异音"
+        },
+        {
+          "order": 3,
+          "action": "检查扇叶变形与固定螺栓",
+          "expect": "扇叶完好、螺栓紧固"
+        },
+        {
+          "order": 4,
+          "action": "调整或更换后复测",
+          "expect": "异音消除"
+        }
+      ],
+      "escalation": "扇叶偏摆无法调整时更换风机总成，禁止只拧紧螺栓不查偏摆。",
+      "safety": "拆装废排风机时断电，防止风叶伤人。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_exhaust_inverter",
+      "system": "hvac",
+      "title": "废排逆变器不启动，废排风机不工作",
+      "symptoms": [
+        "废排逆变器无输出",
+        "逆变器指示灯不亮",
+        "废排风机完全不转"
+      ],
+      "keywords": [
+        "废排逆变器",
+        "不启动",
+        "无输出",
+        "逆变器坏",
+        "指示灯不亮"
+      ],
+      "likely_causes": [
+        {
+          "text": "逆变器内部元件损坏",
+          "weight": 1.0
+        },
+        {
+          "text": "逆变器供电缺失或保险熔断",
+          "weight": 0.8
+        },
+        {
+          "text": "逆变器过热保护",
+          "weight": 0.6
+        },
+        {
+          "text": "控制信号未送达",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量逆变器输入供电",
+          "expect": "供电正常"
+        },
+        {
+          "order": 2,
+          "action": "检查逆变器保险与指示灯",
+          "expect": "保险导通、指示正常"
+        },
+        {
+          "order": 3,
+          "action": "检查逆变器散热与温度",
+          "expect": "散热良好、无过热"
+        },
+        {
+          "order": 4,
+          "action": "更换逆变器后复测",
+          "expect": "废排恢复"
+        }
+      ],
+      "escalation": "逆变器为一体化部件，现场不修复，确认损坏后整体更换。",
+      "safety": "逆变器内部有储能电容，断电后等待放电再拆。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_airflow_low",
+      "system": "hvac",
+      "title": "整体风量小，各出风口都弱",
+      "symptoms": [
+        "所有出风口风量都偏小",
+        "风机运行正常",
+        "客室换气不足"
+      ],
+      "keywords": [
+        "整体风量小",
+        "出风弱",
+        "风机正常",
+        "换气不足",
+        "风小"
+      ],
+      "likely_causes": [
+        {
+          "text": "回风滤网或风道堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "风门开度不足",
+          "weight": 0.75
+        },
+        {
+          "text": "风机转速偏低",
+          "weight": 0.6
+        },
+        {
+          "text": "风道漏风严重",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查回风滤网与风道",
+          "expect": "滤网清洁、风道通畅"
+        },
+        {
+          "order": 2,
+          "action": "检查各风门开度",
+          "expect": "风门在正确开度"
+        },
+        {
+          "order": 3,
+          "action": "测量风机转速与电流",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "检查风道漏风点",
+          "expect": "风道密封良好"
+        }
+      ],
+      "escalation": "滤网与风门正常仍风量不足时检查风机与风道阻力，禁止拆除滤网。",
+      "safety": "检查风道时防止异物掉入。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_temp_diff",
+      "system": "hvac",
+      "title": "前后车厢温差大，风道送风不均",
+      "symptoms": [
+        "前部客室凉、后部热",
+        "同一风道出风口温差明显",
+        "温度传感器读数差异大"
+      ],
+      "keywords": [
+        "前后温差",
+        "送风不均",
+        "后部热",
+        "温差大",
+        "风道不均"
+      ],
+      "likely_causes": [
+        {
+          "text": "风道局部漏风或堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "出风口风门开度不一致",
+          "weight": 0.8
+        },
+        {
+          "text": "温度传感器位置或漂移",
+          "weight": 0.6
+        },
+        {
+          "text": "客室负荷分布不均",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量各出风口风量与温度",
+          "expect": "风量与温度分布均匀"
+        },
+        {
+          "order": 2,
+          "action": "检查风道漏风与堵塞",
+          "expect": "风道完整、通畅"
+        },
+        {
+          "order": 3,
+          "action": "检查出风口风门开度",
+          "expect": "开度一致"
+        },
+        {
+          "order": 4,
+          "action": "校对温度传感器",
+          "expect": "读数与实际一致"
+        }
+      ],
+      "escalation": "风道结构问题导致长期不均时上报改造，禁止只调传感器补偿。",
+      "safety": "登高检查风道时使用稳固梯具。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_duct_leak",
+      "system": "hvac",
+      "title": "风道漏风，出风口风量不足",
+      "symptoms": [
+        "风道接缝处有明显气流",
+        "出风口风量比设计值小",
+        "客室顶部有漏风噪声"
+      ],
+      "keywords": [
+        "风道漏风",
+        "接缝漏",
+        "风量不足",
+        "漏风噪声",
+        "风道"
+      ],
+      "likely_causes": [
+        {
+          "text": "风道接缝密封失效",
+          "weight": 1.0
+        },
+        {
+          "text": "风道固定件松脱导致错位",
+          "weight": 0.75
+        },
+        {
+          "text": "风道破损",
+          "weight": 0.6
+        },
+        {
+          "text": "风道与出风口连接不严",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "沿风道接缝检查漏风",
+          "expect": "接缝密封良好"
+        },
+        {
+          "order": 2,
+          "action": "检查风道固定与错位",
+          "expect": "固定牢固、无错位"
+        },
+        {
+          "order": 3,
+          "action": "检查风道破损",
+          "expect": "风道完整"
+        },
+        {
+          "order": 4,
+          "action": "重新密封后复测风量",
+          "expect": "风量恢复"
+        }
+      ],
+      "escalation": "风道大面积破损时更换风道段，禁止只用胶带缠绕。",
+      "safety": "风道内作业注意通风，防止缺氧。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_duct_liner",
+      "system": "hvac",
+      "title": "风道消音棉脱落，出风口吹出碎屑",
+      "symptoms": [
+        "出风口吹出白色或黑色碎屑",
+        "风道内有异物拍打声",
+        "客室空气有异味"
+      ],
+      "keywords": [
+        "消音棉脱落",
+        "吹碎屑",
+        "风道异物",
+        "拍打声",
+        "异味"
+      ],
+      "likely_causes": [
+        {
+          "text": "风道消音棉粘接失效脱落",
+          "weight": 1.0
+        },
+        {
+          "text": "消音棉老化脆化",
+          "weight": 0.75
+        },
+        {
+          "text": "风道内固定件松脱",
+          "weight": 0.55
+        },
+        {
+          "text": "风道进水导致棉层剥离",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆开风道检查消音棉",
+          "expect": "消音棉完整、粘接牢固"
+        },
+        {
+          "order": 2,
+          "action": "清理风道内脱落碎屑",
+          "expect": "风道清洁"
+        },
+        {
+          "order": 3,
+          "action": "检查风道是否进水",
+          "expect": "风道干燥"
+        },
+        {
+          "order": 4,
+          "action": "更换消音棉或风道段",
+          "expect": "不再吹屑"
+        }
+      ],
+      "escalation": "消音棉脱落会被乘客吸入，未修复前该风道停止送风。",
+      "safety": "清理风道时佩戴防尘口罩。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_duct_damper_motor",
+      "system": "hvac",
+      "title": "风道伺服电机故障，风门不能调节",
+      "symptoms": [
+        "风门固定在某一开度不动",
+        "软件报伺服电机故障",
+        "出风量无法调节"
+      ],
+      "keywords": [
+        "伺服电机",
+        "风门不调",
+        "固定开度",
+        "报故障",
+        "风道风门"
+      ],
+      "likely_causes": [
+        {
+          "text": "伺服电机损坏",
+          "weight": 1.0
+        },
+        {
+          "text": "风门轴卡滞使电机过载",
+          "weight": 0.8
+        },
+        {
+          "text": "伺服电机控制线断线",
+          "weight": 0.6
+        },
+        {
+          "text": "风门位置反馈失效",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "软件操作风门并观察动作",
+          "expect": "风门随指令动作"
+        },
+        {
+          "order": 2,
+          "action": "检查伺服电机供电与控制线",
+          "expect": "线路完好"
+        },
+        {
+          "order": 3,
+          "action": "手动活动风门轴",
+          "expect": "转动灵活、无卡滞"
+        },
+        {
+          "order": 4,
+          "action": "更换伺服电机后复测",
+          "expect": "风门调节正常"
+        }
+      ],
+      "escalation": "电机损坏或风门轴卡死时更换部件，禁止把风门固定在最大开度。",
+      "safety": "拆伺服电机前断电，防止风门突然动作。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_fresh_damper_stuck",
+      "system": "hvac",
+      "title": "新风门不动作，客室空气闷",
+      "symptoms": [
+        "新风门始终不动",
+        "客室二氧化碳浓度上升快",
+        "新风门气缸无动作"
+      ],
+      "keywords": [
+        "新风门不动",
+        "新风门卡住",
+        "客室闷",
+        "气缸不动作",
+        "换气不足"
+      ],
+      "likely_causes": [
+        {
+          "text": "新风门气缸漏气或卡滞",
+          "weight": 1.0
+        },
+        {
+          "text": "新风门电磁阀故障",
+          "weight": 0.8
+        },
+        {
+          "text": "新风门轴卡死",
+          "weight": 0.6
+        },
+        {
+          "text": "控制信号缺失",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "给新风门指令观察气缸动作",
+          "expect": "气缸伸出到位"
+        },
+        {
+          "order": 2,
+          "action": "测量新风门气路压力",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 3,
+          "action": "手动活动新风门轴",
+          "expect": "转动灵活"
+        },
+        {
+          "order": 4,
+          "action": "更换气缸或电磁阀后复测",
+          "expect": "新风门动作正常"
+        }
+      ],
+      "escalation": "新风门长期关闭会导致客室空气品质下降，未修复时应限制载客。",
+      "safety": "检查新风门时防止气缸突然动作夹手。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_fresh_damper_feedback",
+      "system": "hvac",
+      "title": "新风门无反馈，软件显示状态异常",
+      "symptoms": [
+        "软件显示新风门无反馈或反馈常亮",
+        "新风门实际动作正常",
+        "更换密封条后出现"
+      ],
+      "keywords": [
+        "新风门无反馈",
+        "反馈常亮",
+        "状态异常",
+        "磁感应开关",
+        "密封条后"
+      ],
+      "likely_causes": [
+        {
+          "text": "磁感应开关与气缸间距不当",
+          "weight": 1.0
+        },
+        {
+          "text": "更换密封条后气缸行程变化",
+          "weight": 0.8
+        },
+        {
+          "text": "磁感应开关损坏",
+          "weight": 0.6
+        },
+        {
+          "text": "反馈线束断线",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "软件观察新风门反馈信号",
+          "expect": "开闭状态与指令一致"
+        },
+        {
+          "order": 2,
+          "action": "调整磁感应开关与气缸间距",
+          "expect": "反馈信号正常"
+        },
+        {
+          "order": 3,
+          "action": "检查磁感应开关与线束",
+          "expect": "开关完好、线束导通"
+        },
+        {
+          "order": 4,
+          "action": "复测新风门开闭反馈",
+          "expect": "状态正确"
+        }
+      ],
+      "escalation": "调整间距后仍无反馈时更换磁感应开关，禁止短接反馈信号。",
+      "safety": "调整时断电，防止气缸动作。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_fresh_damper_leak",
+      "system": "hvac",
+      "title": "新风门漏风，制冷负荷增大",
+      "symptoms": [
+        "新风门关闭后仍有气流",
+        "客室温度降得慢",
+        "新风门密封条压不实"
+      ],
+      "keywords": [
+        "新风门漏风",
+        "关不严",
+        "制冷负荷",
+        "密封条",
+        "漏风"
+      ],
+      "likely_causes": [
+        {
+          "text": "新风门密封条老化",
+          "weight": 1.0
+        },
+        {
+          "text": "风门与框间隙超差",
+          "weight": 0.8
+        },
+        {
+          "text": "气缸行程不足，压不紧",
+          "weight": 0.6
+        },
+        {
+          "text": "风门变形",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "关闭新风门后用烟流或薄纸检查",
+          "expect": "无明显漏风"
+        },
+        {
+          "order": 2,
+          "action": "检查密封条压缩量",
+          "expect": "压缩量足够"
+        },
+        {
+          "order": 3,
+          "action": "检查气缸行程与风门贴合",
+          "expect": "风门压紧"
+        },
+        {
+          "order": 4,
+          "action": "更换密封条或调整后复测",
+          "expect": "漏风消除"
+        }
+      ],
+      "escalation": "风门变形或框体损伤时更换，禁止用胶条临时填缝。",
+      "safety": "检查风门时防止夹手。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_pressure_wave_leak",
+      "system": "hvac",
+      "title": "压力波阀漏风，新风反馈异常",
+      "symptoms": [
+        "压力波阀处有漏风声",
+        "新风压力波反馈异常",
+        "隧道内客室压力波动大"
+      ],
+      "keywords": [
+        "压力波阀",
+        "漏风",
+        "反馈异常",
+        "隧道压力",
+        "直角弯头"
+      ],
+      "likely_causes": [
+        {
+          "text": "压力波阀直角弯头密封圈老化",
+          "weight": 1.0
+        },
+        {
+          "text": "压力波阀膜片破损",
+          "weight": 0.75
+        },
+        {
+          "text": "阀体安装不严",
+          "weight": 0.55
+        },
+        {
+          "text": "取样管脱落",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "在压力波阀处检查漏风",
+          "expect": "无漏风"
+        },
+        {
+          "order": 2,
+          "action": "检查直角弯头密封圈",
+          "expect": "密封圈完好"
+        },
+        {
+          "order": 3,
+          "action": "检查膜片与取样管",
+          "expect": "膜片完好、取样管连接"
+        },
+        {
+          "order": 4,
+          "action": "更换密封件后软件复测",
+          "expect": "反馈正常、无漏风"
+        }
+      ],
+      "escalation": "膜片破损时更换压力波阀，禁止用密封胶封死。",
+      "safety": "拆压力波阀前泄压。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_exhaust_damper",
+      "system": "hvac",
+      "title": "废排风门不动作，客室压力失衡",
+      "symptoms": [
+        "废排风门固定在关闭位",
+        "客室门关闭时有憋闷感",
+        "废排口风量明显偏小"
+      ],
+      "keywords": [
+        "废排风门",
+        "不动作",
+        "压力失衡",
+        "憋闷",
+        "废排"
+      ],
+      "likely_causes": [
+        {
+          "text": "废排风门气缸或电磁阀故障",
+          "weight": 1.0
+        },
+        {
+          "text": "风门轴卡滞",
+          "weight": 0.75
+        },
+        {
+          "text": "控制信号缺失",
+          "weight": 0.6
+        },
+        {
+          "text": "位置反馈失效",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "给废排风门指令观察动作",
+          "expect": "风门正常开闭"
+        },
+        {
+          "order": 2,
+          "action": "检查气缸气路与电磁阀",
+          "expect": "气路正常、电磁阀动作"
+        },
+        {
+          "order": 3,
+          "action": "手动活动风门轴",
+          "expect": "转动灵活"
+        },
+        {
+          "order": 4,
+          "action": "更换故障件后复测",
+          "expect": "废排恢复"
+        }
+      ],
+      "escalation": "风门无法打开时客室压力会异常，未修复时应降低载客量。",
+      "safety": "检查风门时防止气缸动作夹手。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_mix_box",
+      "system": "hvac",
+      "title": "混合箱风门卡滞，送风温度不可调",
+      "symptoms": [
+        "送风温度始终偏高或偏低",
+        "混合箱风门不随设定动作",
+        "风门处有卡阻声"
+      ],
+      "keywords": [
+        "混合箱",
+        "风门卡滞",
+        "送风温度",
+        "不可调",
+        "卡阻"
+      ],
+      "likely_causes": [
+        {
+          "text": "混合箱风门轴卡滞",
+          "weight": 1.0
+        },
+        {
+          "text": "风门执行器故障",
+          "weight": 0.8
+        },
+        {
+          "text": "混合箱内异物阻挡",
+          "weight": 0.6
+        },
+        {
+          "text": "风门连杆脱开",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "软件操作混合风门观察动作",
+          "expect": "风门随指令动作"
+        },
+        {
+          "order": 2,
+          "action": "检查风门轴与连杆",
+          "expect": "轴灵活、连杆连接"
+        },
+        {
+          "order": 3,
+          "action": "检查混合箱内异物",
+          "expect": "箱内清洁"
+        },
+        {
+          "order": 4,
+          "action": "更换执行器或修复连杆",
+          "expect": "送风温度可调"
+        }
+      ],
+      "escalation": "风门卡死无法修复时更换混合箱总成，禁止把风门固定在单一位置。",
+      "safety": "拆混合箱前断电，防止风门突然动作。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_supply_damper",
+      "system": "hvac",
+      "title": "供风风门关不严，制冷时冷气流失",
+      "symptoms": [
+        "供风风门关闭后仍有冷气",
+        "软件报供风伺服电机故障",
+        "风门内有风挡卡滞"
+      ],
+      "keywords": [
+        "供风风门",
+        "关不严",
+        "冷气流失",
+        "伺服电机",
+        "风挡卡滞"
+      ],
+      "likely_causes": [
+        {
+          "text": "供风伺服电机故障",
+          "weight": 1.0
+        },
+        {
+          "text": "风门内部风挡卡滞",
+          "weight": 0.8
+        },
+        {
+          "text": "风门密封条老化",
+          "weight": 0.6
+        },
+        {
+          "text": "风门位置反馈偏差",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "软件检测供风伺服电机故障码",
+          "expect": "无故障码"
+        },
+        {
+          "order": 2,
+          "action": "观察风门关闭是否到位",
+          "expect": "完全关闭"
+        },
+        {
+          "order": 3,
+          "action": "检查风挡与密封条",
+          "expect": "风挡灵活、密封完好"
+        },
+        {
+          "order": 4,
+          "action": "更换伺服电机或修复风挡",
+          "expect": "风门关闭严密"
+        }
+      ],
+      "escalation": "伺服电机故障时更换，禁止手动把风门扳到关闭位后固定。",
+      "safety": "调整风门时防止夹手。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_return_damper",
+      "system": "hvac",
+      "title": "回风门卡在全新风位，制冷负荷大",
+      "symptoms": [
+        "回风门不随工况动作",
+        "制冷长时间达不到设定温度",
+        "新风量始终最大"
+      ],
+      "keywords": [
+        "回风门",
+        "全新风",
+        "不动作",
+        "负荷大",
+        "降得慢"
+      ],
+      "likely_causes": [
+        {
+          "text": "回风门执行器故障",
+          "weight": 1.0
+        },
+        {
+          "text": "回风门轴卡滞",
+          "weight": 0.75
+        },
+        {
+          "text": "控制信号缺失",
+          "weight": 0.6
+        },
+        {
+          "text": "风门位置反馈错误",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "软件操作回风门观察动作",
+          "expect": "风门随工况切换"
+        },
+        {
+          "order": 2,
+          "action": "检查执行器供电与信号",
+          "expect": "供电与信号正常"
+        },
+        {
+          "order": 3,
+          "action": "手动活动风门轴",
+          "expect": "转动灵活"
+        },
+        {
+          "order": 4,
+          "action": "更换执行器后复测",
+          "expect": "回风门可调"
+        }
+      ],
+      "escalation": "回风门长期失效会增加制冷负荷，未修复时按最大新风工况运行并上报。",
+      "safety": "检查风门时防止夹手。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_outlet_condensate",
+      "system": "hvac",
+      "title": "出风口结露滴水，乘客投诉",
+      "symptoms": [
+        "出风口边缘挂水珠",
+        "下方座椅或地板有水滴",
+        "湿度大时更明显"
+      ],
+      "keywords": [
+        "出风口结露",
+        "滴水",
+        "挂水珠",
+        "漏水",
+        "冷凝水"
+      ],
+      "likely_causes": [
+        {
+          "text": "出风口保温层破损导致表面低于露点",
+          "weight": 1.0
+        },
+        {
+          "text": "送风温度过低",
+          "weight": 0.7
+        },
+        {
+          "text": "客室湿度高",
+          "weight": 0.55
+        },
+        {
+          "text": "出风口排水槽堵塞",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查出风口保温层",
+          "expect": "保温完整、无破损"
+        },
+        {
+          "order": 2,
+          "action": "测量送风温度与客室露点",
+          "expect": "送风温度高于露点"
+        },
+        {
+          "order": 3,
+          "action": "检查出风口排水槽",
+          "expect": "排水通畅"
+        },
+        {
+          "order": 4,
+          "action": "修复保温或调整送风后复测",
+          "expect": "不再结露"
+        }
+      ],
+      "escalation": "结露滴水会影响乘客，未修复时应调整出风方向并上报。",
+      "safety": "滴水可能造成地面湿滑，设置警示。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://cqrb.cn/minshengdongxian/2026-08-14/2751428_pc.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_outlet_uneven",
+      "system": "hvac",
+      "title": "出风口风量不均，个别口几乎无风",
+      "symptoms": [
+        "同一风道部分出风口风量很小",
+        "个别出风口完全无风",
+        "客室局部温度偏高"
+      ],
+      "keywords": [
+        "出风口无风",
+        "风量不均",
+        "个别口",
+        "局部热",
+        "风口"
+      ],
+      "likely_causes": [
+        {
+          "text": "出风口风门关闭或卡滞",
+          "weight": 1.0
+        },
+        {
+          "text": "风道支管堵塞",
+          "weight": 0.75
+        },
+        {
+          "text": "出风口格栅堵塞",
+          "weight": 0.6
+        },
+        {
+          "text": "风道内导流板脱落",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查出风口风门与格栅",
+          "expect": "风门开启、格栅通透"
+        },
+        {
+          "order": 2,
+          "action": "检查风道支管是否堵塞",
+          "expect": "支管通畅"
+        },
+        {
+          "order": 3,
+          "action": "检查导流板",
+          "expect": "导流板完好"
+        },
+        {
+          "order": 4,
+          "action": "清理或调整后复测风量",
+          "expect": "各口风量均匀"
+        }
+      ],
+      "escalation": "支管结构问题导致长期不均时上报改造，禁止拆除格栅增大风量。",
+      "safety": "登高检查出风口时使用稳固梯具。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_duct_noise",
+      "system": "hvac",
+      "title": "风道内异物拍打，运行有节奏异响",
+      "symptoms": [
+        "风道内有啪啪拍打声",
+        "声音随风机转速变化",
+        "出风口偶尔吹出碎屑"
+      ],
+      "keywords": [
+        "风道异物",
+        "拍打声",
+        "节奏异响",
+        "吹碎屑",
+        "风道响"
+      ],
+      "likely_causes": [
+        {
+          "text": "风道内进入异物",
+          "weight": 1.0
+        },
+        {
+          "text": "消音棉或密封条脱落",
+          "weight": 0.8
+        },
+        {
+          "text": "风道内线束未固定",
+          "weight": 0.6
+        },
+        {
+          "text": "风门叶片松动",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆开风道检查异物",
+          "expect": "风道内无异物"
+        },
+        {
+          "order": 2,
+          "action": "检查消音棉与密封条",
+          "expect": "固定牢固"
+        },
+        {
+          "order": 3,
+          "action": "检查风道内线束固定",
+          "expect": "线束固定、不摆动"
+        },
+        {
+          "order": 4,
+          "action": "清理并固定后复测",
+          "expect": "异响消除"
+        }
+      ],
+      "escalation": "反复进入异物时检查风道入口格栅，禁止拆除格栅。",
+      "safety": "拆风道时防止异物掉入客室。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_vent_breaker",
+      "system": "hvac",
+      "title": "通风断路器跳闸，通风系统全停",
+      "symptoms": [
+        "通风断路器跳闸",
+        "通风机与废排风机都不工作",
+        "复位后运行几分钟又跳"
+      ],
+      "keywords": [
+        "通风断路器",
+        "跳闸",
+        "通风全停",
+        "复位又跳",
+        "通风回路"
+      ],
+      "likely_causes": [
+        {
+          "text": "通风回路存在短路或接地",
+          "weight": 1.0
+        },
+        {
+          "text": "风机电机绝缘损坏",
+          "weight": 0.8
+        },
+        {
+          "text": "断路器额定值偏小",
+          "weight": 0.5
+        },
+        {
+          "text": "线路绝缘老化",
+          "weight": 0.6
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "断开风机负载后单独合闸",
+          "expect": "不跳闸"
+        },
+        {
+          "order": 2,
+          "action": "逐台接回风机定位故障支路",
+          "expect": "定位到唯一支路"
+        },
+        {
+          "order": 3,
+          "action": "测量故障支路绝缘",
+          "expect": "绝缘合格"
+        },
+        {
+          "order": 4,
+          "action": "修复后复测运行电流",
+          "expect": "电流正常"
+        }
+      ],
+      "escalation": "绝缘不合格时更换电机或线束，禁止加大断路器规格。",
+      "safety": "测量绝缘前断电验电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    }
+  ]
+}

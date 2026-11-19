@@ -1,0 +1,816 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_brake_cylinder_stuck",
+      "system": "brake",
+      "title": "制动缸不缓解，闸瓦抱死车轮",
+      "symptoms": [
+        "制动指令已撤，闸瓦仍紧贴踏面",
+        "车辆起步阻力大，轮对有焦味",
+        "制动缸活塞杆没有缩回"
+      ],
+      "keywords": ["制动缸不缓解", "闸瓦抱死", "松不开", "抱闸", "活塞不缩回"],
+      "likely_causes": [
+        { "text": "制动缸活塞卡滞或密封圈膨胀", "weight": 1.0 },
+        { "text": "缓解气路堵塞或排风不畅", "weight": 0.8 },
+        { "text": "分配阀未转到缓解位", "weight": 0.65 },
+        { "text": "闸瓦间隙调整器卡死", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "观察制动缸活塞杆是否缩回", "expect": "缓解后活塞杆完全缩回" },
+        { "order": 2, "action": "测量制动缸压力是否降到零", "expect": "压力归零" },
+        { "order": 3, "action": "拆检活塞与密封圈", "expect": "活塞活动自如、密封圈无膨胀" },
+        { "order": 4, "action": "检查闸瓦间隙调整器", "expect": "调整器能自动复位" }
+      ],
+      "escalation": "抱死轮对会擦伤踏面，未缓解前禁止动车，按制动故障上报并申请救援。",
+      "safety": "处理抱闸前设置防溜措施，禁止在坡道上松闸。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_cylinder_leak",
+      "system": "brake",
+      "title": "制动缸漏气，制动力不足",
+      "symptoms": [
+        "制动时制动缸处有漏气声",
+        "制动缸压力上升慢或保不住",
+        "制动距离变长"
+      ],
+      "keywords": ["制动缸漏气", "制动力不足", "漏气声", "保不住压", "刹车软"],
+      "likely_causes": [
+        { "text": "制动缸活塞密封圈老化", "weight": 1.0 },
+        { "text": "缸筒内壁拉伤", "weight": 0.75 },
+        { "text": "端盖密封垫破损", "weight": 0.65 },
+        { "text": "进气管接头松动", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "在制动缸排气口涂肥皂水观察", "expect": "无持续气泡" },
+        { "order": 2, "action": "测量制动缸压力保持能力", "expect": "保压 5 分钟压降不超限" },
+        { "order": 3, "action": "拆检缸筒与密封圈", "expect": "缸筒光洁、密封圈完好" },
+        { "order": 4, "action": "检查进气管接头", "expect": "接头紧固、无泄漏" }
+      ],
+      "escalation": "制动力不足直接影响行车安全，未修复前该车不得投入运用。",
+      "safety": "拆制动缸前必须断电并排尽压力空气。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_shoe_worn",
+      "system": "brake",
+      "title": "闸瓦磨耗到限，制动距离变长",
+      "symptoms": [
+        "闸瓦厚度低于限值",
+        "制动时闸瓦与踏面间隙偏大",
+        "制动距离比新车明显变长"
+      ],
+      "keywords": ["闸瓦磨耗", "闸瓦到限", "闸瓦薄", "制动距离长", "换闸瓦"],
+      "likely_causes": [
+        { "text": "闸瓦正常磨耗到限", "weight": 1.0 },
+        { "text": "闸瓦间隙调整器失效导致间隙过大", "weight": 0.75 },
+        { "text": "制动频繁或超载加速磨耗", "weight": 0.6 },
+        { "text": "闸瓦材质不合格", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "测量闸瓦剩余厚度", "expect": "不低于限值" },
+        { "order": 2, "action": "测量闸瓦与踏面间隙", "expect": "间隙在标称范围" },
+        { "order": 3, "action": "检查间隙调整器动作", "expect": "能自动补偿磨耗" },
+        { "order": 4, "action": "成组更换闸瓦后复测间隙", "expect": "间隙合格" }
+      ],
+      "escalation": "闸瓦到限必须更换，同一轮对两侧应同时更换，禁止只换单侧。",
+      "safety": "更换闸瓦时设置防溜措施，禁止手伸入闸瓦与踏面之间。",
+      "sources": ["K-07"],
+      "source_links": ["https://d.wanfangdata.com.cn/periodical/cstdxyxb201810006"]
+    },
+    {
+      "id": "kb_brake_shoe_uneven",
+      "system": "brake",
+      "title": "闸瓦偏磨，一侧磨得快",
+      "symptoms": [
+        "同一轮对两侧闸瓦厚度差明显",
+        "闸瓦磨出台阶或斜面",
+        "制动时车辆有跑偏感"
+      ],
+      "keywords": ["闸瓦偏磨", "两侧不均", "磨出台阶", "跑偏", "偏磨"],
+      "likely_causes": [
+        { "text": "制动缸安装偏斜", "weight": 1.0 },
+        { "text": "闸瓦托定位偏差", "weight": 0.8 },
+        { "text": "轮对踏面偏磨", "weight": 0.6 },
+        { "text": "闸瓦间隙调整器两侧不一致", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "测量同轮对两侧闸瓦厚度", "expect": "厚度差在限值内" },
+        { "order": 2, "action": "检查制动缸与闸瓦托安装", "expect": "安装正、无偏斜" },
+        { "order": 3, "action": "检查踏面磨耗", "expect": "踏面无偏磨" },
+        { "order": 4, "action": "调整或更换后复测", "expect": "两侧磨耗均匀" }
+      ],
+      "escalation": "偏磨持续时检查制动缸与闸瓦托同轴度，禁止只换闸瓦不纠偏。",
+      "safety": "检查闸瓦时车辆必须停稳并设防溜。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_shoe_crack",
+      "system": "brake",
+      "title": "闸瓦裂纹或掉块，制动时有异响",
+      "symptoms": [
+        "闸瓦表面有裂纹或缺口",
+        "制动时轮对处有金属敲击声",
+        "闸瓦碎屑掉落"
+      ],
+      "keywords": ["闸瓦裂纹", "掉块", "制动异响", "碎屑", "闸瓦裂"],
+      "likely_causes": [
+        { "text": "闸瓦热疲劳开裂", "weight": 1.0 },
+        { "text": "闸瓦材质缺陷", "weight": 0.7 },
+        { "text": "制动时异物卷入", "weight": 0.6 },
+        { "text": "闸瓦安装不到位受力不均", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查闸瓦裂纹与掉块", "expect": "无裂纹、无掉块" },
+        { "order": 2, "action": "检查踏面是否被划伤", "expect": "踏面无划伤" },
+        { "order": 3, "action": "检查闸瓦安装面", "expect": "安装到位、受力均匀" },
+        { "order": 4, "action": "更换闸瓦后试制动", "expect": "异响消除" }
+      ],
+      "escalation": "闸瓦裂纹会脱落打击轨旁设备，发现即更换。",
+      "safety": "更换前确认制动已缓解并设防溜。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_disc_crack",
+      "system": "brake",
+      "title": "制动盘热裂纹，制动时抖动",
+      "symptoms": [
+        "制动盘表面有细密裂纹",
+        "制动时车辆抖动",
+        "制动盘发蓝有热斑"
+      ],
+      "keywords": ["制动盘裂纹", "热裂纹", "制动抖动", "热斑", "盘裂"],
+      "likely_causes": [
+        { "text": "制动盘反复高温热冲击", "weight": 1.0 },
+        { "text": "闸片与盘面接触不均", "weight": 0.75 },
+        { "text": "制动盘材质热疲劳", "weight": 0.6 },
+        { "text": "散热不良持续高温", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查制动盘表面裂纹与热斑", "expect": "无裂纹、无严重热斑" },
+        { "order": 2, "action": "测量制动盘厚度与端面跳动", "expect": "在限值内" },
+        { "order": 3, "action": "检查闸片接触面", "expect": "接触均匀" },
+        { "order": 4, "action": "更换制动盘后复测", "expect": "制动平稳" }
+      ],
+      "escalation": "制动盘裂纹超限必须更换，禁止打磨后继续使用。",
+      "safety": "制动盘高温，作业前冷却并断电。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_disc_worn",
+      "system": "brake",
+      "title": "制动盘磨耗超限，制动力下降",
+      "symptoms": [
+        "制动盘厚度低于限值",
+        "盘面有深沟槽",
+        "制动时制动力不足"
+      ],
+      "keywords": ["制动盘磨耗", "盘薄", "沟槽", "制动力下降", "盘到限"],
+      "likely_causes": [
+        { "text": "制动盘正常磨耗到限", "weight": 1.0 },
+        { "text": "闸片材质过硬加速磨耗", "weight": 0.7 },
+        { "text": "异物进入盘片之间", "weight": 0.55 },
+        { "text": "制动盘偏磨", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "测量制动盘厚度", "expect": "不低于限值" },
+        { "order": 2, "action": "检查盘面沟槽深度", "expect": "沟槽在限值内" },
+        { "order": 3, "action": "检查闸片材质与磨耗", "expect": "材质合格、磨耗正常" },
+        { "order": 4, "action": "更换制动盘后复测", "expect": "制动正常" }
+      ],
+      "escalation": "盘厚到限必须成对更换，禁止只换单侧。",
+      "safety": "更换制动盘需专用工具，按扭矩紧固。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_pad_worn",
+      "system": "brake",
+      "title": "闸片磨耗过快，换完不久又到限",
+      "symptoms": [
+        "闸片更换周期明显缩短",
+        "闸片表面有烧蚀痕迹",
+        "制动盘温度偏高"
+      ],
+      "keywords": ["闸片磨耗快", "换完又到限", "烧蚀", "盘温高", "闸片寿命短"],
+      "likely_causes": [
+        { "text": "再生制动失效，空气制动承担过多", "weight": 1.0 },
+        { "text": "防滑控制不良导致长时间滑行", "weight": 0.75 },
+        { "text": "闸片材质与盘面不匹配", "weight": 0.6 },
+        { "text": "制动盘表面粗糙", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "查看再生制动投入比例", "expect": "再生制动正常投入" },
+        { "order": 2, "action": "检查防滑系统工作", "expect": "无频繁防滑动作" },
+        { "order": 3, "action": "测量制动盘温度与表面状态", "expect": "温度正常、表面光洁" },
+        { "order": 4, "action": "核对闸片材质批次", "expect": "材质合格" }
+      ],
+      "escalation": "闸片异常磨耗属系统性问题，需检查电制动与防滑策略，禁止只缩短更换周期。",
+      "safety": "闸片可能高温，检查时佩戴隔热手套。",
+      "sources": ["K-07"],
+      "source_links": ["https://d.wanfangdata.com.cn/periodical/cstdxyxb201810006"]
+    },
+    {
+      "id": "kb_brake_pipe_leak",
+      "system": "brake",
+      "title": "制动管路漏气，压力建立慢",
+      "symptoms": [
+        "制动时管路有漏气声",
+        "制动缸压力上升慢",
+        "总风压力下降快"
+      ],
+      "keywords": ["制动管路漏", "漏气", "压力建立慢", "风压下降", "管路"],
+      "likely_causes": [
+        { "text": "管路接头松动或密封失效", "weight": 1.0 },
+        { "text": "管路锈蚀穿孔", "weight": 0.75 },
+        { "text": "软管老化开裂", "weight": 0.65 },
+        { "text": "管卡脱落导致振动磨穿", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "沿管路涂肥皂水查漏", "expect": "无连续气泡" },
+        { "order": 2, "action": "做保压试验", "expect": "压降不超限" },
+        { "order": 3, "action": "检查管卡与管路走向", "expect": "管卡齐全、无摩擦" },
+        { "order": 4, "action": "更换漏气段后复测", "expect": "保压合格" }
+      ],
+      "escalation": "漏气点无法现场处理时隔离该制动支路并限速运行，按规程上报。",
+      "safety": "查漏前泄压，禁止带压拆管。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_hose_age",
+      "system": "brake",
+      "title": "制动软管老化开裂，存在爆管风险",
+      "symptoms": [
+        "软管表面有裂纹或鼓包",
+        "软管接头处渗气",
+        "软管手感发硬"
+      ],
+      "keywords": ["制动软管", "老化", "开裂", "鼓包", "爆管"],
+      "likely_causes": [
+        { "text": "橡胶软管自然老化", "weight": 1.0 },
+        { "text": "软管长期弯折疲劳", "weight": 0.75 },
+        { "text": "接头压接不良", "weight": 0.6 },
+        { "text": "油污腐蚀橡胶", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查软管外观裂纹与鼓包", "expect": "无裂纹、无鼓包" },
+        { "order": 2, "action": "检查接头压接与渗气", "expect": "压接牢固、无渗漏" },
+        { "order": 3, "action": "核对软管生产日期与更换周期", "expect": "在有效期内" },
+        { "order": 4, "action": "更换软管后保压", "expect": "保压合格" }
+      ],
+      "escalation": "软管鼓包或裂纹必须更换，禁止缠绕胶带继续使用。",
+      "safety": "更换软管前泄压，防止高压气体伤人。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_main_pressure_low",
+      "system": "brake",
+      "title": "总风压力低，制动与门系统同时受影响",
+      "symptoms": [
+        "总风压力表低于规定值",
+        "制动与车门动作都变慢",
+        "空压机长时间运行"
+      ],
+      "keywords": ["总风压力低", "风压不足", "空压机长时间", "门也慢", "总风"],
+      "likely_causes": [
+        { "text": "空压机产气量不足", "weight": 1.0 },
+        { "text": "系统泄漏量大", "weight": 0.8 },
+        { "text": "干燥器堵塞", "weight": 0.6 },
+        { "text": "压力开关设定偏低", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "读取总风压力并记录", "expect": "不低于规定下限" },
+        { "order": 2, "action": "检查空压机运行时间与产气", "expect": "产气正常" },
+        { "order": 3, "action": "做全车保压试验", "expect": "压降不超限" },
+        { "order": 4, "action": "检查干燥器前后压差", "expect": "压差正常" }
+      ],
+      "escalation": "总风压力低会同时影响制动与车门，未恢复前不得投入运用。",
+      "safety": "打风作业时注意高压与噪声。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_compressor_no_output",
+      "system": "brake",
+      "title": "空压机不打风，总风压力持续下降",
+      "symptoms": [
+        "空压机运行但总风压力不上升",
+        "空压机排气口无压力",
+        "运行电流偏低"
+      ],
+      "keywords": ["空压机不打风", "不产气", "压力不升", "排气无压", "压缩机"],
+      "likely_causes": [
+        { "text": "进气系统堵塞", "weight": 1.0 },
+        { "text": "气阀故障或阀片断裂", "weight": 0.8 },
+        { "text": "压缩机内部磨损严重", "weight": 0.65 },
+        { "text": "排气管路泄漏或旁通", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查进气滤清器是否堵塞", "expect": "进气通畅" },
+        { "order": 2, "action": "测量排气压力", "expect": "能达到标称值" },
+        { "order": 3, "action": "听诊气阀动作与异响", "expect": "气阀动作正常" },
+        { "order": 4, "action": "检查排气管路与旁通阀", "expect": "无泄漏、旁通关闭" }
+      ],
+      "escalation": "空压机不产气会导致总风耗尽，按故障上报并限速回段。",
+      "safety": "空压机高温，检查前冷却。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_compressor_hot",
+      "system": "brake",
+      "title": "空压机排气温度高，频繁停机保护",
+      "symptoms": [
+        "空压机排气温度报警",
+        "运行一段时间自动停机",
+        "冷却器表面温度高"
+      ],
+      "keywords": ["空压机温度高", "排气温度", "停机保护", "冷却器", "过热"],
+      "likely_causes": [
+        { "text": "冷却器脏堵或风扇故障", "weight": 1.0 },
+        { "text": "润滑油不足或变质", "weight": 0.8 },
+        { "text": "长时间高负荷运行", "weight": 0.6 },
+        { "text": "温度传感器漂移", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "测量排气温度与冷却器出风温度", "expect": "排气温度在标称范围" },
+        { "order": 2, "action": "清洁冷却器并检查风扇", "expect": "散热良好" },
+        { "order": 3, "action": "检查润滑油油位与状态", "expect": "油位正常、油质合格" },
+        { "order": 4, "action": "校对温度传感器", "expect": "读数准确" }
+      ],
+      "escalation": "高温保护频繁动作时禁止屏蔽保护，按冷却或润滑故障处理。",
+      "safety": "排气口高温，禁止用手触摸。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_compressor_noise",
+      "system": "brake",
+      "title": "空压机异响，内部零件松动",
+      "symptoms": [
+        "空压机运行有金属敲击声",
+        "振动比正常大",
+        "电流有波动"
+      ],
+      "keywords": ["空压机异响", "金属敲击", "振动大", "电流波动", "压缩机响"],
+      "likely_causes": [
+        { "text": "内部机械部件松动或磨损", "weight": 1.0 },
+        { "text": "气阀损坏", "weight": 0.8 },
+        { "text": "减振座老化", "weight": 0.55 },
+        { "text": "固定螺栓松动", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "辨别异响来自内部还是安装座", "expect": "定位声源" },
+        { "order": 2, "action": "检查减振座与固定螺栓", "expect": "减振良好、螺栓紧固" },
+        { "order": 3, "action": "检查气阀与内部零件", "expect": "无松动、无磨损" },
+        { "order": 4, "action": "修复或更换后复测", "expect": "异响消除" }
+      ],
+      "escalation": "内部金属敲击声确认后立即停机，防止压缩机损坏扩大。",
+      "safety": "停机泄压后再拆检。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_dryer_water",
+      "system": "brake",
+      "title": "干燥器失效，气路含水导致冬季结冰",
+      "symptoms": [
+        "气路排水口有大量积水",
+        "冬季制动阀件动作迟滞",
+        "干燥器指示窗变色"
+      ],
+      "keywords": ["干燥器失效", "气路含水", "冬季结冰", "指示变色", "排水多"],
+      "likely_causes": [
+        { "text": "干燥剂饱和失效", "weight": 1.0 },
+        { "text": "干燥器加热或再生功能故障", "weight": 0.8 },
+        { "text": "排水阀堵塞", "weight": 0.65 },
+        { "text": "环境湿度大且排水不及时", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查干燥器指示窗颜色", "expect": "指示正常" },
+        { "order": 2, "action": "排放各风缸积水", "expect": "排水量正常" },
+        { "order": 3, "action": "检查排水阀与再生功能", "expect": "排水通畅、再生正常" },
+        { "order": 4, "action": "更换干燥剂后复测露点", "expect": "露点合格" }
+      ],
+      "escalation": "气路含水会导致阀件结冰卡滞，必须处理干燥器，禁止只排水。",
+      "safety": "排水时防止水雾喷溅，佩戴护目镜。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_valve_stuck",
+      "system": "brake",
+      "title": "中继阀卡滞，制动缸压力不跟随指令",
+      "symptoms": [
+        "制动指令变化但制动缸压力不变",
+        "中继阀处有卡滞感",
+        "制动缓解不同步"
+      ],
+      "keywords": ["中继阀卡滞", "压力不跟随", "缓解不同步", "阀卡", "中继阀"],
+      "likely_causes": [
+        { "text": "阀芯与阀体间杂质卡滞", "weight": 1.0 },
+        { "text": "阀芯润滑不足", "weight": 0.75 },
+        { "text": "阀体内部锈蚀", "weight": 0.6 },
+        { "text": "冬季水分结冰", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "给定制动指令观察制动缸压力响应", "expect": "压力随指令变化" },
+        { "order": 2, "action": "拆检阀芯与阀腔", "expect": "阀芯光洁、活动自如" },
+        { "order": 3, "action": "检查气路含水", "expect": "气源干燥" },
+        { "order": 4, "action": "清洗或更换阀件后复测", "expect": "压力跟随正常" }
+      ],
+      "escalation": "中继阀卡滞会导致制动力失控，未修复前该车停用。",
+      "safety": "拆阀前泄压并断电。",
+      "sources": ["K-07"],
+      "source_links": ["http://xueshu.qikan.com.cn/preview/1/322/5806082"]
+    },
+    {
+      "id": "kb_brake_valve_leak",
+      "system": "brake",
+      "title": "制动阀泄漏，压力稳定不住",
+      "symptoms": [
+        "制动阀排气口持续漏气",
+        "制动缸压力缓慢下降",
+        "总风消耗加快"
+      ],
+      "keywords": ["制动阀漏", "持续漏气", "压力下降", "总风消耗", "阀泄漏"],
+      "likely_causes": [
+        { "text": "阀体密封件破损", "weight": 1.0 },
+        { "text": "阀座磨损", "weight": 0.75 },
+        { "text": "阀体裂纹", "weight": 0.55 },
+        { "text": "安装面密封垫失效", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "在阀排气口与安装面查漏", "expect": "无持续漏气" },
+        { "order": 2, "action": "做保压试验", "expect": "压降不超限" },
+        { "order": 3, "action": "拆检密封件与阀座", "expect": "密封完好、阀座光洁" },
+        { "order": 4, "action": "更换阀件后复测", "expect": "保压合格" }
+      ],
+      "escalation": "泄漏无法现场处理时隔离该制动支路并上报。",
+      "safety": "拆阀前泄压。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_antislip_valve_stuck",
+      "system": "brake",
+      "title": "防滑阀卡滞，制动时车轮易滑行",
+      "symptoms": [
+        "防滑阀不排风或排风不止",
+        "制动时轮对易抱死",
+        "防滑阀处有异响"
+      ],
+      "keywords": ["防滑阀卡滞", "车轮滑行", "排风不止", "防滑阀", "抱死"],
+      "likely_causes": [
+        { "text": "阀内静铁芯有残余胶或金属杂质", "weight": 1.0 },
+        { "text": "阀芯润滑不足", "weight": 0.75 },
+        { "text": "线圈故障导致阀不动作", "weight": 0.6 },
+        { "text": "控制气路堵塞", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查防滑阀动作与排风", "expect": "按指令排风与保压" },
+        { "order": 2, "action": "测量线圈电阻与供电", "expect": "阻值正常、供电正常" },
+        { "order": 3, "action": "拆检阀芯与静铁芯", "expect": "无杂质、阀芯活动自如" },
+        { "order": 4, "action": "更换防滑阀后做防滑试验", "expect": "防滑动作正常" }
+      ],
+      "escalation": "防滑阀失效会导致轮对擦伤，必须更换，禁止屏蔽防滑功能。",
+      "safety": "拆阀前泄压断电。",
+      "sources": ["K-07"],
+      "source_links": ["https://xxjk.cbpt.cnki.net/portal/journal/portal/client/paper/d83ddde1c2a427a0d8b30612b941f80c"]
+    },
+    {
+      "id": "kb_brake_antislip_false",
+      "system": "brake",
+      "title": "防滑阀误动作，未滑行也频繁排风",
+      "symptoms": [
+        "正常制动时防滑阀频繁排风",
+        "制动力损失，制动距离变长",
+        "闸片磨耗加快"
+      ],
+      "keywords": ["防滑误动作", "频繁排风", "制动力损失", "未滑行", "误触发"],
+      "likely_causes": [
+        { "text": "速度传感器信号失真", "weight": 1.0 },
+        { "text": "防滑控制参数不当", "weight": 0.75 },
+        { "text": "防滑阀线圈或阀芯故障", "weight": 0.6 },
+        { "text": "BCU 防滑逻辑误判", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "下载 BCU 数据分析滑行判定", "expect": "无虚假滑行" },
+        { "order": 2, "action": "检查速度传感器信号", "expect": "信号稳定、无跳变" },
+        { "order": 3, "action": "检查防滑阀动作", "expect": "仅真实滑行时动作" },
+        { "order": 4, "action": "更换故障件后做防滑试验", "expect": "误动作消除" }
+      ],
+      "escalation": "防滑误动会显著延长制动距离，未修复前限速运行。",
+      "safety": "防滑试验需在专用线路或允许条件下进行。",
+      "sources": ["K-07"],
+      "source_links": ["http://xueshu.qikan.com.cn/preview/1/322/5806082"]
+    },
+    {
+      "id": "kb_brake_speed_sensor",
+      "system": "brake",
+      "title": "速度传感器信号丢失，BCU 报轴速故障",
+      "symptoms": [
+        "BCU 报某轴速度信号异常",
+        "防滑功能退出",
+        "制动时该轴制动力异常"
+      ],
+      "keywords": ["速度传感器", "轴速故障", "信号丢失", "防滑退出", "传感器"],
+      "likely_causes": [
+        { "text": "传感器与齿盘间隙过大", "weight": 1.0 },
+        { "text": "传感器脏污或损坏", "weight": 0.8 },
+        { "text": "线束断线或插头松动", "weight": 0.7 },
+        { "text": "齿盘缺齿或脏污", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "测量传感器与齿盘间隙", "expect": "间隙在标称范围" },
+        { "order": 2, "action": "清洁传感器与齿盘", "expect": "无油污、无金属屑" },
+        { "order": 3, "action": "测量传感器输出信号", "expect": "转动时有稳定脉冲" },
+        { "order": 4, "action": "更换传感器后复测", "expect": "信号恢复" }
+      ],
+      "escalation": "速度信号丢失会退出防滑保护，未修复前限速运行。",
+      "safety": "检查齿盘时车辆必须停稳并设防溜。",
+      "sources": ["K-07"],
+      "source_links": ["http://xueshu.qikan.com.cn/preview/1/322/5806082"]
+    },
+    {
+      "id": "kb_brake_speed_sensor_dirty",
+      "system": "brake",
+      "title": "速度传感器齿盘脏污，低速时信号不稳",
+      "symptoms": [
+        "低速时轴速信号跳变",
+        "停车前防滑误动作",
+        "齿盘表面有油泥"
+      ],
+      "keywords": ["齿盘脏", "低速信号不稳", "停车前误动", "油泥", "齿盘"],
+      "likely_causes": [
+        { "text": "齿盘表面油泥或金属屑", "weight": 1.0 },
+        { "text": "齿轮箱漏油污染齿盘", "weight": 0.75 },
+        { "text": "传感器安装偏斜", "weight": 0.6 },
+        { "text": "齿盘缺齿", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "清洁齿盘与传感器端面", "expect": "表面洁净" },
+        { "order": 2, "action": "检查齿轮箱是否漏油", "expect": "无渗漏" },
+        { "order": 3, "action": "检查齿盘缺齿与偏摆", "expect": "齿形完整、偏摆在限值内" },
+        { "order": 4, "action": "清洁后低速复测", "expect": "信号稳定" }
+      ],
+      "escalation": "齿盘缺齿或偏摆超限时更换，禁止只清洁不查机械原因。",
+      "safety": "清洁时防止金属屑进入传感器间隙。",
+      "sources": ["K-07"],
+      "source_links": ["http://xueshu.qikan.com.cn/preview/1/322/5806082"]
+    },
+    {
+      "id": "kb_brake_bcu_comm",
+      "system": "brake",
+      "title": "BCU 通信故障，制动指令丢失",
+      "symptoms": [
+        "监控报 BCU 通信中断",
+        "制动指令发出但无响应",
+        "重启后短暂恢复"
+      ],
+      "keywords": ["BCU 通信", "指令丢失", "通信中断", "制动无响应", "重启恢复"],
+      "likely_causes": [
+        { "text": "通信线接头松动或退针", "weight": 1.0 },
+        { "text": "BCU 通信板故障", "weight": 0.8 },
+        { "text": "网络终端电阻异常", "weight": 0.6 },
+        { "text": "电源波动导致 BCU 复位", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查通信线接头与锁紧", "expect": "接头锁紧、无退针" },
+        { "order": 2, "action": "测量通信线通断与屏蔽", "expect": "导通、屏蔽完好" },
+        { "order": 3, "action": "检查 BCU 供电稳定性", "expect": "供电稳定" },
+        { "order": 4, "action": "更换 BCU 后复测", "expect": "通信恢复" }
+      ],
+      "escalation": "制动指令丢失属重大故障，未修复前禁止投入运用。",
+      "safety": "插拔通信线前断电。",
+      "sources": ["K-07"],
+      "source_links": ["http://xueshu.qikan.com.cn/preview/1/322/5806082"]
+    },
+    {
+      "id": "kb_brake_bcu_power",
+      "system": "brake",
+      "title": "BCU 电源故障，制动控制单元不工作",
+      "symptoms": [
+        "BCU 指示灯不亮",
+        "制动系统全部失效",
+        "控制柜断路器跳闸"
+      ],
+      "keywords": ["BCU 电源", "不工作", "指示灯不亮", "断路器跳", "控制单元"],
+      "likely_causes": [
+        { "text": "BCU 供电断路器跳闸或保险熔断", "weight": 1.0 },
+        { "text": "供电线束断线", "weight": 0.8 },
+        { "text": "BCU 内部电源模块故障", "weight": 0.65 },
+        { "text": "接插件接触不良", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查 BCU 供电断路器与保险", "expect": "断路器闭合、保险导通" },
+        { "order": 2, "action": "测量 BCU 输入电压", "expect": "达到标称值" },
+        { "order": 3, "action": "检查供电线束与接插件", "expect": "导通、无退针" },
+        { "order": 4, "action": "更换 BCU 后复测", "expect": "BCU 正常工作" }
+      ],
+      "escalation": "BCU 不工作等于失去制动控制，必须立即停用该车。",
+      "safety": "测量前断电验电，防止短路。",
+      "sources": ["K-07"],
+      "source_links": ["http://xueshu.qikan.com.cn/preview/1/322/5806082"]
+    },
+    {
+      "id": "kb_brake_no_service",
+      "system": "brake",
+      "title": "常用制动不施加，只有紧急制动有效",
+      "symptoms": [
+        "常用制动位无制动力",
+        "紧急制动能正常施加",
+        "BCU 无故障码"
+      ],
+      "keywords": ["常用制动不施加", "只有紧急", "无制动力", "常用制动", "指令"],
+      "likely_causes": [
+        { "text": "常用制动指令未送达 BCU", "weight": 1.0 },
+        { "text": "制动控制器输出故障", "weight": 0.75 },
+        { "text": "BCU 常用制动通道故障", "weight": 0.6 },
+        { "text": "电制动与空气制动切换逻辑异常", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "施加常用制动，测量指令与制动缸压力", "expect": "压力随指令上升" },
+        { "order": 2, "action": "检查制动控制器输出", "expect": "输出信号正常" },
+        { "order": 3, "action": "检查 BCU 常用制动通道", "expect": "通道正常" },
+        { "order": 4, "action": "检查电空制动切换逻辑", "expect": "切换正常" }
+      ],
+      "escalation": "常用制动失效只剩紧急制动，属重大安全隐患，立即停用。",
+      "safety": "试验常用制动需在允许线路进行，做好防溜。",
+      "sources": ["K-07"],
+      "source_links": ["http://xueshu.qikan.com.cn/preview/1/322/5806082"]
+    },
+    {
+      "id": "kb_brake_emergency_fail",
+      "system": "brake",
+      "title": "紧急制动不施加，安全回路失效",
+      "symptoms": [
+        "拍紧急制动按钮无制动",
+        "紧急制动继电器不动作",
+        "安全回路指示灯异常"
+      ],
+      "keywords": ["紧急制动不施加", "紧急按钮无效", "安全回路", "继电器", "拍急"],
+      "likely_causes": [
+        { "text": "紧急制动安全回路断路", "weight": 1.0 },
+        { "text": "紧急制动按钮触点故障", "weight": 0.8 },
+        { "text": "紧急制动继电器不吸合", "weight": 0.7 },
+        { "text": "BCU 紧急通道故障", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "拍紧急按钮，测量安全回路通断", "expect": "回路断开并触发制动" },
+        { "order": 2, "action": "检查按钮触点", "expect": "触点动作可靠" },
+        { "order": 3, "action": "检查紧急制动继电器", "expect": "吸合可靠" },
+        { "order": 4, "action": "检查 BCU 紧急通道", "expect": "通道正常" }
+      ],
+      "escalation": "紧急制动失效禁止投入运用，必须修复后做紧急制动试验。",
+      "safety": "紧急制动试验会产生强烈制动，确认无乘客站立。",
+      "sources": ["K-07"],
+      "source_links": ["http://xueshu.qikan.com.cn/preview/1/322/5806082"]
+    },
+    {
+      "id": "kb_brake_parking_not_release",
+      "system": "brake",
+      "title": "停放制动不缓解，车辆无法起步",
+      "symptoms": [
+        "施加牵引但车辆不动",
+        "停放制动指示未熄灭",
+        "停放制动缸无缓解声"
+      ],
+      "keywords": ["停放制动不缓解", "起步不动", "指示不灭", "停车制动", "松不开"],
+      "likely_causes": [
+        { "text": "停放制动缓解气路未供气", "weight": 1.0 },
+        { "text": "停放制动电磁阀不动作", "weight": 0.8 },
+        { "text": "停放制动缸弹簧力未克服", "weight": 0.65 },
+        { "text": "缓解指令未送达", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "检查停放制动缓解气路压力", "expect": "达到标称值" },
+        { "order": 2, "action": "检查缓解电磁阀动作", "expect": "阀动作、气路通" },
+        { "order": 3, "action": "检查缓解指令与反馈", "expect": "指令与反馈一致" },
+        { "order": 4, "action": "手动缓解后检查机构", "expect": "手动缓解有效" }
+      ],
+      "escalation": "停放制动无法缓解时不得强行牵引，按规程手动缓解并上报。",
+      "safety": "手动缓解前必须设好防溜措施。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_parking_not_apply",
+      "system": "brake",
+      "title": "停放制动不施加，坡道停车溜逸风险",
+      "symptoms": [
+        "施加停放制动后车辆仍可推动",
+        "停放制动指示已亮但无制动力",
+        "坡道停车有溜车"
+      ],
+      "keywords": ["停放制动不施加", "坡道溜车", "停不住", "指示亮但没力", "溜逸"],
+      "likely_causes": [
+        { "text": "停放制动缸弹簧疲劳", "weight": 1.0 },
+        { "text": "停放制动施加气路泄漏", "weight": 0.75 },
+        { "text": "闸瓦或制动盘磨耗导致间隙过大", "weight": 0.6 },
+        { "text": "施加指令未送达", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "坡道试验检查是否溜车", "expect": "停放制动能保持" },
+        { "order": 2, "action": "检查停放制动缸与弹簧", "expect": "弹簧有效、无泄漏" },
+        { "order": 3, "action": "测量闸瓦间隙", "expect": "间隙在标称范围" },
+        { "order": 4, "action": "检查施加指令与反馈", "expect": "指令与反馈一致" }
+      ],
+      "escalation": "停放制动失效有溜逸风险，必须修复并做坡道试验。",
+      "safety": "坡道试验必须设置防溜措施与监护人员。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_not_release_all",
+      "system": "brake",
+      "title": "全列制动不缓解，牵引被封锁",
+      "symptoms": [
+        "全列制动指示不灭",
+        "牵引无输出",
+        "缓解指令已给但压力不降"
+      ],
+      "keywords": ["全列不缓解", "牵引封锁", "制动不松", "全列抱闸", "缓解失效"],
+      "likely_causes": [
+        { "text": "缓解指令未送达或安全回路未复位", "weight": 1.0 },
+        { "text": "总风压力不足", "weight": 0.75 },
+        { "text": "BCU 集中控制故障", "weight": 0.6 },
+        { "text": "某车制动未缓解导致全列联锁", "weight": 0.55 }
+      ],
+      "checks": [
+        { "order": 1, "action": "确认缓解指令与安全回路状态", "expect": "指令已下达、回路复位" },
+        { "order": 2, "action": "读取总风压力", "expect": "不低于规定值" },
+        { "order": 3, "action": "逐车查看制动缸压力", "expect": "全列压力归零" },
+        { "order": 4, "action": "定位未缓解车辆并处理", "expect": "该车恢复缓解" }
+      ],
+      "escalation": "全列不缓解时禁止强行牵引，按制动故障上报并申请救援。",
+      "safety": "处理前设置防溜，禁止在坡道上作业。",
+      "sources": ["K-07"],
+      "source_links": ["http://xueshu.qikan.com.cn/preview/1/322/5806082"]
+    },
+    {
+      "id": "kb_brake_pressure_sensor",
+      "system": "brake",
+      "title": "制动缸压力传感器偏差，显示与实际不符",
+      "symptoms": [
+        "监控显示制动缸压力与实际表压不符",
+        "制动试验判定异常",
+        "传感器读数不随制动变化"
+      ],
+      "keywords": ["压力传感器", "显示不符", "读数偏差", "制动缸压力", "传感器"],
+      "likely_causes": [
+        { "text": "压力传感器漂移或损坏", "weight": 1.0 },
+        { "text": "取样管堵塞", "weight": 0.75 },
+        { "text": "传感器供电或信号线故障", "weight": 0.6 },
+        { "text": "BCU 采样通道偏差", "weight": 0.45 }
+      ],
+      "checks": [
+        { "order": 1, "action": "用标准表对比传感器读数", "expect": "偏差在允许范围" },
+        { "order": 2, "action": "检查取样管是否堵塞", "expect": "取样管通畅" },
+        { "order": 3, "action": "检查传感器供电与信号", "expect": "供电正常、信号稳定" },
+        { "order": 4, "action": "更换传感器后复测", "expect": "读数一致" }
+      ],
+      "escalation": "压力显示失真会导致制动试验误判，必须更换，禁止按偏差值放行。",
+      "safety": "拆传感器前泄压。",
+      "sources": ["K-07"],
+      "source_links": ["https://www.qikanchina.com/thesis/view/9307002"]
+    },
+    {
+      "id": "kb_brake_slack_adjuster",
+      "system": "brake",
+      "title": "闸瓦间隙调整器失效，间隙越来越大",
+      "symptoms": [
+        "闸瓦间隙逐次变大",
+        "制动缸行程变长",
+        "制动响应变慢"
+      ],
+      "keywords": ["间隙调整器", "间隙变大", "缸行程长", "调整器失效", "闸瓦间隙"],
+      "likely_causes": [
+        { "text": "调整器内部单向机构磨损", "weight": 1.0 },
+        { "text": "调整器锈蚀卡滞", "weight": 0.8 },
+        { "text": "调整器安装偏斜", "weight": 0.55 },
+        { "text": "闸瓦磨耗过快超出调整范围", "weight": 0.5 }
+      ],
+      "checks": [
+        { "order": 1, "action": "测量闸瓦间隙与制动缸行程", "expect": "间隙与行程在标称范围" },
+        { "order": 2, "action": "手动操作调整器", "expect": "能自动补偿磨耗" },
+        { "order": 3, "action": "检查调整器锈蚀与安装", "expect": "无锈蚀、安装正" },
+        { "order": 4, "action": "更换调整器后复测", "expect": "间隙稳定" }
+      ],
+      "escalation": "调整器失效会导致制动力不足，必须更换。",
+      "safety": "操作调整器时防止手被夹伤。",
+      "sources": ["K-07"],
+      "source_links": ["https://d.wanfangdata.com.cn/periodical/cstdxyxb201810006"]
+    }
+  ]
+}

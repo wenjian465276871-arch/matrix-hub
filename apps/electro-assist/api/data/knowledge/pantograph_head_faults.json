@@ -1,0 +1,1503 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_pantograph_strip_uneven",
+      "system": "pantograph",
+      "title": "碳滑板偏磨，一侧磨耗明显快",
+      "symptoms": [
+        "同一滑板一端磨得比另一端薄",
+        "接触面呈斜面",
+        "磨耗速率比其它弓快"
+      ],
+      "keywords": [
+        "滑板偏磨",
+        "一侧磨快",
+        "斜面",
+        "磨耗不均",
+        "偏磨"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓头倾斜导致接触压力不均",
+          "weight": 1.0
+        },
+        {
+          "text": "下导杆调整不正",
+          "weight": 0.8
+        },
+        {
+          "text": "接触线拉出值固定导致局部磨耗",
+          "weight": 0.6
+        },
+        {
+          "text": "左右滑板高度差超差",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量滑板两端剩余厚度",
+          "expect": "两端磨耗差在限值内"
+        },
+        {
+          "order": 2,
+          "action": "检查弓头水平度",
+          "expect": "弓头水平"
+        },
+        {
+          "order": 3,
+          "action": "检查下导杆与弓头倾斜",
+          "expect": "位置正确、无倾斜"
+        },
+        {
+          "order": 4,
+          "action": "调整弓头后观察磨耗",
+          "expect": "磨耗趋于均匀"
+        }
+      ],
+      "escalation": "偏磨持续时检查接触网拉出值与弓头参数，禁止只换滑板不纠偏。",
+      "safety": "车顶作业断电并挂接地线。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://umt1998.tongji.edu.cn/article/doi/10.16037/j.1007-869x.2024.06.052",
+        "http://xueshu.qikan.com.cn/preview/1/14/56433"
+      ]
+    },
+    {
+      "id": "kb_pantograph_strip_chip",
+      "system": "pantograph",
+      "title": "碳滑板边缘掉块，接触面不平",
+      "symptoms": [
+        "滑板边缘有小块缺失",
+        "掉块处边缘锋利",
+        "运行时有轻微跳动"
+      ],
+      "keywords": [
+        "滑板掉块",
+        "边缘缺块",
+        "接触面不平",
+        "崩边",
+        "掉块"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑板受异物冲击掉块",
+          "weight": 1.0
+        },
+        {
+          "text": "滑板材质脆性大",
+          "weight": 0.65
+        },
+        {
+          "text": "弓网电弧烧蚀后局部剥落",
+          "weight": 0.6
+        },
+        {
+          "text": "滑板安装应力集中",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查掉块范围与深度",
+          "expect": "掉块在允许范围内"
+        },
+        {
+          "order": 2,
+          "action": "检查掉块边缘是否锋利",
+          "expect": "边缘可打磨圆滑"
+        },
+        {
+          "order": 3,
+          "action": "按规程打磨或更换",
+          "expect": "接触面平整"
+        },
+        {
+          "order": 4,
+          "action": "运行后复查磨耗",
+          "expect": "无异常磨耗"
+        }
+      ],
+      "escalation": "大面积掉块或裂缝延伸至托架时必须更换，禁止只打磨边缘继续使用。",
+      "safety": "打磨碳滑板时佩戴防尘口罩。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/14/56433",
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_strip_crack",
+      "system": "pantograph",
+      "title": "碳滑板裂纹，纵向贯穿需更换",
+      "symptoms": [
+        "滑板表面有纵向裂纹",
+        "裂纹延伸到托架附近",
+        "ADD 可能触发"
+      ],
+      "keywords": [
+        "滑板裂纹",
+        "纵向裂",
+        "贯穿",
+        "裂到托架",
+        "滑板裂"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑板受冲击产生裂纹",
+          "weight": 1.0
+        },
+        {
+          "text": "弓网电弧热应力导致开裂",
+          "weight": 0.75
+        },
+        {
+          "text": "滑板材质缺陷",
+          "weight": 0.55
+        },
+        {
+          "text": "滑板安装面不平产生应力",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查裂纹长度与走向",
+          "expect": "无纵向贯穿裂纹"
+        },
+        {
+          "order": 2,
+          "action": "检查裂纹是否延伸至托架",
+          "expect": "未到托架"
+        },
+        {
+          "order": 3,
+          "action": "检查滑板是否漏气",
+          "expect": "ADD 气路保压正常"
+        },
+        {
+          "order": 4,
+          "action": "更换滑板后复测",
+          "expect": "接触正常"
+        }
+      ],
+      "escalation": "纵向贯穿或裂缝到托架时必须更换，禁止用胶粘接裂纹。",
+      "safety": "裂纹滑板可能断裂，未更换前禁止升弓取流。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_strip_break",
+      "system": "pantograph",
+      "title": "碳滑板断裂，弓头失去接触面",
+      "symptoms": [
+        "滑板整条断开",
+        "弓头托架外露",
+        "自动降弓动作"
+      ],
+      "keywords": [
+        "滑板断裂",
+        "整条断",
+        "托架外露",
+        "自动降弓",
+        "断板"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑板受强烈冲击断裂",
+          "weight": 1.0
+        },
+        {
+          "text": "裂纹未及时发现扩展",
+          "weight": 0.8
+        },
+        {
+          "text": "滑板材质或粘接缺陷",
+          "weight": 0.55
+        },
+        {
+          "text": "弓网硬点冲击",
+          "weight": 0.6
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查滑板断裂位置与托架",
+          "expect": "托架无损伤"
+        },
+        {
+          "order": 2,
+          "action": "检查弓头其他部件",
+          "expect": "无变形、无裂纹"
+        },
+        {
+          "order": 3,
+          "action": "检查接触网是否受损",
+          "expect": "接触网无刮伤"
+        },
+        {
+          "order": 4,
+          "action": "更换滑板并校准压力",
+          "expect": "接触压力正常"
+        }
+      ],
+      "escalation": "滑板断裂可能刮伤接触网，必须停车检查弓网状态后处理。",
+      "safety": "接触网可能带电，检查前必须停电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_strip_leak",
+      "system": "pantograph",
+      "title": "碳滑板漏气，ADD 频繁动作",
+      "symptoms": [
+        "ADD 气路保不住压",
+        "滑板接缝处有漏气",
+        "升弓后不久自动降弓"
+      ],
+      "keywords": [
+        "滑板漏气",
+        "ADD 动作",
+        "保不住压",
+        "接缝漏",
+        "滑板漏"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑板接头或接缝处漏气",
+          "weight": 1.0
+        },
+        {
+          "text": "滑板内部通路破损",
+          "weight": 0.8
+        },
+        {
+          "text": "滑板受冲撞变形导致漏气",
+          "weight": 0.65
+        },
+        {
+          "text": "滑板安装密封不良",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "对 ADD 气路做保压试验",
+          "expect": "压降不超过规定值"
+        },
+        {
+          "order": 2,
+          "action": "在滑板接缝处涂肥皂水",
+          "expect": "无气泡"
+        },
+        {
+          "order": 3,
+          "action": "检查滑板是否变形",
+          "expect": "滑板平整"
+        },
+        {
+          "order": 4,
+          "action": "更换滑板后复测保压",
+          "expect": "保压合格"
+        }
+      ],
+      "escalation": "滑板漏气会导致自动降弓，未更换前该弓不得投入运用。",
+      "safety": "检查滑板前降弓断电。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=45529"
+      ]
+    },
+    {
+      "id": "kb_pantograph_strip_joint",
+      "system": "pantograph",
+      "title": "滑板与托架接缝漏气，ADD 误触发",
+      "symptoms": [
+        "接缝处有漏气声",
+        "ADD 在运行中动作",
+        "滑板外观无裂纹"
+      ],
+      "keywords": [
+        "接缝漏气",
+        "托架接缝",
+        "ADD 误动",
+        "漏气声",
+        "滑板接缝"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑板与托架接缝密封失效",
+          "weight": 1.0
+        },
+        {
+          "text": "接缝处有裂纹",
+          "weight": 0.8
+        },
+        {
+          "text": "滑板安装螺栓松动",
+          "weight": 0.6
+        },
+        {
+          "text": "托架变形",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "在接缝处查漏",
+          "expect": "无气泡"
+        },
+        {
+          "order": 2,
+          "action": "检查接缝裂纹与螺栓",
+          "expect": "无裂纹、螺栓紧固"
+        },
+        {
+          "order": 3,
+          "action": "检查托架变形",
+          "expect": "托架平整"
+        },
+        {
+          "order": 4,
+          "action": "更换滑板或托架后保压",
+          "expect": "保压合格"
+        }
+      ],
+      "escalation": "接缝漏气无法密封时更换滑板总成，禁止用密封胶封堵。",
+      "safety": "车顶作业降弓断电。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_strip_height",
+      "system": "pantograph",
+      "title": "左右滑板高度差超差，弓头受力不均",
+      "symptoms": [
+        "两条滑板高度不一致",
+        "运行时弓头偏斜",
+        "一侧滑板磨耗更快"
+      ],
+      "keywords": [
+        "滑板高度差",
+        "两条不平",
+        "弓头偏斜",
+        "受力不均",
+        "高度差"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑板安装高度不一致",
+          "weight": 1.0
+        },
+        {
+          "text": "滑板磨耗程度不同",
+          "weight": 0.8
+        },
+        {
+          "text": "弓头托架变形",
+          "weight": 0.6
+        },
+        {
+          "text": "滑板更换时只换单侧",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量两条滑板高度差",
+          "expect": "高度差不超过规定值"
+        },
+        {
+          "order": 2,
+          "action": "检查托架变形",
+          "expect": "托架平整"
+        },
+        {
+          "order": 3,
+          "action": "检查两侧滑板磨耗",
+          "expect": "磨耗接近"
+        },
+        {
+          "order": 4,
+          "action": "成对更换或调整后复测",
+          "expect": "高度一致"
+        }
+      ],
+      "escalation": "高度差超差会导致偏磨与离线，必须成对更换滑板。",
+      "safety": "更换滑板时防止托架划伤。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    },
+    {
+      "id": "kb_pantograph_strip_replace",
+      "system": "pantograph",
+      "title": "更换滑板后未校准压力，接触力异常",
+      "symptoms": [
+        "换滑板后接触压力偏高或偏低",
+        "弓网离线增多",
+        "滑板磨耗异常"
+      ],
+      "keywords": [
+        "换滑板后",
+        "未校准",
+        "接触压力异常",
+        "离线多",
+        "磨耗异常"
+      ],
+      "likely_causes": [
+        {
+          "text": "更换滑板后未测静态接触压力",
+          "weight": 1.0
+        },
+        {
+          "text": "滑板重量差异导致压力变化",
+          "weight": 0.7
+        },
+        {
+          "text": "弓头高度变化未调整",
+          "weight": 0.6
+        },
+        {
+          "text": "调压阀设定未复核",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量静态接触压力",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查弓头高度与水平",
+          "expect": "符合要求"
+        },
+        {
+          "order": 3,
+          "action": "检查调压阀设定",
+          "expect": "设定正确"
+        },
+        {
+          "order": 4,
+          "action": "按标称调整后复测",
+          "expect": "压力合格"
+        }
+      ],
+      "escalation": "压力无法调整到合格范围时检查弓头与升弓装置，禁止直接投入运用。",
+      "safety": "压力试验时人员远离弓头。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    },
+    {
+      "id": "kb_pantograph_horn_deform",
+      "system": "pantograph",
+      "title": "弓角变形，弓网过渡不平滑",
+      "symptoms": [
+        "弓角弯曲或翘起",
+        "经过线岔时有撞击声",
+        "弓角处有磨痕"
+      ],
+      "keywords": [
+        "弓角变形",
+        "弓角弯",
+        "过渡不平",
+        "撞击声",
+        "弓角"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓角受异物撞击变形",
+          "weight": 1.0
+        },
+        {
+          "text": "弓角材质强度不足",
+          "weight": 0.6
+        },
+        {
+          "text": "弓角安装螺栓松动",
+          "weight": 0.55
+        },
+        {
+          "text": "线岔参数不良导致刮碰",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查弓角外形与变形量",
+          "expect": "弓角平直、无变形"
+        },
+        {
+          "order": 2,
+          "action": "检查弓角与滑板过渡",
+          "expect": "平滑过渡、无台阶"
+        },
+        {
+          "order": 3,
+          "action": "检查安装螺栓",
+          "expect": "紧固、防松完好"
+        },
+        {
+          "order": 4,
+          "action": "更换弓角后复测",
+          "expect": "过渡平滑"
+        }
+      ],
+      "escalation": "弓角变形会导致刮弓，必须更换，禁止敲击校形。",
+      "safety": "弓角更换后需检查接触网是否受损。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_horn_crack",
+      "system": "pantograph",
+      "title": "弓角裂损，存在断裂脱落风险",
+      "symptoms": [
+        "弓角有裂纹",
+        "弓角表面锈蚀",
+        "运行中有异响"
+      ],
+      "keywords": [
+        "弓角裂",
+        "裂损",
+        "断裂风险",
+        "弓角锈",
+        "弓角裂纹"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓角疲劳裂纹",
+          "weight": 1.0
+        },
+        {
+          "text": "弓角受冲击损伤",
+          "weight": 0.8
+        },
+        {
+          "text": "锈蚀导致截面削弱",
+          "weight": 0.6
+        },
+        {
+          "text": "材质缺陷",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查弓角裂纹与锈蚀",
+          "expect": "无裂纹、无严重锈蚀"
+        },
+        {
+          "order": 2,
+          "action": "检查弓角安装牢固",
+          "expect": "螺栓紧固"
+        },
+        {
+          "order": 3,
+          "action": "检查弓角与滑板连接",
+          "expect": "连接可靠"
+        },
+        {
+          "order": 4,
+          "action": "更换弓角后复测",
+          "expect": "状态良好"
+        }
+      ],
+      "escalation": "弓角裂损可能脱落打击接触网，发现即更换。",
+      "safety": "车顶作业防止工具坠落。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_horn_step",
+      "system": "pantograph",
+      "title": "弓角与滑板过渡有台阶，刮伤接触线",
+      "symptoms": [
+        "弓角与滑板接缝有台阶",
+        "接触线有刮痕",
+        "经过线岔时有异响"
+      ],
+      "keywords": [
+        "过渡台阶",
+        "刮接触线",
+        "接缝不平",
+        "弓角滑板",
+        "台阶"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓角与滑板安装不平齐",
+          "weight": 1.0
+        },
+        {
+          "text": "滑板更换后未打磨过渡",
+          "weight": 0.8
+        },
+        {
+          "text": "弓角变形",
+          "weight": 0.6
+        },
+        {
+          "text": "连接件磨损",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查弓角与滑板过渡面",
+          "expect": "平滑、无台阶"
+        },
+        {
+          "order": 2,
+          "action": "用直尺检查平齐度",
+          "expect": "误差在限值内"
+        },
+        {
+          "order": 3,
+          "action": "按工艺打磨过渡",
+          "expect": "圆滑过渡"
+        },
+        {
+          "order": 4,
+          "action": "运行后检查接触线",
+          "expect": "无新刮痕"
+        }
+      ],
+      "escalation": "过渡台阶会刮伤接触线，未处理前禁止升弓取流。",
+      "safety": "打磨时佩戴护目镜。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    },
+    {
+      "id": "kb_pantograph_head_deform",
+      "system": "pantograph",
+      "title": "弓头支架变形，弓头整体歪斜",
+      "symptoms": [
+        "弓头支架弯曲",
+        "弓头左右不等高",
+        "滑板磨耗不均"
+      ],
+      "keywords": [
+        "弓头支架",
+        "变形",
+        "弓头歪",
+        "不等高",
+        "支架弯"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓头支架受冲击变形",
+          "weight": 1.0
+        },
+        {
+          "text": "支架材质强度不足",
+          "weight": 0.6
+        },
+        {
+          "text": "连接螺栓松动导致偏斜",
+          "weight": 0.55
+        },
+        {
+          "text": "弓头长期偏载",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查弓头支架外形",
+          "expect": "无变形、无裂纹"
+        },
+        {
+          "order": 2,
+          "action": "测量弓头左右高度",
+          "expect": "高度一致"
+        },
+        {
+          "order": 3,
+          "action": "检查连接螺栓",
+          "expect": "紧固、无松动"
+        },
+        {
+          "order": 4,
+          "action": "更换支架后复测",
+          "expect": "弓头水平"
+        }
+      ],
+      "escalation": "支架变形必须更换，禁止用垫片找平。",
+      "safety": "更换支架时支撑弓头。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_head_level",
+      "system": "pantograph",
+      "title": "弓头水平度超差，接触压力不均",
+      "symptoms": [
+        "弓头目视倾斜",
+        "左右滑板磨耗不一致",
+        "弓网离线偏多"
+      ],
+      "keywords": [
+        "弓头水平",
+        "倾斜",
+        "压力不均",
+        "磨耗不一",
+        "水平度"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓头安装未调平",
+          "weight": 1.0
+        },
+        {
+          "text": "下导杆调整不正",
+          "weight": 0.8
+        },
+        {
+          "text": "弓头支架变形",
+          "weight": 0.6
+        },
+        {
+          "text": "两侧弹簧刚度不一致",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量弓头水平度",
+          "expect": "水平度在限值内"
+        },
+        {
+          "order": 2,
+          "action": "检查下导杆位置",
+          "expect": "调整正确"
+        },
+        {
+          "order": 3,
+          "action": "检查支架与弹簧",
+          "expect": "无变形、刚度一致"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测接触压力",
+          "expect": "左右压力均匀"
+        }
+      ],
+      "escalation": "调整后仍倾斜时更换弓头支架，禁止只调一侧弹簧。",
+      "safety": "调整时支撑弓头，防止突然下落。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_balance_rod",
+      "system": "pantograph",
+      "title": "平衡杆变形，弓头姿态失控",
+      "symptoms": [
+        "平衡杆弯曲",
+        "弓头升降过程中姿态变化",
+        "滑板偏磨"
+      ],
+      "keywords": [
+        "平衡杆",
+        "变形",
+        "弓头姿态",
+        "弯曲",
+        "平衡杆弯"
+      ],
+      "likely_causes": [
+        {
+          "text": "平衡杆受冲击弯曲",
+          "weight": 1.0
+        },
+        {
+          "text": "平衡杆材质疲劳",
+          "weight": 0.7
+        },
+        {
+          "text": "关节轴承卡滞导致附加弯矩",
+          "weight": 0.6
+        },
+        {
+          "text": "安装不同心",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查平衡杆直线度",
+          "expect": "无明显弯曲"
+        },
+        {
+          "order": 2,
+          "action": "检查关节轴承",
+          "expect": "转动灵活"
+        },
+        {
+          "order": 3,
+          "action": "检查安装同心度",
+          "expect": "安装正确"
+        },
+        {
+          "order": 4,
+          "action": "更换平衡杆后复测",
+          "expect": "弓头姿态正常"
+        }
+      ],
+      "escalation": "平衡杆变形必须更换，禁止校直后使用。",
+      "safety": "拆装平衡杆时支撑弓头。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_joint_bearing",
+      "system": "pantograph",
+      "title": "平衡杆关节轴承磨损，动作有旷量",
+      "symptoms": [
+        "关节处有旷量",
+        "升降弓有异响",
+        "弓头晃动"
+      ],
+      "keywords": [
+        "关节轴承",
+        "磨损",
+        "旷量",
+        "异响",
+        "晃动"
+      ],
+      "likely_causes": [
+        {
+          "text": "关节轴承润滑不足磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "轴承密封失效进入灰尘",
+          "weight": 0.75
+        },
+        {
+          "text": "长期交变载荷导致游隙增大",
+          "weight": 0.6
+        },
+        {
+          "text": "安装偏斜",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查关节轴承旷量",
+          "expect": "游隙在限值内"
+        },
+        {
+          "order": 2,
+          "action": "加注润滑脂后复测",
+          "expect": "动作顺畅"
+        },
+        {
+          "order": 3,
+          "action": "检查轴承密封",
+          "expect": "密封完好"
+        },
+        {
+          "order": 4,
+          "action": "更换关节轴承后复测",
+          "expect": "无旷量"
+        }
+      ],
+      "escalation": "游隙超限时更换关节轴承，禁止加垫片消除旷量。",
+      "safety": "拆装时支撑弓头，防止坠落。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    },
+    {
+      "id": "kb_pantograph_head_spring",
+      "system": "pantograph",
+      "title": "弓头弹簧失效，弓头跟随性差",
+      "symptoms": [
+        "弓头对接触网变化反应迟钝",
+        "离线增多",
+        "弹簧变形或断裂"
+      ],
+      "keywords": [
+        "弓头弹簧",
+        "失效",
+        "跟随性差",
+        "离线多",
+        "弹簧断"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓头弹簧疲劳失效",
+          "weight": 1.0
+        },
+        {
+          "text": "弹簧锈蚀",
+          "weight": 0.7
+        },
+        {
+          "text": "弹簧规格不匹配",
+          "weight": 0.5
+        },
+        {
+          "text": "安装不当导致偏载",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查弹簧外观与变形",
+          "expect": "无变形、无断裂"
+        },
+        {
+          "order": 2,
+          "action": "测量弹簧自由长度与刚度",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查弹簧安装",
+          "expect": "安装正确、受力均匀"
+        },
+        {
+          "order": 4,
+          "action": "更换弹簧后复测弓头跟随",
+          "expect": "跟随性恢复"
+        }
+      ],
+      "escalation": "弹簧失效会导致弓网离线，必须成组更换。",
+      "safety": "弹簧带预紧力，拆卸时防止弹出。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_head_stuck",
+      "system": "pantograph",
+      "title": "弓头活动部分卡滞，不能随接触网起伏",
+      "symptoms": [
+        "弓头在某高度卡住",
+        "升降弓不连续",
+        "弓头活动关节发涩"
+      ],
+      "keywords": [
+        "弓头卡滞",
+        "活动不灵",
+        "某高度卡",
+        "关节发涩",
+        "不跟随"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓头铰点缺润滑",
+          "weight": 1.0
+        },
+        {
+          "text": "铰点锈蚀",
+          "weight": 0.8
+        },
+        {
+          "text": "弓头变形导致干涉",
+          "weight": 0.6
+        },
+        {
+          "text": "异物卡入活动部位",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "手动活动弓头检查卡滞",
+          "expect": "全程活动灵活"
+        },
+        {
+          "order": 2,
+          "action": "检查铰点润滑与锈蚀",
+          "expect": "润滑良好、无锈"
+        },
+        {
+          "order": 3,
+          "action": "检查弓头变形与异物",
+          "expect": "无变形、无异物"
+        },
+        {
+          "order": 4,
+          "action": "润滑或更换后复测",
+          "expect": "活动灵活"
+        }
+      ],
+      "escalation": "铰点锈死无法修复时更换弓头组件。",
+      "safety": "手动活动弓头时防止夹手。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_support_axle",
+      "system": "pantograph",
+      "title": "弓头支撑轴间隙超限，弓头晃动",
+      "symptoms": [
+        "弓头支撑轴处有旷量",
+        "运行时弓头摆动",
+        "滑板磨耗左右不一致"
+      ],
+      "keywords": [
+        "支撑轴",
+        "间隙超限",
+        "弓头晃",
+        "旷量",
+        "支撑轴松"
+      ],
+      "likely_causes": [
+        {
+          "text": "支撑轴轴承磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "轴颈磨损",
+          "weight": 0.8
+        },
+        {
+          "text": "润滑不足",
+          "weight": 0.6
+        },
+        {
+          "text": "安装螺栓松动",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量支撑轴间隙",
+          "expect": "间隙在限值内"
+        },
+        {
+          "order": 2,
+          "action": "检查轴承与轴颈磨损",
+          "expect": "无严重磨损"
+        },
+        {
+          "order": 3,
+          "action": "加注润滑脂后复测",
+          "expect": "间隙无变化"
+        },
+        {
+          "order": 4,
+          "action": "更换轴承或支撑轴",
+          "expect": "弓头稳定"
+        }
+      ],
+      "escalation": "间隙超限会导致弓头摆动与偏磨，必须更换磨损件。",
+      "safety": "拆支撑轴时支撑弓头。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_strip_bolt",
+      "system": "pantograph",
+      "title": "滑板条安装螺栓松动，滑板窜动",
+      "symptoms": [
+        "滑板条能轻微移动",
+        "安装螺栓有松动痕迹",
+        "运行时有敲击声"
+      ],
+      "keywords": [
+        "滑板螺栓",
+        "松动",
+        "滑板窜动",
+        "敲击声",
+        "安装螺栓"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑板安装螺栓未按扭矩紧固",
+          "weight": 1.0
+        },
+        {
+          "text": "防松措施失效",
+          "weight": 0.8
+        },
+        {
+          "text": "振动导致螺栓松脱",
+          "weight": 0.6
+        },
+        {
+          "text": "螺栓规格不符",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查滑板安装螺栓扭矩",
+          "expect": "达到标称扭矩"
+        },
+        {
+          "order": 2,
+          "action": "检查防松垫圈与标记",
+          "expect": "防松完好"
+        },
+        {
+          "order": 3,
+          "action": "检查滑板是否窜动",
+          "expect": "滑板固定"
+        },
+        {
+          "order": 4,
+          "action": "紧固后运行复测",
+          "expect": "无异响"
+        }
+      ],
+      "escalation": "滑板窜动会刮伤接触网，未紧固前禁止升弓。",
+      "safety": "车顶作业防止工具坠落。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    },
+    {
+      "id": "kb_pantograph_strip_detach",
+      "system": "pantograph",
+      "title": "滑板条脱开，弓头托架直接磨接触线",
+      "symptoms": [
+        "滑板条与托架分离",
+        "托架有磨痕",
+        "接触网可能被刮伤"
+      ],
+      "keywords": [
+        "滑板脱开",
+        "托架磨",
+        "滑板掉",
+        "刮接触网",
+        "脱开"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑板粘接或螺栓失效",
+          "weight": 1.0
+        },
+        {
+          "text": "滑板断裂后脱落",
+          "weight": 0.8
+        },
+        {
+          "text": "安装不到位",
+          "weight": 0.6
+        },
+        {
+          "text": "托架变形导致夹持失效",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查滑板与托架连接",
+          "expect": "连接牢固"
+        },
+        {
+          "order": 2,
+          "action": "检查托架磨痕",
+          "expect": "托架无磨损"
+        },
+        {
+          "order": 3,
+          "action": "检查接触网是否受损",
+          "expect": "接触网无刮伤"
+        },
+        {
+          "order": 4,
+          "action": "更换滑板并检查托架",
+          "expect": "连接可靠"
+        }
+      ],
+      "escalation": "滑板脱开可能刮断接触线，必须停车检查弓网状态。",
+      "safety": "接触网检查必须停电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_head_contamination",
+      "system": "pantograph",
+      "title": "弓头附着油污或冰层，接触不良",
+      "symptoms": [
+        "滑板表面有油污",
+        "冬季滑板结冰",
+        "弓网拉弧增多"
+      ],
+      "keywords": [
+        "弓头油污",
+        "滑板结冰",
+        "接触不良",
+        "拉弧",
+        "附着物"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑板表面附着油污",
+          "weight": 1.0
+        },
+        {
+          "text": "冬季结冰",
+          "weight": 0.8
+        },
+        {
+          "text": "隧道内粉尘附着",
+          "weight": 0.6
+        },
+        {
+          "text": "清洗后残留清洁剂",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查滑板表面附着物",
+          "expect": "表面清洁"
+        },
+        {
+          "order": 2,
+          "action": "清洁滑板表面",
+          "expect": "无油污、无冰层"
+        },
+        {
+          "order": 3,
+          "action": "检查接触电阻或拉弧",
+          "expect": "接触良好"
+        },
+        {
+          "order": 4,
+          "action": "运行后复查",
+          "expect": "无异常拉弧"
+        }
+      ],
+      "escalation": "油污或冰层会导致拉弧烧蚀滑板，未清除前不得升弓取流。",
+      "safety": "清除冰层时不要用硬物刮伤滑板。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://b2bwiki.baidu.com/article/aw_cf257b34823de669957792e89034bf78"
+      ]
+    },
+    {
+      "id": "kb_pantograph_insulating_sleeve",
+      "system": "pantograph",
+      "title": "弓头绝缘套损坏，存在漏电风险",
+      "symptoms": [
+        "绝缘套开裂或烧蚀",
+        "绝缘套表面有放电痕迹",
+        "绝缘电阻下降"
+      ],
+      "keywords": [
+        "绝缘套",
+        "损坏",
+        "漏电",
+        "放电痕",
+        "绝缘套裂"
+      ],
+      "likely_causes": [
+        {
+          "text": "绝缘套老化开裂",
+          "weight": 1.0
+        },
+        {
+          "text": "表面污秽导致爬电",
+          "weight": 0.75
+        },
+        {
+          "text": "机械损伤",
+          "weight": 0.6
+        },
+        {
+          "text": "材质耐候性不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查绝缘套外观",
+          "expect": "无裂纹、无烧蚀"
+        },
+        {
+          "order": 2,
+          "action": "清洁后测量绝缘电阻",
+          "expect": "绝缘合格"
+        },
+        {
+          "order": 3,
+          "action": "检查放电痕迹",
+          "expect": "无爬电痕迹"
+        },
+        {
+          "order": 4,
+          "action": "更换绝缘套后复测",
+          "expect": "绝缘合格"
+        }
+      ],
+      "escalation": "绝缘套损坏会导致漏电，必须更换，禁止缠绕绝缘胶带。",
+      "safety": "车顶绝缘作业前断电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_head_shunt",
+      "system": "pantograph",
+      "title": "弓头软连线断股，载流能力下降",
+      "symptoms": [
+        "软连线有断股或散股",
+        "软连线发热变色",
+        "大电流时拉弧"
+      ],
+      "keywords": [
+        "软连线断股",
+        "散股",
+        "发热",
+        "载流",
+        "弓头软线"
+      ],
+      "likely_causes": [
+        {
+          "text": "软连线疲劳断股",
+          "weight": 1.0
+        },
+        {
+          "text": "连接螺母松动导致过热",
+          "weight": 0.8
+        },
+        {
+          "text": "软连线截面积不足",
+          "weight": 0.5
+        },
+        {
+          "text": "腐蚀导致截面减小",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查软连线断股与变色",
+          "expect": "无断股、无过热变色"
+        },
+        {
+          "order": 2,
+          "action": "检查连接螺母紧固",
+          "expect": "紧固、接触良好"
+        },
+        {
+          "order": 3,
+          "action": "测量接触电阻",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "更换软连线后复测",
+          "expect": "载流正常"
+        }
+      ],
+      "escalation": "软连线断股超过规定即更换，禁止只缠胶带。",
+      "safety": "软连线可能带电，作业前断电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    }
+  ]
+}

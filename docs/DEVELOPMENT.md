@@ -85,7 +85,7 @@ api/
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      capture_generation（把一次生成输出冻成快照夹具）
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             620 条契约测试；fixtures/generations/ 是生成快照夹具（模型原文）
+└── tests/             621 条契约测试；fixtures/generations/ 是生成快照夹具（模型原文）
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
@@ -127,7 +127,7 @@ ruff check .                            # 只开 E9/F63/F7/F82
 # 被宿主的批量删除守卫拦下。测试本身是绿的，别误判成测试挂。
 
 cd ../web
-npm run test:unit        # 组件单测（vitest + happy-dom），219 条，约 20s
+npm run test:unit        # 组件单测（vitest + happy-dom），635 条，约 30s
 npm run test:cov         # 同上 + 覆盖率门禁（低于阈值会以非零退出）
 npm run build            # vue-tsc + vite
 npm run check:inline     # 产物内联 script 断言；CI 在 build 之后跑（失败=构建红）

@@ -1,0 +1,1437 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_pantograph_static_low",
+      "system": "pantograph",
+      "title": "静态接触压力偏低，弓网离线增多",
+      "symptoms": [
+        "测力计测静态压力低于下限",
+        "运行时离线火花多",
+        "碳滑板磨耗加快"
+      ],
+      "keywords": [
+        "静态压力低",
+        "接触压力不足",
+        "离线多",
+        "压力低",
+        "测力计"
+      ],
+      "likely_causes": [
+        {
+          "text": "调压阀输出压力偏低",
+          "weight": 1.0
+        },
+        {
+          "text": "气囊压力不足",
+          "weight": 0.8
+        },
+        {
+          "text": "弓头弹簧疲劳",
+          "weight": 0.65
+        },
+        {
+          "text": "升弓机构摩擦阻力大",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "按标定高度测量静态接触压力",
+          "expect": "压力在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查调压阀输出压力",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 3,
+          "action": "检查气囊与弹簧状态",
+          "expect": "无泄漏、无疲劳"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测压力",
+          "expect": "压力合格"
+        }
+      ],
+      "escalation": "调压后仍偏低时检查气囊与弓头弹簧，禁止超过额定压力运行。",
+      "safety": "压力试验时人员远离弓头运动范围。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_static_high",
+      "system": "pantograph",
+      "title": "静态接触压力偏高，滑板与接触线磨耗快",
+      "symptoms": [
+        "静态压力高于上限",
+        "碳滑板磨耗速率快",
+        "接触线磨耗异常"
+      ],
+      "keywords": [
+        "静态压力高",
+        "接触压力大",
+        "磨耗快",
+        "压力超限",
+        "压得紧"
+      ],
+      "likely_causes": [
+        {
+          "text": "调压阀输出压力偏高",
+          "weight": 1.0
+        },
+        {
+          "text": "弓头弹簧刚度过大",
+          "weight": 0.7
+        },
+        {
+          "text": "升弓机构卡滞导致附加力",
+          "weight": 0.6
+        },
+        {
+          "text": "压力表或测力计误差",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量静态接触压力",
+          "expect": "不超过标称上限"
+        },
+        {
+          "order": 2,
+          "action": "检查调压阀输出",
+          "expect": "压力在标称值"
+        },
+        {
+          "order": 3,
+          "action": "检查弓头弹簧与机构",
+          "expect": "刚度正常、无卡滞"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测",
+          "expect": "压力合格"
+        }
+      ],
+      "escalation": "压力偏高会加速弓网磨耗，必须调整到标称范围。",
+      "safety": "调整压力前先松开防松螺母。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_pressure_uneven",
+      "system": "pantograph",
+      "title": "左右接触压力不均，单侧磨耗快",
+      "symptoms": [
+        "左右滑板磨耗差异大",
+        "弓头有偏斜",
+        "单侧离线火花多"
+      ],
+      "keywords": [
+        "压力不均",
+        "左右不均",
+        "单侧磨",
+        "弓头偏",
+        "接触力"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓头水平度超差",
+          "weight": 1.0
+        },
+        {
+          "text": "下导杆调整不正",
+          "weight": 0.8
+        },
+        {
+          "text": "弓头支架变形",
+          "weight": 0.6
+        },
+        {
+          "text": "两侧弹簧刚度不一致",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "分别测量左右侧接触压力",
+          "expect": "左右差异在限值内"
+        },
+        {
+          "order": 2,
+          "action": "检查弓头水平度",
+          "expect": "弓头水平"
+        },
+        {
+          "order": 3,
+          "action": "检查下导杆与支架",
+          "expect": "位置正确、无变形"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测左右压力",
+          "expect": "压力均匀"
+        }
+      ],
+      "escalation": "调整后仍不均时更换弓头支架或弹簧。",
+      "safety": "调整时支撑弓头。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://umt1998.tongji.edu.cn/article/doi/10.16037/j.1007-869x.2024.06.052"
+      ]
+    },
+    {
+      "id": "kb_pantograph_offline",
+      "system": "pantograph",
+      "title": "弓网离线率高，受流不稳定",
+      "symptoms": [
+        "运行中频繁离线",
+        "客室灯光闪烁",
+        "牵引电流波动"
+      ],
+      "keywords": [
+        "离线率高",
+        "离线",
+        "受流不稳",
+        "灯光闪",
+        "电流波动"
+      ],
+      "likely_causes": [
+        {
+          "text": "接触压力偏低",
+          "weight": 1.0
+        },
+        {
+          "text": "接触网不平顺或有硬点",
+          "weight": 0.8
+        },
+        {
+          "text": "弓头阻尼不足",
+          "weight": 0.65
+        },
+        {
+          "text": "运行速度超过弓网匹配范围",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量静态接触压力",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查弓头阻尼与弹簧",
+          "expect": "阻尼有效、弹簧正常"
+        },
+        {
+          "order": 3,
+          "action": "查看弓网检测数据",
+          "expect": "离线率在限值内"
+        },
+        {
+          "order": 4,
+          "action": "调整压力或阻尼后复测",
+          "expect": "离线率下降"
+        }
+      ],
+      "escalation": "离线率持续超标时联合检查接触网状态，禁止只调高压力掩盖。",
+      "safety": "弓网检测作业按供电安全规程执行。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "http://zazhi.chinaet.net/article/doi/10.19768/j.cnki.dgjs.2024.12.049"
+      ]
+    },
+    {
+      "id": "kb_pantograph_arc_high_current",
+      "system": "pantograph",
+      "title": "出站大电流时拉弧严重，滑板烧蚀",
+      "symptoms": [
+        "列车启动加速时弓网拉弧",
+        "滑板表面有烧蚀坑",
+        "接触线有灼伤"
+      ],
+      "keywords": [
+        "大电流拉弧",
+        "出站拉弧",
+        "烧蚀坑",
+        "启动拉弧",
+        "电弧"
+      ],
+      "likely_causes": [
+        {
+          "text": "接触压力偏低导致离线",
+          "weight": 1.0
+        },
+        {
+          "text": "接触面有油污或冰层",
+          "weight": 0.75
+        },
+        {
+          "text": "接触线硬点或不平顺",
+          "weight": 0.65
+        },
+        {
+          "text": "牵引电流过大",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查滑板烧蚀与接触压力",
+          "expect": "烧蚀在允许范围、压力正常"
+        },
+        {
+          "order": 2,
+          "action": "清洁滑板与接触面",
+          "expect": "无油污、无冰层"
+        },
+        {
+          "order": 3,
+          "action": "查看弓网检测离线数据",
+          "expect": "离线率正常"
+        },
+        {
+          "order": 4,
+          "action": "调整后观察大电流工况",
+          "expect": "拉弧明显减少"
+        }
+      ],
+      "escalation": "拉弧烧蚀滑板到限时必须更换，并检查接触线损伤。",
+      "safety": "接触网检查必须停电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "http://zazhi.chinaet.net/article/doi/10.19768/j.cnki.dgjs.2024.12.049"
+      ]
+    },
+    {
+      "id": "kb_pantograph_hard_point",
+      "system": "pantograph",
+      "title": "接触网硬点冲击，弓头受冲击异响",
+      "symptoms": [
+        "经过固定位置时弓头受冲击",
+        "该位置滑板磨耗严重",
+        "弓头有异常振动"
+      ],
+      "keywords": [
+        "硬点",
+        "冲击",
+        "固定位置",
+        "弓头振",
+        "接触网硬点"
+      ],
+      "likely_causes": [
+        {
+          "text": "接触网硬点或线岔参数不良",
+          "weight": 1.0
+        },
+        {
+          "text": "接触线高度突变",
+          "weight": 0.8
+        },
+        {
+          "text": "弓头阻尼不足",
+          "weight": 0.6
+        },
+        {
+          "text": "受电弓抬升压力偏差",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "记录冲击发生的公里标",
+          "expect": "定位到固定位置"
+        },
+        {
+          "order": 2,
+          "action": "检查弓头阻尼与压力",
+          "expect": "阻尼与压力正常"
+        },
+        {
+          "order": 3,
+          "action": "联合工务检查接触网硬点",
+          "expect": "硬点参数合格"
+        },
+        {
+          "order": 4,
+          "action": "处理后复测弓网振动",
+          "expect": "冲击下降"
+        }
+      ],
+      "escalation": "硬点会加速滑板与接触线损伤，需弓网联合整治，禁止只换滑板。",
+      "safety": "接触网作业按供电规程停电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://umt1998.tongji.edu.cn/article/doi/10.16037/j.1007-869x.2024.06.052"
+      ]
+    },
+    {
+      "id": "kb_pantograph_center_wear",
+      "system": "pantograph",
+      "title": "碳滑板中心偏磨，磨耗集中在中间",
+      "symptoms": [
+        "滑板中间磨得最深",
+        "两端剩余厚度大",
+        "滑板寿命明显缩短"
+      ],
+      "keywords": [
+        "中心偏磨",
+        "中间磨",
+        "两端厚",
+        "偏磨型",
+        "滑板寿命"
+      ],
+      "likely_causes": [
+        {
+          "text": "接触线拉出值固定导致局部磨耗",
+          "weight": 1.0
+        },
+        {
+          "text": "弓头与接触网匹配不良",
+          "weight": 0.75
+        },
+        {
+          "text": "接触线之字形分布不足",
+          "weight": 0.6
+        },
+        {
+          "text": "滑板材质与接触线不匹配",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量滑板横向磨耗分布",
+          "expect": "磨耗分布均匀"
+        },
+        {
+          "order": 2,
+          "action": "查看接触线拉出值",
+          "expect": "拉出值分布合理"
+        },
+        {
+          "order": 3,
+          "action": "检查弓头水平与压力",
+          "expect": "参数正常"
+        },
+        {
+          "order": 4,
+          "action": "联合调整接触网后观察",
+          "expect": "磨耗趋于均匀"
+        }
+      ],
+      "escalation": "中心偏磨属弓网匹配问题，需联合整治，禁止只缩短换板周期。",
+      "safety": "测量滑板时断电。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://umt1998.tongji.edu.cn/article/doi/10.16037/j.1007-869x.2024.06.052"
+      ]
+    },
+    {
+      "id": "kb_pantograph_wear_rate",
+      "system": "pantograph",
+      "title": "滑板磨耗速率突增，几天就磨到限",
+      "symptoms": [
+        "换板后很快又到限",
+        "磨耗速率是正常数倍",
+        "滑板表面粗糙"
+      ],
+      "keywords": [
+        "磨耗快",
+        "几天到限",
+        "速率突增",
+        "换板频繁",
+        "磨得快"
+      ],
+      "likely_causes": [
+        {
+          "text": "接触压力偏低导致电弧磨耗",
+          "weight": 1.0
+        },
+        {
+          "text": "接触线表面粗糙或有硬点",
+          "weight": 0.8
+        },
+        {
+          "text": "滑板材质不合格",
+          "weight": 0.6
+        },
+        {
+          "text": "弓网间有磨粒",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "记录换板周期与磨耗量",
+          "expect": "磨耗速率在正常范围"
+        },
+        {
+          "order": 2,
+          "action": "测量接触压力与离线率",
+          "expect": "压力正常、离线率低"
+        },
+        {
+          "order": 3,
+          "action": "检查滑板材质批次",
+          "expect": "材质合格"
+        },
+        {
+          "order": 4,
+          "action": "检查接触线表面状态",
+          "expect": "接触线光洁"
+        }
+      ],
+      "escalation": "磨耗速率突增时按弓网异常磨耗联合分析，禁止只换滑板。",
+      "safety": "车顶检查断电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "http://zazhi.chinaet.net/article/doi/10.19768/j.cnki.dgjs.2024.12.049",
+        "https://umt1998.tongji.edu.cn/article/doi/10.16037/j.1007-869x.2024.06.052"
+      ]
+    },
+    {
+      "id": "kb_pantograph_wire_wear",
+      "system": "pantograph",
+      "title": "接触线磨耗异常，截面减小",
+      "symptoms": [
+        "接触线磨耗量超过正常",
+        "接触线表面有拉丝",
+        "弓网关系恶化"
+      ],
+      "keywords": [
+        "接触线磨耗",
+        "截面减小",
+        "拉丝",
+        "线磨",
+        "弓网磨耗"
+      ],
+      "likely_causes": [
+        {
+          "text": "接触压力过大或过小",
+          "weight": 1.0
+        },
+        {
+          "text": "滑板材质与接触线不匹配",
+          "weight": 0.75
+        },
+        {
+          "text": "接触线硬点或不平顺",
+          "weight": 0.65
+        },
+        {
+          "text": "大电流电弧烧蚀",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量接触线磨耗截面",
+          "expect": "磨耗在限值内"
+        },
+        {
+          "order": 2,
+          "action": "测量受电弓接触压力",
+          "expect": "压力在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查滑板材质与接触线匹配",
+          "expect": "材质匹配"
+        },
+        {
+          "order": 4,
+          "action": "联合整治后复测",
+          "expect": "磨耗速率下降"
+        }
+      ],
+      "escalation": "接触线磨耗超限需更换或打磨，属供电专业整治范围。",
+      "safety": "接触网作业必须停电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "http://zazhi.chinaet.net/article/doi/10.19768/j.cnki.dgjs.2024.12.049"
+      ]
+    },
+    {
+      "id": "kb_pantograph_vibration",
+      "system": "pantograph",
+      "title": "受电弓运行抖动，弓头摆动明显",
+      "symptoms": [
+        "运行时弓头明显摆动",
+        "车顶有振动感",
+        "离线火花随抖动出现"
+      ],
+      "keywords": [
+        "受电弓抖动",
+        "弓头摆动",
+        "车顶振动",
+        "抖动",
+        "晃得厉害"
+      ],
+      "likely_causes": [
+        {
+          "text": "弓头阻尼失效",
+          "weight": 1.0
+        },
+        {
+          "text": "接触压力偏低",
+          "weight": 0.75
+        },
+        {
+          "text": "弓头支撑轴间隙大",
+          "weight": 0.65
+        },
+        {
+          "text": "接触网不平顺",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查阻尼器与支撑轴间隙",
+          "expect": "阻尼有效、间隙合格"
+        },
+        {
+          "order": 2,
+          "action": "测量接触压力",
+          "expect": "压力正常"
+        },
+        {
+          "order": 3,
+          "action": "检查弓头水平与紧固",
+          "expect": "水平、紧固"
+        },
+        {
+          "order": 4,
+          "action": "处理后运行复测",
+          "expect": "抖动下降"
+        }
+      ],
+      "escalation": "抖动会导致离线与磨耗，未消除前应限速运行并上报。",
+      "safety": "车顶检查断电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://umt1998.tongji.edu.cn/article/doi/10.16037/j.1007-869x.2024.06.052"
+      ]
+    },
+    {
+      "id": "kb_pantograph_skew",
+      "system": "pantograph",
+      "title": "受电弓整体偏斜，弓头中心偏移",
+      "symptoms": [
+        "弓头中心不在轨道中心",
+        "两侧滑板磨耗差异大",
+        "经过线岔时刮碰"
+      ],
+      "keywords": [
+        "受电弓偏斜",
+        "中心偏移",
+        "弓头不正",
+        "两侧磨耗",
+        "整体偏"
+      ],
+      "likely_causes": [
+        {
+          "text": "底架安装偏斜",
+          "weight": 1.0
+        },
+        {
+          "text": "弓头与底架不对中",
+          "weight": 0.8
+        },
+        {
+          "text": "下导杆调整不正",
+          "weight": 0.65
+        },
+        {
+          "text": "车顶安装面变形",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量弓头中心与轨道中心偏差",
+          "expect": "偏差在限值内"
+        },
+        {
+          "order": 2,
+          "action": "检查底架安装位置",
+          "expect": "安装正确、无偏斜"
+        },
+        {
+          "order": 3,
+          "action": "检查下导杆调整",
+          "expect": "调整正确"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测中心偏移",
+          "expect": "弓头对中"
+        }
+      ],
+      "escalation": "偏斜会导致刮弓，调整后仍超标时检查车顶安装面。",
+      "safety": "车顶作业系安全带，断电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_rubber_stack",
+      "system": "pantograph",
+      "title": "底架橡胶堆老化，受电弓振动增大",
+      "symptoms": [
+        "橡胶堆开裂或变形",
+        "受电弓整体振动大",
+        "车顶噪声增加"
+      ],
+      "keywords": [
+        "橡胶堆",
+        "老化",
+        "振动大",
+        "开裂",
+        "底架橡胶"
+      ],
+      "likely_causes": [
+        {
+          "text": "橡胶堆老化失效",
+          "weight": 1.0
+        },
+        {
+          "text": "橡胶堆长期受压变形",
+          "weight": 0.75
+        },
+        {
+          "text": "安装不平导致偏载",
+          "weight": 0.6
+        },
+        {
+          "text": "油污腐蚀橡胶",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查橡胶堆外观与弹性",
+          "expect": "无开裂、弹性良好"
+        },
+        {
+          "order": 2,
+          "action": "检查安装面平整与受力",
+          "expect": "受力均匀"
+        },
+        {
+          "order": 3,
+          "action": "测量受电弓振动",
+          "expect": "振动在限值内"
+        },
+        {
+          "order": 4,
+          "action": "更换橡胶堆后复测",
+          "expect": "振动下降"
+        }
+      ],
+      "escalation": "橡胶堆老化必须成组更换，禁止只换个别。",
+      "safety": "更换时支撑底架，防止倾倒。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_base_bolt",
+      "system": "pantograph",
+      "title": "底架固定螺栓松动，受电弓整体位移",
+      "symptoms": [
+        "底架螺栓有松动痕迹",
+        "受电弓运行时位移",
+        "防松线错位"
+      ],
+      "keywords": [
+        "底架螺栓",
+        "松动",
+        "整体位移",
+        "防松线",
+        "底座螺栓"
+      ],
+      "likely_causes": [
+        {
+          "text": "底架螺栓未按扭矩紧固",
+          "weight": 1.0
+        },
+        {
+          "text": "防松措施失效",
+          "weight": 0.8
+        },
+        {
+          "text": "振动导致疲劳松脱",
+          "weight": 0.65
+        },
+        {
+          "text": "安装面不平",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "逐个检查底架螺栓扭矩",
+          "expect": "达到标称扭矩"
+        },
+        {
+          "order": 2,
+          "action": "检查防松线与垫圈",
+          "expect": "防松完好"
+        },
+        {
+          "order": 3,
+          "action": "检查安装面贴合",
+          "expect": "贴合良好"
+        },
+        {
+          "order": 4,
+          "action": "紧固后运行复测",
+          "expect": "无位移"
+        }
+      ],
+      "escalation": "底架螺栓松动会导致受电弓移位刮弓，必须立即处理。",
+      "safety": "车顶紧固作业系安全带。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_insulator_crack",
+      "system": "pantograph",
+      "title": "支持绝缘子裂纹，绝缘性能下降",
+      "symptoms": [
+        "绝缘子表面有裂纹",
+        "绝缘子有放电痕迹",
+        "绝缘电阻偏低"
+      ],
+      "keywords": [
+        "支持绝缘子",
+        "裂纹",
+        "绝缘下降",
+        "放电痕",
+        "绝缘子裂"
+      ],
+      "likely_causes": [
+        {
+          "text": "绝缘子机械损伤",
+          "weight": 1.0
+        },
+        {
+          "text": "冷热交变导致裂纹",
+          "weight": 0.7
+        },
+        {
+          "text": "污秽导致爬电损伤",
+          "weight": 0.65
+        },
+        {
+          "text": "安装应力过大",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查绝缘子外观裂纹",
+          "expect": "无裂纹、无缺损"
+        },
+        {
+          "order": 2,
+          "action": "清洁后测量绝缘电阻",
+          "expect": "绝缘合格"
+        },
+        {
+          "order": 3,
+          "action": "检查安装应力",
+          "expect": "安装无别劲"
+        },
+        {
+          "order": 4,
+          "action": "更换绝缘子后复测",
+          "expect": "绝缘合格"
+        }
+      ],
+      "escalation": "绝缘子裂纹会导致闪络，必须更换。",
+      "safety": "车顶绝缘作业前断电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_flashover",
+      "system": "pantograph",
+      "title": "绝缘子污闪，车顶有放电声",
+      "symptoms": [
+        "雨雾天气车顶放电",
+        "绝缘子表面有污秽",
+        "保护动作"
+      ],
+      "keywords": [
+        "污闪",
+        "放电声",
+        "雨雾",
+        "绝缘子脏",
+        "闪络"
+      ],
+      "likely_causes": [
+        {
+          "text": "绝缘子表面污秽",
+          "weight": 1.0
+        },
+        {
+          "text": "雨雾天气湿度大",
+          "weight": 0.8
+        },
+        {
+          "text": "绝缘子爬距不足",
+          "weight": 0.5
+        },
+        {
+          "text": "清洁周期过长",
+          "weight": 0.6
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查绝缘子表面污秽",
+          "expect": "表面清洁"
+        },
+        {
+          "order": 2,
+          "action": "按规程清洁绝缘子",
+          "expect": "露出本色"
+        },
+        {
+          "order": 3,
+          "action": "测量绝缘电阻",
+          "expect": "绝缘合格"
+        },
+        {
+          "order": 4,
+          "action": "雨雾天气复测",
+          "expect": "无放电"
+        }
+      ],
+      "escalation": "污闪会导致保护动作与设备损坏，必须清洁并检查爬距。",
+      "safety": "清洁绝缘子时断电接地，禁止用尖锐物刮擦。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    },
+    {
+      "id": "kb_pantograph_insulator_dirty",
+      "system": "pantograph",
+      "title": "绝缘子表面脏污，绝缘裕度下降",
+      "symptoms": [
+        "绝缘子表面附着粉尘",
+        "绝缘电阻比新件低",
+        "潮湿时泄漏电流大"
+      ],
+      "keywords": [
+        "绝缘子脏",
+        "粉尘",
+        "绝缘裕度",
+        "泄漏电流",
+        "脏污"
+      ],
+      "likely_causes": [
+        {
+          "text": "运行环境粉尘大",
+          "weight": 1.0
+        },
+        {
+          "text": "清洁周期过长",
+          "weight": 0.8
+        },
+        {
+          "text": "清洗后未擦干",
+          "weight": 0.5
+        },
+        {
+          "text": "绝缘子表面有油污",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查绝缘子表面污秽程度",
+          "expect": "表面清洁"
+        },
+        {
+          "order": 2,
+          "action": "按规程清洁并擦干",
+          "expect": "露出本色"
+        },
+        {
+          "order": 3,
+          "action": "测量绝缘电阻",
+          "expect": "绝缘合格"
+        },
+        {
+          "order": 4,
+          "action": "缩短清洁周期后复查",
+          "expect": "污秽可控"
+        }
+      ],
+      "escalation": "污秽严重且清洁后绝缘仍低时更换绝缘子。",
+      "safety": "清洁时断电接地，防止触电。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    },
+    {
+      "id": "kb_pantograph_insulation_low",
+      "system": "pantograph",
+      "title": "受电弓绝缘电阻低，耐压不合格",
+      "symptoms": [
+        "绝缘电阻测量值低于标准",
+        "耐压试验不合格",
+        "潮湿天气更明显"
+      ],
+      "keywords": [
+        "绝缘电阻低",
+        "耐压不合格",
+        "绝缘不良",
+        "漏电",
+        "兆欧表"
+      ],
+      "likely_causes": [
+        {
+          "text": "绝缘子受潮或脏污",
+          "weight": 1.0
+        },
+        {
+          "text": "绝缘子裂纹",
+          "weight": 0.8
+        },
+        {
+          "text": "绝缘软管老化",
+          "weight": 0.6
+        },
+        {
+          "text": "绝缘件表面积碳",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "清洁干燥后测量绝缘电阻",
+          "expect": "绝缘电阻达标"
+        },
+        {
+          "order": 2,
+          "action": "检查绝缘子裂纹",
+          "expect": "无裂纹"
+        },
+        {
+          "order": 3,
+          "action": "检查绝缘软管",
+          "expect": "无老化、无破损"
+        },
+        {
+          "order": 4,
+          "action": "更换不合格件后复测",
+          "expect": "耐压合格"
+        }
+      ],
+      "escalation": "绝缘不合格禁止投入运用，必须查明原因并更换。",
+      "safety": "耐压试验设围栏，防止人员接近。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_arrester",
+      "system": "pantograph",
+      "title": "避雷器故障，过电压保护失效",
+      "symptoms": [
+        "避雷器外观损坏",
+        "避雷器动作计数器异常",
+        "过电压后设备损坏"
+      ],
+      "keywords": [
+        "避雷器",
+        "故障",
+        "过电压",
+        "保护失效",
+        "计数器"
+      ],
+      "likely_causes": [
+        {
+          "text": "避雷器阀片老化",
+          "weight": 1.0
+        },
+        {
+          "text": "避雷器受潮",
+          "weight": 0.75
+        },
+        {
+          "text": "避雷器机械损伤",
+          "weight": 0.6
+        },
+        {
+          "text": "动作计数器故障",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查避雷器外观与计数器",
+          "expect": "外观完好、计数器正常"
+        },
+        {
+          "order": 2,
+          "action": "测量避雷器绝缘电阻",
+          "expect": "绝缘合格"
+        },
+        {
+          "order": 3,
+          "action": "按周期做预防性试验",
+          "expect": "试验合格"
+        },
+        {
+          "order": 4,
+          "action": "更换不合格避雷器",
+          "expect": "保护恢复"
+        }
+      ],
+      "escalation": "避雷器失效会导致过电压损坏设备，必须更换。",
+      "safety": "避雷器试验按高压试验规程执行。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.damishu.cn/article/ShowArticle.asp?ArticleID=373099"
+      ]
+    },
+    {
+      "id": "kb_pantograph_base_shunt",
+      "system": "pantograph",
+      "title": "底架软连线断股，载流截面不足",
+      "symptoms": [
+        "软连线散股或断股",
+        "软连线连接处发热",
+        "大电流时温度高"
+      ],
+      "keywords": [
+        "底架软连线",
+        "断股",
+        "载流不足",
+        "发热",
+        "散股"
+      ],
+      "likely_causes": [
+        {
+          "text": "软连线疲劳断股",
+          "weight": 1.0
+        },
+        {
+          "text": "连接螺母松动",
+          "weight": 0.8
+        },
+        {
+          "text": "软连线腐蚀",
+          "weight": 0.6
+        },
+        {
+          "text": "截面积选型不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查软连线断股与发热",
+          "expect": "无断股、无过热"
+        },
+        {
+          "order": 2,
+          "action": "检查连接螺母紧固",
+          "expect": "紧固、接触良好"
+        },
+        {
+          "order": 3,
+          "action": "测量接触电阻",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "更换软连线后复测",
+          "expect": "载流正常"
+        }
+      ],
+      "escalation": "断股超过规定即更换，禁止用铜丝缠绕修补。",
+      "safety": "作业前断电接地。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    },
+    {
+      "id": "kb_pantograph_grounding",
+      "system": "pantograph",
+      "title": "受电弓接地装置故障，回流不畅",
+      "symptoms": [
+        "接地碳刷磨损或缺失",
+        "接地回流处发热",
+        "轴承有电蚀痕迹"
+      ],
+      "keywords": [
+        "接地装置",
+        "回流不畅",
+        "碳刷磨损",
+        "电蚀",
+        "接地"
+      ],
+      "likely_causes": [
+        {
+          "text": "接地碳刷磨耗到限",
+          "weight": 1.0
+        },
+        {
+          "text": "接地线断股或松动",
+          "weight": 0.8
+        },
+        {
+          "text": "接地回流面脏污",
+          "weight": 0.6
+        },
+        {
+          "text": "接地装置安装不良",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查接地碳刷与回流面",
+          "expect": "碳刷完好、接触良好"
+        },
+        {
+          "order": 2,
+          "action": "检查接地线断股与紧固",
+          "expect": "无断股、紧固"
+        },
+        {
+          "order": 3,
+          "action": "测量接地回流电阻",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "更换碳刷或接地线后复测",
+          "expect": "回流正常"
+        }
+      ],
+      "escalation": "接地回流不畅会导致轴承电蚀，必须修复。",
+      "safety": "接地作业前断电并确认无回流电流。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/nodedetailcontroller/visitnodedetail?courseId=80409893&knowledgeId=80409909"
+      ]
+    },
+    {
+      "id": "kb_pantograph_baffle",
+      "system": "pantograph",
+      "title": "导流板变形，气流噪声与异物防护失效",
+      "symptoms": [
+        "导流板翘起或变形",
+        "高速时车顶气流噪声大",
+        "导流板固定松动"
+      ],
+      "keywords": [
+        "导流板",
+        "变形",
+        "气流噪声",
+        "防护失效",
+        "翘起"
+      ],
+      "likely_causes": [
+        {
+          "text": "导流板受异物撞击变形",
+          "weight": 1.0
+        },
+        {
+          "text": "固定螺栓松动",
+          "weight": 0.75
+        },
+        {
+          "text": "材质老化",
+          "weight": 0.55
+        },
+        {
+          "text": "安装位置偏差",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查导流板外形与固定",
+          "expect": "平整、固定牢固"
+        },
+        {
+          "order": 2,
+          "action": "检查安装位置",
+          "expect": "位置正确"
+        },
+        {
+          "order": 3,
+          "action": "紧固或更换导流板",
+          "expect": "安装到位"
+        },
+        {
+          "order": 4,
+          "action": "高速运行复测噪声",
+          "expect": "噪声正常"
+        }
+      ],
+      "escalation": "导流板变形脱落会打击后车，必须更换。",
+      "safety": "车顶作业防止工具与零件坠落。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_base_rust",
+      "system": "pantograph",
+      "title": "底架锈蚀，结构强度下降",
+      "symptoms": [
+        "底架表面锈蚀起皮",
+        "焊缝处锈蚀",
+        "漆层脱落"
+      ],
+      "keywords": [
+        "底架锈蚀",
+        "起皮",
+        "焊缝锈",
+        "漆层脱落",
+        "腐蚀"
+      ],
+      "likely_causes": [
+        {
+          "text": "底架漆层破损未修补",
+          "weight": 1.0
+        },
+        {
+          "text": "运行环境潮湿腐蚀",
+          "weight": 0.75
+        },
+        {
+          "text": "清洗后积水未干",
+          "weight": 0.55
+        },
+        {
+          "text": "材质防腐不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查底架锈蚀范围与深度",
+          "expect": "无深度锈蚀"
+        },
+        {
+          "order": 2,
+          "action": "检查焊缝与螺栓孔",
+          "expect": "无锈蚀裂纹"
+        },
+        {
+          "order": 3,
+          "action": "除锈并补漆",
+          "expect": "防腐层完整"
+        },
+        {
+          "order": 4,
+          "action": "复查结构强度",
+          "expect": "强度满足要求"
+        }
+      ],
+      "escalation": "锈蚀导致截面减薄超限时更换底架，禁止只补漆。",
+      "safety": "除锈时佩戴防尘口罩与护目镜。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.nra.gov.cn/xxgk/gkml/ztjg/gfzd/gfxw/202204/P020220405517131973876.pdf"
+      ]
+    }
+  ]
+}

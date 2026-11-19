@@ -1,5 +1,5 @@
 {
-  "version": "2.0",
+  "version": "4.0",
   "queries": [
     { "query": "按下开门按钮，门一点反应都没有", "expect": "kb_door_no_action", "note": "日常口语：无反应" },
     { "query": "门控器上电没显示，指示灯不亮", "expect": "kb_door_power", "note": "供电类" },
@@ -22,10 +22,43 @@
     { "query": "受电弓升不起来，升弓按钮没反应", "expect": "kb_pantograph_no_raise", "note": "升弓无动作" },
     { "query": "运行中受电弓突然自动降下来", "expect": "kb_pantograph_auto_lower", "note": "ADD/自动降弓" },
     { "query": "碳滑板磨到限了，弓网拉弧", "expect": "kb_pantograph_contact", "note": "碳滑板/接触压力" },
-    { "query": "集控关门没反应，跑到那个门旁边按本地按钮又能关", "expect": "kb_door_comm_dropout", "note": "通信偶发中断：集控失效但本地正常" }
+    { "query": "集控关门没反应，跑到那个门旁边按本地按钮又能关", "expect": "kb_door_comm_dropout", "note": "通信偶发中断：集控失效但本地正常" },
+
+    { "query": "本门断路器一合就跳，门一点电都没有", "expect": "kb_door_breaker_trip", "note": "新增：断路器跳闸" },
+    { "query": "门控器插头松动，用手一推门就动一下", "expect": "kb_door_plug_loose", "note": "新增：插头虚接" },
+    { "query": "一节车好几扇门同时报通信故障，断开其中一扇就恢复", "expect": "kb_door_can_short", "note": "新增：CAN 支线短路" },
+    { "query": "门扇下沉，关门时下部先蹭到门槛", "expect": "kb_door_leaf_sag", "note": "新增：门扇下垂" },
+    { "query": "上滑道松动，开关门时门扇上部明显晃", "expect": "kb_door_upper_track_loose", "note": "新增：上滑道松动" },
+    { "query": "滚轮破裂卡死，门开关到一半动不了", "expect": "kb_door_roller_crack", "note": "新增：滚轮破裂" },
+    { "query": "两扇门关好后呈 V 形，上部有缝下部贴合", "expect": "kb_door_v_shape", "note": "新增：V 形间隙" },
+    { "query": "紧急解锁钢丝绳夹头卡住，集控开门这个门不动", "expect": "kb_door_emergency_cable_stuck", "note": "新增：钢丝绳卡滞" },
+    { "query": "防夹力太大，夹到人很疼才弹开", "expect": "kb_door_anti_pinch_force", "note": "新增：防夹力超差" },
+    { "query": "门已经打隔离位了，监控还一直报这个门故障", "expect": "kb_door_isolated_but_fault", "note": "新增：隔离后仍报警" },
+    { "query": "压缩机只有嗡嗡声不转，几秒后过载保护", "expect": "kb_hvac_comp_hum", "note": "新增：压缩机堵转" },
+    { "query": "高压偏高，冷凝器翅片全是灰和柳絮", "expect": "kb_hvac_hp_high", "note": "新增：冷凝器脏堵" },
+    { "query": "膨胀阀出口结霜时轻时重，停机一会又好了", "expect": "kb_hvac_ice_block", "note": "新增：冰堵" },
+    { "query": "干燥过滤器前后温差大，外壳摸起来发凉", "expect": "kb_hvac_dryer_block", "note": "新增：干燥过滤器堵" },
+    { "query": "通风机不转，出风口一点风都没有", "expect": "kb_hvac_supply_fan_stop", "note": "新增：通风机不转" },
+    { "query": "新风门没有反馈，软件上反馈信号常亮", "expect": "kb_hvac_fresh_damper_feedback", "note": "新增：新风门反馈" },
+    { "query": "出风口结露往下滴水，滴到座椅上", "expect": "kb_hvac_outlet_condensate", "note": "新增：出风口结露" },
+    { "query": "废排逆变器不启动，废排风机完全不转", "expect": "kb_hvac_exhaust_inverter", "note": "新增：废排逆变器" },
+    { "query": "电加热器不热，冬天客室温度上不去", "expect": "kb_hvac_heater_no_heat", "note": "新增：电加热不热" },
+    { "query": "升弓电磁阀没有动作声，手动按阀芯能升弓", "expect": "kb_pantograph_solenoid", "note": "新增：升弓电磁阀" },
+    { "query": "升弓气囊漏气，升弓无力还升不到顶", "expect": "kb_pantograph_bellow_leak", "note": "新增：气囊漏气" },
+    { "query": "降弓砸顶，弓头砸到底架咣一声", "expect": "kb_pantograph_lower_slam", "note": "新增：降弓砸顶" },
+    { "query": "ADD 上气室连接管路漏气，运行中频繁自动降弓", "expect": "kb_pantograph_add_chamber", "note": "新增：ADD 上气室漏" },
+    { "query": "碳滑板边缘掉块，接触面不平", "expect": "kb_pantograph_strip_chip", "note": "新增：滑板掉块" },
+    { "query": "左右两条滑板高度差太大，弓头偏斜", "expect": "kb_pantograph_strip_height", "note": "新增：滑板高度差" },
+    { "query": "静态接触压力偏低，运行中离线火花多", "expect": "kb_pantograph_static_low", "note": "新增：静态压力低" },
+    { "query": "支持绝缘子表面有裂纹，绝缘电阻低", "expect": "kb_pantograph_insulator_crack", "note": "新增：绝缘子裂纹" },
+
+    { "query": "制动缸压力不足，刹车软", "expect": "kb_brake_cylinder_leak", "note": "扩系统：制动缸漏气（原「未收录」用例转正向）" },
+    { "query": "闸瓦间隙越来越大，制动缸行程变长", "expect": "kb_brake_slack_adjuster", "note": "扩系统：间隙调整器失效" },
+    { "query": "雨刷不动，风挡玻璃刮不干净", "expect": "kb_wiper_no_action", "note": "扩系统：雨刷完全不动作（原「未收录」用例转正向）" },
+    { "query": "雨刮电机有嗡嗡声但刮臂不动", "expect": "kb_wiper_motor_hum", "note": "扩系统：电机响刮臂不动" }
   ],
   "uncovered": [
-    { "query": "制动缸压力不足，闸瓦间隙大", "why": "制动子系统未收录" },
-    { "query": "雨刷不动，风挡玻璃刮不干净", "why": "雨刷子系统未收录" }
+    { "query": "牵引变流器报过流，主断路器跳闸", "why": "牵引子系统未收录" },
+    { "query": "客室电视黑屏，PIS 不显示", "why": "旅客信息子系统未收录" }
   ]
 }

@@ -1,0 +1,2352 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_hvac_cooling_decline",
+      "system": "hvac",
+      "title": "制冷量逐渐下降，出风勉强凉但不冷",
+      "symptoms": [
+        "刚开机还凉，运行一段时间后出风温度回升",
+        "客室温度降不到设定值",
+        "压缩机一直运行但效果越来越差"
+      ],
+      "keywords": [
+        "制冷量下降",
+        "越来越不凉",
+        "出风温回升",
+        "降不到设定",
+        "效果差"
+      ],
+      "likely_causes": [
+        {
+          "text": "冷凝器散热能力下降，冷凝压力升高",
+          "weight": 1.0
+        },
+        {
+          "text": "制冷剂缓慢泄漏，系统充注量不足",
+          "weight": 0.8
+        },
+        {
+          "text": "蒸发器滤网或翅片脏堵，换热变差",
+          "weight": 0.7
+        },
+        {
+          "text": "膨胀阀调节性能下降",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量送风温度与回风温度差",
+          "expect": "温差达到标称值"
+        },
+        {
+          "order": 2,
+          "action": "测量系统高压与低压",
+          "expect": "均在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查冷凝器与蒸发器清洁度",
+          "expect": "翅片通透、无积尘"
+        },
+        {
+          "order": 4,
+          "action": "检查视液镜与管路接头",
+          "expect": "无气泡、无油迹"
+        }
+      ],
+      "escalation": "清洁与压力检查均正常仍制冷不足时，按制冷剂充注量或压缩机效率检测处理，禁止盲目补充制冷剂。",
+      "safety": "制冷系统作业佩戴护目镜与防冻手套，防止制冷剂冻伤。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_comp_hum",
+      "system": "hvac",
+      "title": "压缩机不启动，只有嗡嗡声",
+      "symptoms": [
+        "开机后风机正常，压缩机处只有嗡嗡声不转",
+        "几秒后过载保护动作断电",
+        "压缩机外壳温度升高"
+      ],
+      "keywords": [
+        "压缩机嗡嗡",
+        "不启动",
+        "只响不转",
+        "过载保护",
+        "嗡嗡声"
+      ],
+      "likely_causes": [
+        {
+          "text": "压缩机机械卡缸或轴承损坏",
+          "weight": 1.0
+        },
+        {
+          "text": "启动电容失效或启动绕组开路",
+          "weight": 0.8
+        },
+        {
+          "text": "电源缺相导致转矩不足",
+          "weight": 0.75
+        },
+        {
+          "text": "接触器主触点接触不良",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量压缩机三相供电电压",
+          "expect": "三相电压平衡"
+        },
+        {
+          "order": 2,
+          "action": "测量三相绕组电阻",
+          "expect": "三相对称、无开路"
+        },
+        {
+          "order": 3,
+          "action": "检查启动电容或启动继电器",
+          "expect": "电容容量正常、继电器动作"
+        },
+        {
+          "order": 4,
+          "action": "断电后手动盘车检查是否卡缸",
+          "expect": "转子可转动、无卡死"
+        }
+      ],
+      "escalation": "卡缸或绕组损坏时更换压缩机，禁止反复强制启动。",
+      "safety": "压缩机可能高温高压，断电泄压后再检查。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_comp_phase",
+      "system": "hvac",
+      "title": "压缩机缺相运行，电流不平衡",
+      "symptoms": [
+        "压缩机声音沉闷、振动大",
+        "三相电流一相明显偏低",
+        "接触器或端子有发热痕迹"
+      ],
+      "keywords": [
+        "缺相",
+        "电流不平衡",
+        "一相没电",
+        "声音沉闷",
+        "振动大"
+      ],
+      "likely_causes": [
+        {
+          "text": "接触器某一相主触点烧蚀",
+          "weight": 1.0
+        },
+        {
+          "text": "供电端子一相松动或氧化",
+          "weight": 0.8
+        },
+        {
+          "text": "压缩机内部绕组一相开路",
+          "weight": 0.6
+        },
+        {
+          "text": "保险或断路器一相熔断",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量压缩机三相供电电压",
+          "expect": "三相电压平衡"
+        },
+        {
+          "order": 2,
+          "action": "测量三相运行电流",
+          "expect": "三相不平衡不超过 10%"
+        },
+        {
+          "order": 3,
+          "action": "检查接触器主触点与端子",
+          "expect": "触点完好、端子紧固"
+        },
+        {
+          "order": 4,
+          "action": "测量压缩机绕组三相对称性",
+          "expect": "三相对称"
+        }
+      ],
+      "escalation": "缺相运行会烧毁压缩机，发现后立即停机，禁止短时试运行凑合。",
+      "safety": "缺相运行电机温升快，断电后待冷却再测量。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_comp_contactor",
+      "system": "hvac",
+      "title": "压缩机接触器触点烧损，吸合但不导通",
+      "symptoms": [
+        "接触器有吸合声但压缩机不转",
+        "触点发黑或有熔焊痕迹",
+        "测量触点两端有电压差"
+      ],
+      "keywords": [
+        "接触器烧",
+        "触点发黑",
+        "吸合不导通",
+        "有声音不转",
+        "熔焊"
+      ],
+      "likely_causes": [
+        {
+          "text": "触点长期通断电弧烧蚀",
+          "weight": 1.0
+        },
+        {
+          "text": "触点容量不足或质量问题",
+          "weight": 0.7
+        },
+        {
+          "text": "灭弧罩损坏",
+          "weight": 0.6
+        },
+        {
+          "text": "控制线圈电压不足导致抖动",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "断电测量接触器触点通断",
+          "expect": "吸合时可靠导通"
+        },
+        {
+          "order": 2,
+          "action": "检查触点烧蚀与灭弧罩",
+          "expect": "触点平整、灭弧罩完好"
+        },
+        {
+          "order": 3,
+          "action": "测量线圈电压",
+          "expect": "达到标称吸合电压"
+        },
+        {
+          "order": 4,
+          "action": "更换接触器后测运行电流",
+          "expect": "电流正常"
+        }
+      ],
+      "escalation": "触点烧蚀必须更换接触器，禁止打磨触点继续使用。",
+      "safety": "接触器可能带高压，作业前断电验电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_comp_overload",
+      "system": "hvac",
+      "title": "压缩机过载保护频繁动作",
+      "symptoms": [
+        "运行十几分钟就停机，过一会又自动启动",
+        "过载保护器外壳发烫",
+        "压缩机电流偏高"
+      ],
+      "keywords": [
+        "过载保护",
+        "频繁停机",
+        "跳保护",
+        "电流高",
+        "自己又启动"
+      ],
+      "likely_causes": [
+        {
+          "text": "冷凝压力高导致压缩机负荷大",
+          "weight": 1.0
+        },
+        {
+          "text": "电源电压偏低，电流增大",
+          "weight": 0.75
+        },
+        {
+          "text": "过载保护器阈值漂移",
+          "weight": 0.6
+        },
+        {
+          "text": "压缩机内部磨损效率下降",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量压缩机运行电流与电压",
+          "expect": "电流不超过额定、电压在范围"
+        },
+        {
+          "order": 2,
+          "action": "测量系统高压与冷凝器清洁度",
+          "expect": "高压正常、冷凝器清洁"
+        },
+        {
+          "order": 3,
+          "action": "检查过载保护器动作值",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "处理后连续运行观察",
+          "expect": "不再频繁跳保护"
+        }
+      ],
+      "escalation": "电流正常但保护频繁动作时更换保护器；电流偏高且冷凝正常时检查压缩机。",
+      "safety": "保护动作后不要立即重启，等待压力平衡。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://search.napstic.cn/literature/periodical/010tdcl202405034"
+      ]
+    },
+    {
+      "id": "kb_hvac_discharge_temp",
+      "system": "hvac",
+      "title": "压缩机排气温度过高，触发温度保护",
+      "symptoms": [
+        "压缩机排气管烫手",
+        "运行一段时间后温度保护停机",
+        "排气温度传感器读数偏高"
+      ],
+      "keywords": [
+        "排气温度高",
+        "排气管烫",
+        "温度保护",
+        "停机",
+        "过热"
+      ],
+      "likely_causes": [
+        {
+          "text": "制冷剂不足导致排气温度升高",
+          "weight": 1.0
+        },
+        {
+          "text": "冷凝器散热不良",
+          "weight": 0.8
+        },
+        {
+          "text": "膨胀阀开度过小",
+          "weight": 0.6
+        },
+        {
+          "text": "排气温度传感器漂移",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量排气温度与高压压力",
+          "expect": "均在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查制冷剂充注量与视液镜",
+          "expect": "无气泡、充注量正确"
+        },
+        {
+          "order": 3,
+          "action": "检查冷凝器清洁与冷凝风机",
+          "expect": "散热良好"
+        },
+        {
+          "order": 4,
+          "action": "校对排气温度传感器",
+          "expect": "读数与实际一致"
+        }
+      ],
+      "escalation": "排气温度持续偏高时按制冷剂不足或膨胀阀故障处理，禁止屏蔽温度保护。",
+      "safety": "排气管高温，测量时佩戴隔热手套。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.2winpub.com/static/uploads/journalArticle/gcjsyfz0407043.pdf"
+      ]
+    },
+    {
+      "id": "kb_hvac_comp_valve",
+      "system": "hvac",
+      "title": "压缩机阀片损坏，高低压差建立不起来",
+      "symptoms": [
+        "压缩机运行但高低压差很小",
+        "吸气管不凉、排气管不烫",
+        "制冷效果明显下降"
+      ],
+      "keywords": [
+        "阀片损坏",
+        "压差小",
+        "吸气管不凉",
+        "排气管不烫",
+        "效率低"
+      ],
+      "likely_causes": [
+        {
+          "text": "压缩机阀片断裂或变形",
+          "weight": 1.0
+        },
+        {
+          "text": "阀板密封面损坏",
+          "weight": 0.8
+        },
+        {
+          "text": "压缩机内部窜气",
+          "weight": 0.6
+        },
+        {
+          "text": "制冷剂严重不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量高压与低压并计算压差",
+          "expect": "压差达到标称值"
+        },
+        {
+          "order": 2,
+          "action": "触摸吸排气管温度",
+          "expect": "吸气管凉、排气管热"
+        },
+        {
+          "order": 3,
+          "action": "确认制冷剂充注量",
+          "expect": "充注量正确"
+        },
+        {
+          "order": 4,
+          "action": "测量压缩机运行电流",
+          "expect": "电流偏低提示效率下降"
+        }
+      ],
+      "escalation": "确认阀片损坏时更换压缩机，禁止用补充制冷剂掩盖压差不足。",
+      "safety": "更换压缩机需回收制冷剂，按环保要求操作。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_hp_switch",
+      "system": "hvac",
+      "title": "高压保护开关误动作，压力正常也跳",
+      "symptoms": [
+        "高压表读数正常但保护动作",
+        "复位后短时间又跳",
+        "环境温度不高时也发生"
+      ],
+      "keywords": [
+        "高压开关误动",
+        "压力正常跳",
+        "保护误动作",
+        "复位又跳",
+        "高压保护"
+      ],
+      "likely_causes": [
+        {
+          "text": "高压开关动作值漂移",
+          "weight": 1.0
+        },
+        {
+          "text": "压力开关取样管堵塞或泄漏",
+          "weight": 0.75
+        },
+        {
+          "text": "控制回路接触不良导致误信号",
+          "weight": 0.6
+        },
+        {
+          "text": "压力波动瞬态超过开关阈值",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "用压力表比对开关动作时的实际压力",
+          "expect": "动作压力在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查取样管是否堵塞或漏气",
+          "expect": "取样管通畅、无泄漏"
+        },
+        {
+          "order": 3,
+          "action": "检查开关接线与绝缘",
+          "expect": "接线可靠、无短路"
+        },
+        {
+          "order": 4,
+          "action": "更换高压开关后复测",
+          "expect": "不再误动作"
+        }
+      ],
+      "escalation": "确认开关误动作时更换，禁止提高保护阈值或短接保护开关。",
+      "safety": "高压保护是压缩机安全防线，严禁旁路。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://search.napstic.cn/literature/periodical/010tdcl202405034"
+      ]
+    },
+    {
+      "id": "kb_hvac_lp_switch",
+      "system": "hvac",
+      "title": "低压保护开关误动作，制冷剂充足也跳",
+      "symptoms": [
+        "低压表读数正常但保护停机",
+        "停机后压力回升又自动启动",
+        "制冷时断时续"
+      ],
+      "keywords": [
+        "低压开关误动",
+        "压力正常跳",
+        "时断时续",
+        "低压保护",
+        "反复启停"
+      ],
+      "likely_causes": [
+        {
+          "text": "低压开关动作值漂移",
+          "weight": 1.0
+        },
+        {
+          "text": "取样管堵塞导致感受压力偏低",
+          "weight": 0.75
+        },
+        {
+          "text": "蒸发器结霜导致真实低压偏低",
+          "weight": 0.6
+        },
+        {
+          "text": "控制回路接触不良",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "比对开关动作时实际低压",
+          "expect": "动作压力在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查蒸发器是否结霜",
+          "expect": "蒸发器无霜"
+        },
+        {
+          "order": 3,
+          "action": "检查取样管与接线",
+          "expect": "通畅、接线可靠"
+        },
+        {
+          "order": 4,
+          "action": "更换低压开关后复测",
+          "expect": "不再误动作"
+        }
+      ],
+      "escalation": "确认开关误动作时更换，禁止短接低压保护。",
+      "safety": "低压保护防止压缩机缺油运行，不得旁路。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_hp_high",
+      "system": "hvac",
+      "title": "高压偏高，冷凝器散热不良",
+      "symptoms": [
+        "高压表读数超过标称上限",
+        "压缩机频繁启停",
+        "冷凝器出风温度很高"
+      ],
+      "keywords": [
+        "高压高",
+        "冷凝器脏",
+        "散热差",
+        "高压超限",
+        "出风烫"
+      ],
+      "likely_causes": [
+        {
+          "text": "冷凝器翅片积尘堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "冷凝风机风量不足",
+          "weight": 0.8
+        },
+        {
+          "text": "制冷剂充注量过多",
+          "weight": 0.6
+        },
+        {
+          "text": "系统混入不凝性气体",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量高压并记录环境温度",
+          "expect": "高压不超过对应环境的上限"
+        },
+        {
+          "order": 2,
+          "action": "检查冷凝器翅片通透性",
+          "expect": "透光良好、无积尘"
+        },
+        {
+          "order": 3,
+          "action": "测量冷凝风机电流与转速",
+          "expect": "电流正常、转速达标"
+        },
+        {
+          "order": 4,
+          "action": "清洁冷凝器后复测高压",
+          "expect": "高压下降至正常"
+        }
+      ],
+      "escalation": "清洁后高压仍高时检查制冷剂充注量与不凝性气体，禁止放氟降温凑合。",
+      "safety": "清洁冷凝器时防止翅片割伤，必要时戴防护手套。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://search.napstic.cn/literature/periodical/010tdcl202405034",
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_hp_low",
+      "system": "hvac",
+      "title": "高压偏低，制冷剂可能不足",
+      "symptoms": [
+        "高压表读数低于标称下限",
+        "制冷效果差，出风温度偏高",
+        "视液镜有气泡"
+      ],
+      "keywords": [
+        "高压低",
+        "高压不足",
+        "视液镜气泡",
+        "制冷差",
+        "氟不够"
+      ],
+      "likely_causes": [
+        {
+          "text": "制冷剂泄漏导致充注量不足",
+          "weight": 1.0
+        },
+        {
+          "text": "压缩机效率下降",
+          "weight": 0.7
+        },
+        {
+          "text": "膨胀阀开度过大",
+          "weight": 0.55
+        },
+        {
+          "text": "冷凝风量过大导致过冷",
+          "weight": 0.35
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量高压与低压并记录环境温度",
+          "expect": "高压在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "观察视液镜气泡",
+          "expect": "无连续气泡"
+        },
+        {
+          "order": 3,
+          "action": "用检漏仪检查管路接头",
+          "expect": "无泄漏"
+        },
+        {
+          "order": 4,
+          "action": "按标称量补充制冷剂后复测",
+          "expect": "高压恢复"
+        }
+      ],
+      "escalation": "补氟后压力再次下降时按泄漏处理，禁止只补氟不查漏。",
+      "safety": "补氟时防止液态制冷剂冻伤，佩戴护目镜。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_lp_low",
+      "system": "hvac",
+      "title": "低压过低，蒸发器结霜",
+      "symptoms": [
+        "低压表读数低于标称下限",
+        "蒸发器表面结霜或结冰",
+        "回气温度很低"
+      ],
+      "keywords": [
+        "低压低",
+        "蒸发器结霜",
+        "结冰",
+        "回气冷",
+        "低压不足"
+      ],
+      "likely_causes": [
+        {
+          "text": "制冷剂不足",
+          "weight": 1.0
+        },
+        {
+          "text": "膨胀阀开度过小或堵塞",
+          "weight": 0.8
+        },
+        {
+          "text": "蒸发器回风滤网堵塞导致风量小",
+          "weight": 0.7
+        },
+        {
+          "text": "膨胀阀感温包脱落",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量低压与回气温度",
+          "expect": "低压在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查蒸发器结霜位置",
+          "expect": "蒸发器无霜"
+        },
+        {
+          "order": 3,
+          "action": "检查回风滤网与风量",
+          "expect": "滤网清洁、风量正常"
+        },
+        {
+          "order": 4,
+          "action": "检查膨胀阀感温包固定",
+          "expect": "感温包贴紧回气管"
+        }
+      ],
+      "escalation": "结霜后先停机融霜，再按原因处理；禁止用敲击或刮除方式除霜。",
+      "safety": "结霜时蒸发器表面低温，防止手部粘黏冻伤。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html",
+        "https://www.mlzp.cc/archiver/?tid-13801.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_lp_high",
+      "system": "hvac",
+      "title": "低压偏高，压缩机效率或膨胀阀异常",
+      "symptoms": [
+        "低压表读数高于标称上限",
+        "制冷效果差，压缩机电流偏大",
+        "压缩机电流偏大"
+      ],
+      "keywords": [
+        "低压高",
+        "低压超限",
+        "制冷差",
+        "电流大",
+        "回气压力高"
+      ],
+      "likely_causes": [
+        {
+          "text": "压缩机阀片损坏效率下降",
+          "weight": 1.0
+        },
+        {
+          "text": "膨胀阀开度过大",
+          "weight": 0.8
+        },
+        {
+          "text": "膨胀阀感温包故障",
+          "weight": 0.65
+        },
+        {
+          "text": "制冷剂充注量过多",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量高低压并计算压差",
+          "expect": "压差达到标称值"
+        },
+        {
+          "order": 2,
+          "action": "检查膨胀阀开度与感温包",
+          "expect": "开度正常、感温包贴紧"
+        },
+        {
+          "order": 3,
+          "action": "确认制冷剂充注量",
+          "expect": "充注量符合标称"
+        },
+        {
+          "order": 4,
+          "action": "测量压缩机电流与排气温度",
+          "expect": "电流与温度正常"
+        }
+      ],
+      "escalation": "压差不足且充注量正常时按压缩机效率下降处理，必要时更换压缩机。",
+      "safety": "调整膨胀阀时防止制冷剂喷出。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_both_low",
+      "system": "hvac",
+      "title": "高低压均偏低，系统循环量不足",
+      "symptoms": [
+        "高压和低压都低于标称值",
+        "制冷效果差，吸气管不凉",
+        "压缩机运行电流偏低"
+      ],
+      "keywords": [
+        "高低压都低",
+        "循环量不足",
+        "压力都低",
+        "制冷差",
+        "电流低"
+      ],
+      "likely_causes": [
+        {
+          "text": "制冷剂严重泄漏",
+          "weight": 1.0
+        },
+        {
+          "text": "压缩机内部磨损严重",
+          "weight": 0.75
+        },
+        {
+          "text": "干燥过滤器或管路堵塞",
+          "weight": 0.6
+        },
+        {
+          "text": "膨胀阀严重堵塞",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量高低压并记录",
+          "expect": "确认双低"
+        },
+        {
+          "order": 2,
+          "action": "用检漏仪全面查漏",
+          "expect": "定位漏点"
+        },
+        {
+          "order": 3,
+          "action": "检查干燥过滤器前后温差",
+          "expect": "无明显温差"
+        },
+        {
+          "order": 4,
+          "action": "补漏、更换干燥器并抽真空加注",
+          "expect": "压力恢复"
+        }
+      ],
+      "escalation": "查不到漏点且压缩机效率正常时按管路堵塞处理，禁止只补氟不修复。",
+      "safety": "抽真空与加注按制冷剂操作规程执行。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_refrigerant_low",
+      "system": "hvac",
+      "title": "制冷剂不足，吸气管不结露",
+      "symptoms": [
+        "吸气管不凉也不结露",
+        "视液镜有连续气泡",
+        "高压偏低、低压偏低"
+      ],
+      "keywords": [
+        "制冷剂不足",
+        "氟不够",
+        "吸气管不凉",
+        "视液镜气泡",
+        "缺氟"
+      ],
+      "likely_causes": [
+        {
+          "text": "系统存在泄漏点",
+          "weight": 1.0
+        },
+        {
+          "text": "上次加注量不足",
+          "weight": 0.6
+        },
+        {
+          "text": "加注后未做保压检漏",
+          "weight": 0.5
+        },
+        {
+          "text": "管路接头微漏",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察视液镜气泡与吸气管结露",
+          "expect": "无气泡、吸气管结露"
+        },
+        {
+          "order": 2,
+          "action": "用检漏仪检查全部接头与焊点",
+          "expect": "无泄漏"
+        },
+        {
+          "order": 3,
+          "action": "按标称量定量加注",
+          "expect": "加注量符合厂家规定"
+        },
+        {
+          "order": 4,
+          "action": "运行后复测压力与出风温度",
+          "expect": "制冷恢复正常"
+        }
+      ],
+      "escalation": "加注后短期再次不足时按泄漏处理，禁止反复补氟。",
+      "safety": "制冷剂加注需回收装置，禁止直接排入大气。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2021/3007491.html",
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_refrigerant_high",
+      "system": "hvac",
+      "title": "制冷剂过量，高压偏高且液击风险",
+      "symptoms": [
+        "高压明显偏高",
+        "压缩机运行电流偏大",
+        "吸气管结露过多甚至结霜"
+      ],
+      "keywords": [
+        "制冷剂过多",
+        "氟多了",
+        "高压高",
+        "电流大",
+        "液击"
+      ],
+      "likely_causes": [
+        {
+          "text": "加注量超过标称值",
+          "weight": 1.0
+        },
+        {
+          "text": "加注时未按定量控制",
+          "weight": 0.75
+        },
+        {
+          "text": "系统容积变化后未调整充注量",
+          "weight": 0.5
+        },
+        {
+          "text": "压力表或秤具误差",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "核对加注记录与标称量",
+          "expect": "加注量符合规定"
+        },
+        {
+          "order": 2,
+          "action": "测量高压与运行电流",
+          "expect": "均在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "观察吸气管结露情况",
+          "expect": "结露适中、无结霜"
+        },
+        {
+          "order": 4,
+          "action": "回收多余制冷剂至标称量",
+          "expect": "压力恢复正常"
+        }
+      ],
+      "escalation": "制冷剂过量会导致液击损坏压缩机，必须回收至标称量，禁止直接排放。",
+      "safety": "回收制冷剂使用专用设备，防止冻伤与窒息。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_air_in_system",
+      "system": "hvac",
+      "title": "系统混入空气，高压高且高压表抖动",
+      "symptoms": [
+        "高压偏高且压力表指针抖动",
+        "冷凝器出风温度异常高",
+        "制冷效果差，高压表指针抖动"
+      ],
+      "keywords": [
+        "混入空气",
+        "不凝性气体",
+        "压力表抖动",
+        "高压高",
+        "抽真空不彻底"
+      ],
+      "likely_causes": [
+        {
+          "text": "检修时抽真空不彻底",
+          "weight": 1.0
+        },
+        {
+          "text": "加注管路混入空气",
+          "weight": 0.75
+        },
+        {
+          "text": "系统在负压下打开未密封",
+          "weight": 0.65
+        },
+        {
+          "text": "制冷剂纯度不合格",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察高压表指针是否抖动",
+          "expect": "指针平稳"
+        },
+        {
+          "order": 2,
+          "action": "对比冷凝温度与压力对应关系",
+          "expect": "无过高的不凝性分压"
+        },
+        {
+          "order": 3,
+          "action": "回收制冷剂并抽真空至规定真空度",
+          "expect": "真空度达标并保持"
+        },
+        {
+          "order": 4,
+          "action": "重新定量加注后复测",
+          "expect": "压力平稳、制冷正常"
+        }
+      ],
+      "escalation": "确认不凝性气体时必须回收重抽，禁止靠放氟排气处理。",
+      "safety": "抽真空与加注按规程执行，防止系统负压吸入空气。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_leak_micro",
+      "system": "hvac",
+      "title": "制冷剂微漏，数月后制冷变差",
+      "symptoms": [
+        "补氟后能好用一两个月",
+        "接头处有油迹",
+        "检漏仪在某个接头有微弱报警"
+      ],
+      "keywords": [
+        "微漏",
+        "慢性漏氟",
+        "接头油迹",
+        "补氟后又差",
+        "检漏"
+      ],
+      "likely_causes": [
+        {
+          "text": "管路接头密封圈老化",
+          "weight": 1.0
+        },
+        {
+          "text": "焊接点有微小砂眼",
+          "weight": 0.75
+        },
+        {
+          "text": "冷凝器毛细管疲劳裂纹",
+          "weight": 0.6
+        },
+        {
+          "text": "加注阀阀芯密封不良",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "用检漏仪沿管路逐点检测",
+          "expect": "定位到具体漏点"
+        },
+        {
+          "order": 2,
+          "action": "检查接头油迹与密封圈",
+          "expect": "无油迹、密封圈完好"
+        },
+        {
+          "order": 3,
+          "action": "对可疑段做保压试验",
+          "expect": "保压合格"
+        },
+        {
+          "order": 4,
+          "action": "修复漏点后抽真空加注",
+          "expect": "不再泄漏"
+        }
+      ],
+      "escalation": "微漏点无法定位时按分段隔离保压法排查，禁止长期靠补氟维持。",
+      "safety": "检漏仪使用时远离火源，制冷剂遇火会产生有毒气体。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://cjkj88.com/Article/crh1axdczk_1.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_condenser_leak",
+      "system": "hvac",
+      "title": "冷凝器毛细管破裂，制冷剂快速泄漏",
+      "symptoms": [
+        "制冷剂短时间内漏光",
+        "冷凝器端部有油污",
+        "压缩机频繁低压保护"
+      ],
+      "keywords": [
+        "冷凝器漏",
+        "毛细管破裂",
+        "快速漏氟",
+        "端部油污",
+        "低压保护"
+      ],
+      "likely_causes": [
+        {
+          "text": "毛细管与端板结合处应力疲劳破裂",
+          "weight": 1.0
+        },
+        {
+          "text": "运行振动导致管壁磨损",
+          "weight": 0.8
+        },
+        {
+          "text": "管壁厚度不足或材质缺陷",
+          "weight": 0.55
+        },
+        {
+          "text": "翅片变形挤压毛细管",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查冷凝器端部与毛细管",
+          "expect": "无油迹、无裂纹"
+        },
+        {
+          "order": 2,
+          "action": "用检漏仪定位漏点",
+          "expect": "确认漏点位置"
+        },
+        {
+          "order": 3,
+          "action": "评估补焊或更换冷凝器",
+          "expect": "按可修复性决定"
+        },
+        {
+          "order": 4,
+          "action": "修复后保压、抽真空、加注",
+          "expect": "保压与制冷正常"
+        }
+      ],
+      "escalation": "毛细管多处破裂时更换冷凝器总成，禁止只补焊一处不查其余。",
+      "safety": "冷凝器较重，拆卸需吊具与两人配合。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://cjkj88.com/Article/crh1axdczk_1.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_condenser_dirty",
+      "system": "hvac",
+      "title": "冷凝器脏堵，高压保护频繁动作",
+      "symptoms": [
+        "夏季高温时频繁高压保护",
+        "冷凝器翅片间有柳絮灰尘",
+        "冷凝器出风明显减弱"
+      ],
+      "keywords": [
+        "冷凝器脏",
+        "翅片堵",
+        "柳絮",
+        "高压保护",
+        "出风弱"
+      ],
+      "likely_causes": [
+        {
+          "text": "冷凝器翅片积尘或柳絮堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "清洗周期过长",
+          "weight": 0.8
+        },
+        {
+          "text": "运行环境粉尘大",
+          "weight": 0.6
+        },
+        {
+          "text": "冷凝风机风量不足",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "用手电从背面照冷凝器看透光",
+          "expect": "透光良好"
+        },
+        {
+          "order": 2,
+          "action": "测量冷凝器前后压差",
+          "expect": "压差在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "按规程清洗冷凝器",
+          "expect": "翅片通透、无变形"
+        },
+        {
+          "order": 4,
+          "action": "清洗后高温工况复测高压",
+          "expect": "不再频繁保护"
+        }
+      ],
+      "escalation": "清洗后仍高压偏高时检查冷凝风机与制冷剂充注量，禁止拆除滤网运行。",
+      "safety": "清洗时防止水进入电气部件，断电后作业。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://search.napstic.cn/literature/periodical/010tdcl202405034",
+        "https://search.napstic.cn/literature/periodical/010tdcl202502029"
+      ]
+    },
+    {
+      "id": "kb_hvac_cond_fan_stop",
+      "system": "hvac",
+      "title": "冷凝风机不转，高压快速升高",
+      "symptoms": [
+        "冷凝风机完全不转",
+        "开机几分钟高压就超限",
+        "风机处无振动"
+      ],
+      "keywords": [
+        "冷凝风机不转",
+        "风机停",
+        "高压升高",
+        "不转",
+        "冷凝风扇"
+      ],
+      "likely_causes": [
+        {
+          "text": "风机电机烧毁或轴承卡死",
+          "weight": 1.0
+        },
+        {
+          "text": "风机接触器或保险故障",
+          "weight": 0.8
+        },
+        {
+          "text": "风机电容失效",
+          "weight": 0.6
+        },
+        {
+          "text": "控制信号未输出",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量风机供电与控制信号",
+          "expect": "供电与控制信号正常"
+        },
+        {
+          "order": 2,
+          "action": "断电手动转动风叶",
+          "expect": "转动灵活、无卡死"
+        },
+        {
+          "order": 3,
+          "action": "测量风机绕组与电容",
+          "expect": "绕组对称、电容容量正常"
+        },
+        {
+          "order": 4,
+          "action": "更换风机后测运行电流",
+          "expect": "电流正常、运转平稳"
+        }
+      ],
+      "escalation": "风机不转时禁止继续运行制冷，防止压缩机高压损坏。",
+      "safety": "风机惯性大，断电后等待停稳再检查。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_cond_fan_slow",
+      "system": "hvac",
+      "title": "冷凝风机转速偏低，散热不足",
+      "symptoms": [
+        "风机能转但风量明显小",
+        "风机运行电流偏低",
+        "高压比正常偏高"
+      ],
+      "keywords": [
+        "风机转速低",
+        "风量小",
+        "电流低",
+        "散热不足",
+        "转得慢"
+      ],
+      "likely_causes": [
+        {
+          "text": "风机电容容量下降",
+          "weight": 1.0
+        },
+        {
+          "text": "风机轴承磨损阻力大",
+          "weight": 0.75
+        },
+        {
+          "text": "风叶变形或积尘不平衡",
+          "weight": 0.6
+        },
+        {
+          "text": "供电电压偏低",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量风机运行电流与电压",
+          "expect": "电流与电压在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查风机电容容量",
+          "expect": "容量不低于标称的 90%"
+        },
+        {
+          "order": 3,
+          "action": "检查风叶变形与积尘",
+          "expect": "风叶完好、清洁"
+        },
+        {
+          "order": 4,
+          "action": "更换电容或风机后复测",
+          "expect": "转速与风量恢复"
+        }
+      ],
+      "escalation": "电容更换后仍偏慢时更换风机，禁止提高供电电压提速。",
+      "safety": "检查风叶时断电，防止手指被打伤。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_evap_frost",
+      "system": "hvac",
+      "title": "蒸发器结霜，风量逐渐变小",
+      "symptoms": [
+        "运行一段时间后出风变小",
+        "蒸发器表面结白霜",
+        "停机融霜后恢复正常"
+      ],
+      "keywords": [
+        "蒸发器结霜",
+        "风量变小",
+        "白霜",
+        "融霜",
+        "结冰"
+      ],
+      "likely_causes": [
+        {
+          "text": "蒸发器回风滤网堵塞导致风量不足",
+          "weight": 1.0
+        },
+        {
+          "text": "膨胀阀开度过小",
+          "weight": 0.8
+        },
+        {
+          "text": "制冷剂不足",
+          "weight": 0.65
+        },
+        {
+          "text": "蒸发风机转速低",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查蒸发器结霜范围",
+          "expect": "蒸发器无霜"
+        },
+        {
+          "order": 2,
+          "action": "检查回风滤网与蒸发风机",
+          "expect": "滤网清洁、风机正常"
+        },
+        {
+          "order": 3,
+          "action": "测量低压与过热度",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "融霜后按原因处理并复测",
+          "expect": "不再结霜"
+        }
+      ],
+      "escalation": "反复结霜且滤网与风机正常时检查膨胀阀与制冷剂充注量。",
+      "safety": "融霜时不要用硬物刮蒸发器翅片。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html",
+        "https://www.mlzp.cc/archiver/?tid-13801.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_evap_filter",
+      "system": "hvac",
+      "title": "蒸发器滤网堵塞，风量小且制冷差",
+      "symptoms": [
+        "出风口风量明显小",
+        "滤网表面有厚灰尘",
+        "客室温度降不下来"
+      ],
+      "keywords": [
+        "蒸发器滤网",
+        "回风滤网堵",
+        "风量小",
+        "灰尘厚",
+        "制冷差"
+      ],
+      "likely_causes": [
+        {
+          "text": "回风滤网积尘堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "滤网清洗周期过长",
+          "weight": 0.8
+        },
+        {
+          "text": "滤网破损导致灰尘进入蒸发器",
+          "weight": 0.6
+        },
+        {
+          "text": "风道漏风导致回风不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆下回风滤网检查积尘",
+          "expect": "滤网通透、无破损"
+        },
+        {
+          "order": 2,
+          "action": "测量滤网前后压差",
+          "expect": "压差在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "清洗或更换滤网",
+          "expect": "清洁后风量恢复"
+        },
+        {
+          "order": 4,
+          "action": "检查风道漏风",
+          "expect": "风道密封良好"
+        }
+      ],
+      "escalation": "滤网频繁堵塞时缩短清洗周期并检查新风入口，禁止拆除滤网运行。",
+      "safety": "清洗滤网时佩戴防尘口罩。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://search.napstic.cn/literature/periodical/010tdcl202502029"
+      ]
+    },
+    {
+      "id": "kb_hvac_exp_frost",
+      "system": "hvac",
+      "title": "膨胀阀出口结霜，阀开度过小",
+      "symptoms": [
+        "结霜紧贴膨胀阀出口",
+        "蒸发器入口温度反而偏高",
+        "低压偏低、高压正常或偏低"
+      ],
+      "keywords": [
+        "膨胀阀结霜",
+        "出口结霜",
+        "开度小",
+        "低压低",
+        "阀结冰"
+      ],
+      "likely_causes": [
+        {
+          "text": "膨胀阀开度调整过小",
+          "weight": 1.0
+        },
+        {
+          "text": "阀芯卡滞或局部堵塞",
+          "weight": 0.8
+        },
+        {
+          "text": "感温包失效导致调节失灵",
+          "weight": 0.65
+        },
+        {
+          "text": "系统含水导致冰堵",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "确认结霜位置是否紧贴阀出口",
+          "expect": "定位结霜起点"
+        },
+        {
+          "order": 2,
+          "action": "测量高低压与过热度",
+          "expect": "压力与过热度在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查感温包固定与接触",
+          "expect": "感温包贴紧回气管"
+        },
+        {
+          "order": 4,
+          "action": "调整开度或更换膨胀阀",
+          "expect": "结霜消失、制冷恢复"
+        }
+      ],
+      "escalation": "调整无效时更换膨胀阀；若结霜时轻时重按冰堵处理。",
+      "safety": "调整膨胀阀时防止制冷剂喷出冻伤。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-13801.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_exp_stuck",
+      "system": "hvac",
+      "title": "膨胀阀阀芯卡滞，制冷量忽大忽小",
+      "symptoms": [
+        "制冷效果时好时坏",
+        "膨胀阀处有异常气流声",
+        "低压读数波动"
+      ],
+      "keywords": [
+        "阀芯卡滞",
+        "制冷忽好忽坏",
+        "膨胀阀卡",
+        "低压波动",
+        "时好时坏"
+      ],
+      "likely_causes": [
+        {
+          "text": "阀芯被杂质卡住",
+          "weight": 1.0
+        },
+        {
+          "text": "阀内运动件磨损",
+          "weight": 0.75
+        },
+        {
+          "text": "系统含水导致锈蚀",
+          "weight": 0.6
+        },
+        {
+          "text": "感温包压力传递异常",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察低压与制冷量的周期性变化",
+          "expect": "压力稳定、制冷连续"
+        },
+        {
+          "order": 2,
+          "action": "检查膨胀阀前后温差",
+          "expect": "温差在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "拆检阀芯与滤网",
+          "expect": "无杂质、阀芯活动自如"
+        },
+        {
+          "order": 4,
+          "action": "更换膨胀阀与干燥过滤器",
+          "expect": "制冷稳定"
+        }
+      ],
+      "escalation": "阀芯卡滞无法清洗恢复时更换膨胀阀，同时更换干燥过滤器。",
+      "safety": "拆阀前回收制冷剂并泄压。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-13801.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_exp_bulb",
+      "system": "hvac",
+      "title": "膨胀阀感温包失效，开度调节失灵",
+      "symptoms": [
+        "膨胀阀调节反应迟钝",
+        "蒸发器出口过热度明显异常",
+        "感温包绑扎处松动"
+      ],
+      "keywords": [
+        "感温包",
+        "感温包失效",
+        "过热度异常",
+        "调节迟钝",
+        "绑扎松"
+      ],
+      "likely_causes": [
+        {
+          "text": "感温包内充注介质泄漏",
+          "weight": 1.0
+        },
+        {
+          "text": "感温包与回气管接触不良",
+          "weight": 0.8
+        },
+        {
+          "text": "感温包安装位置错误",
+          "weight": 0.6
+        },
+        {
+          "text": "毛细管折弯或断裂",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查感温包绑扎与接触",
+          "expect": "贴紧回气管、绑扎牢固"
+        },
+        {
+          "order": 2,
+          "action": "测量蒸发器出口过热度",
+          "expect": "过热度在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查感温包毛细管",
+          "expect": "无折弯、无断裂"
+        },
+        {
+          "order": 4,
+          "action": "更换感温包或膨胀阀",
+          "expect": "调节恢复正常"
+        }
+      ],
+      "escalation": "感温包介质泄漏无法单独修复时更换膨胀阀总成。",
+      "safety": "更换感温包时防止毛细管断裂喷出制冷剂。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-13801.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_ice_block",
+      "system": "hvac",
+      "title": "系统冰堵，结霜时轻时重",
+      "symptoms": [
+        "结霜现象周期性出现",
+        "低压周期性波动",
+        "停机一段时间后故障暂时消失"
+      ],
+      "keywords": [
+        "冰堵",
+        "时轻时重",
+        "周期性",
+        "停机就好",
+        "结霜反复"
+      ],
+      "likely_causes": [
+        {
+          "text": "系统含水，水分在膨胀阀处结冰",
+          "weight": 1.0
+        },
+        {
+          "text": "抽真空不彻底",
+          "weight": 0.8
+        },
+        {
+          "text": "干燥过滤器失效",
+          "weight": 0.75
+        },
+        {
+          "text": "制冷剂含水量超标",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察结霜是否周期性变化",
+          "expect": "确认间歇性特征"
+        },
+        {
+          "order": 2,
+          "action": "检查干燥过滤器是否失效",
+          "expect": "干燥剂有效"
+        },
+        {
+          "order": 3,
+          "action": "回收制冷剂并更换干燥过滤器",
+          "expect": "更换后系统干燥"
+        },
+        {
+          "order": 4,
+          "action": "抽真空至规定真空度后加注",
+          "expect": "真空度达标、无冰堵"
+        }
+      ],
+      "escalation": "冰堵处理不能只换干燥器，必须同时查水分来源并彻底抽真空。",
+      "safety": "更换干燥器时防止系统吸潮，拆开后立即封堵。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-13801.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_dryer_block",
+      "system": "hvac",
+      "title": "干燥过滤器堵塞，过滤器外壳发凉",
+      "symptoms": [
+        "过滤器前后有明显温差",
+        "过滤器外壳结露或发凉",
+        "制冷量下降"
+      ],
+      "keywords": [
+        "干燥过滤器堵",
+        "过滤器发凉",
+        "前后温差",
+        "堵塞",
+        "制冷差"
+      ],
+      "likely_causes": [
+        {
+          "text": "干燥过滤器内部堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "系统杂质进入过滤器",
+          "weight": 0.75
+        },
+        {
+          "text": "过滤器长期未更换",
+          "weight": 0.65
+        },
+        {
+          "text": "冰堵发生在过滤器处",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量过滤器前后温度差",
+          "expect": "温差不超过标称值"
+        },
+        {
+          "order": 2,
+          "action": "检查过滤器外壳是否结露",
+          "expect": "无异常结露"
+        },
+        {
+          "order": 3,
+          "action": "更换干燥过滤器",
+          "expect": "更换后温差消失"
+        },
+        {
+          "order": 4,
+          "action": "复测高低压与制冷效果",
+          "expect": "恢复正常"
+        }
+      ],
+      "escalation": "过滤器堵塞时更换，禁止用敲击或加热方式疏通。",
+      "safety": "更换前回收制冷剂，防止喷出。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_dryer_water",
+      "system": "hvac",
+      "title": "干燥器失效，系统反复冰堵",
+      "symptoms": [
+        "更换干燥器不久又冰堵",
+        "视液镜指示含水量高",
+        "膨胀阀处反复结霜"
+      ],
+      "keywords": [
+        "干燥器失效",
+        "反复冰堵",
+        "含水量高",
+        "视液镜",
+        "干燥剂"
+      ],
+      "likely_causes": [
+        {
+          "text": "干燥剂饱和失效",
+          "weight": 1.0
+        },
+        {
+          "text": "系统持续进水",
+          "weight": 0.8
+        },
+        {
+          "text": "干燥器规格不匹配",
+          "weight": 0.55
+        },
+        {
+          "text": "安装时未封堵导致吸潮",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察视液镜含水量指示",
+          "expect": "指示干燥"
+        },
+        {
+          "order": 2,
+          "action": "检查系统进水来源",
+          "expect": "无外部进水"
+        },
+        {
+          "order": 3,
+          "action": "更换合格干燥器并抽真空",
+          "expect": "系统干燥"
+        },
+        {
+          "order": 4,
+          "action": "运行观察是否再冰堵",
+          "expect": "不再冰堵"
+        }
+      ],
+      "escalation": "反复冰堵时按系统进水处理，禁止只换干燥器不查水源。",
+      "safety": "干燥器拆封后立即安装，避免长时间暴露吸潮。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-13801.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_bypass_stuck",
+      "system": "hvac",
+      "title": "电磁旁通阀卡滞，制冷效果差",
+      "symptoms": [
+        "制冷效果差、供风温度偏高",
+        "高压比正常低、低压比正常高",
+        "旁通阀线圈通电无换向声"
+      ],
+      "keywords": [
+        "旁通阀卡滞",
+        "供风温度高",
+        "高压低低压高",
+        "无换向声",
+        "电磁旁通"
+      ],
+      "likely_causes": [
+        {
+          "text": "旁通阀阀芯卡滞关不到位",
+          "weight": 1.0
+        },
+        {
+          "text": "旁通阀线圈烧毁",
+          "weight": 0.8
+        },
+        {
+          "text": "旁通阀控制信号异常",
+          "weight": 0.6
+        },
+        {
+          "text": "阀体内部有杂质",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "软件操作旁通阀开闭并听动作声",
+          "expect": "有清晰换向声"
+        },
+        {
+          "order": 2,
+          "action": "测量线圈电阻与供电",
+          "expect": "阻值正常、供电正常"
+        },
+        {
+          "order": 3,
+          "action": "对比开闭时高低压变化",
+          "expect": "开闭时压力明显变化"
+        },
+        {
+          "order": 4,
+          "action": "更换旁通阀后复测",
+          "expect": "制冷恢复"
+        }
+      ],
+      "escalation": "阀芯卡滞无法恢复时更换同型号旁通阀，禁止拆除线圈长期运行。",
+      "safety": "更换阀件前回收制冷剂并泄压。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2021/3007491.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_bypass_logic",
+      "system": "hvac",
+      "title": "旁通阀触发逻辑不合理，高温频繁高压保护",
+      "symptoms": [
+        "高温天气高压保护频繁",
+        "旁通阀在高压时没有动作",
+        "环境温度高、太阳辐射强时集中出现"
+      ],
+      "keywords": [
+        "旁通阀逻辑",
+        "高温高压保护",
+        "旁通不动作",
+        "太阳辐射",
+        "触发条件"
+      ],
+      "likely_causes": [
+        {
+          "text": "旁通阀触发条件设置不合理",
+          "weight": 1.0
+        },
+        {
+          "text": "仅按压力触发，未考虑压缩机电流",
+          "weight": 0.8
+        },
+        {
+          "text": "压力开关冗余次数设置过低",
+          "weight": 0.6
+        },
+        {
+          "text": "冷凝风量衰减未补偿",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "记录高压保护时的环境温度与运行工况",
+          "expect": "能复现高温工况"
+        },
+        {
+          "order": 2,
+          "action": "检查旁通阀触发参数",
+          "expect": "参数与厂家优化方案一致"
+        },
+        {
+          "order": 3,
+          "action": "核对压力开关冗余动作次数",
+          "expect": "设置合理"
+        },
+        {
+          "order": 4,
+          "action": "按优化方案调整控制逻辑",
+          "expect": "高温工况不再频繁保护"
+        }
+      ],
+      "escalation": "逻辑优化需按厂家技术通知执行，禁止现场随意修改保护参数。",
+      "safety": "修改控制逻辑后必须做高温工况验证。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://search.napstic.cn/literature/periodical/010tdcl202405034",
+        "https://search.napstic.cn/literature/periodical/010tdcl202502029"
+      ]
+    },
+    {
+      "id": "kb_hvac_sight_glass",
+      "system": "hvac",
+      "title": "视液镜有气泡，判断充注量不足",
+      "symptoms": [
+        "视液镜内持续有气泡",
+        "制冷效果偏差",
+        "高压偏低"
+      ],
+      "keywords": [
+        "视液镜气泡",
+        "充注不足",
+        "气泡",
+        "看液镜",
+        "缺氟"
+      ],
+      "likely_causes": [
+        {
+          "text": "制冷剂充注量不足",
+          "weight": 1.0
+        },
+        {
+          "text": "系统存在泄漏",
+          "weight": 0.8
+        },
+        {
+          "text": "视液镜本身损坏",
+          "weight": 0.4
+        },
+        {
+          "text": "系统压力过低导致闪发",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察视液镜气泡是否连续",
+          "expect": "无连续气泡"
+        },
+        {
+          "order": 2,
+          "action": "测量高低压",
+          "expect": "压力在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检漏确认是否泄漏",
+          "expect": "无泄漏"
+        },
+        {
+          "order": 4,
+          "action": "按定量补充制冷剂",
+          "expect": "气泡消失"
+        }
+      ],
+      "escalation": "气泡消失后压力仍偏低时检查压缩机与膨胀阀，禁止只看液镜判断。",
+      "safety": "视液镜观察时避免直视强光。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/archiver/?tid-6083.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_oil_low",
+      "system": "hvac",
+      "title": "压缩机油位偏低，运行声音异常",
+      "symptoms": [
+        "压缩机运行声音变粗",
+        "油位视镜看不到油位",
+        "压缩机温度偏高"
+      ],
+      "keywords": [
+        "压缩机油位",
+        "油少",
+        "声音粗",
+        "油镜",
+        "润滑不足"
+      ],
+      "likely_causes": [
+        {
+          "text": "制冷剂泄漏带走冷冻油",
+          "weight": 1.0
+        },
+        {
+          "text": "系统回油不良",
+          "weight": 0.75
+        },
+        {
+          "text": "压缩机内部磨损导致油耗增加",
+          "weight": 0.6
+        },
+        {
+          "text": "加油量不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察油位视镜",
+          "expect": "油位在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查系统是否泄漏",
+          "expect": "无泄漏"
+        },
+        {
+          "order": 3,
+          "action": "检查回油管路与过滤器",
+          "expect": "回油通畅"
+        },
+        {
+          "order": 4,
+          "action": "补充同牌号冷冻油至标称油位",
+          "expect": "油位恢复、声音正常"
+        }
+      ],
+      "escalation": "补油后油位再次下降时查漏与回油，禁止混用不同牌号冷冻油。",
+      "safety": "冷冻油易吸潮，开封后立即使用。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_comp_noise",
+      "system": "hvac",
+      "title": "压缩机运行有敲击声，内部松动",
+      "symptoms": [
+        "压缩机内部有金属敲击声",
+        "振动比正常大",
+        "电流有波动"
+      ],
+      "keywords": [
+        "压缩机敲击",
+        "内部异响",
+        "金属声",
+        "振动大",
+        "压缩机响"
+      ],
+      "likely_causes": [
+        {
+          "text": "压缩机内部连杆或阀片松动",
+          "weight": 1.0
+        },
+        {
+          "text": "液击导致内部零件损伤",
+          "weight": 0.75
+        },
+        {
+          "text": "减振脚松动",
+          "weight": 0.55
+        },
+        {
+          "text": "管路共振",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "辨别声音来自压缩机内部还是管路",
+          "expect": "定位声源"
+        },
+        {
+          "order": 2,
+          "action": "检查减振脚与固定螺栓",
+          "expect": "减振良好、螺栓紧固"
+        },
+        {
+          "order": 3,
+          "action": "检查是否有液击迹象",
+          "expect": "吸气管无结霜"
+        },
+        {
+          "order": 4,
+          "action": "确认内部异响后更换压缩机",
+          "expect": "异响消除"
+        }
+      ],
+      "escalation": "内部敲击声确认后立即停机，防止压缩机解体损坏管路。",
+      "safety": "压缩机内部故障可能伴随高温高压，停机泄压后处理。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_pipe_vibration",
+      "system": "hvac",
+      "title": "制冷管路振动摩擦，管壁磨穿漏氟",
+      "symptoms": [
+        "管路之间有摩擦痕迹",
+        "管夹缺失或松动",
+        "长期运行后出现漏点"
+      ],
+      "keywords": [
+        "管路振动",
+        "摩擦",
+        "管夹",
+        "磨穿",
+        "漏氟"
+      ],
+      "likely_causes": [
+        {
+          "text": "管路固定管夹缺失",
+          "weight": 1.0
+        },
+        {
+          "text": "管路间距过小相互摩擦",
+          "weight": 0.8
+        },
+        {
+          "text": "减振块老化脱落",
+          "weight": 0.6
+        },
+        {
+          "text": "压缩机振动传递过大",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "沿管路检查摩擦痕与管夹",
+          "expect": "管夹齐全、管路无接触"
+        },
+        {
+          "order": 2,
+          "action": "检查减振块状态",
+          "expect": "减振块完好"
+        },
+        {
+          "order": 3,
+          "action": "用检漏仪检查磨痕处",
+          "expect": "无泄漏"
+        },
+        {
+          "order": 4,
+          "action": "补齐管夹与减振块后复测",
+          "expect": "无摩擦、无泄漏"
+        }
+      ],
+      "escalation": "管壁已磨薄或泄漏时更换该段管路，禁止只缠胶带防磨。",
+      "safety": "焊接管路需按制冷系统动火规程执行。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://cjkj88.com/Article/crh1axdczk_1.html"
+      ]
+    }
+  ]
+}

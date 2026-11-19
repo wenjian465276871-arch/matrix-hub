@@ -1,0 +1,1956 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_door_anti_pinch_force",
+      "system": "door",
+      "title": "防夹力超差，夹到人不能及时弹开",
+      "symptoms": [
+        "用测力计测防夹力明显高于标称上限",
+        "夹到手臂后门还在继续关",
+        "门关闭末段速度偏快"
+      ],
+      "keywords": [
+        "防夹力大",
+        "夹得疼",
+        "很疼才弹",
+        "防夹力超差",
+        "夹持力大"
+      ],
+      "likely_causes": [
+        {
+          "text": "防夹力参数设置偏大",
+          "weight": 1.0
+        },
+        {
+          "text": "压力开关或胶条灵敏度下降",
+          "weight": 0.75
+        },
+        {
+          "text": "关门末段速度过快",
+          "weight": 0.6
+        },
+        {
+          "text": "门扇密封条过硬",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "用测力计按标定点测防夹力",
+          "expect": "防夹力在标称范围内"
+        },
+        {
+          "order": 2,
+          "action": "核对门控器防夹参数",
+          "expect": "参数与基线一致"
+        },
+        {
+          "order": 3,
+          "action": "检查压力开关或胶条触发",
+          "expect": "受压即触发"
+        },
+        {
+          "order": 4,
+          "action": "调整参数后重复测量",
+          "expect": "三次测量均在范围内"
+        }
+      ],
+      "escalation": "参数调整后仍超差时更换压力开关或胶条，禁止把防夹功能关闭。",
+      "safety": "防夹试验必须用标准试验块或测力计，严禁用手直接试。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_anti_pinch_test_fail",
+      "system": "door",
+      "title": "防夹试验不合格，试验块取不出",
+      "symptoms": [
+        "关门夹住试验块后不弹开",
+        "试验块被门扇压得很紧，需要用力抽",
+        "门控器无防夹触发记录"
+      ],
+      "keywords": [
+        "防夹试验不合格",
+        "试验块取不出",
+        "不弹开",
+        "夹得紧",
+        "无触发记录"
+      ],
+      "likely_causes": [
+        {
+          "text": "防夹检测回路未接通",
+          "weight": 1.0
+        },
+        {
+          "text": "门控器防夹功能被关闭",
+          "weight": 0.8
+        },
+        {
+          "text": "压力开关气管堵塞",
+          "weight": 0.6
+        },
+        {
+          "text": "试验块尺寸或位置不符合规程",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "确认防夹功能在门控器中已启用",
+          "expect": "防夹使能参数为开"
+        },
+        {
+          "order": 2,
+          "action": "检查防夹检测回路通断",
+          "expect": "回路完整、信号可变化"
+        },
+        {
+          "order": 3,
+          "action": "按规程用标准试验块在指定位置试验",
+          "expect": "门立即重新打开"
+        },
+        {
+          "order": 4,
+          "action": "检查压力开关气管",
+          "expect": "气管通畅、无折弯"
+        }
+      ],
+      "escalation": "防夹功能无法恢复时该门停用，禁止以「关门力不大」为由放行。",
+      "safety": "试验块取出前先断电或隔离该门，防止门再次动作夹手。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_obstacle_insensitive",
+      "system": "door",
+      "title": "障碍物检测不灵敏，压到东西仍继续关",
+      "symptoms": [
+        "门压到薄物体时没有反应",
+        "厚物体能触发、薄物体不能",
+        "门控器防夹记录很少"
+      ],
+      "keywords": [
+        "障碍物检测",
+        "不灵敏",
+        "压到不弹",
+        "薄物体",
+        "检测不到"
+      ],
+      "likely_causes": [
+        {
+          "text": "防夹触发阈值偏高",
+          "weight": 1.0
+        },
+        {
+          "text": "胶条内部导电层局部失效",
+          "weight": 0.75
+        },
+        {
+          "text": "压力开关灵敏度低",
+          "weight": 0.6
+        },
+        {
+          "text": "门扇密封条过硬分散压力",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "用不同厚度试验块逐级试验",
+          "expect": "在规定厚度即触发"
+        },
+        {
+          "order": 2,
+          "action": "分段测量护指胶条导通",
+          "expect": "受压段可靠导通"
+        },
+        {
+          "order": 3,
+          "action": "检查压力开关触发压力",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "更换失效段或调整阈值",
+          "expect": "薄物体也能触发"
+        }
+      ],
+      "escalation": "胶条局部失效必须更换整条，禁止只调整阈值掩盖失效。",
+      "safety": "检测试验使用标准试验块，人员手部远离门缝。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=19318"
+      ]
+    },
+    {
+      "id": "kb_door_open_time",
+      "system": "door",
+      "title": "开门时间超差，开门明显偏慢",
+      "symptoms": [
+        "开门实测时间超过标准上限",
+        "开门初段有迟滞后突然加速",
+        "同一列车其它门正常"
+      ],
+      "keywords": [
+        "开门慢",
+        "开门时间超差",
+        "开门迟滞",
+        "开得慢",
+        "时间超标"
+      ],
+      "likely_causes": [
+        {
+          "text": "开门节流阀开度偏小",
+          "weight": 1.0
+        },
+        {
+          "text": "解锁动作迟滞，门扇起步晚",
+          "weight": 0.75
+        },
+        {
+          "text": "门机构阻力大",
+          "weight": 0.6
+        },
+        {
+          "text": "气源压力偏低",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量开门全程时间",
+          "expect": "在标称范围内"
+        },
+        {
+          "order": 2,
+          "action": "检查开门节流阀开度",
+          "expect": "与其它门一致"
+        },
+        {
+          "order": 3,
+          "action": "观察解锁与门扇起步时序",
+          "expect": "解锁后立即起步"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测三次",
+          "expect": "三次均在范围内"
+        }
+      ],
+      "escalation": "调整节流阀后仍超差时检查解锁机构与门机构阻力，禁止一味开大节流阀。",
+      "safety": "开门速度过快会撞击乘客，调整后需复测开门冲击。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_buffer_distance",
+      "system": "door",
+      "title": "缓冲距离不足，关门末段直接撞到位",
+      "symptoms": [
+        "门关到最后一段没有减速",
+        "关门声音明显比其它门响",
+        "门扇到位的冲击感强"
+      ],
+      "keywords": [
+        "缓冲距离",
+        "末段不减速",
+        "撞到位",
+        "关门响",
+        "冲击"
+      ],
+      "likely_causes": [
+        {
+          "text": "缓冲参数设置过小",
+          "weight": 1.0
+        },
+        {
+          "text": "缓冲位置开关提前或延后触发",
+          "weight": 0.8
+        },
+        {
+          "text": "关门末段速度设定过高",
+          "weight": 0.6
+        },
+        {
+          "text": "缓冲气缸或阻尼器失效",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察关门末段是否有明显减速",
+          "expect": "末段平稳减速"
+        },
+        {
+          "order": 2,
+          "action": "核对缓冲距离参数",
+          "expect": "与基线一致"
+        },
+        {
+          "order": 3,
+          "action": "检查缓冲位置开关触发点",
+          "expect": "在标称位置触发"
+        },
+        {
+          "order": 4,
+          "action": "调整后测量关门冲击与时间",
+          "expect": "冲击小、时间合格"
+        }
+      ],
+      "escalation": "缓冲机构失效时更换，禁止用降低整体关门速度掩盖末段冲击。",
+      "safety": "末段冲击大易夹伤乘客，未修复前该门不得投入运用。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_emergency_heavy",
+      "system": "door",
+      "title": "紧急解锁手柄过重，乘客拉不动",
+      "symptoms": [
+        "拉紧急解锁手柄需要很大力",
+        "手柄拉到一半卡住",
+        "钢丝绳或连杆处有摩擦"
+      ],
+      "keywords": [
+        "紧急解锁重",
+        "拉不动",
+        "手柄卡",
+        "太紧",
+        "解锁力大"
+      ],
+      "likely_causes": [
+        {
+          "text": "钢丝绳走向阻力大或拐角过小",
+          "weight": 1.0
+        },
+        {
+          "text": "解锁连杆铰点锈蚀",
+          "weight": 0.75
+        },
+        {
+          "text": "主锁机构卡滞",
+          "weight": 0.6
+        },
+        {
+          "text": "手柄复位弹簧过硬",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量手柄操作力",
+          "expect": "不超过规程规定值"
+        },
+        {
+          "order": 2,
+          "action": "检查钢丝绳走向与拐角半径",
+          "expect": "顺直、拐角符合要求"
+        },
+        {
+          "order": 3,
+          "action": "检查连杆铰点润滑",
+          "expect": "活动顺畅"
+        },
+        {
+          "order": 4,
+          "action": "润滑或更换后复测操作力",
+          "expect": "操作力合格"
+        }
+      ],
+      "escalation": "操作力超标时按紧急解锁失效处理，禁止在手柄上加装加长杆。",
+      "safety": "紧急解锁是逃生装置，操作力必须让乘客能独立完成。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/322/5268261"
+      ]
+    },
+    {
+      "id": "kb_door_status_light",
+      "system": "door",
+      "title": "门状态指示灯不亮，看不出门是否关好",
+      "symptoms": [
+        "门已关闭，指示灯不亮",
+        "指示灯灯珠发黑",
+        "同一位置多个指示灯都不亮"
+      ],
+      "keywords": [
+        "状态灯不亮",
+        "门状态灯",
+        "灯珠黑",
+        "看不出关好",
+        "关门指示灯"
+      ],
+      "likely_causes": [
+        {
+          "text": "指示灯灯珠烧毁",
+          "weight": 1.0
+        },
+        {
+          "text": "指示灯供电缺失",
+          "weight": 0.75
+        },
+        {
+          "text": "门状态信号未送达",
+          "weight": 0.6
+        },
+        {
+          "text": "灯罩进水导致短路",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量指示灯供电电压",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 2,
+          "action": "检查灯珠与灯罩",
+          "expect": "灯珠完好、灯罩无进水"
+        },
+        {
+          "order": 3,
+          "action": "测量门状态信号",
+          "expect": "关闭时信号正确"
+        },
+        {
+          "order": 4,
+          "action": "更换指示灯后复测",
+          "expect": "显示正常"
+        }
+      ],
+      "escalation": "多个指示灯同时不亮时查公共供电支路，禁止只换灯泡不查供电。",
+      "safety": "更换指示灯前断电，防止短路。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://wap.cinn.cn/p/W020210913546968852977.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_side_light_on",
+      "system": "door",
+      "title": "车侧灯常亮，门实际已关好",
+      "symptoms": [
+        "全列门已关闭，车侧灯仍亮",
+        "监控显示某门未关好",
+        "重新开关该门后灯灭"
+      ],
+      "keywords": [
+        "车侧灯常亮",
+        "门已关好",
+        "灯不灭",
+        "显示未关好",
+        "重开就好"
+      ],
+      "likely_causes": [
+        {
+          "text": "锁闭信号触点接触不良",
+          "weight": 1.0
+        },
+        {
+          "text": "门控器状态输出未复位",
+          "weight": 0.75
+        },
+        {
+          "text": "车侧灯回路串电",
+          "weight": 0.5
+        },
+        {
+          "text": "门环路某处接触不良",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "确认该门实际锁闭状态",
+          "expect": "门确实已锁闭"
+        },
+        {
+          "order": 2,
+          "action": "测量锁闭信号与门控器输出",
+          "expect": "锁闭时信号正确"
+        },
+        {
+          "order": 3,
+          "action": "检查车侧灯回路绝缘",
+          "expect": "无串电"
+        },
+        {
+          "order": 4,
+          "action": "处理后重复开关门",
+          "expect": "灯随状态变化"
+        }
+      ],
+      "escalation": "车侧灯常亮会影响发车判断，未查明前不得按「已关好」发车。",
+      "safety": "判断门是否关好必须以机械锁闭为准，不能只看灯。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.11665.com/technology/Transportation/41208.shtml"
+      ]
+    },
+    {
+      "id": "kb_door_indicator_flash",
+      "system": "door",
+      "title": "门关好指示灯闪烁，状态不稳定",
+      "symptoms": [
+        "指示灯忽亮忽灭",
+        "门实际一直关着",
+        "列车过弯时闪得更明显"
+      ],
+      "keywords": [
+        "指示灯闪",
+        "忽亮忽灭",
+        "状态不稳",
+        "过弯闪",
+        "接触不良"
+      ],
+      "likely_causes": [
+        {
+          "text": "锁闭信号触点抖动",
+          "weight": 1.0
+        },
+        {
+          "text": "信号线束虚接",
+          "weight": 0.8
+        },
+        {
+          "text": "门控器输入滤波不足",
+          "weight": 0.5
+        },
+        {
+          "text": "接插件退针",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "锁闭状态下监测信号稳定性",
+          "expect": "信号持续稳定"
+        },
+        {
+          "order": 2,
+          "action": "轻晃线束与插头观察",
+          "expect": "信号不跳变"
+        },
+        {
+          "order": 3,
+          "action": "检查锁闭开关触点",
+          "expect": "接触可靠"
+        },
+        {
+          "order": 4,
+          "action": "更换开关或紧固端子后复测",
+          "expect": "指示稳定"
+        }
+      ],
+      "escalation": "信号抖动会导致牵引封锁，未修复前该门不得投入运用。",
+      "safety": "处理信号回路前断电，防止误发车。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.11665.com/technology/Transportation/41208.shtml"
+      ]
+    },
+    {
+      "id": "kb_door_alarm_false",
+      "system": "door",
+      "title": "门未关好报警误报，实际门已锁闭",
+      "symptoms": [
+        "司机台报警某门未关好",
+        "到现场确认门已锁闭",
+        "复位后报警消失，运行一段又报"
+      ],
+      "keywords": [
+        "报警误报",
+        "未关好报警",
+        "实际已锁",
+        "复位又报",
+        "假报警"
+      ],
+      "likely_causes": [
+        {
+          "text": "锁闭反馈信号间歇丢失",
+          "weight": 1.0
+        },
+        {
+          "text": "门控器状态输出抖动",
+          "weight": 0.7
+        },
+        {
+          "text": "报警回路接线松动",
+          "weight": 0.6
+        },
+        {
+          "text": "网络传输状态丢包",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "现场确认门机械锁闭状态",
+          "expect": "门确实锁闭"
+        },
+        {
+          "order": 2,
+          "action": "监测锁闭反馈信号",
+          "expect": "信号连续不丢失"
+        },
+        {
+          "order": 3,
+          "action": "检查报警回路接线",
+          "expect": "无松动、无氧化"
+        },
+        {
+          "order": 4,
+          "action": "检查网络状态与丢包",
+          "expect": "通信正常"
+        }
+      ],
+      "escalation": "误报频繁时按信号丢失处理，禁止直接关闭报警功能。",
+      "safety": "不得因误报而忽略真实报警，每次都必须现场确认。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=23937"
+      ]
+    },
+    {
+      "id": "kb_door_central_close",
+      "system": "door",
+      "title": "集控关门单门不响应，其它门正常",
+      "symptoms": [
+        "集控关门时只有这一门不动",
+        "本地关门按钮能关",
+        "该门开门集控正常"
+      ],
+      "keywords": [
+        "集控关门",
+        "单门不响应",
+        "本地能关",
+        "只有这门",
+        "关门指令"
+      ],
+      "likely_causes": [
+        {
+          "text": "关门指令线该分支断路",
+          "weight": 1.0
+        },
+        {
+          "text": "门控器关门输入通道故障",
+          "weight": 0.75
+        },
+        {
+          "text": "该门处于隔离或本地模式",
+          "weight": 0.6
+        },
+        {
+          "text": "车端连接器关门针脚接触不良",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "确认该门未处于隔离或本地模式",
+          "expect": "在集控模式"
+        },
+        {
+          "order": 2,
+          "action": "集控关门时测量该门指令线",
+          "expect": "指令线得电"
+        },
+        {
+          "order": 3,
+          "action": "检查门控器关门输入通道",
+          "expect": "输入信号正确"
+        },
+        {
+          "order": 4,
+          "action": "检查车端连接器对应针脚",
+          "expect": "无退针、无氧化"
+        }
+      ],
+      "escalation": "指令线正常而门控器无响应时更换门控器，禁止长期用本地操作替代集控。",
+      "safety": "集控试验时确认门区无人。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/322/5268261"
+      ]
+    },
+    {
+      "id": "kb_door_isolated_but_fault",
+      "system": "door",
+      "title": "门已隔离，监控仍持续报该门故障",
+      "symptoms": [
+        "该门已打隔离位，故障报警不消",
+        "其它门正常",
+        "隔离反馈信号已置位"
+      ],
+      "keywords": [
+        "隔离后仍报",
+        "故障不消",
+        "隔离位",
+        "报警不清",
+        "已隔离"
+      ],
+      "likely_causes": [
+        {
+          "text": "隔离反馈信号未送达监控",
+          "weight": 1.0
+        },
+        {
+          "text": "门控器仍在上报原故障",
+          "weight": 0.75
+        },
+        {
+          "text": "监控端未刷新隔离状态",
+          "weight": 0.5
+        },
+        {
+          "text": "隔离开关触点接触不良",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "确认隔离开关位置与反馈信号",
+          "expect": "隔离位信号为 1"
+        },
+        {
+          "order": 2,
+          "action": "查看门控器是否仍在上报故障",
+          "expect": "隔离后停止上报"
+        },
+        {
+          "order": 3,
+          "action": "检查隔离信号线至监控的通路",
+          "expect": "信号可达监控"
+        },
+        {
+          "order": 4,
+          "action": "复位监控或重启门控器后观察",
+          "expect": "报警消除"
+        }
+      ],
+      "escalation": "隔离状态无法上传时按通信故障处理，禁止只把监控报警静音。",
+      "safety": "隔离门必须在现场挂牌，不能仅依赖监控显示。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_clock_wrong",
+      "system": "door",
+      "title": "门控器时间错乱，故障记录无法对应",
+      "symptoms": [
+        "门控器记录时间与实际相差很多",
+        "多条故障记录时间相同",
+        "断电检修后时间归零"
+      ],
+      "keywords": [
+        "时间错乱",
+        "记录时间不对",
+        "时间归零",
+        "对不上",
+        "时钟"
+      ],
+      "likely_causes": [
+        {
+          "text": "门控器后备电池耗尽",
+          "weight": 1.0
+        },
+        {
+          "text": "未与列车时钟同步",
+          "weight": 0.75
+        },
+        {
+          "text": "门控器时钟模块故障",
+          "weight": 0.55
+        },
+        {
+          "text": "软件时区设置错误",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "对比门控器时间与列车标准时间",
+          "expect": "偏差在允许范围"
+        },
+        {
+          "order": 2,
+          "action": "检查后备电池电压",
+          "expect": "不低于标称值"
+        },
+        {
+          "order": 3,
+          "action": "检查时钟同步设置",
+          "expect": "同步功能启用"
+        },
+        {
+          "order": 4,
+          "action": "校时后断电重启验证",
+          "expect": "时间保持正确"
+        }
+      ],
+      "escalation": "电池耗尽或时钟模块故障时更换门控器，否则故障记录无法用于分析。",
+      "safety": "校时操作不得影响正在进行的诊断记录。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=23937"
+      ]
+    },
+    {
+      "id": "kb_door_log_cleared",
+      "system": "door",
+      "title": "门控器故障记录被清空，无法追溯",
+      "symptoms": [
+        "故障记录里只有最近几条",
+        "历史记录全部为空",
+        "刚发生故障但记录没有"
+      ],
+      "keywords": [
+        "记录被清空",
+        "没有记录",
+        "历史为空",
+        "追溯不了",
+        "日志清空"
+      ],
+      "likely_causes": [
+        {
+          "text": "检修时执行了清除故障记录操作",
+          "weight": 1.0
+        },
+        {
+          "text": "门控器存储满后循环覆盖",
+          "weight": 0.7
+        },
+        {
+          "text": "断电导致记录丢失",
+          "weight": 0.55
+        },
+        {
+          "text": "软件升级清空记录",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "确认最近一次清记录的时间与操作人",
+          "expect": "有操作记录可查"
+        },
+        {
+          "order": 2,
+          "action": "检查存储容量与覆盖策略",
+          "expect": "容量足够、策略合理"
+        },
+        {
+          "order": 3,
+          "action": "复现故障并立即读取记录",
+          "expect": "能捕获到故障码"
+        },
+        {
+          "order": 4,
+          "action": "规范检修流程，故障记录先下载后清除",
+          "expect": "流程可追溯"
+        }
+      ],
+      "escalation": "记录频繁丢失时检查门控器存储与供电，禁止在未下载记录前清除。",
+      "safety": "清除记录前必须确认数据已保存，否则失去分析依据。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=23937"
+      ]
+    },
+    {
+      "id": "kb_door_buzzer_silent",
+      "system": "door",
+      "title": "开关门蜂鸣器不响，警示缺失",
+      "symptoms": [
+        "门动作时没有蜂鸣提示音",
+        "蜂鸣器外观完好",
+        "其它门蜂鸣正常"
+      ],
+      "keywords": [
+        "蜂鸣器不响",
+        "没有提示音",
+        "警示缺失",
+        "不响",
+        "蜂鸣"
+      ],
+      "likely_causes": [
+        {
+          "text": "蜂鸣器损坏",
+          "weight": 1.0
+        },
+        {
+          "text": "蜂鸣器供电缺失",
+          "weight": 0.75
+        },
+        {
+          "text": "门控器蜂鸣输出故障",
+          "weight": 0.6
+        },
+        {
+          "text": "蜂鸣器音量被设为静音",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "给门动作指令听蜂鸣器",
+          "expect": "动作全程有提示音"
+        },
+        {
+          "order": 2,
+          "action": "测量蜂鸣器供电与驱动信号",
+          "expect": "动作时有驱动电压"
+        },
+        {
+          "order": 3,
+          "action": "检查蜂鸣器音量设置",
+          "expect": "未静音"
+        },
+        {
+          "order": 4,
+          "action": "更换蜂鸣器后复测",
+          "expect": "提示音正常"
+        }
+      ],
+      "escalation": "蜂鸣器不响会失去开关门警示，未修复前该门不得投入运用。",
+      "safety": "蜂鸣器是防止夹人的重要提示，不能以「声音小」为由忽略。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_buzzer_continuous",
+      "system": "door",
+      "title": "蜂鸣器长响不停，门已停止动作",
+      "symptoms": [
+        "门不动了蜂鸣器还在响",
+        "断电后停止",
+        "门控器显示关门指令未撤销"
+      ],
+      "keywords": [
+        "蜂鸣器长响",
+        "一直响",
+        "门停了还响",
+        "不停",
+        "指令未撤"
+      ],
+      "likely_causes": [
+        {
+          "text": "关门指令持续存在",
+          "weight": 1.0
+        },
+        {
+          "text": "关门按钮或继电器触点粘连",
+          "weight": 0.8
+        },
+        {
+          "text": "门控器输出未复位",
+          "weight": 0.6
+        },
+        {
+          "text": "蜂鸣器驱动回路短路",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查关门指令是否持续存在",
+          "expect": "松开按钮后指令撤销"
+        },
+        {
+          "order": 2,
+          "action": "检查按钮与继电器触点",
+          "expect": "无粘连"
+        },
+        {
+          "order": 3,
+          "action": "测量蜂鸣器驱动回路",
+          "expect": "无短路"
+        },
+        {
+          "order": 4,
+          "action": "复位或更换故障件",
+          "expect": "蜂鸣停止"
+        }
+      ],
+      "escalation": "蜂鸣长响会掩盖其它报警，未修复前应隔离该门。",
+      "safety": "检查前先断电，防止门突然动作。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_button_led",
+      "system": "door",
+      "title": "开关门按钮指示灯不亮，功能正常",
+      "symptoms": [
+        "按钮能操作门，但按钮灯不亮",
+        "灯珠发黑或灯罩发黄",
+        "夜间看不清按钮位置"
+      ],
+      "keywords": [
+        "按钮灯不亮",
+        "指示灯灭",
+        "灯珠黑",
+        "能操作",
+        "按钮灯"
+      ],
+      "likely_causes": [
+        {
+          "text": "按钮内部 LED 损坏",
+          "weight": 1.0
+        },
+        {
+          "text": "按钮灯供电支路断路",
+          "weight": 0.7
+        },
+        {
+          "text": "灯罩老化透光差",
+          "weight": 0.5
+        },
+        {
+          "text": "按钮插头部分针脚接触不良",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量按钮灯供电",
+          "expect": "有标称电压"
+        },
+        {
+          "order": 2,
+          "action": "检查按钮插头针脚",
+          "expect": "无退针、无氧化"
+        },
+        {
+          "order": 3,
+          "action": "更换按钮后复测",
+          "expect": "灯亮且功能正常"
+        },
+        {
+          "order": 4,
+          "action": "检查灯罩透光",
+          "expect": "灯罩清洁、无老化"
+        }
+      ],
+      "escalation": "灯不亮影响夜间识别时更换按钮，禁止只换灯珠不查供电。",
+      "safety": "更换按钮前断电。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://wap.cinn.cn/p/W020210913546968852977.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_display_black",
+      "system": "door",
+      "title": "门区显示屏黑屏，看不到到站信息",
+      "symptoms": [
+        "门区显示屏完全不亮",
+        "其它车厢显示屏正常",
+        "显示屏电源指示灯不亮"
+      ],
+      "keywords": [
+        "门区显示屏黑屏",
+        "门区屏不亮",
+        "到站信息不显示",
+        "屏黑",
+        "门区屏没显示"
+      ],
+      "likely_causes": [
+        {
+          "text": "显示屏供电缺失",
+          "weight": 1.0
+        },
+        {
+          "text": "显示屏保险熔断",
+          "weight": 0.75
+        },
+        {
+          "text": "显示屏本体故障",
+          "weight": 0.6
+        },
+        {
+          "text": "信号线未接通导致待机黑屏",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量显示屏供电电压",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 2,
+          "action": "检查显示屏保险",
+          "expect": "保险导通"
+        },
+        {
+          "order": 3,
+          "action": "检查信号线连接",
+          "expect": "信号线接通"
+        },
+        {
+          "order": 4,
+          "action": "更换显示屏后复测",
+          "expect": "显示正常"
+        }
+      ],
+      "escalation": "显示屏黑屏不影响行车安全但影响服务，按客运设施故障上报。",
+      "safety": "拆装显示屏前断电，防止短路。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://wap.cinn.cn/p/W020210913546968852977.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_block_stuck",
+      "system": "door",
+      "title": "防夹试验块被门夹住取不出",
+      "symptoms": [
+        "试验块卡在门缝里",
+        "门既不关也不开",
+        "门控器无动作"
+      ],
+      "keywords": [
+        "试验块卡住",
+        "取不出",
+        "卡在门缝",
+        "不动",
+        "夹住"
+      ],
+      "likely_causes": [
+        {
+          "text": "防夹触发后门控器进入保护状态",
+          "weight": 1.0
+        },
+        {
+          "text": "试验块尺寸过大卡死",
+          "weight": 0.7
+        },
+        {
+          "text": "门控器死机",
+          "weight": 0.5
+        },
+        {
+          "text": "防夹回路持续触发",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "按开门按钮或本地解锁尝试释放",
+          "expect": "门能重新打开"
+        },
+        {
+          "order": 2,
+          "action": "断电后手动释放门扇",
+          "expect": "门扇可手动移动"
+        },
+        {
+          "order": 3,
+          "action": "检查试验块尺寸是否符合规程",
+          "expect": "使用标准试验块"
+        },
+        {
+          "order": 4,
+          "action": "复位门控器后重新试验",
+          "expect": "防夹动作正常"
+        }
+      ],
+      "escalation": "门控器死机导致无法释放时按死机故障处理，禁止强行撬门取块。",
+      "safety": "取试验块时断电并支撑门扇，防止门突然动作。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_clamp_force",
+      "system": "door",
+      "title": "门扇夹持力过大，乘客被夹难受",
+      "symptoms": [
+        "乘客反映被门夹得很疼",
+        "防夹触发前的夹持力明显偏大",
+        "关门末段速度偏快"
+      ],
+      "keywords": [
+        "夹持力大",
+        "夹得疼",
+        "夹人",
+        "力度大",
+        "关门猛"
+      ],
+      "likely_causes": [
+        {
+          "text": "关门末段速度设定过高",
+          "weight": 1.0
+        },
+        {
+          "text": "防夹阈值设置偏高",
+          "weight": 0.8
+        },
+        {
+          "text": "门扇密封条过硬",
+          "weight": 0.55
+        },
+        {
+          "text": "缓冲距离不足",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量关门末段速度与夹持力",
+          "expect": "均在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "核对防夹阈值参数",
+          "expect": "与基线一致"
+        },
+        {
+          "order": 3,
+          "action": "检查密封条硬度",
+          "expect": "弹性正常"
+        },
+        {
+          "order": 4,
+          "action": "调整后重复测量",
+          "expect": "夹持力下降且防夹有效"
+        }
+      ],
+      "escalation": "调整后仍夹持力过大时检查门机构与缓冲，禁止只调低防夹阈值。",
+      "safety": "夹持力试验用测力计，禁止用人体试。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_close_fast_end",
+      "system": "door",
+      "title": "关门末段速度过快，撞击感明显",
+      "symptoms": [
+        "门最后一段突然加速",
+        "关门声比其它门响",
+        "门扇到位有回弹"
+      ],
+      "keywords": [
+        "末段快",
+        "突然加速",
+        "关门响",
+        "回弹",
+        "撞击"
+      ],
+      "likely_causes": [
+        {
+          "text": "末段速度参数设置过高",
+          "weight": 1.0
+        },
+        {
+          "text": "缓冲开关触发晚",
+          "weight": 0.8
+        },
+        {
+          "text": "节流阀调整不当",
+          "weight": 0.6
+        },
+        {
+          "text": "门机构阻力小导致速度失控",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察关门全程速度变化",
+          "expect": "末段明显减速"
+        },
+        {
+          "order": 2,
+          "action": "核对末段速度与缓冲参数",
+          "expect": "与基线一致"
+        },
+        {
+          "order": 3,
+          "action": "检查缓冲开关触发位置",
+          "expect": "在标称位置触发"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测关门时间与冲击",
+          "expect": "速度平稳"
+        }
+      ],
+      "escalation": "参数无法调整到合格时检查门控器与缓冲机构，禁止只降低整体速度。",
+      "safety": "末段速度过快会夹伤乘客，未修复前该门停用。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_open_jerk",
+      "system": "door",
+      "title": "开门初段冲击大，门扇猛得弹出",
+      "symptoms": [
+        "按开门后门扇突然弹出",
+        "开门初段有明显撞击声",
+        "乘客容易被门扇碰到"
+      ],
+      "keywords": [
+        "开门冲击",
+        "猛得弹出",
+        "初段快",
+        "开门撞",
+        "弹出"
+      ],
+      "likely_causes": [
+        {
+          "text": "开门初段速度参数过高",
+          "weight": 1.0
+        },
+        {
+          "text": "解锁后气压瞬间过大",
+          "weight": 0.75
+        },
+        {
+          "text": "节流阀开度偏大",
+          "weight": 0.6
+        },
+        {
+          "text": "缓冲机构失效",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察开门初段速度与冲击",
+          "expect": "初段平稳、无冲击"
+        },
+        {
+          "order": 2,
+          "action": "核对开门速度参数",
+          "expect": "与基线一致"
+        },
+        {
+          "order": 3,
+          "action": "检查开门节流阀开度",
+          "expect": "与其它门一致"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测开门时间与冲击",
+          "expect": "平稳开启"
+        }
+      ],
+      "escalation": "调整后仍冲击大时检查缓冲与门机构，禁止用降低气压方式掩盖。",
+      "safety": "开门冲击会撞伤乘客，未修复前该门不得投入运用。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_cold_seal_hard",
+      "system": "door",
+      "title": "低温密封条变硬，门关不严",
+      "symptoms": [
+        "冬季门关闭后仍有缝隙",
+        "密封条摸起来很硬",
+        "气温回升后恢复正常"
+      ],
+      "keywords": [
+        "低温变硬",
+        "密封条硬",
+        "冬天关不严",
+        "缝隙",
+        "气温回升"
+      ],
+      "likely_causes": [
+        {
+          "text": "密封条材质耐低温性能不足",
+          "weight": 1.0
+        },
+        {
+          "text": "密封条老化加速硬化",
+          "weight": 0.75
+        },
+        {
+          "text": "锁闭力不足以压缩硬化胶条",
+          "weight": 0.6
+        },
+        {
+          "text": "门区加热未开启",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "低温环境下检查密封条硬度",
+          "expect": "仍有弹性"
+        },
+        {
+          "order": 2,
+          "action": "检查门区加热功能",
+          "expect": "加热正常"
+        },
+        {
+          "order": 3,
+          "action": "测量关门后缝隙",
+          "expect": "缝隙在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "更换耐低温密封条后复测",
+          "expect": "低温下密封良好"
+        }
+      ],
+      "escalation": "胶条材质不满足低温要求时整批更换，禁止用加大锁闭力硬压。",
+      "safety": "低温作业注意防滑，门区结冰先清除。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/322/5722034"
+      ]
+    },
+    {
+      "id": "kb_door_hot_dcu_derate",
+      "system": "door",
+      "title": "高温天气门控器降频，动作变慢",
+      "symptoms": [
+        "夏季午后门动作明显变慢",
+        "门控器外壳烫手",
+        "早晚温度低时正常"
+      ],
+      "keywords": [
+        "高温变慢",
+        "门控器烫",
+        "夏天慢",
+        "降频",
+        "午后"
+      ],
+      "likely_causes": [
+        {
+          "text": "门控器散热不良，内部过热保护",
+          "weight": 1.0
+        },
+        {
+          "text": "门控器安装位置通风差",
+          "weight": 0.75
+        },
+        {
+          "text": "门控器内部积尘",
+          "weight": 0.6
+        },
+        {
+          "text": "环境温度超过门控器额定",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量门控器外壳与内部温度",
+          "expect": "不超过额定工作温度"
+        },
+        {
+          "order": 2,
+          "action": "检查门控器周围通风与积尘",
+          "expect": "通风良好、无积尘"
+        },
+        {
+          "order": 3,
+          "action": "检查门控器散热片与风扇",
+          "expect": "散热正常"
+        },
+        {
+          "order": 4,
+          "action": "改善散热后高温时段复测",
+          "expect": "动作速度正常"
+        }
+      ],
+      "escalation": "散热改善后仍降频时更换门控器，禁止拆除外壳散热。",
+      "safety": "门控器高温时断电冷却后再处理。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=19318"
+      ]
+    },
+    {
+      "id": "kb_door_wind_pressure",
+      "system": "door",
+      "title": "大风天气门关不严，密封失效",
+      "symptoms": [
+        "大风时空车关门困难",
+        "门缝有明显气流",
+        "风速降低后恢复正常"
+      ],
+      "keywords": [
+        "大风关不严",
+        "风压",
+        "关不上",
+        "气流",
+        "风速"
+      ],
+      "likely_causes": [
+        {
+          "text": "风压作用在门扇上抵消锁闭力",
+          "weight": 1.0
+        },
+        {
+          "text": "锁闭力不足",
+          "weight": 0.7
+        },
+        {
+          "text": "密封条压缩量偏小",
+          "weight": 0.6
+        },
+        {
+          "text": "门扇刚度不足变形",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查锁闭力与气压",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 2,
+          "action": "检查密封条压缩量",
+          "expect": "压缩量足够"
+        },
+        {
+          "order": 3,
+          "action": "检查门扇刚度与变形",
+          "expect": "门扇无变形"
+        },
+        {
+          "order": 4,
+          "action": "按标称调整后大风天气复测",
+          "expect": "能正常关闭密封"
+        }
+      ],
+      "escalation": "风压导致的关闭困难应通过提高锁闭力或改善密封解决，禁止强行手动拉门。",
+      "safety": "大风天气开关门注意门扇摆动，防止撞伤。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.qikanchina.com/thesis/view/2700965"
+      ]
+    },
+    {
+      "id": "kb_door_pressure_diff",
+      "system": "door",
+      "title": "车内外压差大，门关到末段被顶回",
+      "symptoms": [
+        "门关到末段被气流顶开",
+        "隧道内或会车时更明显",
+        "门控器报关门超时"
+      ],
+      "keywords": [
+        "压差",
+        "顶回",
+        "隧道",
+        "会车",
+        "关门超时"
+      ],
+      "likely_causes": [
+        {
+          "text": "车内外压差超过门关闭能力",
+          "weight": 1.0
+        },
+        {
+          "text": "压力波保护动作过早",
+          "weight": 0.7
+        },
+        {
+          "text": "门扇密封条阻力大",
+          "weight": 0.55
+        },
+        {
+          "text": "关门速度设定偏低",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "记录故障时的运行工况",
+          "expect": "能对应隧道或会车"
+        },
+        {
+          "order": 2,
+          "action": "检查压力波保护动作值",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "测量关门末段速度",
+          "expect": "满足压差工况要求"
+        },
+        {
+          "order": 4,
+          "action": "按工况调整参数后复测",
+          "expect": "能正常关闭"
+        }
+      ],
+      "escalation": "压差导致反复关门失败时按压力波保护逻辑核查，禁止关闭保护功能。",
+      "safety": "压差工况下门可能突然开合，乘客应远离门区。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_wash_mode",
+      "system": "door",
+      "title": "洗车模式门被锁，无法正常开关",
+      "symptoms": [
+        "洗车后门不能电动开关",
+        "门控器显示洗车模式",
+        "其它操作均无效"
+      ],
+      "keywords": [
+        "洗车模式",
+        "门被锁",
+        "不能开关",
+        "模式未退出",
+        "洗车后"
+      ],
+      "likely_causes": [
+        {
+          "text": "洗车模式未退出",
+          "weight": 1.0
+        },
+        {
+          "text": "洗车模式开关卡滞",
+          "weight": 0.7
+        },
+        {
+          "text": "门控器模式信号未复位",
+          "weight": 0.6
+        },
+        {
+          "text": "操作流程遗漏",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "确认洗车模式开关位置",
+          "expect": "已退出洗车模式"
+        },
+        {
+          "order": 2,
+          "action": "检查模式信号是否复位",
+          "expect": "信号为正常模式"
+        },
+        {
+          "order": 3,
+          "action": "按规程重启门控器",
+          "expect": "模式恢复正常"
+        },
+        {
+          "order": 4,
+          "action": "操作门开关验证",
+          "expect": "电动功能恢复"
+        }
+      ],
+      "escalation": "模式无法退出时按门控器故障处理，禁止强行手动开门。",
+      "safety": "洗车模式下门被锁定是防进水保护，不得随意旁路。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=19318"
+      ]
+    },
+    {
+      "id": "kb_door_area_light",
+      "system": "door",
+      "title": "门区照明不亮，夜间上下车不安全",
+      "symptoms": [
+        "门区灯不亮",
+        "其它门区照明正常",
+        "灯罩内有水汽"
+      ],
+      "keywords": [
+        "门区照明",
+        "灯不亮",
+        "夜间",
+        "灯罩水汽",
+        "照明"
+      ],
+      "likely_causes": [
+        {
+          "text": "灯管或 LED 损坏",
+          "weight": 1.0
+        },
+        {
+          "text": "照明供电支路断路",
+          "weight": 0.75
+        },
+        {
+          "text": "灯罩进水导致短路",
+          "weight": 0.6
+        },
+        {
+          "text": "灯座接触不良",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量门区灯供电",
+          "expect": "有标称电压"
+        },
+        {
+          "order": 2,
+          "action": "检查灯管或 LED 与灯座",
+          "expect": "灯珠完好、接触良好"
+        },
+        {
+          "order": 3,
+          "action": "检查灯罩密封与水汽",
+          "expect": "灯罩干燥、密封完好"
+        },
+        {
+          "order": 4,
+          "action": "更换灯具后复测",
+          "expect": "照明正常"
+        }
+      ],
+      "escalation": "灯罩进水需同时处理密封，禁止只换灯管。",
+      "safety": "更换灯具前断电，防止触电。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://wap.cinn.cn/p/W020210913546968852977.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_isolate_label",
+      "system": "door",
+      "title": "隔离门标识缺失，现场误操作",
+      "symptoms": [
+        "门已隔离但无挂牌",
+        "其他人员尝试操作该门",
+        "隔离记录与现场不一致"
+      ],
+      "keywords": [
+        "隔离标识",
+        "没挂牌",
+        "误操作",
+        "记录不一致",
+        "标识缺失"
+      ],
+      "likely_causes": [
+        {
+          "text": "隔离后未挂牌",
+          "weight": 1.0
+        },
+        {
+          "text": "隔离牌丢失或损坏",
+          "weight": 0.7
+        },
+        {
+          "text": "交接班未交接隔离状态",
+          "weight": 0.65
+        },
+        {
+          "text": "隔离记录未更新",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "核对隔离记录与现场门位",
+          "expect": "记录与现场一致"
+        },
+        {
+          "order": 2,
+          "action": "检查隔离牌与警示标识",
+          "expect": "标识齐全、位置醒目"
+        },
+        {
+          "order": 3,
+          "action": "确认隔离门无法电动操作",
+          "expect": "电动功能已切断"
+        },
+        {
+          "order": 4,
+          "action": "交接班时复核隔离状态",
+          "expect": "交接记录完整"
+        }
+      ],
+      "escalation": "隔离标识缺失时立即补挂并复核隔离有效性，禁止口头交接替代挂牌。",
+      "safety": "未挂牌的隔离门可能被误操作，存在夹人风险。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_param_wrong",
+      "system": "door",
+      "title": "门控器参数设置错误，动作逻辑异常",
+      "symptoms": [
+        "门动作顺序与其它门不同",
+        "开关门时间或防夹力偏离标准",
+        "参数值与基线不一致"
+      ],
+      "keywords": [
+        "参数错误",
+        "逻辑异常",
+        "与其它门不同",
+        "参数偏离",
+        "设置错"
+      ],
+      "likely_causes": [
+        {
+          "text": "检修时参数被误改",
+          "weight": 1.0
+        },
+        {
+          "text": "更换门控器后未导入本车参数",
+          "weight": 0.85
+        },
+        {
+          "text": "软件升级后参数默认值变化",
+          "weight": 0.6
+        },
+        {
+          "text": "参数被误恢复出厂",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "逐项对比参数与基线",
+          "expect": "关键参数一致"
+        },
+        {
+          "order": 2,
+          "action": "核对软件版本与参数集",
+          "expect": "版本与参数匹配"
+        },
+        {
+          "order": 3,
+          "action": "导入基线参数并复核",
+          "expect": "参数恢复"
+        },
+        {
+          "order": 4,
+          "action": "做开关门与防夹试验",
+          "expect": "功能全部合格"
+        }
+      ],
+      "escalation": "参数无法保持时更换门控器，禁止用默认参数投入运用。",
+      "safety": "参数修改后必须做完整功能试验。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=19318"
+      ]
+    }
+  ]
+}

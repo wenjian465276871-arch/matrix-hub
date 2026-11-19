@@ -5,7 +5,7 @@
  * W2 接生成管线时改为由 schema 自动生成，避免两份定义漂移。
  */
 
-export type System = 'door' | 'hvac' | 'pantograph'
+export type System = 'door' | 'hvac' | 'pantograph' | 'brake' | 'wiper'
 
 export type CriterionType = 'range' | 'enum' | 'text' | 'manual'
 
@@ -544,6 +544,8 @@ export interface DiagnoseResult {
   escalation: string
   safety: string
   sources: string[]
+  /** 可点来源链接（公开资料 URL）；旧知识库条目没有这个字段 */
+  source_links?: string[]
 }
 
 export interface DiagnoseRerank {
@@ -611,6 +613,8 @@ export interface DiagnoseConclusion {
   action: string
   safety: string
   sources: string[]
+  /** 可点来源链接；旧诊断记录没有这个字段 */
+  source_links?: string[]
   /** 结论置信度（0–1），按证据强度给分；旧记录可能没有 */
   confidence?: number
   /** 结论依据（检查项、期望、现场值、来源）；旧记录可能没有 */

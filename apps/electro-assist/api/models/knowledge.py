@@ -80,6 +80,25 @@ class KnowledgeEntry(BaseModel):
     escalation: str = Field(min_length=10, max_length=200)
     safety: str = Field(min_length=4, max_length=200)
     sources: list[str] = Field(default_factory=list, max_length=5)
+    # 条目的**可点来源**：真实公开资料 URL。`sources` 保留批次编号（指向 docs/SOURCES.md
+    # 的登记行与改写说明），两者分工不同——批次号说明"属于哪一批改写"，URL 说明
+    # "读者自己去核哪篇原文"。旧条目没有这个字段，默认空数组，前端按有无分别渲染。
+    source_links: list[str] = Field(default_factory=list, max_length=5)
+
+    @field_validator("source_links")
+    @classmethod
+    def _check_links(cls, values: list[str]) -> list[str]:
+        """只收 http(s) 绝对地址。
+
+        这一条是防"编一个看起来像链接的东西"：非 http(s) 一律拒绝加载，
+        而不是留给前端渲染时再失败——知识库加载失败比页面少一个链接更容易发现。
+        """
+        for value in values:
+            if not value.startswith(("http://", "https://")):
+                raise ValueError(f"来源链接必须是 http(s) 绝对地址：{value[:40]}")
+            if len(value) > 300:
+                raise ValueError("来源链接过长（>300 字符）")
+        return values
 
     @field_validator("likely_causes", mode="before")
     @classmethod
@@ -156,5 +175,5 @@ class EvalSet(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     version: str = Field(min_length=1, max_length=10)
-    queries: list[EvalCase] = Field(min_length=1, max_length=50)
+    queries: list[EvalCase] = Field(min_length=1, max_length=80)
     uncovered: list[UncoveredCase] = Field(min_length=1, max_length=20)

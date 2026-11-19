@@ -108,9 +108,20 @@ class AssetRef(BaseModel):
 
 
 class System(str, Enum):
+    """子系统枚举：A2 指导书与 B 故障排查共用。
+
+    `brake` / `wiper` 是 2026-11-19 新增的：此前它们只作为"未收录"的提示存在
+    （见 `services/knowledge.py` 的 SYSTEM_HINTS），现场问"闸瓦间隙大"只会得到
+    "该子系统未收录"。扩进来之后 B 模块能给出排查顺序；A2 侧也能生成这两类指导书，
+    但**没有对应的三维设备**（`DEVICE_SYSTEMS` 里没有任何设备声明支持它们），
+    所以生成时 `figures` 必须留空——这一点写在提示词的设备清单里。
+    """
+
     door = "door"
     hvac = "hvac"
     pantograph = "pantograph"
+    brake = "brake"
+    wiper = "wiper"
 
 
 class CriterionType(str, Enum):

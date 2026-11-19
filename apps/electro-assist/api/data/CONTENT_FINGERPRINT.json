@@ -1,9 +1,9 @@
 {
-  "sha256": "7eed3fb86e185371ddaef2e4ee306fbbcc15b2611ca16c57729ba2cf9bb861df",
+  "sha256": "608cbb3c7ca7f1dedab6e19c67b751846390f973a089f1cea74a2e8daccf7ce4",
   "files": {
     "samples": 10,
-    "knowledge": 4
+    "knowledge": 17
   },
-  "knowledge_entries": 19,
-  "note": "2026-11-19 11:45 补 4 处缺失的 safety/tools 空数组（纯结构补充，文案与参数一字未改，沿用 2026-11-19 00:57 本人确认）"
+  "knowledge_entries": 397,
+  "note": "本人 2026-11-19 14:16 确认 H13 合规：内容均为互联网公开资料改写，参数虚构、零内部资料；覆盖 397 条知识库（含当日新增制动 30 / 雨刷 31）与 10 份样例"
 }

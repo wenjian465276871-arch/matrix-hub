@@ -1,5 +1,5 @@
 {
-  "version": "2.0",
+  "version": "3.0",
   "updated_at": "2026-10-21",
   "entries": [
     {
@@ -60,6 +60,10 @@
       "safety": "升弓检查必须在断电、降弓、挂接地线后进行；禁止在接触网带电时靠近弓头。",
       "sources": [
         "D-07"
+      ],
+      "source_links": [
+        "https://ojs-s-p.sg/index.php/gcjsygl/article/viewFile/2801/pdf",
+        "https://umt1998.tongji.edu.cn/cn/article/pdf/preview/10.16037/j.1007-869x.2021.01.019.pdf"
       ]
     },
     {
@@ -116,6 +120,10 @@
       "safety": "处理 ADD 故障前必须降弓断电；禁止短接或屏蔽自动降弓保护回路。",
       "sources": [
         "D-07"
+      ],
+      "source_links": [
+        "https://umt1998.tongji.edu.cn/cn/article/pdf/preview/10.16037/j.1007-869x.2021.01.019.pdf",
+        "https://ojs-s-p.sg/index.php/gcjsygl/article/viewFile/2801/pdf"
       ]
     },
     {
@@ -181,6 +189,10 @@
       "safety": "登顶作业必须断电、降弓、挂接地线；碳滑板更换后按修程复测接触压力。",
       "sources": [
         "D-07"
+      ],
+      "source_links": [
+        "https://umt1998.tongji.edu.cn/cn/article/pdf/preview/10.16037/j.1007-869x.20255774.pdf",
+        "https://umt1998.tongji.edu.cn/cn/article/pdf/preview/10.16037/j.1007-869x.2021.01.019.pdf"
       ]
     }
   ]

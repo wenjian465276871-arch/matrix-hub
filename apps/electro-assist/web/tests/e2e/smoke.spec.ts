@@ -58,10 +58,20 @@ test('B 命中：给出按顺序检查', async ({ page }) => {
 
 test('B 未覆盖：明确说未覆盖', async ({ page }) => {
   await page.goto('./diagnose')
-  await page.getByPlaceholder('例如：门关到一半又自己弹开了').fill('制动缸压力不足，闸瓦间隙大')
+  // 2026-11-19 制动/雨刷已收录，未覆盖用例改用仍未收录的牵引子系统
+  await page.getByPlaceholder('例如：门关到一半又自己弹开了').fill('牵引变流器报过流，主断路器跳闸')
   await page.getByRole('button', { name: '开始排查' }).click()
 
   await expect(page.getByText('未覆盖').first()).toBeVisible()
+})
+
+test('B 制动：新增子系统能出排查顺序', async ({ page }) => {
+  await page.goto('./diagnose')
+  await page.getByPlaceholder('例如：门关到一半又自己弹开了').fill('制动缸不缓解，闸瓦抱死车轮')
+  await page.getByRole('button', { name: '开始排查' }).click()
+
+  await expect(page.getByText('按顺序检查').first()).toBeVisible()
+  await expect(page.getByText('制动缸不缓解').first()).toBeVisible()
 })
 
 test('B 逐步诊断：判据推进并收敛到结论', async ({ page }) => {

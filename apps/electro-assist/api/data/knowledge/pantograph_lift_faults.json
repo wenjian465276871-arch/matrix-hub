@@ -1,0 +1,1892 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_pantograph_solenoid",
+      "system": "pantograph",
+      "title": "升弓电磁阀不动作，气路没有换向",
+      "symptoms": [
+        "按升弓按钮电磁阀没有动作声",
+        "手动按压阀芯能升弓",
+        "电磁阀线圈无温度"
+      ],
+      "keywords": [
+        "升弓电磁阀",
+        "不动作",
+        "没有换向",
+        "手动能升",
+        "阀不响"
+      ],
+      "likely_causes": [
+        {
+          "text": "电磁阀线圈未得电",
+          "weight": 1.0
+        },
+        {
+          "text": "线圈开路或烧毁",
+          "weight": 0.8
+        },
+        {
+          "text": "阀芯卡滞",
+          "weight": 0.65
+        },
+        {
+          "text": "先导孔堵塞",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "升弓指令下测量线圈电压",
+          "expect": "达到标称电压"
+        },
+        {
+          "order": 2,
+          "action": "测量线圈电阻",
+          "expect": "在标称范围、无开路"
+        },
+        {
+          "order": 3,
+          "action": "手动按压阀芯观察换向",
+          "expect": "手动可换向"
+        },
+        {
+          "order": 4,
+          "action": "拆检先导孔与阀芯",
+          "expect": "无堵塞、无杂质"
+        }
+      ],
+      "escalation": "线圈开路或阀芯卡死无法修复时更换电磁阀，禁止长期手动按压维持。",
+      "safety": "拆阀前泄压断电，防止阀突然换向。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://ojs-s-p.sg/index.php/gcjsygl/article/viewFile/2801/pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_coil_burn",
+      "system": "pantograph",
+      "title": "升弓电磁阀线圈烧毁，阀体发烫",
+      "symptoms": [
+        "电磁阀线圈部位发烫",
+        "有绝缘漆焦味",
+        "线圈外观发黑或鼓包"
+      ],
+      "keywords": [
+        "线圈烧",
+        "电磁阀发烫",
+        "焦味",
+        "升弓阀",
+        "线圈黑"
+      ],
+      "likely_causes": [
+        {
+          "text": "线圈长期得电散热不足",
+          "weight": 1.0
+        },
+        {
+          "text": "电压偏高导致过热",
+          "weight": 0.7
+        },
+        {
+          "text": "阀芯卡滞使线圈持续大电流",
+          "weight": 0.65
+        },
+        {
+          "text": "线圈绝缘老化",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "断电测量线圈电阻",
+          "expect": "偏差不超过 10%"
+        },
+        {
+          "order": 2,
+          "action": "检查线圈是否长期得电",
+          "expect": "非动作时不得电"
+        },
+        {
+          "order": 3,
+          "action": "手动检查阀芯活动",
+          "expect": "阀芯活动自如"
+        },
+        {
+          "order": 4,
+          "action": "更换线圈后测工作电流",
+          "expect": "电流正常"
+        }
+      ],
+      "escalation": "线圈烧毁需更换并排查阀芯卡滞与持续得电原因。",
+      "safety": "焦味明显时先断电，禁止触摸发烫线圈。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://ojs-s-p.sg/index.php/gcjsygl/article/viewFile/2801/pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_valve_stuck",
+      "system": "pantograph",
+      "title": "升弓阀阀芯卡滞，升弓时好时坏",
+      "symptoms": [
+        "升弓有时成功有时完全不动",
+        "阀有得电声但气路不换向",
+        "拆开阀芯有油泥"
+      ],
+      "keywords": [
+        "阀芯卡滞",
+        "升弓时好时坏",
+        "有声音不换向",
+        "油泥",
+        "阀卡"
+      ],
+      "likely_causes": [
+        {
+          "text": "气路含水含油形成油泥",
+          "weight": 1.0
+        },
+        {
+          "text": "阀芯复位弹簧疲劳",
+          "weight": 0.75
+        },
+        {
+          "text": "阀体内部锈蚀",
+          "weight": 0.6
+        },
+        {
+          "text": "密封件膨胀卡住阀芯",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆检阀芯与阀腔",
+          "expect": "阀芯光洁、无油泥"
+        },
+        {
+          "order": 2,
+          "action": "手动推阀芯感受行程",
+          "expect": "行程顺畅、复位干脆"
+        },
+        {
+          "order": 3,
+          "action": "检查气源干燥度",
+          "expect": "气源干燥、无油"
+        },
+        {
+          "order": 4,
+          "action": "清洗或更换阀芯后复测",
+          "expect": "升弓稳定"
+        }
+      ],
+      "escalation": "清洗后仍卡滞时更换电磁阀，并在上游加装过滤器。",
+      "safety": "拆阀前泄压断电。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://ojs-s-p.sg/index.php/gcjsygl/article/viewFile/2801/pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_bellow_leak",
+      "system": "pantograph",
+      "title": "升弓气囊漏气，升弓无力或升不到顶",
+      "symptoms": [
+        "升弓速度慢且升不到最高位",
+        "气囊处有漏气声",
+        "压力表在升弓时明显下跌"
+      ],
+      "keywords": [
+        "气囊漏气",
+        "升弓无力",
+        "升不到顶",
+        "漏气声",
+        "气囊"
+      ],
+      "likely_causes": [
+        {
+          "text": "气囊橡胶老化开裂",
+          "weight": 1.0
+        },
+        {
+          "text": "气囊进气口密封不良",
+          "weight": 0.8
+        },
+        {
+          "text": "气囊被异物刺破",
+          "weight": 0.6
+        },
+        {
+          "text": "气囊安装卡箍松动",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "在气囊表面涂肥皂水查漏",
+          "expect": "无气泡"
+        },
+        {
+          "order": 2,
+          "action": "检查进气口与卡箍",
+          "expect": "密封良好、卡箍紧固"
+        },
+        {
+          "order": 3,
+          "action": "检查气囊外观裂纹",
+          "expect": "无裂纹、无刺破"
+        },
+        {
+          "order": 4,
+          "action": "更换气囊后测升弓时间",
+          "expect": "升弓正常"
+        }
+      ],
+      "escalation": "气囊破损必须更换，禁止用胶补或缠绕胶带。",
+      "safety": "气囊带压时不得靠近检查，先泄压。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.damishu.cn/article/ShowArticle.asp?ArticleID=373099",
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_bellow_offset",
+      "system": "pantograph",
+      "title": "气囊膨胀不均或偏移，弓头上升不正",
+      "symptoms": [
+        "气囊一侧鼓一侧瘪",
+        "弓头上升过程中偏斜",
+        "升弓有异响"
+      ],
+      "keywords": [
+        "气囊偏移",
+        "膨胀不均",
+        "弓头偏斜",
+        "一侧鼓",
+        "升弓歪"
+      ],
+      "likely_causes": [
+        {
+          "text": "气囊衬环缺失或损坏",
+          "weight": 1.0
+        },
+        {
+          "text": "气囊安装位置偏移",
+          "weight": 0.8
+        },
+        {
+          "text": "两侧气囊压力不一致",
+          "weight": 0.65
+        },
+        {
+          "text": "升弓机构两侧阻力不同",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察气囊膨胀形态",
+          "expect": "两侧均匀膨胀"
+        },
+        {
+          "order": 2,
+          "action": "检查衬环与安装位置",
+          "expect": "衬环完好、位置正确"
+        },
+        {
+          "order": 3,
+          "action": "测量两侧气路压力",
+          "expect": "压力一致"
+        },
+        {
+          "order": 4,
+          "action": "更换气囊或衬环后复测",
+          "expect": "弓头上升平稳"
+        }
+      ],
+      "escalation": "衬环缺失会导致气囊过度膨胀，必须补齐或更换气囊。",
+      "safety": "气囊带压时禁止敲击。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.damishu.cn/article/ShowArticle.asp?ArticleID=373099"
+      ]
+    },
+    {
+      "id": "kb_pantograph_piston_offset",
+      "system": "pantograph",
+      "title": "升弓气囊进气口活塞偏移，升弓速度慢",
+      "symptoms": [
+        "升弓时间明显超过标准",
+        "气囊进气口处有偏磨",
+        "升弓过程不连续"
+      ],
+      "keywords": [
+        "进气口活塞",
+        "偏移",
+        "升弓慢",
+        "偏磨",
+        "气囊进气"
+      ],
+      "likely_causes": [
+        {
+          "text": "气囊进气口活塞错位",
+          "weight": 1.0
+        },
+        {
+          "text": "活塞密封磨损",
+          "weight": 0.75
+        },
+        {
+          "text": "进气口有异物",
+          "weight": 0.6
+        },
+        {
+          "text": "气囊安装不正",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆检进气口活塞位置",
+          "expect": "活塞居中、无偏移"
+        },
+        {
+          "order": 2,
+          "action": "检查活塞密封",
+          "expect": "密封完好"
+        },
+        {
+          "order": 3,
+          "action": "清理进气口异物",
+          "expect": "进气通畅"
+        },
+        {
+          "order": 4,
+          "action": "装复后测升弓时间",
+          "expect": "时间合格"
+        }
+      ],
+      "escalation": "活塞偏移无法复位时更换气囊总成。",
+      "safety": "拆气囊前泄压并支撑弓头。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/14/56433"
+      ]
+    },
+    {
+      "id": "kb_pantograph_cable_broken",
+      "system": "pantograph",
+      "title": "升弓钢丝绳断股，升弓有卡顿",
+      "symptoms": [
+        "钢丝绳表面有断股毛刺",
+        "升弓过程有卡顿",
+        "钢丝绳锈蚀"
+      ],
+      "keywords": [
+        "钢丝绳断股",
+        "毛刺",
+        "升弓卡顿",
+        "钢丝绳锈",
+        "断丝"
+      ],
+      "likely_causes": [
+        {
+          "text": "钢丝绳疲劳断股",
+          "weight": 1.0
+        },
+        {
+          "text": "绳轮磨损割伤钢丝绳",
+          "weight": 0.8
+        },
+        {
+          "text": "润滑不足锈蚀",
+          "weight": 0.6
+        },
+        {
+          "text": "钢丝绳张力不均",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "沿钢丝绳检查断股与锈蚀",
+          "expect": "无断股、无严重锈蚀"
+        },
+        {
+          "order": 2,
+          "action": "检查绳轮磨损",
+          "expect": "绳轮光洁、无割痕"
+        },
+        {
+          "order": 3,
+          "action": "检查两侧钢丝绳张力",
+          "expect": "张力一致"
+        },
+        {
+          "order": 4,
+          "action": "更换钢丝绳后复测",
+          "expect": "升弓顺畅"
+        }
+      ],
+      "escalation": "发现断股立即更换，禁止用卡子接续。",
+      "safety": "更换钢丝绳时支撑弓头，防止坠落。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_cable_tension",
+      "system": "pantograph",
+      "title": "升弓钢丝绳过紧或过松，弓头位置不正",
+      "symptoms": [
+        "降弓状态钢丝绳绷得很紧或明显下垂",
+        "弓头左右高度不一致",
+        "升弓过程有钢丝绳摩擦声"
+      ],
+      "keywords": [
+        "钢丝绳张力",
+        "过紧",
+        "过松",
+        "弓头不正",
+        "升降绳"
+      ],
+      "likely_causes": [
+        {
+          "text": "钢丝绳长度调整不当",
+          "weight": 1.0
+        },
+        {
+          "text": "两侧调整不一致",
+          "weight": 0.8
+        },
+        {
+          "text": "绳轮或固定点位移",
+          "weight": 0.55
+        },
+        {
+          "text": "钢丝绳塑性伸长",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查降弓状态钢丝绳松紧",
+          "expect": "张力适中、两侧一致"
+        },
+        {
+          "order": 2,
+          "action": "测量弓头左右高度",
+          "expect": "高度一致"
+        },
+        {
+          "order": 3,
+          "action": "检查绳轮与固定点",
+          "expect": "位置正确、无位移"
+        },
+        {
+          "order": 4,
+          "action": "按工艺调整后复测",
+          "expect": "弓头位置正确"
+        }
+      ],
+      "escalation": "钢丝绳塑性伸长无法调整时更换，禁止用缩短绳长的方式强行张紧。",
+      "safety": "调整时弓头需支撑固定。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_raise_slow",
+      "system": "pantograph",
+      "title": "升弓时间过长，超过标准上限",
+      "symptoms": [
+        "升弓实测时间超过规定值",
+        "升弓过程后半段明显变慢",
+        "气路压力偏低"
+      ],
+      "keywords": [
+        "升弓时间",
+        "升弓慢",
+        "超时",
+        "后半段慢",
+        "升弓久"
+      ],
+      "likely_causes": [
+        {
+          "text": "升弓气路压力不足",
+          "weight": 1.0
+        },
+        {
+          "text": "节流阀或调压阀调整不当",
+          "weight": 0.8
+        },
+        {
+          "text": "气囊或气路漏气",
+          "weight": 0.65
+        },
+        {
+          "text": "升弓机构阻力大",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量升弓气路压力",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 2,
+          "action": "检查调压阀与节流阀设定",
+          "expect": "设定正确"
+        },
+        {
+          "order": 3,
+          "action": "检查气囊与气路泄漏",
+          "expect": "无泄漏"
+        },
+        {
+          "order": 4,
+          "action": "调整后测三次升弓时间",
+          "expect": "均在标准内"
+        }
+      ],
+      "escalation": "调整后仍超时检查升弓机构与气囊，禁止把压力调到超过额定值。",
+      "safety": "升弓试验时弓头周围禁止站人。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_raise_fast",
+      "system": "pantograph",
+      "title": "升弓时间过短，弓头冲击接触网",
+      "symptoms": [
+        "升弓很快冲上去",
+        "弓头接触接触网时有明显冲击",
+        "升弓末段没有减速"
+      ],
+      "keywords": [
+        "升弓太快",
+        "冲击接触网",
+        "没有减速",
+        "升弓猛",
+        "时间短"
+      ],
+      "likely_causes": [
+        {
+          "text": "升弓节流阀开度过大",
+          "weight": 1.0
+        },
+        {
+          "text": "调压阀设定过高",
+          "weight": 0.8
+        },
+        {
+          "text": "阻尼器失效",
+          "weight": 0.6
+        },
+        {
+          "text": "升弓末段缓冲缺失",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量升弓时间与末段速度",
+          "expect": "时间与末段速度在标准内"
+        },
+        {
+          "order": 2,
+          "action": "检查节流阀与调压阀设定",
+          "expect": "设定正确"
+        },
+        {
+          "order": 3,
+          "action": "检查阻尼器动作",
+          "expect": "阻尼有效"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测升弓冲击",
+          "expect": "末段平稳"
+        }
+      ],
+      "escalation": "升弓过快会损伤接触网，未调整合格前禁止升弓取流。",
+      "safety": "升弓时确认接触网带电状态与人员位置。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_raise_bounce",
+      "system": "pantograph",
+      "title": "升弓到位后回跳，弓头不稳定",
+      "symptoms": [
+        "升弓到顶后弓头上下弹跳",
+        "接触压力波动",
+        "升弓时间试验不合格"
+      ],
+      "keywords": [
+        "升弓回跳",
+        "弓头弹跳",
+        "到位不稳",
+        "压力波动",
+        "回弹"
+      ],
+      "likely_causes": [
+        {
+          "text": "升弓末段速度过快",
+          "weight": 1.0
+        },
+        {
+          "text": "阻尼器失效",
+          "weight": 0.8
+        },
+        {
+          "text": "气囊压力过高",
+          "weight": 0.65
+        },
+        {
+          "text": "弓头弹簧或铰点间隙过大",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察升弓到位后的回跳",
+          "expect": "到位平稳、无回跳"
+        },
+        {
+          "order": 2,
+          "action": "检查阻尼器",
+          "expect": "阻尼正常、无漏油"
+        },
+        {
+          "order": 3,
+          "action": "测量升弓末段压力",
+          "expect": "压力正常"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测升弓时间",
+          "expect": "无回跳"
+        }
+      ],
+      "escalation": "回跳会导致弓网冲击，未消除前不得投入运用。",
+      "safety": "试验时人员远离弓头运动范围。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_lower_slow",
+      "system": "pantograph",
+      "title": "降弓时间过长，弓头迟迟不落",
+      "symptoms": [
+        "降弓时间超过标准",
+        "弓头下降缓慢",
+        "快排阀排气声弱"
+      ],
+      "keywords": [
+        "降弓慢",
+        "降弓时间",
+        "不落弓",
+        "排气弱",
+        "降不下来"
+      ],
+      "likely_causes": [
+        {
+          "text": "快排阀排气不畅",
+          "weight": 1.0
+        },
+        {
+          "text": "降弓气路堵塞",
+          "weight": 0.75
+        },
+        {
+          "text": "阻尼器阻力过大",
+          "weight": 0.6
+        },
+        {
+          "text": "弓头机构卡滞",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量降弓时间",
+          "expect": "在标准范围内"
+        },
+        {
+          "order": 2,
+          "action": "检查快排阀排气",
+          "expect": "排气通畅、声响正常"
+        },
+        {
+          "order": 3,
+          "action": "检查阻尼器",
+          "expect": "动作灵活、无卡滞"
+        },
+        {
+          "order": 4,
+          "action": "清洁或更换快排阀后复测",
+          "expect": "降弓时间合格"
+        }
+      ],
+      "escalation": "降弓超时会影响回段与检修，未修复时按降弓故障上报。",
+      "safety": "降弓时弓头下方禁止站人。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.damishu.cn/article/ShowArticle.asp?ArticleID=373099"
+      ]
+    },
+    {
+      "id": "kb_pantograph_lower_slam",
+      "system": "pantograph",
+      "title": "降弓过快砸顶，冲击底架",
+      "symptoms": [
+        "降弓末段速度过快",
+        "弓头砸到底架有撞击声",
+        "底架有冲击痕"
+      ],
+      "keywords": [
+        "降弓砸顶",
+        "降弓过快",
+        "砸底架",
+        "撞击声",
+        "降弓冲击"
+      ],
+      "likely_causes": [
+        {
+          "text": "快排阀开度过大",
+          "weight": 1.0
+        },
+        {
+          "text": "降弓末段缓冲失效",
+          "weight": 0.8
+        },
+        {
+          "text": "阻尼器失效",
+          "weight": 0.7
+        },
+        {
+          "text": "降弓节流调整不当",
+          "weight": 0.6
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察降弓末段速度",
+          "expect": "末段平缓、无冲击"
+        },
+        {
+          "order": 2,
+          "action": "检查快排阀与节流设定",
+          "expect": "设定正确"
+        },
+        {
+          "order": 3,
+          "action": "检查阻尼器",
+          "expect": "阻尼有效"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测降弓时间与冲击",
+          "expect": "平稳降落"
+        }
+      ],
+      "escalation": "降弓砸顶会损坏弓头与底架，未调整合格前禁止升弓。",
+      "safety": "降弓试验时人员远离底架。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.damishu.cn/article/ShowArticle.asp?ArticleID=373099"
+      ]
+    },
+    {
+      "id": "kb_pantograph_no_fast_lower",
+      "system": "pantograph",
+      "title": "降弓没有快降，先慢后快不明显",
+      "symptoms": [
+        "降弓全程一个速度",
+        "没有先快速脱离接触网",
+        "弓网分离时拉弧"
+      ],
+      "keywords": [
+        "没有快降",
+        "快降失效",
+        "降弓慢",
+        "拉弧",
+        "两步降弓"
+      ],
+      "likely_causes": [
+        {
+          "text": "快降阀调整不当",
+          "weight": 1.0
+        },
+        {
+          "text": "换向阀动作不灵活",
+          "weight": 0.8
+        },
+        {
+          "text": "快降气路堵塞",
+          "weight": 0.6
+        },
+        {
+          "text": "阀杆积尘导致精密度下降",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察降弓是否两步动作",
+          "expect": "先快后慢"
+        },
+        {
+          "order": 2,
+          "action": "检查快降阀与换向阀阀杆",
+          "expect": "清洁、动作灵活"
+        },
+        {
+          "order": 3,
+          "action": "清洁阀杆并润滑",
+          "expect": "动作恢复"
+        },
+        {
+          "order": 4,
+          "action": "复测降弓时间",
+          "expect": "两步降弓正常"
+        }
+      ],
+      "escalation": "清洁后仍无快降时更换快降阀，禁止把降弓全程调快代替快降。",
+      "safety": "无快降会延长拉弧时间，未修复时避免带电降弓。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.damishu.cn/article/ShowArticle.asp?ArticleID=373099"
+      ]
+    },
+    {
+      "id": "kb_pantograph_quick_valve_dirty",
+      "system": "pantograph",
+      "title": "快排阀膜片阻尼孔堵塞，自动降弓异常",
+      "symptoms": [
+        "自动降弓动作迟缓或不动作",
+        "快排阀排气量小",
+        "气路内有灰尘"
+      ],
+      "keywords": [
+        "快排阀",
+        "阻尼孔堵塞",
+        "自动降弓异常",
+        "排气小",
+        "膜片"
+      ],
+      "likely_causes": [
+        {
+          "text": "快排阀膜片阻尼孔被杂质堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "气源含尘量大",
+          "weight": 0.8
+        },
+        {
+          "text": "膜片老化变形",
+          "weight": 0.6
+        },
+        {
+          "text": "阀体内部锈蚀",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆检快排阀膜片与阻尼孔",
+          "expect": "阻尼孔通畅、膜片完好"
+        },
+        {
+          "order": 2,
+          "action": "检查上游过滤器",
+          "expect": "过滤器有效"
+        },
+        {
+          "order": 3,
+          "action": "清洁或更换膜片",
+          "expect": "排气恢复正常"
+        },
+        {
+          "order": 4,
+          "action": "做自动降弓试验",
+          "expect": "动作正常"
+        }
+      ],
+      "escalation": "膜片老化或阻尼孔无法疏通时更换快排阀，并在进气口加装过滤网。",
+      "safety": "拆阀前泄压，防止膜片弹出。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://ojs-s-p.sg/index.php/gcjsygl/article/viewFile/2801/pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_quick_valve_leak",
+      "system": "pantograph",
+      "title": "快排阀持续排气，升弓压力建立不起来",
+      "symptoms": [
+        "快排阀排气口持续漏气",
+        "升弓压力上升缓慢",
+        "升弓到一半就停"
+      ],
+      "keywords": [
+        "快排阀漏气",
+        "持续排气",
+        "压力建立不起",
+        "升弓一半",
+        "排气不止"
+      ],
+      "likely_causes": [
+        {
+          "text": "快排阀膜片密封不良",
+          "weight": 1.0
+        },
+        {
+          "text": "膜片上有杂质",
+          "weight": 0.8
+        },
+        {
+          "text": "阀座磨损",
+          "weight": 0.6
+        },
+        {
+          "text": "上下腔压力失衡",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "在排气口检查是否持续漏气",
+          "expect": "无持续排气"
+        },
+        {
+          "order": 2,
+          "action": "拆检膜片与阀座",
+          "expect": "膜片完好、阀座光洁"
+        },
+        {
+          "order": 3,
+          "action": "清理杂质",
+          "expect": "密封恢复"
+        },
+        {
+          "order": 4,
+          "action": "更换快排阀后复测",
+          "expect": "升弓正常"
+        }
+      ],
+      "escalation": "持续排气会导致无法升弓，必须更换或修复快排阀。",
+      "safety": "拆阀前泄压。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://ojs-s-p.sg/index.php/gcjsygl/article/viewFile/2801/pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_add_chamber",
+      "system": "pantograph",
+      "title": "ADD 上气室管路漏气，频繁自动降弓",
+      "symptoms": [
+        "运行中频繁自动降弓",
+        "ADD 上气室连接管路有漏气",
+        "碳滑板外观正常"
+      ],
+      "keywords": [
+        "ADD 上气室",
+        "管路漏气",
+        "频繁自动降弓",
+        "滑板正常",
+        "ADD 管路"
+      ],
+      "likely_causes": [
+        {
+          "text": "ADD 上气室连接管路破损",
+          "weight": 1.0
+        },
+        {
+          "text": "管路接头松动",
+          "weight": 0.8
+        },
+        {
+          "text": "ADD 阀内部密封失效",
+          "weight": 0.65
+        },
+        {
+          "text": "滑板内部通路堵塞导致压力异常",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查 ADD 上气室管路与接头",
+          "expect": "管路完好、接头紧固"
+        },
+        {
+          "order": 2,
+          "action": "涂肥皂水查漏",
+          "expect": "无气泡"
+        },
+        {
+          "order": 3,
+          "action": "检查 ADD 阀密封",
+          "expect": "密封良好"
+        },
+        {
+          "order": 4,
+          "action": "更换管路或 ADD 阀后复测",
+          "expect": "不再频繁降弓"
+        }
+      ],
+      "escalation": "ADD 误动作会导致运营中断，未查明前隔离该弓并换弓运行。",
+      "safety": "检查 ADD 气路前降弓断电。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=45529"
+      ]
+    },
+    {
+      "id": "kb_pantograph_add_test_valve",
+      "system": "pantograph",
+      "title": "ADD 试验阀被打开，升弓压力泄漏",
+      "symptoms": [
+        "升弓时压力上不去",
+        "ADD 试验阀手柄位置异常",
+        "检修后出现"
+      ],
+      "keywords": [
+        "ADD 试验阀",
+        "被打开",
+        "压力泄漏",
+        "检修后",
+        "试验阀"
+      ],
+      "likely_causes": [
+        {
+          "text": "检修后忘记关闭 ADD 试验阀",
+          "weight": 1.0
+        },
+        {
+          "text": "试验阀手柄被误碰",
+          "weight": 0.7
+        },
+        {
+          "text": "试验阀内部密封不良",
+          "weight": 0.55
+        },
+        {
+          "text": "标识不清导致误操作",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查 ADD 试验阀手柄位置",
+          "expect": "在关闭位"
+        },
+        {
+          "order": 2,
+          "action": "关闭试验阀后测升弓压力",
+          "expect": "压力正常"
+        },
+        {
+          "order": 3,
+          "action": "检查试验阀是否内漏",
+          "expect": "关闭后无泄漏"
+        },
+        {
+          "order": 4,
+          "action": "补充标识并纳入检修确认项",
+          "expect": "后续不再误开"
+        }
+      ],
+      "escalation": "试验阀内漏时更换，禁止把试验阀长期绑在关闭位。",
+      "safety": "操作试验阀前确认弓头周围无人。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=5167"
+      ]
+    },
+    {
+      "id": "kb_pantograph_control_pressure",
+      "system": "pantograph",
+      "title": "控制风缸压力低，升弓缓慢或无法升弓",
+      "symptoms": [
+        "控制风缸压力低于规定值",
+        "升弓动作无力",
+        "辅助压缩机频繁启动"
+      ],
+      "keywords": [
+        "控制风缸",
+        "压力低",
+        "升弓无力",
+        "辅助压缩机",
+        "风压不足"
+      ],
+      "likely_causes": [
+        {
+          "text": "控制风缸压力不足",
+          "weight": 1.0
+        },
+        {
+          "text": "辅助压缩机不工作",
+          "weight": 0.8
+        },
+        {
+          "text": "控制风路泄漏",
+          "weight": 0.65
+        },
+        {
+          "text": "压力开关设定错误",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "读取控制风缸压力",
+          "expect": "不低于规定下限"
+        },
+        {
+          "order": 2,
+          "action": "检查辅助压缩机启动与打风",
+          "expect": "能正常打风至规定压力"
+        },
+        {
+          "order": 3,
+          "action": "检查控制风路泄漏",
+          "expect": "保压合格"
+        },
+        {
+          "order": 4,
+          "action": "检查压力开关设定",
+          "expect": "设定值正确"
+        }
+      ],
+      "escalation": "控制风压不足时禁止强行升弓，按辅助压缩机或泄漏故障处理。",
+      "safety": "打风作业时注意噪声与高压气体。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=5167"
+      ]
+    },
+    {
+      "id": "kb_pantograph_aux_compressor",
+      "system": "pantograph",
+      "title": "辅助压缩机不打风，升弓前压力建不起来",
+      "symptoms": [
+        "按下辅助压缩机按钮无反应",
+        "控制风压一直不上升",
+        "压缩机无运转声"
+      ],
+      "keywords": [
+        "辅助压缩机",
+        "不打风",
+        "无反应",
+        "压力不升",
+        "压缩机不转"
+      ],
+      "likely_causes": [
+        {
+          "text": "辅助压缩机供电或保险故障",
+          "weight": 1.0
+        },
+        {
+          "text": "压缩机电机故障",
+          "weight": 0.8
+        },
+        {
+          "text": "压力开关未触发启动",
+          "weight": 0.6
+        },
+        {
+          "text": "打风管路泄漏",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量辅助压缩机供电",
+          "expect": "供电正常"
+        },
+        {
+          "order": 2,
+          "action": "检查压缩机能启动",
+          "expect": "启动并打风"
+        },
+        {
+          "order": 3,
+          "action": "检查压力开关动作",
+          "expect": "低压时启动、高压时停止"
+        },
+        {
+          "order": 4,
+          "action": "检查打风管路泄漏",
+          "expect": "无泄漏"
+        }
+      ],
+      "escalation": "辅助压缩机故障会导致无法升弓，按故障上报，禁止用外接气源长期替代。",
+      "safety": "打风时注意压缩机高温与旋转部件。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=5167"
+      ]
+    },
+    {
+      "id": "kb_pantograph_cock_closed",
+      "system": "pantograph",
+      "title": "升弓控制塞门关闭，气路被切断",
+      "symptoms": [
+        "升弓完全无动作",
+        "升弓控制塞门手柄方向异常",
+        "检修或隔离后出现"
+      ],
+      "keywords": [
+        "升弓塞门",
+        "关闭",
+        "气路切断",
+        "无动作",
+        "U98"
+      ],
+      "likely_causes": [
+        {
+          "text": "升弓控制塞门被关闭",
+          "weight": 1.0
+        },
+        {
+          "text": "塞门手柄被误碰",
+          "weight": 0.7
+        },
+        {
+          "text": "塞门内部阀芯脱落",
+          "weight": 0.5
+        },
+        {
+          "text": "隔离操作后未恢复",
+          "weight": 0.6
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查升弓控制塞门手柄方向",
+          "expect": "在开放位"
+        },
+        {
+          "order": 2,
+          "action": "打开塞门后测升弓",
+          "expect": "升弓正常"
+        },
+        {
+          "order": 3,
+          "action": "检查塞门阀芯",
+          "expect": "阀芯完好、开关到位"
+        },
+        {
+          "order": 4,
+          "action": "确认隔离记录已恢复",
+          "expect": "记录与现场一致"
+        }
+      ],
+      "escalation": "塞门阀芯脱落时更换，禁止拆除塞门芯运行。",
+      "safety": "操作塞门前确认弓头周围无人。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=5167"
+      ]
+    },
+    {
+      "id": "kb_pantograph_blue_key",
+      "system": "pantograph",
+      "title": "空气柜蓝钥匙未开，升弓气路不通",
+      "symptoms": [
+        "升弓无动作",
+        "空气柜蓝钥匙处于关闭位",
+        "压力表无读数"
+      ],
+      "keywords": [
+        "蓝钥匙",
+        "空气柜",
+        "未开",
+        "升弓不通",
+        "钥匙"
+      ],
+      "likely_causes": [
+        {
+          "text": "空气柜蓝钥匙未打开",
+          "weight": 1.0
+        },
+        {
+          "text": "钥匙被误关",
+          "weight": 0.7
+        },
+        {
+          "text": "钥匙阀芯损坏",
+          "weight": 0.5
+        },
+        {
+          "text": "操作流程遗漏",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查空气柜蓝钥匙位置",
+          "expect": "在开放位"
+        },
+        {
+          "order": 2,
+          "action": "打开后测量气路压力",
+          "expect": "压力正常"
+        },
+        {
+          "order": 3,
+          "action": "检查钥匙阀芯",
+          "expect": "开关到位、无泄漏"
+        },
+        {
+          "order": 4,
+          "action": "执行升弓试验",
+          "expect": "升弓正常"
+        }
+      ],
+      "escalation": "钥匙阀芯损坏时更换，禁止用工具强行转动。",
+      "safety": "操作空气柜前确认无人作业。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=5167"
+      ]
+    },
+    {
+      "id": "kb_pantograph_pressure_switch",
+      "system": "pantograph",
+      "title": "压力开关误判，升弓后自动转备用弓",
+      "symptoms": [
+        "升弓指令发出后系统判故障",
+        "延时后自动降弓并切备用弓",
+        "实际升弓正常"
+      ],
+      "keywords": [
+        "压力开关误判",
+        "备用弓",
+        "自动切换",
+        "延时",
+        "升弓判故障"
+      ],
+      "likely_causes": [
+        {
+          "text": "压力开关动作值漂移",
+          "weight": 1.0
+        },
+        {
+          "text": "压力开关延时设定偏短",
+          "weight": 0.8
+        },
+        {
+          "text": "取样管堵塞导致压力传递滞后",
+          "weight": 0.6
+        },
+        {
+          "text": "环境温度影响开关性能",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量升弓过程中压力开关动作点",
+          "expect": "动作压力与时间正确"
+        },
+        {
+          "order": 2,
+          "action": "核对压力开关延时设定",
+          "expect": "与规程一致"
+        },
+        {
+          "order": 3,
+          "action": "检查取样管",
+          "expect": "通畅、无堵塞"
+        },
+        {
+          "order": 4,
+          "action": "更换压力开关后复测",
+          "expect": "不再误判"
+        }
+      ],
+      "escalation": "误判会导致自动切弓，未修复前按升弓系统故障上报。",
+      "safety": "试验时确认备用弓隔离状态。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://ojs-s-p.sg/index.php/gcjsygl/article/viewFile/2801/pdf"
+      ]
+    },
+    {
+      "id": "kb_pantograph_nfb",
+      "system": "pantograph",
+      "title": "升弓电路 NFB 跳闸，控制回路失电",
+      "symptoms": [
+        "升弓按钮无反应",
+        "控制回路无电",
+        "NFB 处于跳闸位"
+      ],
+      "keywords": [
+        "NFB 跳闸",
+        "升弓电路",
+        "控制回路",
+        "无电",
+        "空开跳"
+      ],
+      "likely_causes": [
+        {
+          "text": "升弓回路短路或接地",
+          "weight": 1.0
+        },
+        {
+          "text": "NFB 额定值偏小",
+          "weight": 0.6
+        },
+        {
+          "text": "线圈或继电器故障导致过流",
+          "weight": 0.65
+        },
+        {
+          "text": "线路绝缘老化",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查 NFB 状态与复位",
+          "expect": "复位后保持"
+        },
+        {
+          "order": 2,
+          "action": "测量回路绝缘",
+          "expect": "绝缘合格"
+        },
+        {
+          "order": 3,
+          "action": "检查线圈与继电器",
+          "expect": "无短路、无烧蚀"
+        },
+        {
+          "order": 4,
+          "action": "修复后复测升弓",
+          "expect": "升弓正常"
+        }
+      ],
+      "escalation": "短路原因未查清前不得反复合闸，禁止加大 NFB 规格。",
+      "safety": "测量绝缘前断电验电。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/14/56433"
+      ]
+    },
+    {
+      "id": "kb_pantograph_gs_closed",
+      "system": "pantograph",
+      "title": "接地开关未断开，升弓回路被封锁",
+      "symptoms": [
+        "升弓指令无效",
+        "接地开关 GS 在闭合位",
+        "监控显示接地状态"
+      ],
+      "keywords": [
+        "接地开关",
+        "GS 闭合",
+        "升弓封锁",
+        "接地状态",
+        "未断开"
+      ],
+      "likely_causes": [
+        {
+          "text": "接地开关未按要求断开",
+          "weight": 1.0
+        },
+        {
+          "text": "接地开关位置反馈错误",
+          "weight": 0.7
+        },
+        {
+          "text": "联锁逻辑封锁升弓",
+          "weight": 0.6
+        },
+        {
+          "text": "开关操作机构故障",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "确认接地开关 GS 位置",
+          "expect": "在断开位"
+        },
+        {
+          "order": 2,
+          "action": "检查接地开关反馈信号",
+          "expect": "信号与位置一致"
+        },
+        {
+          "order": 3,
+          "action": "检查联锁条件",
+          "expect": "升弓联锁满足"
+        },
+        {
+          "order": 4,
+          "action": "按规程操作后复测",
+          "expect": "升弓正常"
+        }
+      ],
+      "escalation": "接地开关涉及人身安全，位置不明时禁止升弓。",
+      "safety": "接地开关操作必须按停电作业程序执行。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/14/56433"
+      ]
+    },
+    {
+      "id": "kb_pantograph_regulator",
+      "system": "pantograph",
+      "title": "调压阀调整错误，升降弓速度异常",
+      "symptoms": [
+        "升降弓速度同时偏快或偏慢",
+        "调压阀设定与标准不符",
+        "接触压力也偏离"
+      ],
+      "keywords": [
+        "调压阀",
+        "调整错误",
+        "升降弓速度",
+        "压力偏离",
+        "设定不对"
+      ],
+      "likely_causes": [
+        {
+          "text": "调压阀设定值错误",
+          "weight": 1.0
+        },
+        {
+          "text": "调压阀弹簧疲劳",
+          "weight": 0.7
+        },
+        {
+          "text": "调压阀阀芯卡滞",
+          "weight": 0.6
+        },
+        {
+          "text": "调整后未做压力复核",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量调压阀输出压力",
+          "expect": "符合标称值"
+        },
+        {
+          "order": 2,
+          "action": "按规程重新调整",
+          "expect": "调整后压力稳定"
+        },
+        {
+          "order": 3,
+          "action": "测量静态接触压力",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "测升降弓时间",
+          "expect": "均在标准内"
+        }
+      ],
+      "escalation": "调压阀无法稳定输出时更换，禁止用降低接触压力换速度。",
+      "safety": "调整时先松开防松螺母，缓慢旋转。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_damper",
+      "system": "pantograph",
+      "title": "阻尼器失效，升降弓冲击与异响",
+      "symptoms": [
+        "升降弓过程中有噔噔异音",
+        "阻尼器漏油",
+        "弓头动作不平稳"
+      ],
+      "keywords": [
+        "阻尼器",
+        "失效",
+        "漏油",
+        "噔噔响",
+        "动作不平稳"
+      ],
+      "likely_causes": [
+        {
+          "text": "阻尼器漏油失效",
+          "weight": 1.0
+        },
+        {
+          "text": "阻尼器活塞磨损",
+          "weight": 0.75
+        },
+        {
+          "text": "阻尼器安装销轴磨损",
+          "weight": 0.6
+        },
+        {
+          "text": "阻尼器规格不匹配",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查阻尼器是否漏油",
+          "expect": "无油迹"
+        },
+        {
+          "order": 2,
+          "action": "拉伸检查阻尼力",
+          "expect": "阻尼均匀、无异音"
+        },
+        {
+          "order": 3,
+          "action": "检查安装销轴",
+          "expect": "无松旷"
+        },
+        {
+          "order": 4,
+          "action": "更换阻尼器后复测",
+          "expect": "动作平稳"
+        }
+      ],
+      "escalation": "阻尼器漏油或动作不灵活时更换，禁止加注普通机油。",
+      "safety": "拆阻尼器时支撑弓头，防止突然落下。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    },
+    {
+      "id": "kb_pantograph_air_freeze",
+      "system": "pantograph",
+      "title": "冬季升弓气路结冰，升弓无动作",
+      "symptoms": [
+        "低温时升弓无动作",
+        "气路排气口有冰碴",
+        "气温回升后恢复"
+      ],
+      "keywords": [
+        "气路结冰",
+        "冬季",
+        "升弓不动",
+        "冰碴",
+        "冻结"
+      ],
+      "likely_causes": [
+        {
+          "text": "气路含水在阀口结冰",
+          "weight": 1.0
+        },
+        {
+          "text": "空气干燥器失效",
+          "weight": 0.8
+        },
+        {
+          "text": "管路低点积水冻结",
+          "weight": 0.65
+        },
+        {
+          "text": "阀体保温不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查气路低点与阀口是否结冰",
+          "expect": "无冰堵"
+        },
+        {
+          "order": 2,
+          "action": "排放气路积水",
+          "expect": "排出的气无积水"
+        },
+        {
+          "order": 3,
+          "action": "检查空气干燥器",
+          "expect": "干燥器工作正常"
+        },
+        {
+          "order": 4,
+          "action": "解冻后低温复测",
+          "expect": "升弓正常"
+        }
+      ],
+      "escalation": "禁止用明火烤阀体，应用热风缓慢解冻并处理气源含水。",
+      "safety": "解冻时防止烫伤与损坏密封件。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://b2bwiki.baidu.com/article/aw_cf257b34823de669957792e89034bf78"
+      ]
+    },
+    {
+      "id": "kb_pantograph_valve_panel_leak",
+      "system": "pantograph",
+      "title": "阀板漏气，升弓保压不合格",
+      "symptoms": [
+        "阀板处有漏气声",
+        "升弓后压力缓慢下降",
+        "气密性试验不合格"
+      ],
+      "keywords": [
+        "阀板漏气",
+        "保压不合格",
+        "漏气声",
+        "压力下降",
+        "气密"
+      ],
+      "likely_causes": [
+        {
+          "text": "阀板接头密封不良",
+          "weight": 1.0
+        },
+        {
+          "text": "阀板内部阀件泄漏",
+          "weight": 0.75
+        },
+        {
+          "text": "阀板安装面密封垫老化",
+          "weight": 0.6
+        },
+        {
+          "text": "压力表接口漏气",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "在阀板接头与安装面查漏",
+          "expect": "无气泡"
+        },
+        {
+          "order": 2,
+          "action": "做气密性保压试验",
+          "expect": "压降不超过规定值"
+        },
+        {
+          "order": 3,
+          "action": "检查内部阀件",
+          "expect": "无内漏"
+        },
+        {
+          "order": 4,
+          "action": "更换密封件后复测",
+          "expect": "保压合格"
+        }
+      ],
+      "escalation": "阀板内漏无法修复时更换阀板总成，禁止用密封胶封堵接头。",
+      "safety": "拆阀板前泄压。",
+      "sources": [
+        "K-06"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=233489544&knowledgeId=730298798"
+      ]
+    }
+  ]
+}

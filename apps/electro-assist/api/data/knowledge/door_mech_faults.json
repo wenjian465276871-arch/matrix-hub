@@ -1,0 +1,2414 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_door_leaf_sag",
+      "system": "door",
+      "title": "门扇下垂，关闭时下部先碰门槛",
+      "symptoms": [
+        "门关闭到末段时下部先蹭到门槛",
+        "门扇上沿与门框间隙上大下小",
+        "运行中门扇有下沉感"
+      ],
+      "keywords": [
+        "门扇下垂",
+        "下部先蹭门槛",
+        "门扇下沉",
+        "上大下小",
+        "蹭门槛"
+      ],
+      "likely_causes": [
+        {
+          "text": "携门架或摆臂连接件磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "门扇铰链/承载轮疲劳",
+          "weight": 0.75
+        },
+        {
+          "text": "门扇自身变形",
+          "weight": 0.55
+        },
+        {
+          "text": "下滑道支撑松动",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量门扇上沿两端到门框距离",
+          "expect": "左右高度差不大于 1.5mm"
+        },
+        {
+          "order": 2,
+          "action": "检查携门架、摆臂与承载轮磨损",
+          "expect": "无松旷、无异常磨损"
+        },
+        {
+          "order": 3,
+          "action": "检查门扇平面度",
+          "expect": "无明显翘曲"
+        },
+        {
+          "order": 4,
+          "action": "调整门扇高度后复测间隙",
+          "expect": "上下间隙均匀"
+        }
+      ],
+      "escalation": "调整后仍下垂时更换承载件或门扇，禁止用垫片长期垫高门扇。",
+      "safety": "调整门扇时使用机械支撑，防止门扇突然下落。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2236414.html"
+      ]
+    },
+    {
+      "id": "kb_door_leaf_deform",
+      "system": "door",
+      "title": "门扇变形，密封条局部压不实",
+      "symptoms": [
+        "门关闭后局部透光或漏风",
+        "门扇表面有凹陷或波浪形",
+        "同一位置密封条反复损坏"
+      ],
+      "keywords": [
+        "门扇变形",
+        "凹陷",
+        "波浪",
+        "压不实",
+        "局部漏风"
+      ],
+      "likely_causes": [
+        {
+          "text": "门扇受外力撞击变形",
+          "weight": 1.0
+        },
+        {
+          "text": "门扇骨架刚度不足",
+          "weight": 0.7
+        },
+        {
+          "text": "长期单侧受力导致扭曲",
+          "weight": 0.55
+        },
+        {
+          "text": "密封条压缩量过大加速变形",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "用直尺检查门扇平面度",
+          "expect": "平面度在限值内"
+        },
+        {
+          "order": 2,
+          "action": "关门后检查密封条压缩量",
+          "expect": "全线压缩均匀"
+        },
+        {
+          "order": 3,
+          "action": "检查门扇骨架与加强筋",
+          "expect": "无脱焊、无裂纹"
+        },
+        {
+          "order": 4,
+          "action": "更换或校正门扇后复测",
+          "expect": "密封良好"
+        }
+      ],
+      "escalation": "门扇变形超限时更换，禁止用加大锁闭力把变形门扇硬压到位。",
+      "safety": "拆装门扇需两人以上配合并使用吊具。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/322/5722034"
+      ]
+    },
+    {
+      "id": "kb_door_body_rub",
+      "system": "door",
+      "title": "门扇与车体剐蹭，开关门有摩擦痕",
+      "symptoms": [
+        "门扇边缘或车体侧墙有新鲜摩擦痕",
+        "开关门到某一段有阻力",
+        "门扇摆出量不足"
+      ],
+      "keywords": [
+        "剐蹭车体",
+        "摩擦痕",
+        "摆出量",
+        "蹭侧墙",
+        "到某段有阻力"
+      ],
+      "likely_causes": [
+        {
+          "text": "上滑道与下摆臂位置偏移",
+          "weight": 1.0
+        },
+        {
+          "text": "门扇摆出量调整不足",
+          "weight": 0.8
+        },
+        {
+          "text": "车体局部变形或补漆过厚",
+          "weight": 0.5
+        },
+        {
+          "text": "下滑道安装偏斜",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查摩擦痕位置与深度",
+          "expect": "无新鲜金属擦痕"
+        },
+        {
+          "order": 2,
+          "action": "测量门扇摆出量与上部平行度",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查上滑道与下摆臂位置",
+          "expect": "位置正确、无偏移"
+        },
+        {
+          "order": 4,
+          "action": "调整后手动全程开关门",
+          "expect": "全程无接触"
+        }
+      ],
+      "escalation": "调整后仍剐蹭时检查车体限界与门框变形，禁止打磨车体蒙皮消除干涉。",
+      "safety": "手动开关门时手放在门扇外侧，防止夹手。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.qikanchina.com/thesis/view/2700965"
+      ]
+    },
+    {
+      "id": "kb_door_leaf_async",
+      "system": "door",
+      "title": "左右门扇不同步，关闭时一先一后",
+      "symptoms": [
+        "双扇门关闭时一扇先到、一扇后到",
+        "门中缝错位，密封条搭接不良",
+        "开关门过程中门扇有扭动"
+      ],
+      "keywords": [
+        "左右不同步",
+        "一先一后",
+        "中缝错位",
+        "双扇门",
+        "扭动"
+      ],
+      "likely_causes": [
+        {
+          "text": "门扇对中调整不当",
+          "weight": 1.0
+        },
+        {
+          "text": "上滑道对中偏差",
+          "weight": 0.8
+        },
+        {
+          "text": "两侧携门架阻力不一致",
+          "weight": 0.6
+        },
+        {
+          "text": "门控器双电机同步参数偏差",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量左右门扇前端到密封压条距离",
+          "expect": "两侧距离相同"
+        },
+        {
+          "order": 2,
+          "action": "检查上滑道直线段与圆弧段对中",
+          "expect": "两滑道共线"
+        },
+        {
+          "order": 3,
+          "action": "手动开关门感受两侧阻力",
+          "expect": "两侧阻力一致"
+        },
+        {
+          "order": 4,
+          "action": "按工艺调整对中后复测",
+          "expect": "两扇同步到位"
+        }
+      ],
+      "escalation": "机械对中调整后仍不同步时检查门控器同步参数与电机状态。",
+      "safety": "调整对中时门扇用楔块固定，防止自行滑动。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.qikanchina.com/thesis/view/2700965",
+        "http://www.chinaqking.com/yc/2020/2236414.html"
+      ]
+    },
+    {
+      "id": "kb_door_lower_seal_gap",
+      "system": "door",
+      "title": "门下部密封不严，高速时漏风",
+      "symptoms": [
+        "门下部与门槛间有缝隙",
+        "高速运行时门下部有气流声",
+        "雨天门下部渗水"
+      ],
+      "keywords": [
+        "下部密封",
+        "漏风",
+        "门槛缝隙",
+        "渗水",
+        "下部不严"
+      ],
+      "likely_causes": [
+        {
+          "text": "下滑道未收紧，门扇下部外倾",
+          "weight": 1.0
+        },
+        {
+          "text": "下摆臂尺寸调整不当",
+          "weight": 0.8
+        },
+        {
+          "text": "下部密封条老化",
+          "weight": 0.6
+        },
+        {
+          "text": "门槛条变形",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "关门后测量门下部与门槛间隙",
+          "expect": "间隙在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查下滑道收紧状态",
+          "expect": "下滑道贴合、无间隙"
+        },
+        {
+          "order": 3,
+          "action": "检查下摆臂尺寸与密封条",
+          "expect": "尺寸正确、密封条完好"
+        },
+        {
+          "order": 4,
+          "action": "调整后做淋雨或烟流检查",
+          "expect": "无泄漏"
+        }
+      ],
+      "escalation": "调整后仍渗水时检查门槛排水与门框密封，禁止只加厚密封条。",
+      "safety": "淋雨试验时注意电气防护，避免水进入门控器。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.qikanchina.com/thesis/view/2700965"
+      ]
+    },
+    {
+      "id": "kb_door_cannot_close_mech",
+      "system": "door",
+      "title": "门关不上，下挡块与门槛顶住",
+      "symptoms": [
+        "门关到末段被顶住，关不到底",
+        "门槛处有撞击痕",
+        "手动推门同样关不上"
+      ],
+      "keywords": [
+        "门关不上",
+        "下挡块顶住",
+        "门槛干涉",
+        "关不到底",
+        "撞击痕"
+      ],
+      "likely_causes": [
+        {
+          "text": "下挡块与门槛位置干涉",
+          "weight": 1.0
+        },
+        {
+          "text": "上滑道松动导致门扇下沉",
+          "weight": 0.8
+        },
+        {
+          "text": "门槛条变形凸起",
+          "weight": 0.6
+        },
+        {
+          "text": "挡销槽内有异物",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "手动关门观察干涉点",
+          "expect": "门扇全程无阻挡"
+        },
+        {
+          "order": 2,
+          "action": "检查下挡块与门槛间隙",
+          "expect": "间隙符合图纸"
+        },
+        {
+          "order": 3,
+          "action": "检查上滑道紧固与门扇高度",
+          "expect": "滑道牢固、门扇不下沉"
+        },
+        {
+          "order": 4,
+          "action": "清理挡销槽并调整挡块",
+          "expect": "关门到位"
+        }
+      ],
+      "escalation": "调整后仍干涉时检查门框变形与门槛安装，禁止切割挡块。",
+      "safety": "检查关门干涉时手指不要放在门缝内。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.qikanchina.com/thesis/view/2700965"
+      ]
+    },
+    {
+      "id": "kb_door_cannot_open_mech",
+      "system": "door",
+      "title": "门打不开，下摆臂滚轮卡在滑道里",
+      "symptoms": [
+        "门解锁后没有向外摆出动作",
+        "下摆臂处有卡死感",
+        "用力推门也不动"
+      ],
+      "keywords": [
+        "门打不开",
+        "滚轮卡滑道",
+        "不摆出",
+        "下摆臂卡死",
+        "推不动"
+      ],
+      "likely_causes": [
+        {
+          "text": "下摆臂滚轮与下滑道卡住",
+          "weight": 1.0
+        },
+        {
+          "text": "退出服务锁处于锁死位",
+          "weight": 0.8
+        },
+        {
+          "text": "下滑道变形或有异物",
+          "weight": 0.65
+        },
+        {
+          "text": "摆臂轴承损坏",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查退出服务锁位置",
+          "expect": "在正常服务位"
+        },
+        {
+          "order": 2,
+          "action": "检查下摆臂滚轮与下滑道间隙",
+          "expect": "滚轮在滑道内、无卡死"
+        },
+        {
+          "order": 3,
+          "action": "清理下滑道并检查变形",
+          "expect": "滑道平直、无异物"
+        },
+        {
+          "order": 4,
+          "action": "手动摆出门扇",
+          "expect": "摆出顺畅"
+        }
+      ],
+      "escalation": "滚轮卡死或滑道变形时更换部件，禁止用撬棍强行摆门。",
+      "safety": "摆门时门扇可能突然弹出，人员站在门扇侧后方。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.qikanchina.com/thesis/view/2700965"
+      ]
+    },
+    {
+      "id": "kb_door_upper_track_loose",
+      "system": "door",
+      "title": "上滑道松动，开关门有晃动与异响",
+      "symptoms": [
+        "开关门时门扇上部有明显晃动",
+        "上滑道固定螺栓有松动痕迹",
+        "过颠簸路段门区有撞击声"
+      ],
+      "keywords": [
+        "上滑道松动",
+        "门晃动",
+        "固定螺栓松",
+        "上部晃",
+        "撞击声"
+      ],
+      "likely_causes": [
+        {
+          "text": "上滑道固定螺栓松动",
+          "weight": 1.0
+        },
+        {
+          "text": "安装面不平整导致局部受力",
+          "weight": 0.7
+        },
+        {
+          "text": "防松措施缺失",
+          "weight": 0.6
+        },
+        {
+          "text": "滑道本身变形",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "逐个检查上滑道固定螺栓扭矩",
+          "expect": "达到标称扭矩、防松标记完好"
+        },
+        {
+          "order": 2,
+          "action": "检查安装面贴合与垫片",
+          "expect": "贴合良好、无偏斜"
+        },
+        {
+          "order": 3,
+          "action": "检查滑道直线度",
+          "expect": "直线度在限值内"
+        },
+        {
+          "order": 4,
+          "action": "紧固后手动开关门复测",
+          "expect": "无晃动、无异响"
+        }
+      ],
+      "escalation": "滑道变形或安装面损伤时更换滑道，禁止只紧固不查变形。",
+      "safety": "紧固上滑道时门扇需支撑固定，防止滑落。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2236414.html"
+      ]
+    },
+    {
+      "id": "kb_door_upper_track_wear",
+      "system": "door",
+      "title": "上滑道磨损，滚轮运行不平稳",
+      "symptoms": [
+        "门开关过程中有阶段性顿挫",
+        "上滑道工作面有凹槽或台阶",
+        "滚轮表面磨损不均"
+      ],
+      "keywords": [
+        "上滑道磨损",
+        "顿挫",
+        "凹槽",
+        "台阶",
+        "滚轮磨损不均"
+      ],
+      "likely_causes": [
+        {
+          "text": "滑道工作面长期摩擦磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "滚轮材质过硬或失圆",
+          "weight": 0.7
+        },
+        {
+          "text": "润滑不足",
+          "weight": 0.6
+        },
+        {
+          "text": "滑道内有硬质颗粒",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查滑道工作面磨损深度",
+          "expect": "磨损量在限值内"
+        },
+        {
+          "order": 2,
+          "action": "检查滚轮圆度与表面",
+          "expect": "滚轮圆滑、无失圆"
+        },
+        {
+          "order": 3,
+          "action": "清洁滑道并检查异物",
+          "expect": "滑道清洁"
+        },
+        {
+          "order": 4,
+          "action": "更换滑道或滚轮后复测",
+          "expect": "运行平稳"
+        }
+      ],
+      "escalation": "滑道磨损超限时更换，禁止用打磨方式修复凹槽。",
+      "safety": "更换滑道时支撑门扇，防止其脱落。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2236414.html"
+      ]
+    },
+    {
+      "id": "kb_door_lower_track_deform",
+      "system": "door",
+      "title": "下滑道变形，门扇下部运行受阻",
+      "symptoms": [
+        "门下部运行到某段阻力明显",
+        "下滑道可见弯曲或压痕",
+        "门扇下部有摩擦声"
+      ],
+      "keywords": [
+        "下滑道变形",
+        "下部受阻",
+        "弯曲",
+        "压痕",
+        "摩擦声"
+      ],
+      "likely_causes": [
+        {
+          "text": "下滑道受撞击变形",
+          "weight": 1.0
+        },
+        {
+          "text": "安装基础松动导致受力变形",
+          "weight": 0.75
+        },
+        {
+          "text": "异物进入滑道被碾压",
+          "weight": 0.6
+        },
+        {
+          "text": "材质强度不足",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查下滑道直线度与压痕",
+          "expect": "无明显变形"
+        },
+        {
+          "order": 2,
+          "action": "检查安装基础紧固",
+          "expect": "螺栓无松动"
+        },
+        {
+          "order": 3,
+          "action": "清理滑道异物",
+          "expect": "滑道清洁"
+        },
+        {
+          "order": 4,
+          "action": "更换下滑道后手动全程运行",
+          "expect": "全程顺畅"
+        }
+      ],
+      "escalation": "下滑道变形必须更换，禁止敲击校直后继续使用。",
+      "safety": "拆下滑道时注意门扇支撑，防止门扇倾覆。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.qikanchina.com/thesis/view/2700965"
+      ]
+    },
+    {
+      "id": "kb_door_carrier_bearing",
+      "system": "door",
+      "title": "携门架直线轴承磨损，门扇运行发涩",
+      "symptoms": [
+        "手动推门感觉发涩、不顺滑",
+        "携门架处有轻微异响",
+        "导柱表面有划痕"
+      ],
+      "keywords": [
+        "携门架",
+        "直线轴承",
+        "发涩",
+        "导柱划痕",
+        "不顺滑"
+      ],
+      "likely_causes": [
+        {
+          "text": "直线轴承润滑不足磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "导柱表面有毛刺或锈蚀",
+          "weight": 0.75
+        },
+        {
+          "text": "轴承进入灰尘杂质",
+          "weight": 0.6
+        },
+        {
+          "text": "携门架安装偏斜",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "手动推门感受全程阻力",
+          "expect": "顺滑、无明显涩点"
+        },
+        {
+          "order": 2,
+          "action": "检查导柱表面与直线轴承",
+          "expect": "导柱光洁、轴承无松旷"
+        },
+        {
+          "order": 3,
+          "action": "按工艺加注润滑脂",
+          "expect": "润滑后阻力明显下降"
+        },
+        {
+          "order": 4,
+          "action": "更换轴承后复测",
+          "expect": "运行顺滑"
+        }
+      ],
+      "escalation": "导柱划伤或轴承松旷时更换，禁止只加润滑油掩盖磨损。",
+      "safety": "加注润滑脂前清洁旧脂与灰尘，防止研磨。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=91873958&knowledgeId=91873974"
+      ]
+    },
+    {
+      "id": "kb_door_guide_lube",
+      "system": "door",
+      "title": "导柱润滑不良，开关门阻力偏大",
+      "symptoms": [
+        "开关门电流比其它门高",
+        "导柱表面干燥或发黑",
+        "低温时门动作更费力"
+      ],
+      "keywords": [
+        "导柱润滑",
+        "阻力大",
+        "表面干",
+        "电流高",
+        "低温费力"
+      ],
+      "likely_causes": [
+        {
+          "text": "润滑脂耗尽或干涸",
+          "weight": 1.0
+        },
+        {
+          "text": "使用不合适的润滑脂",
+          "weight": 0.6
+        },
+        {
+          "text": "清洁不彻底，旧脂混入灰尘",
+          "weight": 0.55
+        },
+        {
+          "text": "润滑周期过长",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查导柱与直线轴承润滑状态",
+          "expect": "表面有均匀薄脂"
+        },
+        {
+          "order": 2,
+          "action": "清洁旧脂后按量加注",
+          "expect": "加注量符合工艺"
+        },
+        {
+          "order": 3,
+          "action": "手动开关门 2 至 3 次使脂分布",
+          "expect": "阻力下降"
+        },
+        {
+          "order": 4,
+          "action": "测量开关门电流",
+          "expect": "恢复到正常范围"
+        }
+      ],
+      "escalation": "加注后阻力仍大时检查轴承与门扇对中，禁止过量加脂导致溢流吸附灰尘。",
+      "safety": "清洁与加脂时门扇断电固定。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=91873958&knowledgeId=91873974"
+      ]
+    },
+    {
+      "id": "kb_door_screw_deform",
+      "system": "door",
+      "title": "门驱动螺杆变形，开关门卡滞",
+      "symptoms": [
+        "门运行到中段明显卡滞",
+        "螺杆转动时有摆动",
+        "手动推门能感到周期性阻力"
+      ],
+      "keywords": [
+        "螺杆变形",
+        "中段卡滞",
+        "螺杆摆动",
+        "周期性阻力",
+        "丝杆弯"
+      ],
+      "likely_causes": [
+        {
+          "text": "螺杆细长且承载大，长期受力弯曲",
+          "weight": 1.0
+        },
+        {
+          "text": "螺杆两端支撑轴承磨损",
+          "weight": 0.75
+        },
+        {
+          "text": "门扇阻力过大加速变形",
+          "weight": 0.6
+        },
+        {
+          "text": "异物卡入螺旋副",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "手动转动螺杆观察摆动",
+          "expect": "转动平稳、无明显摆动"
+        },
+        {
+          "order": 2,
+          "action": "检查螺杆直线度",
+          "expect": "直线度在限值内"
+        },
+        {
+          "order": 3,
+          "action": "检查两端支撑轴承",
+          "expect": "轴承无松旷、转动灵活"
+        },
+        {
+          "order": 4,
+          "action": "更换螺杆后全程运行",
+          "expect": "全程顺畅"
+        }
+      ],
+      "escalation": "螺杆变形必须更换，禁止校直后继续使用。",
+      "safety": "更换螺杆需拆卸门驱动，作业前断电并支撑门扇。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://wap.cinn.cn/p/W020210913546968852977.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_screw_lube",
+      "system": "door",
+      "title": "丝杆润滑不足，运行有干摩擦声",
+      "symptoms": [
+        "开关门时丝杆处有吱吱声",
+        "丝杆表面发亮但无油脂",
+        "运行电流偏高"
+      ],
+      "keywords": [
+        "丝杆润滑",
+        "干摩擦",
+        "吱吱声",
+        "表面发亮",
+        "没有油"
+      ],
+      "likely_causes": [
+        {
+          "text": "丝杆润滑脂耗尽",
+          "weight": 1.0
+        },
+        {
+          "text": "润滑脂牌号不耐低温",
+          "weight": 0.6
+        },
+        {
+          "text": "清洁后未补脂",
+          "weight": 0.55
+        },
+        {
+          "text": "丝杆与螺母间隙异常",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查丝杆表面润滑状态",
+          "expect": "均匀薄脂、无干摩擦"
+        },
+        {
+          "order": 2,
+          "action": "清洁后按工艺补脂",
+          "expect": "补脂量符合要求"
+        },
+        {
+          "order": 3,
+          "action": "手动开关门使脂分布",
+          "expect": "异响消失"
+        },
+        {
+          "order": 4,
+          "action": "测量运行电流",
+          "expect": "恢复正常"
+        }
+      ],
+      "escalation": "补脂后仍有干摩擦声时检查丝杆螺母磨损，必要时更换。",
+      "safety": "补脂时手远离丝杆螺母啮合处。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=91873958&knowledgeId=91873974"
+      ]
+    },
+    {
+      "id": "kb_door_roller_crack",
+      "system": "door",
+      "title": "滚轮破裂，门开关卡死",
+      "symptoms": [
+        "门运行到某处突然卡住",
+        "滚轮外圈有裂纹或缺口",
+        "门扇有偏斜"
+      ],
+      "keywords": [
+        "滚轮破裂",
+        "卡死",
+        "裂纹",
+        "缺口",
+        "门偏斜"
+      ],
+      "likely_causes": [
+        {
+          "text": "滚轮轴承承受异常轴向力",
+          "weight": 1.0
+        },
+        {
+          "text": "门扇调整过紧，滚轮受力过大",
+          "weight": 0.8
+        },
+        {
+          "text": "滚轮装配时轴承损伤",
+          "weight": 0.6
+        },
+        {
+          "text": "滚轮材质缺陷",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查全部滚轮外观与转动",
+          "expect": "无裂纹、转动灵活"
+        },
+        {
+          "order": 2,
+          "action": "检查门扇垂直度与调整量",
+          "expect": "门扇垂直、调整不过紧"
+        },
+        {
+          "order": 3,
+          "action": "检查滚轮轴与轴承",
+          "expect": "无松旷、无损伤"
+        },
+        {
+          "order": 4,
+          "action": "更换滚轮并重新调整门扇",
+          "expect": "运行顺畅"
+        }
+      ],
+      "escalation": "滚轮破裂必须更换，并同时纠正门扇调整，防止新件再次破裂。",
+      "safety": "更换滚轮时支撑门扇，防止其突然下落。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2021/2859647.html"
+      ]
+    },
+    {
+      "id": "kb_door_roller_wear",
+      "system": "door",
+      "title": "滚轮磨损失圆，运行有周期性振动",
+      "symptoms": [
+        "开关门时有规律地抖动",
+        "滚轮表面磨平或失圆",
+        "门扇运行轨迹不直"
+      ],
+      "keywords": [
+        "滚轮磨损",
+        "失圆",
+        "周期性抖动",
+        "磨平",
+        "轨迹不直"
+      ],
+      "likely_causes": [
+        {
+          "text": "滚轮长期摩擦磨损失圆",
+          "weight": 1.0
+        },
+        {
+          "text": "滑道表面粗糙加速磨损",
+          "weight": 0.7
+        },
+        {
+          "text": "滚轮轴承卡滞导致滑动摩擦",
+          "weight": 0.6
+        },
+        {
+          "text": "润滑不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量滚轮圆度与直径",
+          "expect": "圆度与直径在限值内"
+        },
+        {
+          "order": 2,
+          "action": "检查滚轮转动是否灵活",
+          "expect": "转动顺畅、无卡滞"
+        },
+        {
+          "order": 3,
+          "action": "检查滑道表面粗糙度",
+          "expect": "表面光洁"
+        },
+        {
+          "order": 4,
+          "action": "成对更换滚轮后复测",
+          "expect": "运行平稳"
+        }
+      ],
+      "escalation": "滚轮失圆超限时成对更换，禁止只换单侧造成受力不均。",
+      "safety": "更换滚轮后重新校准门扇高度与平行度。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2021/2859647.html"
+      ]
+    },
+    {
+      "id": "kb_door_swing_roller_loose",
+      "system": "door",
+      "title": "下摆臂滚轮松动，门扇下部晃动",
+      "symptoms": [
+        "门扇下部能用手晃动",
+        "下摆臂滚轮处有旷量",
+        "运行时门下部有敲击声"
+      ],
+      "keywords": [
+        "下摆臂滚轮",
+        "松动",
+        "旷量",
+        "下部晃动",
+        "敲击声"
+      ],
+      "likely_causes": [
+        {
+          "text": "滚轮固定螺栓松动",
+          "weight": 1.0
+        },
+        {
+          "text": "滚轮轴孔磨损",
+          "weight": 0.75
+        },
+        {
+          "text": "防松胶失效",
+          "weight": 0.55
+        },
+        {
+          "text": "摆臂变形",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查滚轮固定螺栓扭矩",
+          "expect": "达到标称值、防松标记完好"
+        },
+        {
+          "order": 2,
+          "action": "检查滚轮轴孔间隙",
+          "expect": "间隙在限值内"
+        },
+        {
+          "order": 3,
+          "action": "检查摆臂平面度",
+          "expect": "无变形"
+        },
+        {
+          "order": 4,
+          "action": "紧固或更换后复测门扇晃动",
+          "expect": "无旷量"
+        }
+      ],
+      "escalation": "轴孔磨损或摆臂变形时更换，禁止只拧紧螺栓不换磨损件。",
+      "safety": "紧固时门扇支撑固定，防止下落。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=91873958&knowledgeId=91873974"
+      ]
+    },
+    {
+      "id": "kb_door_v_shape",
+      "system": "door",
+      "title": "门关闭后呈 V 形，上部有间隙",
+      "symptoms": [
+        "两扇门关闭后下部贴合、上部有 2 至 5mm 间隙",
+        "门中缝呈 V 字形",
+        "高速运行时中缝漏风"
+      ],
+      "keywords": [
+        "V 形",
+        "上部间隙",
+        "中缝",
+        "V 字",
+        "下部贴合"
+      ],
+      "likely_causes": [
+        {
+          "text": "下滑道位置偏差，门扇被滚轮摆臂夹持",
+          "weight": 1.0
+        },
+        {
+          "text": "携门架偏心轮调整不当",
+          "weight": 0.8
+        },
+        {
+          "text": "门扇本身扭曲",
+          "weight": 0.5
+        },
+        {
+          "text": "下滑道安装不平行",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "关门后测量上下中缝间隙",
+          "expect": "V 形量在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "松开下滑道使门扇不被夹持",
+          "expect": "门扇能自由贴合"
+        },
+        {
+          "order": 3,
+          "action": "转动携门架偏心轮调整",
+          "expect": "中缝上下均匀"
+        },
+        {
+          "order": 4,
+          "action": "调整后重复开关门复测",
+          "expect": "V 形消除"
+        }
+      ],
+      "escalation": "调整后仍呈 V 形时检查门扇平面度与下滑道变形，禁止用密封条填缝。",
+      "safety": "调整偏心轮时门扇需固定，防止突然移动。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=91873958&knowledgeId=91873974",
+        "https://www.qikanchina.com/thesis/view/2700965"
+      ]
+    },
+    {
+      "id": "kb_door_height_diff",
+      "system": "door",
+      "title": "左右门扇高度差超差，中缝错台",
+      "symptoms": [
+        "两扇门关闭后上沿一高一低",
+        "中缝处有明显错台",
+        "门扇上沿与门框距离不一致"
+      ],
+      "keywords": [
+        "高度差",
+        "错台",
+        "一高一低",
+        "上沿不平",
+        "中缝错位"
+      ],
+      "likely_causes": [
+        {
+          "text": "左右门扇安装高度不一致",
+          "weight": 1.0
+        },
+        {
+          "text": "携门架调整量不同",
+          "weight": 0.75
+        },
+        {
+          "text": "门扇变形",
+          "weight": 0.5
+        },
+        {
+          "text": "上滑道安装不平",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量左右门扇上沿到门框距离",
+          "expect": "高度差不大于 1.5mm"
+        },
+        {
+          "order": 2,
+          "action": "检查携门架调整量",
+          "expect": "两侧一致"
+        },
+        {
+          "order": 3,
+          "action": "检查门扇平面度",
+          "expect": "无明显变形"
+        },
+        {
+          "order": 4,
+          "action": "调整后复测高度差",
+          "expect": "高度差合格"
+        }
+      ],
+      "escalation": "调整后仍超差时检查门扇与滑道，禁止只调一侧掩盖另一侧问题。",
+      "safety": "调整门扇高度时使用专用支撑，防止门扇滑落。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2236414.html"
+      ]
+    },
+    {
+      "id": "kb_door_parallelism",
+      "system": "door",
+      "title": "门扇平行度超差，门面不平齐",
+      "symptoms": [
+        "门扇外表面与车体外表面不平齐",
+        "门关闭后门面有凹凸感",
+        "高速运行时门面有气流噪声"
+      ],
+      "keywords": [
+        "平行度",
+        "门面不平",
+        "凹凸",
+        "不平齐",
+        "气流噪声"
+      ],
+      "likely_causes": [
+        {
+          "text": "上部或下部平行度调整不当",
+          "weight": 1.0
+        },
+        {
+          "text": "摆臂垫片配置错误",
+          "weight": 0.75
+        },
+        {
+          "text": "门扇变形",
+          "weight": 0.55
+        },
+        {
+          "text": "上滑道位置偏差",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量门扇外侧到车体外侧距离",
+          "expect": "上部与下部均在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查摆臂垫片厚度与数量",
+          "expect": "与工艺要求一致"
+        },
+        {
+          "order": 3,
+          "action": "检查门扇平面度",
+          "expect": "无明显变形"
+        },
+        {
+          "order": 4,
+          "action": "调整垫片后复测平行度",
+          "expect": "门面平齐"
+        }
+      ],
+      "escalation": "垫片调整无法满足时检查门扇与滑道，禁止用加大垫片强行找平。",
+      "safety": "调整垫片时门扇固定，防止移动夹手。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2236414.html"
+      ]
+    },
+    {
+      "id": "kb_door_centering",
+      "system": "door",
+      "title": "门扇对中不良，中缝偏斜",
+      "symptoms": [
+        "门关闭后中缝上下不垂直",
+        "一侧密封条压缩量大、一侧小",
+        "门扇前端与侧压条距离不等"
+      ],
+      "keywords": [
+        "对中不良",
+        "中缝偏斜",
+        "不垂直",
+        "压缩量不等",
+        "偏斜"
+      ],
+      "likely_causes": [
+        {
+          "text": "门扇对中未按工艺调整",
+          "weight": 1.0
+        },
+        {
+          "text": "携门架丝杠调整不一致",
+          "weight": 0.8
+        },
+        {
+          "text": "上滑道对中偏差",
+          "weight": 0.6
+        },
+        {
+          "text": "门框变形",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量左右门扇前端到侧压条距离",
+          "expect": "两侧距离相同"
+        },
+        {
+          "order": 2,
+          "action": "检查携门架丝杠调整量",
+          "expect": "两侧一致"
+        },
+        {
+          "order": 3,
+          "action": "检查上滑道直线段共线",
+          "expect": "两滑道共线"
+        },
+        {
+          "order": 4,
+          "action": "按工艺重新对中后复测",
+          "expect": "中缝垂直、压缩均匀"
+        }
+      ],
+      "escalation": "对中调整后仍偏斜时检查门框与门扇变形，禁止只调密封条。",
+      "safety": "对中调整时门扇需支撑，防止滑落。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2236414.html",
+        "https://www.qikanchina.com/thesis/view/2700965"
+      ]
+    },
+    {
+      "id": "kb_door_arm_shim",
+      "system": "door",
+      "title": "摆臂垫片配置错误，门扇嵌入量不对",
+      "symptoms": [
+        "门扇摆出或嵌入量明显不对",
+        "摆臂面与上滑道距离超差",
+        "滚轮面低于下滑道底边"
+      ],
+      "keywords": [
+        "摆臂垫片",
+        "嵌入量",
+        "摆出量",
+        "垫片错误",
+        "滚轮低于滑道"
+      ],
+      "likely_causes": [
+        {
+          "text": "检修后垫片数量或厚度装错",
+          "weight": 1.0
+        },
+        {
+          "text": "垫片漏装",
+          "weight": 0.8
+        },
+        {
+          "text": "摆臂组件型号不一致",
+          "weight": 0.5
+        },
+        {
+          "text": "上滑道位置变化",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "核对摆臂垫片数量与厚度",
+          "expect": "与工艺卡一致"
+        },
+        {
+          "order": 2,
+          "action": "测量摆臂面与上滑道底边距离",
+          "expect": "不小于规定值"
+        },
+        {
+          "order": 3,
+          "action": "检查滚轮面与下滑道相对位置",
+          "expect": "滚轮不低于滑道底边"
+        },
+        {
+          "order": 4,
+          "action": "调整垫片后手动开关门",
+          "expect": "运行正常"
+        }
+      ],
+      "escalation": "垫片补齐后仍不合格时检查摆臂与滑道安装，禁止用多层垫片叠加凑尺寸。",
+      "safety": "拆装摆臂时门扇必须支撑固定。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2236414.html"
+      ]
+    },
+    {
+      "id": "kb_door_stop_pin_gap",
+      "system": "door",
+      "title": "下挡销间隙超差，门下部锁不住",
+      "symptoms": [
+        "门关闭后下部能向外推开",
+        "挡销与门槛底部间隙过大",
+        "侧面间隙不均匀"
+      ],
+      "keywords": [
+        "下挡销",
+        "间隙超差",
+        "下部能推开",
+        "挡销",
+        "门槛间隙"
+      ],
+      "likely_causes": [
+        {
+          "text": "挡销位置调整不当",
+          "weight": 1.0
+        },
+        {
+          "text": "挡销磨损",
+          "weight": 0.75
+        },
+        {
+          "text": "门槛挡块位置偏移",
+          "weight": 0.6
+        },
+        {
+          "text": "门扇下垂导致挡销相对位置变化",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "关门锁紧后测量挡销底部与侧面间隙",
+          "expect": "底部与侧面间隙均在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查挡销磨损量",
+          "expect": "磨损在限值内"
+        },
+        {
+          "order": 3,
+          "action": "检查门槛挡块固定与位置",
+          "expect": "固定牢固、位置正确"
+        },
+        {
+          "order": 4,
+          "action": "调整后打防松线并复测",
+          "expect": "间隙合格、防松可靠"
+        }
+      ],
+      "escalation": "挡销磨损超限时更换，禁止把挡销打磨成斜面凑间隙。",
+      "safety": "挡销调整后必须做门扇推拉试验，确认下部锁闭有效。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=91873958&knowledgeId=91873974"
+      ]
+    },
+    {
+      "id": "kb_door_stop_pin_hit",
+      "system": "door",
+      "title": "挡销与门槛碰撞，开关门有金属撞击",
+      "symptoms": [
+        "开关门到末段有清脆金属撞击声",
+        "挡销或挡块有撞击痕",
+        "门扇有轻微跳动"
+      ],
+      "keywords": [
+        "挡销碰撞",
+        "金属撞击",
+        "挡块",
+        "撞击痕",
+        "跳动"
+      ],
+      "likely_causes": [
+        {
+          "text": "挡销槽内有异物",
+          "weight": 1.0
+        },
+        {
+          "text": "挡销与挡块位置不对中",
+          "weight": 0.8
+        },
+        {
+          "text": "挡销固定螺栓松动",
+          "weight": 0.55
+        },
+        {
+          "text": "门扇高度变化",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "清理挡销槽内异物",
+          "expect": "槽内清洁"
+        },
+        {
+          "order": 2,
+          "action": "检查挡销与挡块对中",
+          "expect": "对中良好、无干涉"
+        },
+        {
+          "order": 3,
+          "action": "检查挡销固定螺栓",
+          "expect": "按扭矩紧固"
+        },
+        {
+          "order": 4,
+          "action": "调整后重复开关门",
+          "expect": "撞击声消失"
+        }
+      ],
+      "escalation": "挡块松动需重新涂胶紧固，禁止只清理异物不查固定。",
+      "safety": "检查挡销槽时门扇固定，防止突然关门夹手。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=91873958&knowledgeId=91873974"
+      ]
+    },
+    {
+      "id": "kb_door_sill_loose",
+      "system": "door",
+      "title": "门槛条松动，开关门有咯噔声",
+      "symptoms": [
+        "踩踏门槛有松动感",
+        "开关门时门槛处有咯噔声",
+        "门槛条固定螺钉可见松动"
+      ],
+      "keywords": [
+        "门槛条松动",
+        "咯噔声",
+        "门槛",
+        "踩踏松动",
+        "螺钉松"
+      ],
+      "likely_causes": [
+        {
+          "text": "门槛条固定螺钉松动",
+          "weight": 1.0
+        },
+        {
+          "text": "安装面不平导致局部悬空",
+          "weight": 0.7
+        },
+        {
+          "text": "门槛条变形",
+          "weight": 0.6
+        },
+        {
+          "text": "密封胶老化失去支撑",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "逐个检查门槛条固定螺钉",
+          "expect": "无松动、防松标记完好"
+        },
+        {
+          "order": 2,
+          "action": "检查门槛条与安装面贴合",
+          "expect": "无悬空、无翘曲"
+        },
+        {
+          "order": 3,
+          "action": "检查门槛条变形",
+          "expect": "直线度在限值内"
+        },
+        {
+          "order": 4,
+          "action": "紧固或更换后踩踏复测",
+          "expect": "无松动、无异响"
+        }
+      ],
+      "escalation": "门槛条变形或安装面损伤时更换，禁止只拧紧螺钉不查贴合。",
+      "safety": "门槛条松动会绊倒乘客，未修复前设置警示。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.11665.com/technology/Transportation/41208.shtml"
+      ]
+    },
+    {
+      "id": "kb_door_sill_deform",
+      "system": "door",
+      "title": "门槛条变形凸起，门扇下部刮擦",
+      "symptoms": [
+        "门槛条局部凸起",
+        "门扇下部有刮擦痕",
+        "开关门到门槛处阻力增大"
+      ],
+      "keywords": [
+        "门槛条变形",
+        "凸起",
+        "刮擦",
+        "下部刮",
+        "阻力增大"
+      ],
+      "likely_causes": [
+        {
+          "text": "门槛条受踩踏或异物冲击变形",
+          "weight": 1.0
+        },
+        {
+          "text": "固定螺钉缺失导致翘起",
+          "weight": 0.8
+        },
+        {
+          "text": "安装面不平",
+          "weight": 0.55
+        },
+        {
+          "text": "材质强度不足",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查门槛条平面度与凸起",
+          "expect": "平面度在限值内"
+        },
+        {
+          "order": 2,
+          "action": "检查固定螺钉是否齐全",
+          "expect": "螺钉齐全、紧固"
+        },
+        {
+          "order": 3,
+          "action": "检查门扇下部间隙",
+          "expect": "间隙符合要求"
+        },
+        {
+          "order": 4,
+          "action": "更换门槛条后复测",
+          "expect": "无刮擦"
+        }
+      ],
+      "escalation": "门槛条变形必须更换，禁止打磨门扇下部消除刮擦。",
+      "safety": "更换门槛条时注意脚下，防止绊倒。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.11665.com/technology/Transportation/41208.shtml"
+      ]
+    },
+    {
+      "id": "kb_door_seal_aging",
+      "system": "door",
+      "title": "密封条老化硬化，关门声音变脆",
+      "symptoms": [
+        "密封条表面发硬、有细裂纹",
+        "关门声音由闷变脆",
+        "门缝漏风逐渐加重"
+      ],
+      "keywords": [
+        "密封条老化",
+        "发硬",
+        "细裂纹",
+        "关门声脆",
+        "漏风"
+      ],
+      "likely_causes": [
+        {
+          "text": "密封条材质老化",
+          "weight": 1.0
+        },
+        {
+          "text": "长期紫外线与温差作用",
+          "weight": 0.7
+        },
+        {
+          "text": "清洁剂腐蚀",
+          "weight": 0.5
+        },
+        {
+          "text": "压缩量长期过大加速疲劳",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查密封条硬度与裂纹",
+          "expect": "弹性良好、无裂纹"
+        },
+        {
+          "order": 2,
+          "action": "测量密封条压缩量",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查密封条粘接与卡槽",
+          "expect": "粘接牢固、无脱出"
+        },
+        {
+          "order": 4,
+          "action": "更换密封条后做气密检查",
+          "expect": "无泄漏"
+        }
+      ],
+      "escalation": "整圈老化时整圈更换，禁止只换局部造成接缝不严。",
+      "safety": "使用专用清洁剂，禁止用汽油等溶剂擦拭胶条。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/322/5722034"
+      ]
+    },
+    {
+      "id": "kb_door_finger_guard",
+      "system": "door",
+      "title": "护指胶条破损，防夹功能失效",
+      "symptoms": [
+        "护指胶条有破口或脱开",
+        "关门夹到东西不弹开",
+        "胶条内部导线外露"
+      ],
+      "keywords": [
+        "护指胶条",
+        "破损",
+        "防夹失效",
+        "不弹开",
+        "导线外露"
+      ],
+      "likely_causes": [
+        {
+          "text": "胶条老化开裂",
+          "weight": 1.0
+        },
+        {
+          "text": "异物划伤或乘客挤压",
+          "weight": 0.75
+        },
+        {
+          "text": "胶条粘接失效脱开",
+          "weight": 0.6
+        },
+        {
+          "text": "内部导电层断裂",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查胶条外观与粘接",
+          "expect": "无破损、粘接牢固"
+        },
+        {
+          "order": 2,
+          "action": "测量胶条导通状态",
+          "expect": "未受压时绝缘、受压时导通"
+        },
+        {
+          "order": 3,
+          "action": "用试验块做防夹试验",
+          "expect": "夹到试验块立即弹开"
+        },
+        {
+          "order": 4,
+          "action": "更换胶条后重复防夹试验",
+          "expect": "防夹有效"
+        }
+      ],
+      "escalation": "护指胶条破损会导致防夹失效，未更换前该门不得投入运用。",
+      "safety": "防夹试验必须用标准试验块，禁止用手直接试。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.11665.com/technology/Transportation/41208.shtml"
+      ]
+    },
+    {
+      "id": "kb_door_finger_guard_resistance",
+      "system": "door",
+      "title": "护指胶条电阻异常，无夹物也反复弹开",
+      "symptoms": [
+        "门关到一半自动弹开，没有任何障碍物",
+        "门控器防夹输入信号常亮",
+        "雨后或潮湿天气更频繁"
+      ],
+      "keywords": [
+        "胶条电阻",
+        "无夹物弹开",
+        "防夹输入常亮",
+        "误触发",
+        "潮湿"
+      ],
+      "likely_causes": [
+        {
+          "text": "胶条内部导电层受潮短路",
+          "weight": 1.0
+        },
+        {
+          "text": "胶条接插件进水",
+          "weight": 0.8
+        },
+        {
+          "text": "胶条老化导致绝缘下降",
+          "weight": 0.65
+        },
+        {
+          "text": "门控器防夹阈值设置不当",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "断电测量胶条两端电阻",
+          "expect": "未受压时绝缘电阻合格"
+        },
+        {
+          "order": 2,
+          "action": "检查胶条接插件与密封",
+          "expect": "插头干燥、密封完好"
+        },
+        {
+          "order": 3,
+          "action": "分段排查胶条受潮位置",
+          "expect": "定位到具体段"
+        },
+        {
+          "order": 4,
+          "action": "更换受潮胶条后复测",
+          "expect": "不再误触发"
+        }
+      ],
+      "escalation": "胶条绝缘不合格必须更换，禁止把防夹输入短接或屏蔽。",
+      "safety": "防夹误触发会导致门反复开关，处理时防止乘客被夹。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?mod=viewthread&tid=19318"
+      ]
+    },
+    {
+      "id": "kb_door_glass_loose",
+      "system": "door",
+      "title": "门玻璃松动，运行中有振动异响",
+      "symptoms": [
+        "门玻璃与框之间有旷量",
+        "运行时玻璃处有嗡嗡声",
+        "玻璃密封胶条老化"
+      ],
+      "keywords": [
+        "门玻璃松动",
+        "玻璃异响",
+        "旷量",
+        "嗡嗡声",
+        "玻璃胶条"
+      ],
+      "likely_causes": [
+        {
+          "text": "玻璃安装胶条老化收缩",
+          "weight": 1.0
+        },
+        {
+          "text": "玻璃压条螺钉松动",
+          "weight": 0.75
+        },
+        {
+          "text": "玻璃与框粘接失效",
+          "weight": 0.6
+        },
+        {
+          "text": "门扇变形导致框口变化",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查玻璃与框间隙与旷量",
+          "expect": "玻璃固定、无旷量"
+        },
+        {
+          "order": 2,
+          "action": "检查压条与螺钉",
+          "expect": "压条贴合、螺钉紧固"
+        },
+        {
+          "order": 3,
+          "action": "检查玻璃胶条老化",
+          "expect": "胶条弹性良好"
+        },
+        {
+          "order": 4,
+          "action": "重新安装或更换胶条后复测",
+          "expect": "无异响"
+        }
+      ],
+      "escalation": "玻璃粘接失效时按玻璃更换工艺处理，禁止用胶带临时固定。",
+      "safety": "玻璃作业佩戴防割手套，防止破碎伤人。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/322/5722034"
+      ]
+    },
+    {
+      "id": "kb_door_hinge_screw",
+      "system": "door",
+      "title": "铰链座螺钉脱落，门扇有脱落风险",
+      "symptoms": [
+        "门扇开关时明显偏摆",
+        "铰链座处可见螺钉缺失",
+        "门扇与车体连接处有异响"
+      ],
+      "keywords": [
+        "铰链座",
+        "螺钉脱落",
+        "门扇偏摆",
+        "脱落风险",
+        "连接松"
+      ],
+      "likely_causes": [
+        {
+          "text": "铰链座螺钉未按扭矩紧固或未防松",
+          "weight": 1.0
+        },
+        {
+          "text": "长期振动导致螺钉疲劳松脱",
+          "weight": 0.8
+        },
+        {
+          "text": "安装面不平使局部螺钉受力过大",
+          "weight": 0.6
+        },
+        {
+          "text": "螺钉规格或强度不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "逐个检查铰链座螺钉与防松标记",
+          "expect": "螺钉齐全、扭矩达标"
+        },
+        {
+          "order": 2,
+          "action": "检查安装面贴合与垫片",
+          "expect": "贴合良好、受力均匀"
+        },
+        {
+          "order": 3,
+          "action": "检查门扇偏摆量",
+          "expect": "偏摆在限值内"
+        },
+        {
+          "order": 4,
+          "action": "补齐螺钉并按扭矩紧固",
+          "expect": "门扇无偏摆"
+        }
+      ],
+      "escalation": "螺钉反复松脱时检查铰链座与安装面，必要时更换铰链座总成；未处理前该门停用。",
+      "safety": "门扇有脱落风险时立即停用并隔离，禁止载客运行。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://cscl.cbpt.cnki.net/portal/journal/portal/client/paper/8a64f8a4f39b441101021d627783b3fa"
+      ]
+    },
+    {
+      "id": "kb_door_leaf_drop_risk",
+      "system": "door",
+      "title": "门扇承载件失效，门扇下沉量突增",
+      "symptoms": [
+        "门扇突然下沉，开关门刮门槛",
+        "承载轮或摆臂有裂纹",
+        "门扇关闭时明显倾斜"
+      ],
+      "keywords": [
+        "门扇下沉",
+        "承载件失效",
+        "裂纹",
+        "倾斜",
+        "刮门槛"
+      ],
+      "likely_causes": [
+        {
+          "text": "承载轮轴断裂",
+          "weight": 1.0
+        },
+        {
+          "text": "摆臂焊缝开裂",
+          "weight": 0.8
+        },
+        {
+          "text": "携门架固定螺栓脱落",
+          "weight": 0.7
+        },
+        {
+          "text": "门扇骨架锈蚀",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查承载轮、摆臂与携门架",
+          "expect": "无裂纹、无脱落"
+        },
+        {
+          "order": 2,
+          "action": "检查门扇下沉量与倾斜",
+          "expect": "下沉量在限值内"
+        },
+        {
+          "order": 3,
+          "action": "检查焊缝与骨架锈蚀",
+          "expect": "焊缝完好、无严重锈蚀"
+        },
+        {
+          "order": 4,
+          "action": "更换失效件后复测",
+          "expect": "门扇位置恢复"
+        }
+      ],
+      "escalation": "承载件开裂或断裂时立即停用该门并上报，禁止焊接修补后继续载客。",
+      "safety": "门扇有坠落风险，处理时下方禁止站人。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://cscl.cbpt.cnki.net/portal/journal/portal/client/paper/8a64f8a4f39b441101021d627783b3fa"
+      ]
+    },
+    {
+      "id": "kb_door_inner_wear",
+      "system": "door",
+      "title": "门内部构件磨损，运行有连续异响",
+      "symptoms": [
+        "开关门全程有金属摩擦声",
+        "门内部有零件松动声",
+        "异响随速度变化"
+      ],
+      "keywords": [
+        "内部构件磨损",
+        "连续异响",
+        "金属摩擦",
+        "零件松动",
+        "随速度变"
+      ],
+      "likely_causes": [
+        {
+          "text": "内部连杆销轴磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "导向件间隙过大",
+          "weight": 0.75
+        },
+        {
+          "text": "紧固件松动",
+          "weight": 0.6
+        },
+        {
+          "text": "润滑不足",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "隔离异响位置并逐件检查",
+          "expect": "定位到具体构件"
+        },
+        {
+          "order": 2,
+          "action": "检查销轴与导向件间隙",
+          "expect": "间隙在限值内"
+        },
+        {
+          "order": 3,
+          "action": "检查紧固件与防松",
+          "expect": "无松动"
+        },
+        {
+          "order": 4,
+          "action": "更换磨损件并润滑后复测",
+          "expect": "异响消除"
+        }
+      ],
+      "escalation": "磨损件更换后仍有异响时拆检门机构，禁止用加厚润滑脂掩盖异响。",
+      "safety": "拆检门机构前断电并支撑门扇。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2021/2859647.html"
+      ]
+    },
+    {
+      "id": "kb_door_lock_spring",
+      "system": "door",
+      "title": "门锁卷簧断裂，锁舌不能复位",
+      "symptoms": [
+        "门锁舌缩回后弹不出来",
+        "门关到位但锁不住",
+        "门锁内部有零件掉落声"
+      ],
+      "keywords": [
+        "卷簧断裂",
+        "锁舌不复位",
+        "弹不出",
+        "锁不住",
+        "零件掉落"
+      ],
+      "likely_causes": [
+        {
+          "text": "门锁卷簧疲劳断裂",
+          "weight": 1.0
+        },
+        {
+          "text": "卷簧材质或热处理不合格",
+          "weight": 0.7
+        },
+        {
+          "text": "锁舌卡滞导致卷簧过载",
+          "weight": 0.6
+        },
+        {
+          "text": "锁体内部缺润滑",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆检门锁卷簧",
+          "expect": "卷簧完整、无断裂"
+        },
+        {
+          "order": 2,
+          "action": "手动推锁舌检查复位",
+          "expect": "锁舌能自动弹出"
+        },
+        {
+          "order": 3,
+          "action": "检查锁舌与锁体润滑",
+          "expect": "活动顺畅"
+        },
+        {
+          "order": 4,
+          "action": "更换门锁总成后复测",
+          "expect": "锁闭正常"
+        }
+      ],
+      "escalation": "卷簧断裂必须更换门锁总成，禁止用橡皮筋或弹簧临时替代。",
+      "safety": "锁舌不能复位会导致门假锁闭，未修复前不得投入运用。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.2winpub.com/static/uploads/journalArticle/jzysg0207010.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_bolt_engagement",
+      "system": "door",
+      "title": "锁舌搭接量不足，门容易被推开",
+      "symptoms": [
+        "门锁闭后用手能推开一条缝",
+        "锁舌与锁扣搭接面很小",
+        "运行中门有轻微开合"
+      ],
+      "keywords": [
+        "搭接量不足",
+        "能推开",
+        "锁舌搭接",
+        "门缝",
+        "锁不牢"
+      ],
+      "likely_causes": [
+        {
+          "text": "锁扣位置偏移导致搭接量不足",
+          "weight": 1.0
+        },
+        {
+          "text": "锁舌磨损",
+          "weight": 0.75
+        },
+        {
+          "text": "门扇下垂改变锁舌相对位置",
+          "weight": 0.6
+        },
+        {
+          "text": "锁体安装松动",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "锁闭后测量锁舌搭接量",
+          "expect": "搭接量不小于规定值"
+        },
+        {
+          "order": 2,
+          "action": "检查锁扣位置与固定",
+          "expect": "位置正确、固定牢固"
+        },
+        {
+          "order": 3,
+          "action": "检查锁舌磨损",
+          "expect": "磨损在限值内"
+        },
+        {
+          "order": 4,
+          "action": "调整锁扣后复测",
+          "expect": "搭接量合格"
+        }
+      ],
+      "escalation": "搭接量不足会导致运行中门被推开，未修复前该门停用。",
+      "safety": "锁闭试验时人员站在门侧，防止门突然打开。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.2winpub.com/static/uploads/journalArticle/jzysg0207010.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_stop_pin_slot",
+      "system": "door",
+      "title": "下挡销槽积灰，挡销进不去",
+      "symptoms": [
+        "门关到位但下部挡销没有进入槽",
+        "挡销槽内有灰尘或杂物压实",
+        "门下部密封不严"
+      ],
+      "keywords": [
+        "挡销槽",
+        "积灰",
+        "挡销进不去",
+        "杂物",
+        "下部不严"
+      ],
+      "likely_causes": [
+        {
+          "text": "挡销槽长期未清理",
+          "weight": 1.0
+        },
+        {
+          "text": "门槛排水不畅，灰尘结块",
+          "weight": 0.7
+        },
+        {
+          "text": "挡销与槽口对位偏差",
+          "weight": 0.6
+        },
+        {
+          "text": "槽口变形",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "清理挡销槽并检查槽口",
+          "expect": "槽内清洁、无变形"
+        },
+        {
+          "order": 2,
+          "action": "关门观察挡销是否进入槽",
+          "expect": "挡销完全进入"
+        },
+        {
+          "order": 3,
+          "action": "检查挡销与槽口对位",
+          "expect": "对中良好"
+        },
+        {
+          "order": 4,
+          "action": "清理后复测门下部间隙",
+          "expect": "间隙合格"
+        }
+      ],
+      "escalation": "槽口变形时修复或更换门槛，禁止扩大槽口凑合。",
+      "safety": "清理时防止手指被挡销夹住。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://mooc1.chaoxing.com/mooc-ans/ztnodedetailcontroller/visitnodedetail?courseId=91873958&knowledgeId=91873974"
+      ]
+    },
+    {
+      "id": "kb_door_foreign_object",
+      "system": "door",
+      "title": "门区异物卡阻，门反复开关",
+      "symptoms": [
+        "门关到某位置就弹开，重复多次",
+        "门区可见小石子、包装物或冰碴",
+        "清理后恢复正常"
+      ],
+      "keywords": [
+        "异物卡阻",
+        "反复开关",
+        "小石子",
+        "包装物",
+        "清理就好"
+      ],
+      "likely_causes": [
+        {
+          "text": "门槛或滑道内有异物",
+          "weight": 1.0
+        },
+        {
+          "text": "乘客物品掉入门区",
+          "weight": 0.8
+        },
+        {
+          "text": "冬季结冰形成硬块",
+          "weight": 0.55
+        },
+        {
+          "text": "密封条脱落的碎块卡入",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查门槛、滑道与门缝异物",
+          "expect": "无异物"
+        },
+        {
+          "order": 2,
+          "action": "清理后手动开关门",
+          "expect": "全程无阻挡"
+        },
+        {
+          "order": 3,
+          "action": "检查密封条与挡销是否缺件",
+          "expect": "部件完整"
+        },
+        {
+          "order": 4,
+          "action": "关门后做防夹试验",
+          "expect": "防夹有效"
+        }
+      ],
+      "escalation": "同一位置反复卡入异物时检查密封与挡板缺口，禁止用胶带封堵缝隙。",
+      "safety": "清理门区异物前确认门已断电或隔离，防止门突然动作。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    }
+  ]
+}

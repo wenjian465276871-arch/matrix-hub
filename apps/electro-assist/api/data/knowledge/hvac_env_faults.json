@@ -1,0 +1,1177 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_hvac_drain_block",
+      "system": "hvac",
+      "title": "冷凝水排水管堵塞，机组底部漏水",
+      "symptoms": [
+        "空调机组下方有积水",
+        "客室顶部或风道口滴水",
+        "排水管出口无水流出"
+      ],
+      "keywords": [
+        "排水管堵",
+        "冷凝水",
+        "漏水",
+        "积水",
+        "排水口"
+      ],
+      "likely_causes": [
+        {
+          "text": "排水管被灰尘杂物堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "排水盘积垢堵塞排水口",
+          "weight": 0.8
+        },
+        {
+          "text": "排水管折弯或压扁",
+          "weight": 0.6
+        },
+        {
+          "text": "排水坡度不足导致积水",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查排水管出口是否有水流出",
+          "expect": "排水连续、无堵塞"
+        },
+        {
+          "order": 2,
+          "action": "疏通排水管与排水盘",
+          "expect": "排水通畅"
+        },
+        {
+          "order": 3,
+          "action": "检查排水管走向与坡度",
+          "expect": "无折弯、坡度正确"
+        },
+        {
+          "order": 4,
+          "action": "运行制冷观察是否再漏水",
+          "expect": "无积水、无滴漏"
+        }
+      ],
+      "escalation": "排水管反复堵塞时清洗排水盘并检查滤网，禁止把排水管直接插入地漏。",
+      "safety": "疏通排水管时防止污水溅入眼睛。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html",
+        "https://cqrb.cn/minshengdongxian/2026-08-14/2751428_pc.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_drain_pump",
+      "system": "hvac",
+      "title": "排水泵不工作，冷凝水积在盘内",
+      "symptoms": [
+        "排水盘水位高但排水泵不转",
+        "机组底部渗水",
+        "排水泵无声音"
+      ],
+      "keywords": [
+        "排水泵",
+        "不工作",
+        "水位高",
+        "渗水",
+        "排水泵不转"
+      ],
+      "likely_causes": [
+        {
+          "text": "排水泵电机故障",
+          "weight": 1.0
+        },
+        {
+          "text": "水位开关失效",
+          "weight": 0.75
+        },
+        {
+          "text": "排水泵供电缺失",
+          "weight": 0.6
+        },
+        {
+          "text": "泵体被杂物卡住",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查排水泵供电与动作",
+          "expect": "水位高时泵启动"
+        },
+        {
+          "order": 2,
+          "action": "检查水位开关",
+          "expect": "水位变化时开关动作"
+        },
+        {
+          "order": 3,
+          "action": "拆泵检查是否卡住",
+          "expect": "泵体无杂物、叶轮灵活"
+        },
+        {
+          "order": 4,
+          "action": "更换排水泵后复测",
+          "expect": "排水正常"
+        }
+      ],
+      "escalation": "排水泵失效会导致漏水，未修复时暂停制冷并上报。",
+      "safety": "拆泵前断电并排空积水。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_unit_seal",
+      "system": "hvac",
+      "title": "机组底部密封条渗水，车顶滴水",
+      "symptoms": [
+        "机组与车顶接缝处渗水",
+        "密封条老化开裂",
+        "雨后或制冷时滴水"
+      ],
+      "keywords": [
+        "机组密封",
+        "底部渗水",
+        "车顶滴水",
+        "密封条老化",
+        "接缝"
+      ],
+      "likely_causes": [
+        {
+          "text": "机组底部密封条老化",
+          "weight": 1.0
+        },
+        {
+          "text": "密封胶开裂失效",
+          "weight": 0.8
+        },
+        {
+          "text": "机组固定螺栓松动导致密封面张开",
+          "weight": 0.6
+        },
+        {
+          "text": "车顶安装面不平",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查机组与车顶接缝密封",
+          "expect": "密封条连续、无开裂"
+        },
+        {
+          "order": 2,
+          "action": "检查固定螺栓扭矩",
+          "expect": "达到标称扭矩"
+        },
+        {
+          "order": 3,
+          "action": "检查安装面平整度",
+          "expect": "贴合良好"
+        },
+        {
+          "order": 4,
+          "action": "重新密封后淋雨试验",
+          "expect": "无渗漏"
+        }
+      ],
+      "escalation": "密封反复失效时检查机组安装面与减振座，禁止只打胶不查固定。",
+      "safety": "车顶作业系安全带，防止坠落。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_roof_seal",
+      "system": "hvac",
+      "title": "车顶机组安装密封失效，雨水渗入客室",
+      "symptoms": [
+        "雨后客室顶部渗水",
+        "机组周围车顶有水迹",
+        "密封胶条翘起"
+      ],
+      "keywords": [
+        "车顶密封",
+        "雨水渗入",
+        "密封失效",
+        "胶条翘起",
+        "客室渗水"
+      ],
+      "likely_causes": [
+        {
+          "text": "安装密封胶条老化",
+          "weight": 1.0
+        },
+        {
+          "text": "密封胶与车顶粘接失效",
+          "weight": 0.8
+        },
+        {
+          "text": "车顶排水沟堵塞积水",
+          "weight": 0.6
+        },
+        {
+          "text": "机组安装螺栓松动",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查密封胶条与粘接",
+          "expect": "胶条完好、粘接牢固"
+        },
+        {
+          "order": 2,
+          "action": "检查车顶排水沟",
+          "expect": "排水通畅、无积水"
+        },
+        {
+          "order": 3,
+          "action": "检查安装螺栓",
+          "expect": "扭矩达标"
+        },
+        {
+          "order": 4,
+          "action": "重新密封后淋雨验证",
+          "expect": "无渗漏"
+        }
+      ],
+      "escalation": "车顶渗水会损坏客室内饰与电气，未修复前该车不得露天停放。",
+      "safety": "车顶作业注意防滑与坠落。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_drain_pan",
+      "system": "hvac",
+      "title": "冷凝水盘积垢溢出，滴水到风道",
+      "symptoms": [
+        "水盘内水位高且有污垢",
+        "风道口滴水",
+        "排水口流量小"
+      ],
+      "keywords": [
+        "水盘积垢",
+        "溢出",
+        "风道滴水",
+        "水位高",
+        "冷凝水盘"
+      ],
+      "likely_causes": [
+        {
+          "text": "水盘积垢堵塞排水口",
+          "weight": 1.0
+        },
+        {
+          "text": "水盘倾斜度不足",
+          "weight": 0.7
+        },
+        {
+          "text": "排水管口径偏小",
+          "weight": 0.5
+        },
+        {
+          "text": "风量过大把水带出",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查水盘积垢与排水口",
+          "expect": "水盘清洁、排水通畅"
+        },
+        {
+          "order": 2,
+          "action": "检查水盘倾斜度",
+          "expect": "坡向排水口"
+        },
+        {
+          "order": 3,
+          "action": "清洗水盘并疏通排水",
+          "expect": "水位正常"
+        },
+        {
+          "order": 4,
+          "action": "运行观察是否再溢出",
+          "expect": "无溢出"
+        }
+      ],
+      "escalation": "水盘变形或腐蚀穿孔时更换，禁止用胶补漏。",
+      "safety": "清洗水盘时断电，防止风机启动。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_drain_freeze",
+      "system": "hvac",
+      "title": "冬季排水管结冰，融霜水排不出",
+      "symptoms": [
+        "低温时排水管出口结冰",
+        "水盘积水溢出",
+        "气温回升后恢复"
+      ],
+      "keywords": [
+        "排水管结冰",
+        "冬季",
+        "融霜水",
+        "排不出",
+        "结冰"
+      ],
+      "likely_causes": [
+        {
+          "text": "排水管保温不足",
+          "weight": 1.0
+        },
+        {
+          "text": "排水管坡度不足残留积水",
+          "weight": 0.8
+        },
+        {
+          "text": "排水管出口处于迎风低温区",
+          "weight": 0.6
+        },
+        {
+          "text": "融霜水流量大超过排水能力",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查排水管保温层",
+          "expect": "保温完整"
+        },
+        {
+          "order": 2,
+          "action": "检查排水坡度与残留积水",
+          "expect": "无残留、坡度正确"
+        },
+        {
+          "order": 3,
+          "action": "清除结冰并疏通",
+          "expect": "排水恢复"
+        },
+        {
+          "order": 4,
+          "action": "加装保温后低温复测",
+          "expect": "不再结冰"
+        }
+      ],
+      "escalation": "结冰后禁止用明火烤管，应用热风或温水缓慢解冻。",
+      "safety": "解冻时防止热水溅到电气部件。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_unit_condensate",
+      "system": "hvac",
+      "title": "机组内部结露，电气件受潮",
+      "symptoms": [
+        "机组内部有冷凝水",
+        "电气端子有锈迹",
+        "梅雨季节故障多"
+      ],
+      "keywords": [
+        "机组结露",
+        "内部受潮",
+        "冷凝水",
+        "端子锈",
+        "梅雨"
+      ],
+      "likely_causes": [
+        {
+          "text": "机组保温层破损",
+          "weight": 1.0
+        },
+        {
+          "text": "机组密封不良湿气进入",
+          "weight": 0.75
+        },
+        {
+          "text": "停机后温差导致结露",
+          "weight": 0.6
+        },
+        {
+          "text": "排水不畅积水蒸发",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查机组内部结露位置",
+          "expect": "内部干燥"
+        },
+        {
+          "order": 2,
+          "action": "检查保温层完整性",
+          "expect": "保温完整、无破损"
+        },
+        {
+          "order": 3,
+          "action": "检查机组密封与排水",
+          "expect": "密封良好、排水通畅"
+        },
+        {
+          "order": 4,
+          "action": "修复保温并干燥后复测",
+          "expect": "不再结露"
+        }
+      ],
+      "escalation": "结露导致绝缘下降时按受潮故障处理，禁止直接送电。",
+      "safety": "受潮设备测量绝缘合格后方可上电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_duct_condensate",
+      "system": "hvac",
+      "title": "风道外壁结露，滴到客室",
+      "symptoms": [
+        "风道外壁挂水珠",
+        "客室顶部滴水",
+        "湿度大时明显"
+      ],
+      "keywords": [
+        "风道结露",
+        "外壁水珠",
+        "客室滴水",
+        "湿度大",
+        "冷凝"
+      ],
+      "likely_causes": [
+        {
+          "text": "风道保温层缺失或破损",
+          "weight": 1.0
+        },
+        {
+          "text": "送风温度过低",
+          "weight": 0.75
+        },
+        {
+          "text": "客室湿度高",
+          "weight": 0.6
+        },
+        {
+          "text": "风道与热桥接触",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查风道保温层",
+          "expect": "保温连续、无破损"
+        },
+        {
+          "order": 2,
+          "action": "测量送风温度与露点",
+          "expect": "送风温度高于露点"
+        },
+        {
+          "order": 3,
+          "action": "检查风道热桥",
+          "expect": "无直接接触车体金属"
+        },
+        {
+          "order": 4,
+          "action": "修复保温后复测",
+          "expect": "不再结露"
+        }
+      ],
+      "escalation": "风道结露会造成滴水与霉变，未修复时调整送风温度并上报。",
+      "safety": "登高处理风道时使用稳固梯具。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_ceiling_drip",
+      "system": "hvac",
+      "title": "客室顶部滴水，找不到明显水源",
+      "symptoms": [
+        "客室顶部不定期滴水",
+        "顶部内饰有湿痕",
+        "制冷或雨后出现"
+      ],
+      "keywords": [
+        "顶部滴水",
+        "客室滴水",
+        "湿痕",
+        "找不到水源",
+        "漏水"
+      ],
+      "likely_causes": [
+        {
+          "text": "风道保温破损结露",
+          "weight": 1.0
+        },
+        {
+          "text": "机组排水管渗漏",
+          "weight": 0.8
+        },
+        {
+          "text": "车顶密封渗水",
+          "weight": 0.7
+        },
+        {
+          "text": "顶部冷凝水管接头松脱",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆开顶部内饰定位水源",
+          "expect": "找到具体滴水点"
+        },
+        {
+          "order": 2,
+          "action": "检查风道保温与排水管",
+          "expect": "保温完好、管路无渗漏"
+        },
+        {
+          "order": 3,
+          "action": "检查车顶密封",
+          "expect": "密封完好"
+        },
+        {
+          "order": 4,
+          "action": "修复后运行观察",
+          "expect": "不再滴水"
+        }
+      ],
+      "escalation": "滴水会损坏电气与内饰，未定位水源前不得简单擦干放行。",
+      "safety": "拆顶部内饰时防止坠落。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_odor",
+      "system": "hvac",
+      "title": "空调出风有异味，客室空气差",
+      "symptoms": [
+        "出风有霉味或酸味",
+        "刚开空调时味道最重",
+        "滤网或蒸发器表面有污垢"
+      ],
+      "keywords": [
+        "空调异味",
+        "霉味",
+        "酸味",
+        "出风臭",
+        "空气差"
+      ],
+      "likely_causes": [
+        {
+          "text": "蒸发器表面霉变",
+          "weight": 1.0
+        },
+        {
+          "text": "回风滤网积尘滋生细菌",
+          "weight": 0.8
+        },
+        {
+          "text": "排水盘积水变质",
+          "weight": 0.7
+        },
+        {
+          "text": "风道内异物腐烂",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查蒸发器与滤网污垢",
+          "expect": "表面清洁、无霉斑"
+        },
+        {
+          "order": 2,
+          "action": "检查排水盘是否积水",
+          "expect": "排水通畅、无积水"
+        },
+        {
+          "order": 3,
+          "action": "检查风道内异物",
+          "expect": "风道清洁"
+        },
+        {
+          "order": 4,
+          "action": "清洗消毒后复测",
+          "expect": "异味消除"
+        }
+      ],
+      "escalation": "霉变严重时按空调清洗工艺消毒，禁止用香精掩盖异味。",
+      "safety": "清洗剂使用时保持通风，佩戴手套。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://cqrb.cn/minshengdongxian/2026-08-14/2751428_pc.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_evap_mold",
+      "system": "hvac",
+      "title": "蒸发器翅片霉变，制冷效率下降",
+      "symptoms": [
+        "蒸发器翅片有黑色霉斑",
+        "出风有霉味",
+        "制冷效果变差"
+      ],
+      "keywords": [
+        "蒸发器霉变",
+        "翅片黑斑",
+        "霉味",
+        "效率下降",
+        "发霉"
+      ],
+      "likely_causes": [
+        {
+          "text": "蒸发器长期潮湿未干燥",
+          "weight": 1.0
+        },
+        {
+          "text": "排水不畅导致底部积水",
+          "weight": 0.8
+        },
+        {
+          "text": "滤网失效灰尘附着",
+          "weight": 0.6
+        },
+        {
+          "text": "清洗周期过长",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查蒸发器翅片霉斑",
+          "expect": "翅片清洁、无霉斑"
+        },
+        {
+          "order": 2,
+          "action": "检查排水与滤网",
+          "expect": "排水通畅、滤网完好"
+        },
+        {
+          "order": 3,
+          "action": "按工艺清洗消毒蒸发器",
+          "expect": "霉斑清除"
+        },
+        {
+          "order": 4,
+          "action": "运行后测制冷效果",
+          "expect": "制冷恢复"
+        }
+      ],
+      "escalation": "翅片腐蚀严重时更换蒸发器，禁止只喷消毒剂不清洁。",
+      "safety": "清洗时防止清洗剂进入电气部件。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://cqrb.cn/minshengdongxian/2026-08-14/2751428_pc.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_filter_odor",
+      "system": "hvac",
+      "title": "回风滤网异味，清洗后仍有味",
+      "symptoms": [
+        "滤网清洗后仍有酸味",
+        "滤网材质发黏",
+        "出风味道随风机档位变化"
+      ],
+      "keywords": [
+        "滤网异味",
+        "洗了还臭",
+        "发黏",
+        "酸味",
+        "回风滤网"
+      ],
+      "likely_causes": [
+        {
+          "text": "滤网材质吸附油污无法清洗",
+          "weight": 1.0
+        },
+        {
+          "text": "滤网后方蒸发器污染",
+          "weight": 0.8
+        },
+        {
+          "text": "清洗剂残留",
+          "weight": 0.5
+        },
+        {
+          "text": "风道内污染",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查滤网材质与污染程度",
+          "expect": "滤网清洁、无发黏"
+        },
+        {
+          "order": 2,
+          "action": "检查蒸发器与风道",
+          "expect": "无污染"
+        },
+        {
+          "order": 3,
+          "action": "更换滤网",
+          "expect": "异味下降"
+        },
+        {
+          "order": 4,
+          "action": "运行复测出风气味",
+          "expect": "无异味"
+        }
+      ],
+      "escalation": "更换滤网后仍有异味时清洗蒸发器与风道。",
+      "safety": "更换滤网时佩戴防尘口罩。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://cqrb.cn/minshengdongxian/2026-08-14/2751428_pc.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_unit_dirty",
+      "system": "hvac",
+      "title": "机组外部积尘严重，散热与外观受影响",
+      "symptoms": [
+        "机组外壳积灰厚",
+        "冷凝器进风口有杂物",
+        "高温时高压偏高"
+      ],
+      "keywords": [
+        "机组脏",
+        "积尘",
+        "进风口杂物",
+        "外观差",
+        "高压高"
+      ],
+      "likely_causes": [
+        {
+          "text": "运行环境粉尘大",
+          "weight": 1.0
+        },
+        {
+          "text": "清洗周期过长",
+          "weight": 0.8
+        },
+        {
+          "text": "进风口无防护网",
+          "weight": 0.55
+        },
+        {
+          "text": "排水带出污物附着",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查机组外壳与进风口",
+          "expect": "清洁、无杂物"
+        },
+        {
+          "order": 2,
+          "action": "按规程清洗机组",
+          "expect": "外壳与翅片清洁"
+        },
+        {
+          "order": 3,
+          "action": "检查进风口防护网",
+          "expect": "防护网完好"
+        },
+        {
+          "order": 4,
+          "action": "清洗后测高压",
+          "expect": "高压正常"
+        }
+      ],
+      "escalation": "积尘导致高压保护时按冷凝器脏堵处理，禁止只清洗外壳。",
+      "safety": "车顶清洗时防止水进入电气部件。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://cqrb.cn/minshengdongxian/2026-08-14/2751428_pc.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_mount_vibration",
+      "system": "hvac",
+      "title": "机组减振座老化，车顶振动噪声大",
+      "symptoms": [
+        "机组运行时车顶振动明显",
+        "减振橡胶老化开裂",
+        "客室顶部有低频噪声"
+      ],
+      "keywords": [
+        "减振座",
+        "老化",
+        "车顶振动",
+        "低频噪声",
+        "橡胶裂"
+      ],
+      "likely_causes": [
+        {
+          "text": "减振橡胶老化失效",
+          "weight": 1.0
+        },
+        {
+          "text": "减振座安装不平",
+          "weight": 0.7
+        },
+        {
+          "text": "机组固定螺栓松动",
+          "weight": 0.6
+        },
+        {
+          "text": "压缩机振动传递过大",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查减振座外观与弹性",
+          "expect": "无开裂、弹性良好"
+        },
+        {
+          "order": 2,
+          "action": "检查安装面与螺栓",
+          "expect": "安装平整、螺栓紧固"
+        },
+        {
+          "order": 3,
+          "action": "测量机组振动",
+          "expect": "振动在限值内"
+        },
+        {
+          "order": 4,
+          "action": "更换减振座后复测",
+          "expect": "振动与噪声下降"
+        }
+      ],
+      "escalation": "减振座全部老化时成组更换，禁止只换个别导致受力不均。",
+      "safety": "更换减振座时机组需支撑固定。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_mount_bolt",
+      "system": "hvac",
+      "title": "机组固定螺栓松动，运行有撞击声",
+      "symptoms": [
+        "机组运行时有不规则撞击声",
+        "固定螺栓可见松动",
+        "机组与车顶接缝变化"
+      ],
+      "keywords": [
+        "固定螺栓松",
+        "撞击声",
+        "机组松动",
+        "接缝变化",
+        "螺栓"
+      ],
+      "likely_causes": [
+        {
+          "text": "固定螺栓未按扭矩紧固",
+          "weight": 1.0
+        },
+        {
+          "text": "防松措施失效",
+          "weight": 0.8
+        },
+        {
+          "text": "减振座老化导致螺栓受力变化",
+          "weight": 0.6
+        },
+        {
+          "text": "安装面不平",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "逐个检查固定螺栓扭矩",
+          "expect": "达到标称扭矩"
+        },
+        {
+          "order": 2,
+          "action": "检查防松标记与垫圈",
+          "expect": "防松完好"
+        },
+        {
+          "order": 3,
+          "action": "检查减振座与安装面",
+          "expect": "无老化、贴合良好"
+        },
+        {
+          "order": 4,
+          "action": "紧固后运行复测",
+          "expect": "撞击声消失"
+        }
+      ],
+      "escalation": "螺栓反复松动时检查减振座与安装面，必要时更换紧固件。",
+      "safety": "车顶紧固作业系安全带。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_cover_loose",
+      "system": "hvac",
+      "title": "机组盖板松动，运行有拍打声",
+      "symptoms": [
+        "机组盖板边缘翘起",
+        "运行时盖板拍打声",
+        "盖板固定卡扣缺失"
+      ],
+      "keywords": [
+        "盖板松动",
+        "拍打声",
+        "卡扣缺失",
+        "盖板翘",
+        "机组盖板"
+      ],
+      "likely_causes": [
+        {
+          "text": "盖板卡扣或螺栓缺失",
+          "weight": 1.0
+        },
+        {
+          "text": "盖板变形",
+          "weight": 0.75
+        },
+        {
+          "text": "密封条老化导致盖板不贴合",
+          "weight": 0.6
+        },
+        {
+          "text": "安装时未卡到位",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查盖板卡扣与螺栓",
+          "expect": "齐全、紧固"
+        },
+        {
+          "order": 2,
+          "action": "检查盖板变形",
+          "expect": "平整、贴合"
+        },
+        {
+          "order": 3,
+          "action": "检查密封条",
+          "expect": "完好、有弹性"
+        },
+        {
+          "order": 4,
+          "action": "重新安装后运行复测",
+          "expect": "无拍打声"
+        }
+      ],
+      "escalation": "盖板变形或卡扣座损坏时更换盖板，禁止用胶带临时固定。",
+      "safety": "盖板可能被风掀起，车顶作业注意。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_unit_drain_hole",
+      "system": "hvac",
+      "title": "机组排水孔堵塞，底盘积水锈蚀",
+      "symptoms": [
+        "机组底盘有积水",
+        "排水孔周围锈蚀",
+        "机组底盘下方滴水"
+      ],
+      "keywords": [
+        "排水孔堵",
+        "底盘积水",
+        "锈蚀",
+        "机组底部",
+        "排水孔"
+      ],
+      "likely_causes": [
+        {
+          "text": "排水孔被灰尘杂物堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "底盘积垢",
+          "weight": 0.75
+        },
+        {
+          "text": "排水孔设计偏小",
+          "weight": 0.5
+        },
+        {
+          "text": "机组安装倾斜方向错误",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查排水孔是否通畅",
+          "expect": "排水顺畅"
+        },
+        {
+          "order": 2,
+          "action": "清理底盘积垢",
+          "expect": "底盘清洁"
+        },
+        {
+          "order": 3,
+          "action": "检查机组安装倾斜",
+          "expect": "坡向排水孔"
+        },
+        {
+          "order": 4,
+          "action": "处理后观察是否积水",
+          "expect": "无积水"
+        }
+      ],
+      "escalation": "底盘锈蚀穿孔时补焊或更换，禁止用胶封堵排水孔。",
+      "safety": "清理时防止杂物掉入风机。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_roof_gutter",
+      "system": "hvac",
+      "title": "车顶排水沟堵塞，水倒灌进机组",
+      "symptoms": [
+        "车顶排水沟积水",
+        "机组周围有水",
+        "大雨后机组周围积水"
+      ],
+      "keywords": [
+        "车顶排水沟",
+        "堵塞",
+        "倒灌",
+        "积水",
+        "雨后故障"
+      ],
+      "likely_causes": [
+        {
+          "text": "排水沟被落叶杂物堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "排水口设计排水能力不足",
+          "weight": 0.6
+        },
+        {
+          "text": "车顶变形导致积水",
+          "weight": 0.5
+        },
+        {
+          "text": "密封失效使水进入机组",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查车顶排水沟与排水口",
+          "expect": "排水通畅、无杂物"
+        },
+        {
+          "order": 2,
+          "action": "清理排水沟",
+          "expect": "沟通畅"
+        },
+        {
+          "order": 3,
+          "action": "检查机组密封",
+          "expect": "密封完好"
+        },
+        {
+          "order": 4,
+          "action": "淋雨验证",
+          "expect": "无倒灌"
+        }
+      ],
+      "escalation": "排水沟结构排水能力不足时上报改造，禁止加高密封条挡水。",
+      "safety": "车顶作业防滑防坠落。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    }
+  ]
+}

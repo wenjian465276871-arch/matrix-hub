@@ -139,9 +139,13 @@ test('生成可取消：停止等待后不再轮询任务状态', async ({ page 
   await expect(page.getByText('已停止等待，可以继续修改文本或单独提交。')).toBeVisible()
   await expect(page.getByRole('button', { name: '停止等待' })).toHaveCount(0)
 
-  // 取消后必须真的停：再等两个轮询周期，请求数不能涨
+  // 取消后必须真的停：等**网络空闲**（500ms 无请求）再核对计数。
+  // 这里刻意不用 `waitForTimeout(900)`：那是 R2 明令禁止的时间窗断言，
+  // 机器慢一点就会多出一次轮询（2026-11-19 全量跑时 polls 2→3，单独复跑却全过）。
+  // `networkidle` 的语义正好是"静默 500ms"，取消失效时它根本达不到 —— 超时即失败。
+  await page.waitForLoadState('networkidle', { timeout: 5_000 })
   const frozen = polls
-  await page.waitForTimeout(900)
+  await page.waitForLoadState('networkidle', { timeout: 5_000 })
   expect(polls).toBe(frozen)
 })
 

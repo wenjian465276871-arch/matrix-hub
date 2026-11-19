@@ -1,5 +1,5 @@
 {
-  "version": "2.0",
+  "version": "3.0",
   "updated_at": "2026-11-08",
   "entries": [
     {
@@ -53,6 +53,9 @@
       "safety": "检查前确认车辆断电挂牌；带电测量由具备资质人员执行。",
       "sources": [
         "D-03"
+      ],
+      "source_links": [
+        "https://patents.google.com/patent/CN115522819B/zh"
       ]
     },
     {
@@ -104,6 +107,9 @@
       "safety": "有焦味或发烫时先断电再靠近检查，禁止带电插拔接插件。",
       "sources": [
         "D-03"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
       ]
     },
     {
@@ -160,6 +166,10 @@
       "safety": "手动推拉前确认断电，手指避开铰链与导轨夹点。",
       "sources": [
         "D-03"
+      ],
+      "source_links": [
+        "https://m.renrendoc.com/paper/439896699.html",
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
       ]
     },
     {
@@ -211,6 +221,9 @@
       "safety": "禁止用手或身体测试防夹，必须使用软质障碍物。",
       "sources": [
         "D-03"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
       ]
     },
     {
@@ -262,6 +275,9 @@
       "safety": "测量时门扇须处于静止并做好防夹措施。",
       "sources": [
         "D-03"
+      ],
+      "source_links": [
+        "https://patents.google.com/patent/CN115522819B/zh"
       ]
     },
     {
@@ -313,6 +329,9 @@
       "safety": "手动推拉时手指避开滚轮与导轨夹点，必要时两人配合。",
       "sources": [
         "D-03"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?ordertype=1&tid=23928"
       ]
     },
     {
@@ -363,6 +382,9 @@
       "safety": "隔离操作后必须确认门已机械锁闭，防止运行中开门。",
       "sources": [
         "D-03"
+      ],
+      "source_links": [
+        "https://m.renrendoc.com/paper/161985415.html"
       ]
     },
     {
@@ -413,6 +435,9 @@
       "safety": "操作紧急解锁前确认车辆静止且已断电，防止门扇突然动作。",
       "sources": [
         "D-03"
+      ],
+      "source_links": [
+        "https://m.renrendoc.com/paper/161985415.html"
       ]
     },
     {
@@ -473,6 +498,9 @@
       "safety": "调整限位与气路前确认门区无人、断电挂牌；手动开关门时禁止把手放在门缝。",
       "sources": [
         "D-05"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
       ]
     },
     {
@@ -533,6 +561,9 @@
       "safety": "气路作业前泄压；更换气动锁时确认门扇已机械隔离。",
       "sources": [
         "D-05"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
       ]
     },
     {
@@ -593,6 +624,9 @@
       "safety": "测电压与拆插头前确认门已隔离；手动解锁时注意门扇突然动作。",
       "sources": [
         "D-05"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
       ]
     },
     {
@@ -672,6 +706,10 @@
       "safety": "测总线电阻前必须断电并断开蓄电池；门扇运动试验时手不得进入门缝与导轨夹点。",
       "sources": [
         "D-10"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?goto=nextoldset&mod=redirect&tid=23937",
+        "http://baike.ecrrc.com/equip_526.html"
       ]
     }
   ]

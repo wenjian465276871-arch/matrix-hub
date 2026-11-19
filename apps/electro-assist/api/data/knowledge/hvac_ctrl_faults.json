@@ -1,0 +1,1761 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_hvac_panel_black",
+      "system": "hvac",
+      "title": "空调控制面板黑屏，无任何显示",
+      "symptoms": [
+        "控制面板完全不亮",
+        "按键无背光",
+        "同一车厢其它显示正常"
+      ],
+      "keywords": [
+        "面板黑屏",
+        "不亮",
+        "无显示",
+        "控制面板",
+        "黑屏"
+      ],
+      "likely_causes": [
+        {
+          "text": "面板供电缺失",
+          "weight": 1.0
+        },
+        {
+          "text": "面板保险熔断",
+          "weight": 0.75
+        },
+        {
+          "text": "面板本体故障",
+          "weight": 0.6
+        },
+        {
+          "text": "通信线未接通导致待机",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量面板供电电压",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 2,
+          "action": "检查面板保险",
+          "expect": "保险导通"
+        },
+        {
+          "order": 3,
+          "action": "检查通信线连接",
+          "expect": "通信线接通"
+        },
+        {
+          "order": 4,
+          "action": "更换面板后复测",
+          "expect": "显示恢复"
+        }
+      ],
+      "escalation": "面板黑屏无法操作空调时按控制故障上报，禁止反复断电重启。",
+      "safety": "拆面板前断电，防止短路。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_panel_key",
+      "system": "hvac",
+      "title": "控制面板个别按键失灵",
+      "symptoms": [
+        "某个按键按了没反应",
+        "其它按键正常",
+        "按键手感发软或按不动"
+      ],
+      "keywords": [
+        "按键失灵",
+        "个别键",
+        "按不动",
+        "没反应",
+        "面板按键"
+      ],
+      "likely_causes": [
+        {
+          "text": "按键触点氧化或磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "面板薄膜开关局部失效",
+          "weight": 0.8
+        },
+        {
+          "text": "按键卡滞",
+          "weight": 0.6
+        },
+        {
+          "text": "面板内部排线接触不良",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "逐个按键测试功能",
+          "expect": "每个按键均有响应"
+        },
+        {
+          "order": 2,
+          "action": "检查按键行程与回弹",
+          "expect": "按压顺畅、回弹正常"
+        },
+        {
+          "order": 3,
+          "action": "检查面板排线",
+          "expect": "排线插紧、无氧化"
+        },
+        {
+          "order": 4,
+          "action": "更换面板后复测",
+          "expect": "按键全部有效"
+        }
+      ],
+      "escalation": "薄膜开关局部失效需更换面板，禁止用外接按钮长期替代。",
+      "safety": "拆面板前断电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_panel_garbled",
+      "system": "hvac",
+      "title": "控制面板显示乱码或花屏",
+      "symptoms": [
+        "面板字符显示残缺或乱码",
+        "背光正常但内容异常",
+        "断电重启后显示正常一会儿"
+      ],
+      "keywords": [
+        "乱码",
+        "花屏",
+        "显示残缺",
+        "面板异常",
+        "字符乱"
+      ],
+      "likely_causes": [
+        {
+          "text": "面板显示驱动故障",
+          "weight": 1.0
+        },
+        {
+          "text": "面板供电电压不稳",
+          "weight": 0.7
+        },
+        {
+          "text": "通信干扰导致数据错误",
+          "weight": 0.6
+        },
+        {
+          "text": "面板排线接触不良",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量面板供电稳定性",
+          "expect": "电压稳定、无跌落"
+        },
+        {
+          "order": 2,
+          "action": "检查面板排线与接地",
+          "expect": "排线牢固、接地良好"
+        },
+        {
+          "order": 3,
+          "action": "检查通信线屏蔽",
+          "expect": "屏蔽完整"
+        },
+        {
+          "order": 4,
+          "action": "更换面板后复测",
+          "expect": "显示正常"
+        }
+      ],
+      "escalation": "供电与接地正常仍乱码时更换面板。",
+      "safety": "更换面板前断电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_return_temp_drift",
+      "system": "hvac",
+      "title": "回风温度传感器读数偏高，制冷不停机",
+      "symptoms": [
+        "面板显示回风温度明显高于实际",
+        "客室已经很凉但压缩机不停",
+        "用温度计对比差异大"
+      ],
+      "keywords": [
+        "回风温度",
+        "传感器偏高",
+        "不停机",
+        "读数不准",
+        "温度漂移"
+      ],
+      "likely_causes": [
+        {
+          "text": "温度传感器漂移或老化",
+          "weight": 1.0
+        },
+        {
+          "text": "传感器安装位置受热源影响",
+          "weight": 0.75
+        },
+        {
+          "text": "传感器线缆接触电阻大",
+          "weight": 0.6
+        },
+        {
+          "text": "控制板采样通道偏差",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "用标准温度计对比传感器读数",
+          "expect": "偏差在允许范围"
+        },
+        {
+          "order": 2,
+          "action": "检查传感器安装位置",
+          "expect": "不受热源直射"
+        },
+        {
+          "order": 3,
+          "action": "测量传感器线缆与插头",
+          "expect": "接触良好、无氧化"
+        },
+        {
+          "order": 4,
+          "action": "更换传感器后复测",
+          "expect": "读数准确、能正常停机"
+        }
+      ],
+      "escalation": "更换传感器后仍偏差时检查控制板采样通道。",
+      "safety": "拆传感器前断电，防止短路。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_supply_temp_open",
+      "system": "hvac",
+      "title": "送风温度传感器断线，显示异常值",
+      "symptoms": [
+        "面板送风温度显示为固定极值",
+        "传感器线束有破损",
+        "制冷控制逻辑异常"
+      ],
+      "keywords": [
+        "送风温度",
+        "传感器断线",
+        "固定值",
+        "线束破",
+        "显示异常"
+      ],
+      "likely_causes": [
+        {
+          "text": "传感器线束断路",
+          "weight": 1.0
+        },
+        {
+          "text": "插头退针或氧化",
+          "weight": 0.8
+        },
+        {
+          "text": "传感器本体开路",
+          "weight": 0.65
+        },
+        {
+          "text": "控制板输入通道故障",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量传感器电阻或信号",
+          "expect": "随温度变化"
+        },
+        {
+          "order": 2,
+          "action": "检查线束与插头",
+          "expect": "导通、无退针"
+        },
+        {
+          "order": 3,
+          "action": "更换传感器后复测",
+          "expect": "显示正常"
+        },
+        {
+          "order": 4,
+          "action": "检查控制板输入通道",
+          "expect": "采样正常"
+        }
+      ],
+      "escalation": "线束断线需更换整段，禁止只把断点拧在一起。",
+      "safety": "测量前断电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_fresh_temp_sensor",
+      "system": "hvac",
+      "title": "新风温度传感器异常，制冷负荷判断错误",
+      "symptoms": [
+        "新风温度显示与实际环境不符",
+        "制冷量调节异常",
+        "传感器线缆有破损或老化"
+      ],
+      "keywords": [
+        "新风温度",
+        "传感器异常",
+        "环境温度",
+        "调节异常",
+        "线缆老化"
+      ],
+      "likely_causes": [
+        {
+          "text": "传感器线缆老化破损",
+          "weight": 1.0
+        },
+        {
+          "text": "传感器本体寿命到期",
+          "weight": 0.8
+        },
+        {
+          "text": "传感器安装位置不当",
+          "weight": 0.55
+        },
+        {
+          "text": "插头接触不良",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "对比新风温度与环境温度",
+          "expect": "偏差在允许范围"
+        },
+        {
+          "order": 2,
+          "action": "检查传感器线缆与插头",
+          "expect": "无破损、接触良好"
+        },
+        {
+          "order": 3,
+          "action": "更换传感器后复测",
+          "expect": "读数正常"
+        },
+        {
+          "order": 4,
+          "action": "检查安装位置",
+          "expect": "能代表真实新风温度"
+        }
+      ],
+      "escalation": "线缆与传感器均正常仍偏差时检查控制板采样。",
+      "safety": "车顶作业注意防坠落。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "http://www.knowcat.cn/p/20230611/390831.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_pressure_sensor",
+      "system": "hvac",
+      "title": "压力传感器失效，压力显示为固定值",
+      "symptoms": [
+        "高低压显示不随运行变化",
+        "显示值为 0 或满量程",
+        "压缩机保护逻辑异常"
+      ],
+      "keywords": [
+        "压力传感器",
+        "固定值",
+        "不变化",
+        "显示 0",
+        "满量程"
+      ],
+      "likely_causes": [
+        {
+          "text": "压力传感器损坏",
+          "weight": 1.0
+        },
+        {
+          "text": "传感器供电或信号线断路",
+          "weight": 0.8
+        },
+        {
+          "text": "取样管堵塞",
+          "weight": 0.6
+        },
+        {
+          "text": "控制板采样通道故障",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "对比机械压力表与传感器读数",
+          "expect": "两者一致"
+        },
+        {
+          "order": 2,
+          "action": "检查传感器供电与信号线",
+          "expect": "供电正常、信号线导通"
+        },
+        {
+          "order": 3,
+          "action": "检查取样管",
+          "expect": "通畅、无堵塞"
+        },
+        {
+          "order": 4,
+          "action": "更换传感器后复测",
+          "expect": "压力随工况变化"
+        }
+      ],
+      "escalation": "压力传感器失效会导致保护误动或拒动，必须更换，禁止屏蔽保护。",
+      "safety": "拆压力传感器前回收制冷剂并泄压。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.yidocs.com/doc/4820673107.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_thermostat",
+      "system": "hvac",
+      "title": "恒温控制器失灵，温度不受控",
+      "symptoms": [
+        "客室温度持续下降或持续上升",
+        "设定温度不起作用",
+        "压缩机长期运行或完全不启动"
+      ],
+      "keywords": [
+        "恒温控制器",
+        "温度不受控",
+        "设定无效",
+        "长期运行",
+        "不启动"
+      ],
+      "likely_causes": [
+        {
+          "text": "恒温控制器故障",
+          "weight": 1.0
+        },
+        {
+          "text": "温度传感器信号异常",
+          "weight": 0.8
+        },
+        {
+          "text": "控制参数设置错误",
+          "weight": 0.6
+        },
+        {
+          "text": "执行机构不响应",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "对比设定温度与实际控制动作",
+          "expect": "达到设定值能停机"
+        },
+        {
+          "order": 2,
+          "action": "检查温度传感器信号",
+          "expect": "信号正常"
+        },
+        {
+          "order": 3,
+          "action": "核对控制参数",
+          "expect": "参数与基线一致"
+        },
+        {
+          "order": 4,
+          "action": "更换恒温控制器后复测",
+          "expect": "温度受控"
+        }
+      ],
+      "escalation": "恒温控制器故障会导致客室温度失控，未修复时改为手动控制并上报。",
+      "safety": "温度失控可能导致客室过冷，注意乘客反馈。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_ctrl_contactor",
+      "system": "hvac",
+      "title": "空调控制柜接触器烧损，回路不导通",
+      "symptoms": [
+        "接触器吸合但负载不工作",
+        "触点发黑或有焦味",
+        "控制柜内温度偏高"
+      ],
+      "keywords": [
+        "控制柜接触器",
+        "烧损",
+        "触点黑",
+        "焦味",
+        "不导通"
+      ],
+      "likely_causes": [
+        {
+          "text": "触点电弧烧蚀",
+          "weight": 1.0
+        },
+        {
+          "text": "触点容量不足或老化",
+          "weight": 0.7
+        },
+        {
+          "text": "灭弧罩损坏",
+          "weight": 0.6
+        },
+        {
+          "text": "控制线圈电压不足",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查触点烧蚀与灭弧罩",
+          "expect": "触点完好、灭弧罩齐全"
+        },
+        {
+          "order": 2,
+          "action": "测量线圈电压",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 3,
+          "action": "断电测量触点通断",
+          "expect": "吸合时导通"
+        },
+        {
+          "order": 4,
+          "action": "更换接触器后复测",
+          "expect": "负载正常工作"
+        }
+      ],
+      "escalation": "触点烧蚀必须更换，禁止打磨触点继续使用。",
+      "safety": "控制柜内带电部位多，作业前断电验电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_ctrl_breaker",
+      "system": "hvac",
+      "title": "空调控制柜断路器跳闸",
+      "symptoms": [
+        "控制柜断路器跳闸",
+        "空调全部停止",
+        "复位后再次跳闸"
+      ],
+      "keywords": [
+        "控制柜断路器",
+        "跳闸",
+        "空调全停",
+        "复位又跳",
+        "空开"
+      ],
+      "likely_causes": [
+        {
+          "text": "回路短路或接地",
+          "weight": 1.0
+        },
+        {
+          "text": "负载过流",
+          "weight": 0.75
+        },
+        {
+          "text": "断路器本身故障",
+          "weight": 0.55
+        },
+        {
+          "text": "线路绝缘老化",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "断开负载后单独合闸",
+          "expect": "不跳闸"
+        },
+        {
+          "order": 2,
+          "action": "逐路接回负载定位",
+          "expect": "定位到故障支路"
+        },
+        {
+          "order": 3,
+          "action": "测量故障支路绝缘与电流",
+          "expect": "绝缘合格、电流正常"
+        },
+        {
+          "order": 4,
+          "action": "修复后复测",
+          "expect": "不再跳闸"
+        }
+      ],
+      "escalation": "短路原因未查清前不得反复合闸，禁止加大断路器规格。",
+      "safety": "测量绝缘前断电验电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_ctrl_water",
+      "system": "hvac",
+      "title": "空调控制柜进水，元件锈蚀",
+      "symptoms": [
+        "控制柜内有水迹",
+        "端子或元件锈蚀",
+        "雨后空调故障"
+      ],
+      "keywords": [
+        "控制柜进水",
+        "水迹",
+        "锈蚀",
+        "雨后故障",
+        "受潮"
+      ],
+      "likely_causes": [
+        {
+          "text": "控制柜密封条老化",
+          "weight": 1.0
+        },
+        {
+          "text": "过线孔未封堵",
+          "weight": 0.8
+        },
+        {
+          "text": "柜顶冷凝水滴落",
+          "weight": 0.6
+        },
+        {
+          "text": "排水不畅导致积水",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "打开控制柜检查水迹与锈蚀",
+          "expect": "柜内干燥、无锈蚀"
+        },
+        {
+          "order": 2,
+          "action": "检查柜门密封条与过线孔",
+          "expect": "密封完好、封堵齐全"
+        },
+        {
+          "order": 3,
+          "action": "检查柜顶冷凝水与排水",
+          "expect": "无滴漏、排水通畅"
+        },
+        {
+          "order": 4,
+          "action": "干燥处理并更换锈蚀件",
+          "expect": "绝缘合格、运行正常"
+        }
+      ],
+      "escalation": "进水后必须断电干燥并测量绝缘，禁止直接上电。",
+      "safety": "进水设备严禁带电开柜。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_ctrl_board_comm",
+      "system": "hvac",
+      "title": "控制板通信故障，模块之间失联",
+      "symptoms": [
+        "软件显示某模块通信中断",
+        "该模块功能失效",
+        "重启后短暂恢复"
+      ],
+      "keywords": [
+        "控制板通信",
+        "模块失联",
+        "通信中断",
+        "重启恢复",
+        "控制板"
+      ],
+      "likely_causes": [
+        {
+          "text": "通信线接头松动",
+          "weight": 1.0
+        },
+        {
+          "text": "通信板故障",
+          "weight": 0.75
+        },
+        {
+          "text": "终端电阻或屏蔽异常",
+          "weight": 0.6
+        },
+        {
+          "text": "电源波动导致模块复位",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查通信线接头与锁紧",
+          "expect": "接头锁紧、无退针"
+        },
+        {
+          "order": 2,
+          "action": "测量通信线通断与屏蔽",
+          "expect": "导通、屏蔽完好"
+        },
+        {
+          "order": 3,
+          "action": "检查模块供电稳定性",
+          "expect": "供电稳定"
+        },
+        {
+          "order": 4,
+          "action": "更换通信板后复测",
+          "expect": "通信恢复"
+        }
+      ],
+      "escalation": "通信反复中断时更换控制板，禁止靠重启维持。",
+      "safety": "插拔通信线前断电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.yidocs.com/doc/4820673107.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_vehicle_network",
+      "system": "hvac",
+      "title": "空调与车辆网络通信中断，监控无数据",
+      "symptoms": [
+        "司机台看不到空调状态",
+        "空调本地运行正常",
+        "网络故障记录有超时"
+      ],
+      "keywords": [
+        "车辆网络",
+        "通信中断",
+        "监控无数据",
+        "本地正常",
+        "超时"
+      ],
+      "likely_causes": [
+        {
+          "text": "网络接口或终端电阻异常",
+          "weight": 1.0
+        },
+        {
+          "text": "节点地址配置错误",
+          "weight": 0.7
+        },
+        {
+          "text": "通信线屏蔽接地不良",
+          "weight": 0.6
+        },
+        {
+          "text": "空调通信板故障",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查网络接口与终端电阻",
+          "expect": "接口正常、阻值匹配"
+        },
+        {
+          "order": 2,
+          "action": "核对节点地址",
+          "expect": "地址唯一且正确"
+        },
+        {
+          "order": 3,
+          "action": "检查屏蔽接地",
+          "expect": "屏蔽可靠接地"
+        },
+        {
+          "order": 4,
+          "action": "更换通信板后复测",
+          "expect": "监控数据恢复"
+        }
+      ],
+      "escalation": "通信中断不影响本地制冷但影响监控，未修复时按网络故障上报。",
+      "safety": "插拔网络接头前断电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.yidocs.com/doc/4820673107.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_mode_switch",
+      "system": "hvac",
+      "title": "空调模式无法切换，卡在某一工况",
+      "symptoms": [
+        "按模式键无变化",
+        "始终在通风或制冷一个模式",
+        "面板显示模式不切换"
+      ],
+      "keywords": [
+        "模式切换",
+        "卡在模式",
+        "无法切换",
+        "工况不变",
+        "模式键"
+      ],
+      "likely_causes": [
+        {
+          "text": "模式按键或面板故障",
+          "weight": 1.0
+        },
+        {
+          "text": "控制参数锁定模式",
+          "weight": 0.7
+        },
+        {
+          "text": "执行机构不响应",
+          "weight": 0.6
+        },
+        {
+          "text": "控制板输出故障",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测试模式按键响应",
+          "expect": "按键有响应"
+        },
+        {
+          "order": 2,
+          "action": "核对控制参数与模式锁定",
+          "expect": "无模式锁定"
+        },
+        {
+          "order": 3,
+          "action": "检查执行机构动作",
+          "expect": "随模式切换动作"
+        },
+        {
+          "order": 4,
+          "action": "更换面板或控制板后复测",
+          "expect": "模式可切换"
+        }
+      ],
+      "escalation": "模式无法切换会影响制冷或通风，未修复时按最大制冷模式运行并上报。",
+      "safety": "切换模式时确认门区与风道无人作业。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_mode_conflict",
+      "system": "hvac",
+      "title": "制冷与通风指令冲突，压缩机频繁启停",
+      "symptoms": [
+        "压缩机刚启动又停",
+        "通风与制冷指令同时存在",
+        "面板显示模式反复跳变"
+      ],
+      "keywords": [
+        "指令冲突",
+        "频繁启停",
+        "制冷通风",
+        "模式跳变",
+        "同时存在"
+      ],
+      "likely_causes": [
+        {
+          "text": "控制逻辑冲突",
+          "weight": 1.0
+        },
+        {
+          "text": "面板按键粘连导致重复指令",
+          "weight": 0.75
+        },
+        {
+          "text": "网络指令与本地指令冲突",
+          "weight": 0.6
+        },
+        {
+          "text": "控制参数设置错误",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "观察面板模式与指令状态",
+          "expect": "指令唯一、不冲突"
+        },
+        {
+          "order": 2,
+          "action": "检查按键是否粘连",
+          "expect": "按键回弹正常"
+        },
+        {
+          "order": 3,
+          "action": "核对本地与网络控制权限",
+          "expect": "权限设置正确"
+        },
+        {
+          "order": 4,
+          "action": "复位控制参数后复测",
+          "expect": "不再频繁启停"
+        }
+      ],
+      "escalation": "频繁启停会损坏压缩机，未修复时停止制冷并上报。",
+      "safety": "压缩机频繁启停时不要反复操作面板。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.yidocs.com/doc/4820673107.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_heater_no_heat",
+      "system": "hvac",
+      "title": "电加热器不热，冬季客室温度低",
+      "symptoms": [
+        "加热工况开启后出风不热",
+        "加热接触器不吸合",
+        "客室温度上不去"
+      ],
+      "keywords": [
+        "电加热不热",
+        "不出热风",
+        "冬季冷",
+        "加热器",
+        "不加热"
+      ],
+      "likely_causes": [
+        {
+          "text": "加热器电热管断路",
+          "weight": 1.0
+        },
+        {
+          "text": "加热接触器不吸合",
+          "weight": 0.8
+        },
+        {
+          "text": "加热控制信号缺失",
+          "weight": 0.65
+        },
+        {
+          "text": "加热过温保护动作",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量加热器供电与电流",
+          "expect": "有供电、电流正常"
+        },
+        {
+          "order": 2,
+          "action": "检查加热接触器吸合",
+          "expect": "吸合可靠"
+        },
+        {
+          "order": 3,
+          "action": "测量电热管电阻",
+          "expect": "阻值在标称范围"
+        },
+        {
+          "order": 4,
+          "action": "复位过温保护后复测",
+          "expect": "加热恢复"
+        }
+      ],
+      "escalation": "电热管断路时更换加热器，禁止短接温控或过温保护。",
+      "safety": "加热器高温，断电冷却后再检查。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_heater_tube",
+      "system": "hvac",
+      "title": "风道加热器电热管开裂鼓包",
+      "symptoms": [
+        "电热管表面鼓包或开裂",
+        "加热时有异味",
+        "加热电流不平衡"
+      ],
+      "keywords": [
+        "电热管开裂",
+        "鼓包",
+        "异味",
+        "电流不平衡",
+        "风道加热"
+      ],
+      "likely_causes": [
+        {
+          "text": "电热管老化或质量问题",
+          "weight": 1.0
+        },
+        {
+          "text": "风量不足导致局部过热",
+          "weight": 0.8
+        },
+        {
+          "text": "加热器表面积尘",
+          "weight": 0.6
+        },
+        {
+          "text": "电压偏高",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查电热管外观",
+          "expect": "无鼓包、无开裂"
+        },
+        {
+          "order": 2,
+          "action": "测量三相加热电流",
+          "expect": "三相平衡"
+        },
+        {
+          "order": 3,
+          "action": "检查风量与加热器清洁",
+          "expect": "风量正常、无积尘"
+        },
+        {
+          "order": 4,
+          "action": "更换电热管后复测",
+          "expect": "加热正常"
+        }
+      ],
+      "escalation": "电热管鼓包开裂必须更换，禁止继续通电使用。",
+      "safety": "电热管可能带电且高温，断电冷却后作业。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_fan_heater",
+      "system": "hvac",
+      "title": "风扇加热器不工作，司机室冷",
+      "symptoms": [
+        "风扇加热器风扇不转",
+        "出风不热",
+        "加热器表面无温度"
+      ],
+      "keywords": [
+        "风扇加热器",
+        "不工作",
+        "司机室冷",
+        "风扇不转",
+        "不热"
+      ],
+      "likely_causes": [
+        {
+          "text": "加热器供电缺失",
+          "weight": 1.0
+        },
+        {
+          "text": "风扇电机故障",
+          "weight": 0.8
+        },
+        {
+          "text": "加热元件断路",
+          "weight": 0.65
+        },
+        {
+          "text": "温控开关故障",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量加热器供电",
+          "expect": "供电正常"
+        },
+        {
+          "order": 2,
+          "action": "检查风扇转动",
+          "expect": "风扇正常运转"
+        },
+        {
+          "order": 3,
+          "action": "测量加热元件电阻",
+          "expect": "阻值正常"
+        },
+        {
+          "order": 4,
+          "action": "更换故障件后复测",
+          "expect": "加热正常"
+        }
+      ],
+      "escalation": "风扇不转时禁止单独通电加热，防止过热起火。",
+      "safety": "加热器周围不得堆放杂物。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_heater_contactor",
+      "system": "hvac",
+      "title": "加热接触器不吸合，加热回路断",
+      "symptoms": [
+        "加热指令已给但接触器不动",
+        "线圈无电压或电压不足",
+        "加热器完全不工作"
+      ],
+      "keywords": [
+        "加热接触器",
+        "不吸合",
+        "线圈无电",
+        "加热断",
+        "接触器"
+      ],
+      "likely_causes": [
+        {
+          "text": "控制信号未送达",
+          "weight": 1.0
+        },
+        {
+          "text": "线圈开路",
+          "weight": 0.8
+        },
+        {
+          "text": "接触器机械卡滞",
+          "weight": 0.6
+        },
+        {
+          "text": "控制保险熔断",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "加热指令下测量线圈电压",
+          "expect": "达到吸合电压"
+        },
+        {
+          "order": 2,
+          "action": "测量线圈电阻",
+          "expect": "无开路"
+        },
+        {
+          "order": 3,
+          "action": "检查接触器机械动作",
+          "expect": "按压衔铁动作灵活"
+        },
+        {
+          "order": 4,
+          "action": "更换接触器后复测",
+          "expect": "加热恢复"
+        }
+      ],
+      "escalation": "线圈开路或卡滞时更换接触器，禁止手动按住维持。",
+      "safety": "更换前断电，防止加热器意外通电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_heater_overtemp",
+      "system": "hvac",
+      "title": "加热过温保护动作，加热反复中断",
+      "symptoms": [
+        "加热一段时间后自动停止",
+        "过温保护器动作",
+        "风量偏小"
+      ],
+      "keywords": [
+        "加热过温",
+        "热保护",
+        "自动停止",
+        "风量小",
+        "过温保护"
+      ],
+      "likely_causes": [
+        {
+          "text": "风量不足导致热量积聚",
+          "weight": 1.0
+        },
+        {
+          "text": "过温保护器阈值漂移",
+          "weight": 0.7
+        },
+        {
+          "text": "温度传感器位置不当",
+          "weight": 0.6
+        },
+        {
+          "text": "加热器功率偏大",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查加热时风量与风机状态",
+          "expect": "风量正常"
+        },
+        {
+          "order": 2,
+          "action": "测量过温保护动作温度",
+          "expect": "在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查温度传感器位置",
+          "expect": "能代表加热器温度"
+        },
+        {
+          "order": 4,
+          "action": "处理后连续加热观察",
+          "expect": "不再频繁保护"
+        }
+      ],
+      "escalation": "风量正常仍频繁保护时更换保护器，禁止短接过温保护。",
+      "safety": "过温保护是防火防线，严禁旁路。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_current_unbalance",
+      "system": "hvac",
+      "title": "空调三相电流不平衡，偏差超限",
+      "symptoms": [
+        "三相电流偏差超过规定",
+        "某相电流明显偏高",
+        "电机或线路发热"
+      ],
+      "keywords": [
+        "电流不平衡",
+        "三相偏差",
+        "一相高",
+        "发热",
+        "电流偏差"
+      ],
+      "likely_causes": [
+        {
+          "text": "三相负载分配不均",
+          "weight": 1.0
+        },
+        {
+          "text": "某相接触器触点接触电阻大",
+          "weight": 0.8
+        },
+        {
+          "text": "电机绕组局部故障",
+          "weight": 0.7
+        },
+        {
+          "text": "电源电压不平衡",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量三相电压与电流",
+          "expect": "电流偏差不超过规定值"
+        },
+        {
+          "order": 2,
+          "action": "检查接触器与端子发热",
+          "expect": "无过热、无烧蚀"
+        },
+        {
+          "order": 3,
+          "action": "测量电机绕组三相对称性",
+          "expect": "三相对称"
+        },
+        {
+          "order": 4,
+          "action": "调整负载或更换故障件",
+          "expect": "电流平衡"
+        }
+      ],
+      "escalation": "偏差持续超限时按电机或线路故障处理，禁止调整保护阈值。",
+      "safety": "测量电流时使用合适量程，防止电弧。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_undervoltage",
+      "system": "hvac",
+      "title": "空调电源欠压，压缩机无法启动",
+      "symptoms": [
+        "控制柜电压明显低于标称",
+        "压缩机启动困难",
+        "接触器反复吸合释放"
+      ],
+      "keywords": [
+        "欠压",
+        "电压低",
+        "启动困难",
+        "接触器抖动",
+        "电源"
+      ],
+      "likely_causes": [
+        {
+          "text": "供电线路压降过大",
+          "weight": 1.0
+        },
+        {
+          "text": "变压器或电源容量不足",
+          "weight": 0.75
+        },
+        {
+          "text": "端子接触电阻大",
+          "weight": 0.6
+        },
+        {
+          "text": "多台大负载同时启动",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量控制柜进线电压与带载电压",
+          "expect": "不低于标称下限"
+        },
+        {
+          "order": 2,
+          "action": "检查进线端子与接触器",
+          "expect": "接触良好、无发热"
+        },
+        {
+          "order": 3,
+          "action": "检查同时启动的负载",
+          "expect": "启动顺序合理"
+        },
+        {
+          "order": 4,
+          "action": "处理后复测启动电流",
+          "expect": "启动正常"
+        }
+      ],
+      "escalation": "欠压会导致压缩机烧毁，未修复时禁止反复启动。",
+      "safety": "测量电压时防止短路。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_phase_sequence",
+      "system": "hvac",
+      "title": "相序错误，压缩机反转或不启动",
+      "symptoms": [
+        "压缩机启动后有异常声音",
+        "三相设备不工作",
+        "检修后换过电源线"
+      ],
+      "keywords": [
+        "相序错误",
+        "反转",
+        "不启动",
+        "换线后",
+        "相序"
+      ],
+      "likely_causes": [
+        {
+          "text": "电源线相序接错",
+          "weight": 1.0
+        },
+        {
+          "text": "相序保护器故障",
+          "weight": 0.7
+        },
+        {
+          "text": "更换电机后接线错误",
+          "weight": 0.65
+        },
+        {
+          "text": "插头重新压接时相序变化",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "用相序表测量进线相序",
+          "expect": "相序正确"
+        },
+        {
+          "order": 2,
+          "action": "核对电机接线与图纸",
+          "expect": "接线正确"
+        },
+        {
+          "order": 3,
+          "action": "检查相序保护器状态",
+          "expect": "保护器正常"
+        },
+        {
+          "order": 4,
+          "action": "调整相序后点动试运行",
+          "expect": "转向正确"
+        }
+      ],
+      "escalation": "相序错误时禁止长期运行，调整后必须确认压缩机转向。",
+      "safety": "调相序前断电，防止电弧伤人。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_cabinet_fan",
+      "system": "hvac",
+      "title": "控制柜散热风扇不转，柜内温度高",
+      "symptoms": [
+        "控制柜摸起来烫",
+        "柜内风扇不转",
+        "高温时控制板死机"
+      ],
+      "keywords": [
+        "控制柜散热",
+        "风扇不转",
+        "柜内高温",
+        "控制板死机",
+        "散热"
+      ],
+      "likely_causes": [
+        {
+          "text": "散热风扇损坏",
+          "weight": 1.0
+        },
+        {
+          "text": "风扇供电或保险故障",
+          "weight": 0.75
+        },
+        {
+          "text": "柜内积尘堵塞风道",
+          "weight": 0.6
+        },
+        {
+          "text": "柜门密封过严无进风",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查散热风扇运转",
+          "expect": "风扇正常转动"
+        },
+        {
+          "order": 2,
+          "action": "测量风扇供电与保险",
+          "expect": "供电正常、保险导通"
+        },
+        {
+          "order": 3,
+          "action": "清理柜内积尘与风道",
+          "expect": "风道通畅"
+        },
+        {
+          "order": 4,
+          "action": "更换风扇后测柜内温度",
+          "expect": "温度在允许范围"
+        }
+      ],
+      "escalation": "柜内高温会导致控制板死机，未修复时打开柜门临时散热并上报。",
+      "safety": "开柜前断电，防止触电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_param_lost",
+      "system": "hvac",
+      "title": "空调控制参数丢失，运行逻辑异常",
+      "symptoms": [
+        "断电检修后空调行为改变",
+        "设定温度与风速不再生效",
+        "参数显示为默认值"
+      ],
+      "keywords": [
+        "参数丢失",
+        "默认值",
+        "断电后变",
+        "设定无效",
+        "控制参数"
+      ],
+      "likely_causes": [
+        {
+          "text": "控制板后备电池耗尽",
+          "weight": 1.0
+        },
+        {
+          "text": "更换控制板后未导入参数",
+          "weight": 0.85
+        },
+        {
+          "text": "软件升级导致参数重置",
+          "weight": 0.6
+        },
+        {
+          "text": "误操作恢复出厂",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "对比当前参数与基线",
+          "expect": "关键参数一致"
+        },
+        {
+          "order": 2,
+          "action": "检查后备电池电压",
+          "expect": "不低于标称值"
+        },
+        {
+          "order": 3,
+          "action": "导入基线参数",
+          "expect": "参数恢复"
+        },
+        {
+          "order": 4,
+          "action": "断电重启后复核",
+          "expect": "参数保持"
+        }
+      ],
+      "escalation": "参数反复丢失时更换控制板，禁止用默认参数运行。",
+      "safety": "参数修改后做完整功能试验。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.ebnew.com/businessShow/650053510-recommendDetail.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_sw_version",
+      "system": "hvac",
+      "title": "空调控制软件版本不一致，行为不同",
+      "symptoms": [
+        "同型车空调控制逻辑不同",
+        "换过控制板的车表现不同",
+        "部分功能有的车有有的车没有"
+      ],
+      "keywords": [
+        "软件版本",
+        "版本不一致",
+        "逻辑不同",
+        "换控制板",
+        "功能差异"
+      ],
+      "likely_causes": [
+        {
+          "text": "备件控制板版本较新或较旧",
+          "weight": 1.0
+        },
+        {
+          "text": "部分车未参加统一升级",
+          "weight": 0.8
+        },
+        {
+          "text": "升级中断导致版本不完整",
+          "weight": 0.5
+        },
+        {
+          "text": "车型配置差异",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "读取各车控制软件版本",
+          "expect": "同型车版本一致"
+        },
+        {
+          "order": 2,
+          "action": "核对版本与厂家通知",
+          "expect": "版本在允许清单"
+        },
+        {
+          "order": 3,
+          "action": "按统一版本刷写",
+          "expect": "版本统一"
+        },
+        {
+          "order": 4,
+          "action": "刷写后做功能试验",
+          "expect": "功能一致"
+        }
+      ],
+      "escalation": "版本无法统一时记录差异并上报，禁止混版长期运用。",
+      "safety": "刷写过程中不得断电。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.yidocs.com/doc/4820673107.html"
+      ]
+    },
+    {
+      "id": "kb_hvac_code_unreadable",
+      "system": "hvac",
+      "title": "空调故障码读不出，诊断软件连不上",
+      "symptoms": [
+        "诊断软件提示连接失败",
+        "换电脑仍连不上",
+        "面板操作一切正常"
+      ],
+      "keywords": [
+        "故障码读不出",
+        "诊断连不上",
+        "软件连不上",
+        "读不到",
+        "诊断口"
+      ],
+      "likely_causes": [
+        {
+          "text": "诊断口接触不良或退针",
+          "weight": 1.0
+        },
+        {
+          "text": "诊断线或驱动问题",
+          "weight": 0.7
+        },
+        {
+          "text": "控制板诊断通道禁用",
+          "weight": 0.55
+        },
+        {
+          "text": "软件版本不匹配",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查诊断口针脚与插头",
+          "expect": "无退针、无氧化"
+        },
+        {
+          "order": 2,
+          "action": "换已知良好诊断线复测",
+          "expect": "能连接"
+        },
+        {
+          "order": 3,
+          "action": "核对软件版本与车型",
+          "expect": "版本匹配"
+        },
+        {
+          "order": 4,
+          "action": "检查诊断使能设置",
+          "expect": "诊断通道启用"
+        }
+      ],
+      "escalation": "硬件软件均正常仍无法连接时更换控制板并保留原板分析。",
+      "safety": "连接诊断设备时车辆静止。",
+      "sources": [
+        "K-05"
+      ],
+      "source_links": [
+        "https://www.yidocs.com/doc/4820673107.html"
+      ]
+    }
+  ]
+}

@@ -43,6 +43,8 @@ def _entry_payload(entry: KnowledgeEntry) -> dict:
         "escalation": entry.escalation,
         "safety": entry.safety,
         "sources": entry.sources,
+        "source_links": entry.source_links,
+        "source_links": entry.source_links,
     }
 
 
@@ -126,6 +128,7 @@ def _conclusion_fail(entry: KnowledgeEntry, check: Check, evidence: str = "") ->
         "action": entry.escalation,
         "safety": entry.safety,
         "sources": entry.sources,
+        "source_links": entry.source_links,
         "confidence": _confidence("fail", check, entry),
         "basis": basis,
     }
@@ -139,6 +142,7 @@ def _conclusion_exhausted(entry: KnowledgeEntry) -> dict:
         "action": entry.escalation,
         "safety": entry.safety,
         "sources": entry.sources,
+        "source_links": entry.source_links,
         "confidence": _confidence("exhausted"),
         "basis": ["全部检查项均通过，现象未复现", *[f"依据：{s}" for s in entry.sources]],
     }
@@ -152,6 +156,7 @@ def _conclusion_aborted(entry: KnowledgeEntry) -> dict:
         "action": entry.escalation,
         "safety": entry.safety,
         "sources": entry.sources,
+        "source_links": entry.source_links,
         "confidence": _confidence("aborted"),
         "basis": ["诊断在得出结论前中止"],
     }

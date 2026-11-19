@@ -35,7 +35,7 @@ const {
 
 const mode = ref<'quick' | 'step'>('quick')
 const symptom = ref('')
-const system = ref<'' | 'door' | 'hvac' | 'pantograph'>('')
+const system = ref<'' | 'door' | 'hvac' | 'pantograph' | 'brake' | 'wiper'>('')
 const phase = ref<'idle' | 'loading' | 'ready' | 'error'>('idle')
 const result = ref<DiagnoseResponse | null>(null)
 const kb = ref<KbOverview | null>(null)
@@ -48,6 +48,8 @@ const SYSTEM_LABEL: Record<string, string> = {
   door: '客室侧门',
   hvac: '空调',
   pantograph: '受电弓',
+  brake: '制动',
+  wiper: '雨刷',
 }
 
 /** 流式的三个阶段。`recall` 之后候选已经能上屏，重排在后台跑。 */
@@ -258,6 +260,8 @@ onBeforeUnmount(() => quickCtrl?.abort())
         <option value="door">客室侧门</option>
         <option value="hvac">空调</option>
         <option value="pantograph">受电弓</option>
+        <option value="brake">制动</option>
+        <option value="wiper">雨刷</option>
       </select>
       <button
         class="btn btn--primary"

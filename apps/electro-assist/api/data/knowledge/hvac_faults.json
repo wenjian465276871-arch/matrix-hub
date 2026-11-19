@@ -1,5 +1,5 @@
 {
-  "version": "2.0",
+  "version": "3.0",
   "updated_at": "2026-10-21",
   "entries": [
     {
@@ -61,6 +61,10 @@
       "safety": "制冷剂管路补焊、抽真空加注必须由具备资质人员操作；接触电气部件前断电验电。",
       "sources": [
         "D-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?goto=lastpost&mod=redirect&tid=30399",
+        "https://peoplerail.com/newszb/html/2025-06/06/content_2_53573.htm"
       ]
     },
     {
@@ -121,6 +125,9 @@
       "safety": "测电流与拆接线前确认断电挂牌；压缩机未完全停稳前不要触碰接线端。",
       "sources": [
         "D-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?goto=lastpost&mod=redirect&tid=30399"
       ]
     },
     {
@@ -181,6 +188,9 @@
       "safety": "登高检查风口时使用防滑梯并有人监护；不要把手伸入运转中的风机。",
       "sources": [
         "D-06"
+      ],
+      "source_links": [
+        "https://www.mlzp.cc/forum.php?goto=lastpost&mod=redirect&tid=30399"
       ]
     },
     {
@@ -237,6 +247,10 @@
       "safety": "拆装面板前断电；传感器线束避免与高压线束同槽捆扎。",
       "sources": [
         "D-06"
+      ],
+      "source_links": [
+        "https://peoplerail.com/newszb/html/2025-06/06/content_2_53573.htm",
+        "https://www.mlzp.cc/forum.php?goto=lastpost&mod=redirect&tid=30399"
       ]
     }
   ]

@@ -1,0 +1,2021 @@
+{
+  "version": "3.0",
+  "updated_at": "2026-11-19",
+  "entries": [
+    {
+      "id": "kb_door_regulator_low",
+      "system": "door",
+      "title": "总风压力正常，本门减压阀输出偏低",
+      "symptoms": [
+        "总风表压力正常，本门气动锁动作明显无力",
+        "同一列车其它门正常，只有这一门气压低",
+        "门能关到位但锁不住"
+      ],
+      "keywords": [
+        "减压阀输出低",
+        "本门气压低",
+        "总风正常",
+        "锁不住",
+        "调压阀"
+      ],
+      "likely_causes": [
+        {
+          "text": "减压阀调压弹簧疲劳，输出压力下降",
+          "weight": 1.0
+        },
+        {
+          "text": "减压阀阀芯被杂质卡住",
+          "weight": 0.8
+        },
+        {
+          "text": "减压阀后管路漏气，静态压力看着正常",
+          "weight": 0.65
+        },
+        {
+          "text": "减压阀选型或设定值错误",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "在减压阀出口接表测量静态与动作时压力",
+          "expect": "静态与动作时均不低于标称下限"
+        },
+        {
+          "order": 2,
+          "action": "关闭下游截断塞门观察压力是否保持",
+          "expect": "保压 5 分钟压降不超过 0.02MPa"
+        },
+        {
+          "order": 3,
+          "action": "拆检减压阀滤芯与阀芯",
+          "expect": "无杂质、阀芯活动自如"
+        },
+        {
+          "order": 4,
+          "action": "按标称值重新调整输出压力",
+          "expect": "调整后压力稳定"
+        }
+      ],
+      "escalation": "调压后压力仍不稳或阀芯卡死时更换减压阀，禁止把输出压力调高到超过下游额定值。",
+      "safety": "调整气路前确认门区无人，泄压后再拆接头。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_regulator_diaphragm",
+      "system": "door",
+      "title": "减压阀膜片破损，气路持续漏风",
+      "symptoms": [
+        "减压阀附近有持续嘶嘶漏气声",
+        "压力表指针轻微抖动",
+        "门动作慢且锁闭无力"
+      ],
+      "keywords": [
+        "膜片破",
+        "减压阀漏气",
+        "嘶嘶声",
+        "压力抖动",
+        "持续漏风"
+      ],
+      "likely_causes": [
+        {
+          "text": "减压阀膜片老化破裂",
+          "weight": 1.0
+        },
+        {
+          "text": "膜片被油污或杂质腐蚀",
+          "weight": 0.7
+        },
+        {
+          "text": "阀体密封面有划伤",
+          "weight": 0.55
+        },
+        {
+          "text": "长期超压导致膜片疲劳",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "听诊减压阀排气口是否有持续气流",
+          "expect": "无持续排气"
+        },
+        {
+          "order": 2,
+          "action": "拆下膜片检查裂纹与变形",
+          "expect": "膜片完整、无裂纹"
+        },
+        {
+          "order": 3,
+          "action": "检查阀体密封面",
+          "expect": "密封面光洁、无划伤"
+        },
+        {
+          "order": 4,
+          "action": "更换膜片后保压试验",
+          "expect": "保压合格、无泄漏"
+        }
+      ],
+      "escalation": "膜片破损必须更换同型号膜片，不得用胶粘或剪裁其它材料代替。",
+      "safety": "拆阀前先关闭气源并泄压，防止高压气体伤人。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_air_filter",
+      "system": "door",
+      "title": "空气过滤器堵塞，门动作越来越慢",
+      "symptoms": [
+        "门动作速度逐月变慢，不是突然坏的",
+        "过滤器杯内有明显积水和锈渣",
+        "排气时气流声很弱"
+      ],
+      "keywords": [
+        "过滤器堵塞",
+        "动作变慢",
+        "滤芯脏",
+        "有水",
+        "气路脏"
+      ],
+      "likely_causes": [
+        {
+          "text": "过滤器滤芯积尘堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "气路含水导致滤芯受潮板结",
+          "weight": 0.8
+        },
+        {
+          "text": "过滤器未按周期排水",
+          "weight": 0.7
+        },
+        {
+          "text": "上游管路锈蚀带入杂质",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆下滤芯检查堵塞与含水情况",
+          "expect": "滤芯通透、无积水"
+        },
+        {
+          "order": 2,
+          "action": "测量过滤器前后压差",
+          "expect": "压差不超过标称值"
+        },
+        {
+          "order": 3,
+          "action": "排放过滤器积水并检查上游管路",
+          "expect": "排出的气干净、无锈水"
+        },
+        {
+          "order": 4,
+          "action": "更换滤芯后测开关门时间",
+          "expect": "恢复到标称范围"
+        }
+      ],
+      "escalation": "滤芯更换后仍压差过大时检查上游管路与干燥器，禁止拆除滤芯运行。",
+      "safety": "排水和拆滤芯前泄压，防止积水喷溅。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_push_fitting",
+      "system": "door",
+      "title": "快插接头漏气，静态保不住压",
+      "symptoms": [
+        "门关闭后气路压力缓慢下降",
+        "接头处涂肥皂水有气泡",
+        "夜里安静时能听到轻微漏气声"
+      ],
+      "keywords": [
+        "快插接头",
+        "漏气",
+        "保不住压",
+        "肥皂水气泡",
+        "接头漏"
+      ],
+      "likely_causes": [
+        {
+          "text": "气管插入深度不足，O 形圈未密封",
+          "weight": 1.0
+        },
+        {
+          "text": "O 形圈老化或切伤",
+          "weight": 0.8
+        },
+        {
+          "text": "气管端面切口不平或有毛刺",
+          "weight": 0.6
+        },
+        {
+          "text": "接头卡簧失效，气管被压力顶出",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "在接头处涂肥皂水观察气泡",
+          "expect": "无连续气泡"
+        },
+        {
+          "order": 2,
+          "action": "检查气管插入深度标记",
+          "expect": "插入到标记线"
+        },
+        {
+          "order": 3,
+          "action": "拔出气管检查端面与 O 形圈",
+          "expect": "端面平整、O 形圈完好"
+        },
+        {
+          "order": 4,
+          "action": "重新插接到位后保压试验",
+          "expect": "5 分钟压降不超过 0.02MPa"
+        }
+      ],
+      "escalation": "O 形圈损坏或卡簧失效时更换接头，禁止用生料带缠绕快插接头。",
+      "safety": "拔气管前必须泄压，带压拔管会甩伤人员。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_hose_crack",
+      "system": "door",
+      "title": "气管老化开裂，门动作时漏气加剧",
+      "symptoms": [
+        "气管表面有细密裂纹，弯折处发白",
+        "门动作时漏气声变大",
+        "压力表在门动作瞬间明显下跌"
+      ],
+      "keywords": [
+        "气管开裂",
+        "老化",
+        "动作时漏气",
+        "管子裂",
+        "压力下跌"
+      ],
+      "likely_causes": [
+        {
+          "text": "气管材质老化，弯折处应力开裂",
+          "weight": 1.0
+        },
+        {
+          "text": "气管与运动件摩擦磨穿",
+          "weight": 0.75
+        },
+        {
+          "text": "管路固定卡缺失，长期振动疲劳",
+          "weight": 0.6
+        },
+        {
+          "text": "低温环境下管材变硬开裂",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "沿管路检查裂纹、磨痕与发白处",
+          "expect": "管壁完好、无裂纹"
+        },
+        {
+          "order": 2,
+          "action": "分段涂肥皂水定位漏点",
+          "expect": "无气泡"
+        },
+        {
+          "order": 3,
+          "action": "检查管路固定卡与运动件间隙",
+          "expect": "固定齐全、不与运动件接触"
+        },
+        {
+          "order": 4,
+          "action": "更换整根气管后保压",
+          "expect": "保压合格"
+        }
+      ],
+      "escalation": "气管开裂必须整根更换，禁止在裂纹处缠胶带或剪掉一段后对接。",
+      "safety": "更换气管时泄压，新管按原走向固定并留足弯曲半径。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_solenoid_no_action",
+      "system": "door",
+      "title": "电磁阀不动作，气路没有换向",
+      "symptoms": [
+        "给开门指令时电磁阀没有动作声",
+        "手动按压电磁阀按钮门能动作",
+        "阀体线圈部位温度正常"
+      ],
+      "keywords": [
+        "电磁阀不动作",
+        "没有换向",
+        "手动能开",
+        "阀不响",
+        "线圈"
+      ],
+      "likely_causes": [
+        {
+          "text": "电磁阀线圈未得电",
+          "weight": 1.0
+        },
+        {
+          "text": "线圈开路或烧毁",
+          "weight": 0.8
+        },
+        {
+          "text": "阀芯卡滞，得电也不换向",
+          "weight": 0.65
+        },
+        {
+          "text": "先导孔堵塞",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "给指令时测量电磁阀线圈电压",
+          "expect": "达到标称电压"
+        },
+        {
+          "order": 2,
+          "action": "测量线圈电阻",
+          "expect": "在标称范围、无开路"
+        },
+        {
+          "order": 3,
+          "action": "手动按压阀芯观察是否换向",
+          "expect": "手动可换向、动作顺畅"
+        },
+        {
+          "order": 4,
+          "action": "拆检先导孔与阀芯",
+          "expect": "无堵塞、无杂质"
+        }
+      ],
+      "escalation": "线圈开路或阀芯卡死无法修复时更换电磁阀，禁止长期手动按压维持。",
+      "safety": "拆电磁阀前泄压并断电，防止阀突然换向夹手。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_solenoid_coil_burn",
+      "system": "door",
+      "title": "电磁阀线圈烧毁，阀体发烫有焦味",
+      "symptoms": [
+        "电磁阀线圈部位明显发烫",
+        "靠近能闻到绝缘漆焦味",
+        "线圈外观发黑或鼓包"
+      ],
+      "keywords": [
+        "线圈烧",
+        "电磁阀发烫",
+        "焦味",
+        "线圈发黑",
+        "鼓包"
+      ],
+      "likely_causes": [
+        {
+          "text": "线圈长期得电，散热不足",
+          "weight": 1.0
+        },
+        {
+          "text": "电压偏高导致线圈过热",
+          "weight": 0.7
+        },
+        {
+          "text": "阀芯卡滞使线圈持续大电流",
+          "weight": 0.65
+        },
+        {
+          "text": "线圈绝缘老化短路",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "断电测量线圈电阻并与标称值对比",
+          "expect": "阻值偏差不超过 10%"
+        },
+        {
+          "order": 2,
+          "action": "检查线圈供电是否长期存在",
+          "expect": "非动作时线圈不得电"
+        },
+        {
+          "order": 3,
+          "action": "手动检查阀芯活动",
+          "expect": "阀芯活动自如"
+        },
+        {
+          "order": 4,
+          "action": "更换线圈后测量工作电流",
+          "expect": "电流在标称范围"
+        }
+      ],
+      "escalation": "线圈烧毁需更换电磁阀或线圈，并同时排查阀芯卡滞与持续得电原因。",
+      "safety": "焦味明显时先断电，禁止带电触摸发烫线圈。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_solenoid_stuck",
+      "system": "door",
+      "title": "电磁阀阀芯卡滞，动作时好时坏",
+      "symptoms": [
+        "门有时能开有时不能开，没有规律",
+        "电磁阀有得电声但气路不换向",
+        "拆下阀芯能看到油泥或锈迹"
+      ],
+      "keywords": [
+        "阀芯卡滞",
+        "时好时坏",
+        "有声音不换向",
+        "油泥",
+        "阀芯脏"
+      ],
+      "likely_causes": [
+        {
+          "text": "气路含水含油，阀芯表面形成油泥",
+          "weight": 1.0
+        },
+        {
+          "text": "阀芯复位弹簧疲劳",
+          "weight": 0.75
+        },
+        {
+          "text": "阀体内部锈蚀",
+          "weight": 0.6
+        },
+        {
+          "text": "密封件膨胀卡住阀芯",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆检阀芯与阀腔",
+          "expect": "阀芯光洁、无油泥锈迹"
+        },
+        {
+          "order": 2,
+          "action": "手动推阀芯感受行程与复位",
+          "expect": "行程顺畅、复位干脆"
+        },
+        {
+          "order": 3,
+          "action": "检查上游气路是否含水含油",
+          "expect": "气源干燥、无油"
+        },
+        {
+          "order": 4,
+          "action": "清洗或更换阀芯后多次动作",
+          "expect": "动作稳定"
+        }
+      ],
+      "escalation": "清洗后仍卡滞时更换电磁阀，并在上游加装或更换过滤器。",
+      "safety": "拆阀前泄压断电，清洗剂远离火源。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_silencer_block",
+      "system": "door",
+      "title": "消音器堵塞，排气慢门动作迟钝",
+      "symptoms": [
+        "门动作起步慢、到位也慢",
+        "排气声音很闷甚至听不到",
+        "消音器表面有油污积尘"
+      ],
+      "keywords": [
+        "消音器堵塞",
+        "排气慢",
+        "动作迟钝",
+        "排气闷",
+        "消音器"
+      ],
+      "likely_causes": [
+        {
+          "text": "消音器滤芯被油污积尘堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "消音器规格偏小，排气背压高",
+          "weight": 0.6
+        },
+        {
+          "text": "排气口被异物遮挡",
+          "weight": 0.5
+        },
+        {
+          "text": "阀体排气通道积碳",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆下消音器后试动作",
+          "expect": "动作速度明显恢复"
+        },
+        {
+          "order": 2,
+          "action": "检查消音器滤芯堵塞程度",
+          "expect": "滤芯通透"
+        },
+        {
+          "order": 3,
+          "action": "检查排气口是否被遮挡",
+          "expect": "排气通畅"
+        },
+        {
+          "order": 4,
+          "action": "更换或清洗消音器后测时间",
+          "expect": "开关门时间在标称范围"
+        }
+      ],
+      "escalation": "清洗无效时更换同规格消音器，禁止直接拆除消音器运行。",
+      "safety": "排气瞬间有气流与油雾，面部不要正对排气口。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_upper_lock",
+      "system": "door",
+      "title": "上气动锁不动作，门上部锁不住",
+      "symptoms": [
+        "门关到位后上部有缝隙，能用手推开",
+        "上锁位置没有动作声",
+        "下部锁正常"
+      ],
+      "keywords": [
+        "上气动锁",
+        "上部锁不住",
+        "上锁不动",
+        "有缝隙",
+        "能推开"
+      ],
+      "likely_causes": [
+        {
+          "text": "上锁气缸漏气或卡滞",
+          "weight": 1.0
+        },
+        {
+          "text": "上锁供气管路折弯或堵塞",
+          "weight": 0.75
+        },
+        {
+          "text": "上锁电磁阀不换向",
+          "weight": 0.6
+        },
+        {
+          "text": "锁舌与锁扣对位偏差",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "给锁闭指令观察上锁气缸动作",
+          "expect": "气缸伸出到位"
+        },
+        {
+          "order": 2,
+          "action": "测量上锁气路压力",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 3,
+          "action": "检查锁舌与锁扣对位",
+          "expect": "对中、无干涉"
+        },
+        {
+          "order": 4,
+          "action": "手动推动锁舌检查行程",
+          "expect": "行程顺畅、无卡滞"
+        }
+      ],
+      "escalation": "气缸漏气或锁舌变形时更换部件，禁止用垫片强行改变锁扣位置。",
+      "safety": "检查上锁时手不要放在锁舌行程内，防止夹伤。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_lower_lock",
+      "system": "door",
+      "title": "下气动锁不动作，门下部密封不严",
+      "symptoms": [
+        "门下部与门槛之间有缝隙，漏风",
+        "下锁位置无动作",
+        "高速运行时门下部有哨声"
+      ],
+      "keywords": [
+        "下气动锁",
+        "下部漏风",
+        "下锁不动",
+        "门槛缝隙",
+        "哨声"
+      ],
+      "likely_causes": [
+        {
+          "text": "下锁气缸漏气或推杆弯曲",
+          "weight": 1.0
+        },
+        {
+          "text": "下锁供气管路堵塞",
+          "weight": 0.75
+        },
+        {
+          "text": "下锁锁扣磨损或位置偏移",
+          "weight": 0.6
+        },
+        {
+          "text": "门扇下垂导致锁舌对不上",
+          "weight": 0.55
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "给锁闭指令观察下锁气缸",
+          "expect": "气缸伸出到位"
+        },
+        {
+          "order": 2,
+          "action": "检查推杆直线度",
+          "expect": "无明显弯曲"
+        },
+        {
+          "order": 3,
+          "action": "检查锁扣磨损与位置",
+          "expect": "锁扣完好、对位正确"
+        },
+        {
+          "order": 4,
+          "action": "关门后测量下部间隙",
+          "expect": "间隙在标称范围"
+        }
+      ],
+      "escalation": "推杆弯曲或锁扣磨损超限时更换，禁止调整门扇高度掩盖锁扣偏差。",
+      "safety": "检查下锁时防止门扇突然下落，必要时加机械支撑。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_lock_cylinder_leak",
+      "system": "door",
+      "title": "锁闭气缸漏气，锁到位后压力持续下降",
+      "symptoms": [
+        "锁闭后能听到气缸处漏气",
+        "压力表在锁闭后缓慢下降",
+        "反复锁闭时动作越来越无力"
+      ],
+      "keywords": [
+        "气缸漏气",
+        "锁到位漏",
+        "压力下降",
+        "气缸串气",
+        "密封圈"
+      ],
+      "likely_causes": [
+        {
+          "text": "气缸活塞密封圈磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "缸筒内壁拉伤",
+          "weight": 0.75
+        },
+        {
+          "text": "气缸端盖密封老化",
+          "weight": 0.6
+        },
+        {
+          "text": "气管接头处漏气",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "在气缸排气口涂肥皂水观察",
+          "expect": "无持续气泡"
+        },
+        {
+          "order": 2,
+          "action": "拆检活塞密封圈与缸筒",
+          "expect": "密封圈完好、缸筒无拉伤"
+        },
+        {
+          "order": 3,
+          "action": "检查端盖与接头密封",
+          "expect": "无泄漏"
+        },
+        {
+          "order": 4,
+          "action": "更换密封件后做保压试验",
+          "expect": "保压合格"
+        }
+      ],
+      "escalation": "缸筒拉伤或密封圈反复损坏时更换气缸总成，不得加注油脂临时密封。",
+      "safety": "拆气缸前泄压，防止活塞弹出。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://wap.cinn.cn/p/W020210913546968852977.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_unlock_cylinder",
+      "system": "door",
+      "title": "解锁气缸不动作，门打不开",
+      "symptoms": [
+        "按开门按钮能听到电磁阀动作，但门不动",
+        "手动拉紧急解锁能开门",
+        "解锁气缸无动作"
+      ],
+      "keywords": [
+        "解锁气缸",
+        "门打不开",
+        "手动能开",
+        "气缸不动",
+        "解锁"
+      ],
+      "likely_causes": [
+        {
+          "text": "解锁气缸漏气或推杆卡滞",
+          "weight": 1.0
+        },
+        {
+          "text": "解锁电磁阀不换向",
+          "weight": 0.8
+        },
+        {
+          "text": "解锁气路压力不足",
+          "weight": 0.6
+        },
+        {
+          "text": "解锁机构连杆脱开",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "给开门指令观察解锁气缸动作",
+          "expect": "气缸伸出到位"
+        },
+        {
+          "order": 2,
+          "action": "测量解锁气路压力",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 3,
+          "action": "检查解锁连杆与销轴",
+          "expect": "连接完好、无脱开"
+        },
+        {
+          "order": 4,
+          "action": "手动推动气缸检查行程",
+          "expect": "行程顺畅"
+        }
+      ],
+      "escalation": "气缸或连杆损坏时更换，禁止用铁丝代替连杆或长期手动解锁运行。",
+      "safety": "解锁后门可能突然打开，确认门区无人再操作。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_unlock_rod_bend",
+      "system": "door",
+      "title": "解锁推杆弯曲，行程不够解不开锁",
+      "symptoms": [
+        "解锁气缸动作但锁舌只退一半",
+        "推杆有明显弯曲或别劲",
+        "门要用手推一下才开"
+      ],
+      "keywords": [
+        "推杆弯曲",
+        "行程不够",
+        "锁舌退一半",
+        "别劲",
+        "要手推"
+      ],
+      "likely_causes": [
+        {
+          "text": "推杆受侧向力弯曲",
+          "weight": 1.0
+        },
+        {
+          "text": "推杆导向套磨损导致偏摆",
+          "weight": 0.7
+        },
+        {
+          "text": "锁舌卡滞使推杆过载",
+          "weight": 0.65
+        },
+        {
+          "text": "气缸安装不同心",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "拆下推杆检查直线度",
+          "expect": "直线度在 0.5mm 以内"
+        },
+        {
+          "order": 2,
+          "action": "检查导向套磨损",
+          "expect": "导向套间隙在限值内"
+        },
+        {
+          "order": 3,
+          "action": "手动推锁舌检查阻力",
+          "expect": "锁舌活动顺畅"
+        },
+        {
+          "order": 4,
+          "action": "更换推杆后复测解锁行程",
+          "expect": "锁舌完全退回"
+        }
+      ],
+      "escalation": "推杆弯曲必须更换，禁止用锤击校直后继续使用。",
+      "safety": "更换推杆后先手动操作确认无卡阻，再通电试验。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2021/2859647.html"
+      ]
+    },
+    {
+      "id": "kb_door_main_lock_stuck",
+      "system": "door",
+      "title": "主锁机构卡滞，解锁后门仍被锁住",
+      "symptoms": [
+        "解锁信号已给，主锁没有脱开声",
+        "门扇用手推不动",
+        "主锁处有摩擦痕迹"
+      ],
+      "keywords": [
+        "主锁卡滞",
+        "解锁不脱开",
+        "推不动",
+        "主锁",
+        "摩擦痕"
+      ],
+      "likely_causes": [
+        {
+          "text": "主锁锁叉与锁扣啮合处缺润滑",
+          "weight": 1.0
+        },
+        {
+          "text": "锁叉轴锈蚀或磨损",
+          "weight": 0.75
+        },
+        {
+          "text": "解锁板变形卡住锁叉",
+          "weight": 0.6
+        },
+        {
+          "text": "主锁内部弹簧断裂",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "手动操作解锁板观察锁叉动作",
+          "expect": "锁叉能完全脱开"
+        },
+        {
+          "order": 2,
+          "action": "检查锁叉轴润滑与锈蚀",
+          "expect": "润滑良好、转动灵活"
+        },
+        {
+          "order": 3,
+          "action": "检查解锁板变形与干涉",
+          "expect": "无变形、无干涉"
+        },
+        {
+          "order": 4,
+          "action": "清洁润滑后重复解锁",
+          "expect": "每次都能脱开"
+        }
+      ],
+      "escalation": "锁叉轴锈死或弹簧断裂时更换主锁总成，禁止强行撬门。",
+      "safety": "撬门会损坏锁机构并有伤人风险，禁止用撬棍强行开门。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/322/5268261"
+      ]
+    },
+    {
+      "id": "kb_door_s_hook_wear",
+      "system": "door",
+      "title": "S 钩门锁磨损，门锁闭后仍有窜动",
+      "symptoms": [
+        "门锁闭后用手推门有轻微窜动",
+        "S 钩接触面磨出凹坑",
+        "运行中门区有轻微撞击声"
+      ],
+      "keywords": [
+        "S 钩",
+        "门锁磨损",
+        "锁闭窜动",
+        "凹坑",
+        "撞击声"
+      ],
+      "likely_causes": [
+        {
+          "text": "S 钩与锁扣长期摩擦磨损",
+          "weight": 1.0
+        },
+        {
+          "text": "锁闭位置偏差导致局部受力",
+          "weight": 0.7
+        },
+        {
+          "text": "润滑不足加速磨损",
+          "weight": 0.55
+        },
+        {
+          "text": "S 钩材质硬度不足",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查 S 钩与锁扣接触面磨损量",
+          "expect": "磨损量在限值内"
+        },
+        {
+          "order": 2,
+          "action": "锁闭后测量门扇窜动量",
+          "expect": "窜动量在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查锁闭位置与对中",
+          "expect": "对中良好、受力均匀"
+        },
+        {
+          "order": 4,
+          "action": "更换 S 钩后复测窜动",
+          "expect": "窜动消除"
+        }
+      ],
+      "escalation": "磨损超限时更换 S 钩，禁止堆焊后打磨继续使用。",
+      "safety": "更换锁件后必须做锁闭与防夹功能复测。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.11665.com/technology/Transportation/41208.shtml"
+      ]
+    },
+    {
+      "id": "kb_door_emergency_cable_stuck",
+      "system": "door",
+      "title": "紧急解锁钢丝绳卡滞，集控打不开门",
+      "symptoms": [
+        "集控开门时该门不动作，其它门正常",
+        "门控器记录紧急解锁信号为 1",
+        "检查发现钢丝绳夹头卡在拉盘与拨片之间"
+      ],
+      "keywords": [
+        "钢丝绳卡滞",
+        "紧急解锁信号",
+        "集控打不开",
+        "夹头卡住",
+        "I0 为 1"
+      ],
+      "likely_causes": [
+        {
+          "text": "内紧急解锁钢丝绳弯曲，夹头卡在拉盘与拨片之间",
+          "weight": 1.0
+        },
+        {
+          "text": "钢丝绳走向不当，拐角半径过小",
+          "weight": 0.75
+        },
+        {
+          "text": "夹头压接不良，外形凸出",
+          "weight": 0.6
+        },
+        {
+          "text": "解锁拉盘复位弹簧无力",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "读取门控器数据，确认紧急解锁输入状态",
+          "expect": "未操作时为 0"
+        },
+        {
+          "order": 2,
+          "action": "打开主锁区域检查钢丝绳走向与夹头",
+          "expect": "钢丝绳顺直、夹头不干涉"
+        },
+        {
+          "order": 3,
+          "action": "操作外紧急解锁后观察夹头是否卡住",
+          "expect": "夹头随动、不卡滞"
+        },
+        {
+          "order": 4,
+          "action": "更换钢丝绳后重复操作验证",
+          "expect": "不再卡滞"
+        }
+      ],
+      "escalation": "钢丝绳弯曲或夹头干涉时更换钢丝绳，拐角半径按规程控制，禁止剪短后重新压接。",
+      "safety": "更换钢丝绳后必须验证内、外紧急解锁功能均有效。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/322/5268261"
+      ]
+    },
+    {
+      "id": "kb_door_emergency_cable_broken",
+      "system": "door",
+      "title": "紧急解锁钢丝绳断股，操作时突然失效",
+      "symptoms": [
+        "钢丝绳表面有断股或毛刺",
+        "拉手柄时感觉阻力异常或突然变轻",
+        "紧急解锁后门打不开"
+      ],
+      "keywords": [
+        "钢丝绳断股",
+        "毛刺",
+        "拉不动",
+        "突然变轻",
+        "解锁失效"
+      ],
+      "likely_causes": [
+        {
+          "text": "钢丝绳疲劳断股",
+          "weight": 1.0
+        },
+        {
+          "text": "绳套内有异物磨损钢丝绳",
+          "weight": 0.7
+        },
+        {
+          "text": "拐角半径过小导致局部应力集中",
+          "weight": 0.6
+        },
+        {
+          "text": "钢丝绳锈蚀",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "沿钢丝绳全长检查断股与锈蚀",
+          "expect": "无断股、无严重锈蚀"
+        },
+        {
+          "order": 2,
+          "action": "检查绳套与拐角半径",
+          "expect": "拐角半径符合规程"
+        },
+        {
+          "order": 3,
+          "action": "拉动手柄感受阻力",
+          "expect": "阻力均匀、无卡顿"
+        },
+        {
+          "order": 4,
+          "action": "更换钢丝绳后做解锁试验",
+          "expect": "内外解锁均有效"
+        }
+      ],
+      "escalation": "发现断股立即更换，不得用胶带缠绕或只处理断股处。",
+      "safety": "紧急解锁是逃生通道，功能失效的门不得投入运用。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://xueshu.qikan.com.cn/preview/1/322/5268261"
+      ]
+    },
+    {
+      "id": "kb_door_platform_step",
+      "system": "door",
+      "title": "站台补偿器不伸出，门开度不够",
+      "symptoms": [
+        "门打开后补偿器没有翻出",
+        "乘客上下车有明显台阶",
+        "补偿器处无动作声"
+      ],
+      "keywords": [
+        "站台补偿器",
+        "补偿器不伸",
+        "台阶",
+        "不翻出",
+        "开度不够"
+      ],
+      "likely_causes": [
+        {
+          "text": "补偿器气缸或电磁阀故障",
+          "weight": 1.0
+        },
+        {
+          "text": "补偿器联锁条件未满足",
+          "weight": 0.75
+        },
+        {
+          "text": "补偿器机械卡滞",
+          "weight": 0.6
+        },
+        {
+          "text": "补偿器位置开关未触发",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "给开门指令观察补偿器动作",
+          "expect": "补偿器正常伸出"
+        },
+        {
+          "order": 2,
+          "action": "测量补偿器气路压力",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 3,
+          "action": "手动活动补偿器检查卡滞",
+          "expect": "动作顺畅"
+        },
+        {
+          "order": 4,
+          "action": "检查补偿器位置开关",
+          "expect": "伸出到位时信号正确"
+        }
+      ],
+      "escalation": "补偿器不动作时该门停用并上报，禁止让乘客跨越补偿器缺口上下车。",
+      "safety": "补偿器动作区域严禁站人，检查时确认门区无人。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_platform_step_retract",
+      "system": "door",
+      "title": "站台补偿器不收回，门关不上",
+      "symptoms": [
+        "门要关时补偿器还在伸出位",
+        "门扇撞到补偿器后弹开",
+        "补偿器收回动作慢或不动"
+      ],
+      "keywords": [
+        "补偿器不收回",
+        "门关不上",
+        "撞补偿器",
+        "收回慢",
+        "联锁"
+      ],
+      "likely_causes": [
+        {
+          "text": "补偿器收回气路堵塞或漏气",
+          "weight": 1.0
+        },
+        {
+          "text": "收回位置开关未触发，门控器不允许关门",
+          "weight": 0.8
+        },
+        {
+          "text": "补偿器机械卡滞",
+          "weight": 0.6
+        },
+        {
+          "text": "联锁逻辑故障",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "给关门指令观察补偿器是否先收回",
+          "expect": "补偿器先收回再关门"
+        },
+        {
+          "order": 2,
+          "action": "检查收回位置开关信号",
+          "expect": "收回到位信号为 1"
+        },
+        {
+          "order": 3,
+          "action": "手动活动补偿器检查阻力",
+          "expect": "动作顺畅"
+        },
+        {
+          "order": 4,
+          "action": "检查收回气路压力与排气",
+          "expect": "压力正常、排气通畅"
+        }
+      ],
+      "escalation": "补偿器无法收回时禁止强行关门，隔离该门并上报。",
+      "safety": "强行关门会损坏补偿器与门扇，且可能夹伤乘客。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_air_water",
+      "system": "door",
+      "title": "气路进水，电磁阀锈蚀动作失灵",
+      "symptoms": [
+        "过滤器杯内有积水",
+        "电磁阀排气带水雾",
+        "冬季或雨后门动作异常"
+      ],
+      "keywords": [
+        "气路进水",
+        "有水",
+        "排气带水",
+        "锈蚀",
+        "雨后异常"
+      ],
+      "likely_causes": [
+        {
+          "text": "总风干燥器失效，气源含水",
+          "weight": 1.0
+        },
+        {
+          "text": "过滤器长期未排水",
+          "weight": 0.8
+        },
+        {
+          "text": "管路低点无排水装置",
+          "weight": 0.55
+        },
+        {
+          "text": "门区密封不良，雨水进入气路",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "排放过滤器与管路低点积水",
+          "expect": "排出的气无明显水"
+        },
+        {
+          "order": 2,
+          "action": "检查总风干燥器工作状态",
+          "expect": "干燥器正常、露点合格"
+        },
+        {
+          "order": 3,
+          "action": "拆检电磁阀是否锈蚀",
+          "expect": "阀芯光洁、无锈"
+        },
+        {
+          "order": 4,
+          "action": "处理后连续动作观察",
+          "expect": "动作稳定、排气无水"
+        }
+      ],
+      "escalation": "气源持续含水时上报处理干燥器，禁止只排积水不查源头。",
+      "safety": "排水时防止水雾喷入眼睛，佩戴护目镜。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_air_freeze",
+      "system": "door",
+      "title": "冬季气路结冰，门完全不动",
+      "symptoms": [
+        "低温天气门无动作，气温回升后恢复",
+        "排气口有冰碴",
+        "电磁阀有动作声但气路不通"
+      ],
+      "keywords": [
+        "结冰",
+        "冬季不动",
+        "低温",
+        "冰碴",
+        "气路冻"
+      ],
+      "likely_causes": [
+        {
+          "text": "气路含水，低温下在阀口结冰",
+          "weight": 1.0
+        },
+        {
+          "text": "门区加热装置失效",
+          "weight": 0.75
+        },
+        {
+          "text": "排水不畅，积水在低点冻结",
+          "weight": 0.65
+        },
+        {
+          "text": "气管保温层破损",
+          "weight": 0.45
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "检查门区加热装置工作状态",
+          "expect": "加热正常、温度达标"
+        },
+        {
+          "order": 2,
+          "action": "拆检电磁阀与管路低点是否结冰",
+          "expect": "无冰堵"
+        },
+        {
+          "order": 3,
+          "action": "排放气路积水并检查干燥器",
+          "expect": "气源干燥"
+        },
+        {
+          "order": 4,
+          "action": "恢复后低温环境复测",
+          "expect": "低温下动作正常"
+        }
+      ],
+      "escalation": "结冰后禁止用明火或开水直接加热阀体，应按规程用热风或更换部件处理。",
+      "safety": "禁止敲击冻结的阀体与管路，防止破裂伤人。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_lock_not_sync",
+      "system": "door",
+      "title": "上下气动锁不同步，门关闭时别劲",
+      "symptoms": [
+        "关门时门扇有轻微扭动",
+        "上锁先到、下锁后到，声音分两次",
+        "门扇密封条局部压不实"
+      ],
+      "keywords": [
+        "上下锁不同步",
+        "关门别劲",
+        "两声",
+        "扭动",
+        "压不实"
+      ],
+      "likely_causes": [
+        {
+          "text": "上下锁气路阻力不一致",
+          "weight": 1.0
+        },
+        {
+          "text": "某一锁气缸动作偏慢",
+          "weight": 0.75
+        },
+        {
+          "text": "锁扣位置偏差导致行程不同",
+          "weight": 0.6
+        },
+        {
+          "text": "气管长度差异过大",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "录像或观察上下锁动作先后",
+          "expect": "两锁基本同步"
+        },
+        {
+          "order": 2,
+          "action": "分别测量上下锁气路压力",
+          "expect": "两路压力一致"
+        },
+        {
+          "order": 3,
+          "action": "检查锁扣位置与门扇垂直度",
+          "expect": "锁扣对位、门扇垂直"
+        },
+        {
+          "order": 4,
+          "action": "调整气路节流或更换气缸",
+          "expect": "动作同步"
+        }
+      ],
+      "escalation": "调整后仍不同步时检查门扇变形与锁机构磨损，禁止单独加大一侧气压。",
+      "safety": "观察锁动作时手离开锁舌区域。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_leak_after_close",
+      "system": "door",
+      "title": "门关闭后仍漏风，气密性不合格",
+      "symptoms": [
+        "门关闭后门缝有明显气流",
+        "高速运行时门区有哨声",
+        "密封条局部未压紧"
+      ],
+      "keywords": [
+        "关门漏风",
+        "气密",
+        "哨声",
+        "门缝气流",
+        "密封条没压"
+      ],
+      "likely_causes": [
+        {
+          "text": "密封条老化压缩量不足",
+          "weight": 1.0
+        },
+        {
+          "text": "门扇与门框间隙超差",
+          "weight": 0.8
+        },
+        {
+          "text": "锁闭力不足，门扇未压紧",
+          "weight": 0.6
+        },
+        {
+          "text": "门扇变形导致局部不贴合",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "关门后用薄纸或烟流检查漏点",
+          "expect": "门缝无明显泄漏"
+        },
+        {
+          "order": 2,
+          "action": "测量门扇与门框间隙",
+          "expect": "间隙在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "检查密封条压缩量与老化",
+          "expect": "压缩量足够、无硬化"
+        },
+        {
+          "order": 4,
+          "action": "检查锁闭力与门扇贴合",
+          "expect": "锁闭后门扇压紧"
+        }
+      ],
+      "escalation": "密封条老化或门扇变形时更换或调整，禁止用胶条临时填缝。",
+      "safety": "检查门缝时手指远离门缝，防止门突然动作夹伤。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://www.qikanchina.com/thesis/view/2700965"
+      ]
+    },
+    {
+      "id": "kb_door_drain_block",
+      "system": "door",
+      "title": "门区排水孔堵塞，积水进入门控器",
+      "symptoms": [
+        "门框下沿积水，雨后不干",
+        "门控器附近有锈迹",
+        "雨后门动作异常"
+      ],
+      "keywords": [
+        "排水孔堵",
+        "积水",
+        "门框下沿",
+        "锈迹",
+        "雨后异常"
+      ],
+      "likely_causes": [
+        {
+          "text": "排水孔被灰尘杂物堵塞",
+          "weight": 1.0
+        },
+        {
+          "text": "排水管脱落或折弯",
+          "weight": 0.75
+        },
+        {
+          "text": "门槛密封不良，水从外侧渗入",
+          "weight": 0.6
+        },
+        {
+          "text": "门区积水盘变形",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "向门区排水孔倒水观察排水",
+          "expect": "排水顺畅、无积水"
+        },
+        {
+          "order": 2,
+          "action": "疏通排水孔与排水管",
+          "expect": "管路通畅"
+        },
+        {
+          "order": 3,
+          "action": "检查门槛密封与积水盘",
+          "expect": "密封完好、无变形"
+        },
+        {
+          "order": 4,
+          "action": "雨后复查门控器内部",
+          "expect": "内部干燥"
+        }
+      ],
+      "escalation": "积水已进入门控器时按进水故障处理，禁止只通排水孔不查密封。",
+      "safety": "疏通排水孔时防止污水溅入眼睛。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "http://www.chinaqking.com/yc/2020/2144756.html"
+      ]
+    },
+    {
+      "id": "kb_door_lock_feedback",
+      "system": "door",
+      "title": "锁闭反馈信号抖动，门状态反复跳变",
+      "symptoms": [
+        "监控上门状态在关好与未关好之间跳",
+        "轻碰门扇状态就变",
+        "门实际已锁闭"
+      ],
+      "keywords": [
+        "锁闭反馈抖动",
+        "状态跳变",
+        "碰一下就变",
+        "反馈信号",
+        "已锁闭"
+      ],
+      "likely_causes": [
+        {
+          "text": "锁闭开关触点接触不良",
+          "weight": 1.0
+        },
+        {
+          "text": "开关滚轮与锁舌间隙过大",
+          "weight": 0.75
+        },
+        {
+          "text": "反馈线束虚接",
+          "weight": 0.6
+        },
+        {
+          "text": "门控器输入滤波失效",
+          "weight": 0.35
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "锁闭状态下测量反馈信号稳定性",
+          "expect": "信号持续为 1"
+        },
+        {
+          "order": 2,
+          "action": "检查开关滚轮与锁舌间隙",
+          "expect": "间隙在标称范围"
+        },
+        {
+          "order": 3,
+          "action": "轻晃线束观察信号",
+          "expect": "信号不跳变"
+        },
+        {
+          "order": 4,
+          "action": "更换开关或调整位置后复测",
+          "expect": "状态稳定"
+        }
+      ],
+      "escalation": "反馈抖动会导致牵引封锁误判，未修复前不得投入运用。",
+      "safety": "调整锁闭开关后必须确认门确实锁闭，不能只看信号。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_pneumatic_slow",
+      "system": "door",
+      "title": "气动门开关速度整体偏慢",
+      "symptoms": [
+        "开门和关门都比其它门慢",
+        "动作过程无力，没有明显卡点",
+        "气压表读数偏低"
+      ],
+      "keywords": [
+        "开关慢",
+        "整体偏慢",
+        "动作无力",
+        "气压低",
+        "速度慢"
+      ],
+      "likely_causes": [
+        {
+          "text": "本门供气压力不足",
+          "weight": 1.0
+        },
+        {
+          "text": "节流阀开度被误调小",
+          "weight": 0.75
+        },
+        {
+          "text": "气缸密封圈磨损导致推力下降",
+          "weight": 0.65
+        },
+        {
+          "text": "消音器或管路阻力大",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量本门供气压力",
+          "expect": "达到标称值"
+        },
+        {
+          "order": 2,
+          "action": "检查节流阀开度设定",
+          "expect": "与其它门一致"
+        },
+        {
+          "order": 3,
+          "action": "检查气缸密封与消音器",
+          "expect": "无泄漏、排气通畅"
+        },
+        {
+          "order": 4,
+          "action": "按标称调整后测开关门时间",
+          "expect": "时间在标称范围"
+        }
+      ],
+      "escalation": "调整后仍偏慢时检查气缸与门机构阻力，禁止把节流阀开到最大掩盖故障。",
+      "safety": "速度调整后必须复测防夹力，速度过快会增大夹伤风险。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://wap.cinn.cn/p/W020210913546968852977.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_cylinder_piston",
+      "system": "door",
+      "title": "驱动气缸活塞密封磨损，推力不足",
+      "symptoms": [
+        "门动作越来越慢，负载大时更明显",
+        "气缸排气口有轻微窜气",
+        "手动推门阻力正常"
+      ],
+      "keywords": [
+        "活塞密封",
+        "推力不足",
+        "气缸窜气",
+        "动作慢",
+        "负载大"
+      ],
+      "likely_causes": [
+        {
+          "text": "活塞密封圈磨损，高低压腔窜气",
+          "weight": 1.0
+        },
+        {
+          "text": "缸筒内壁磨损或拉伤",
+          "weight": 0.75
+        },
+        {
+          "text": "气缸润滑不足",
+          "weight": 0.5
+        },
+        {
+          "text": "气源压力本身偏低",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量气缸动作时压力与静态压力",
+          "expect": "动作时压降不超过标称值"
+        },
+        {
+          "order": 2,
+          "action": "在排气口检查窜气",
+          "expect": "无明显窜气"
+        },
+        {
+          "order": 3,
+          "action": "拆检缸筒与活塞密封",
+          "expect": "缸筒光洁、密封圈完好"
+        },
+        {
+          "order": 4,
+          "action": "更换密封件或气缸后测时间",
+          "expect": "动作恢复"
+        }
+      ],
+      "escalation": "缸筒拉伤时更换气缸总成，禁止只换密封圈继续使用。",
+      "safety": "拆气缸前泄压并固定门扇，防止门扇失控移动。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://wap.cinn.cn/p/W020210913546968852977.pdf"
+      ]
+    },
+    {
+      "id": "kb_door_throttle_misadjust",
+      "system": "door",
+      "title": "节流阀被误调，开关门时间超差",
+      "symptoms": [
+        "检修后门突然变快或变慢",
+        "同一列车只有这一门时间不同",
+        "节流阀锁紧螺母有松动痕迹"
+      ],
+      "keywords": [
+        "节流阀",
+        "误调",
+        "时间超差",
+        "检修后变快",
+        "锁紧螺母松"
+      ],
+      "likely_causes": [
+        {
+          "text": "节流阀开度被误调且未锁紧",
+          "weight": 1.0
+        },
+        {
+          "text": "节流阀阀芯磨损，开度漂移",
+          "weight": 0.7
+        },
+        {
+          "text": "调整后未做时间复测",
+          "weight": 0.6
+        },
+        {
+          "text": "同型车门节流阀规格不一致",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "测量开关门时间并与标准对比",
+          "expect": "时间在标称范围"
+        },
+        {
+          "order": 2,
+          "action": "检查节流阀开度与锁紧状态",
+          "expect": "开度一致、锁紧可靠"
+        },
+        {
+          "order": 3,
+          "action": "按标准重新调整并锁紧",
+          "expect": "调整后时间合格"
+        },
+        {
+          "order": 4,
+          "action": "连续开关门 5 次复核",
+          "expect": "时间稳定不漂移"
+        }
+      ],
+      "escalation": "节流阀阀芯磨损导致开度漂移时更换，禁止用胶封死调整螺钉。",
+      "safety": "调整时手远离门扇运动轨迹。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_pressure_hold",
+      "system": "door",
+      "title": "关门后气压保不住，锁闭力逐渐下降",
+      "symptoms": [
+        "刚关门时正常，过几分钟门就松了",
+        "压力表缓慢下降",
+        "门缝随时间变大"
+      ],
+      "keywords": [
+        "保不住压",
+        "慢慢下降",
+        "锁闭力下降",
+        "过几分钟",
+        "门松"
+      ],
+      "likely_causes": [
+        {
+          "text": "气路存在微小泄漏",
+          "weight": 1.0
+        },
+        {
+          "text": "单向阀密封不良",
+          "weight": 0.75
+        },
+        {
+          "text": "气缸活塞密封缓慢窜气",
+          "weight": 0.6
+        },
+        {
+          "text": "管路接头 O 形圈老化",
+          "weight": 0.5
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "关门后记录压力随时间变化",
+          "expect": "5 分钟压降不超过 0.02MPa"
+        },
+        {
+          "order": 2,
+          "action": "分段涂肥皂水查找漏点",
+          "expect": "无气泡"
+        },
+        {
+          "order": 3,
+          "action": "检查单向阀密封",
+          "expect": "反向不导通"
+        },
+        {
+          "order": 4,
+          "action": "更换泄漏部件后保压",
+          "expect": "保压合格"
+        }
+      ],
+      "escalation": "漏点无法定位时按分段隔离法排查，禁止用提高供气压力补偿泄漏。",
+      "safety": "保压试验时人员远离门扇，防止门突然动作。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    },
+    {
+      "id": "kb_door_check_valve",
+      "system": "door",
+      "title": "单向阀失效，断气后门立即失压",
+      "symptoms": [
+        "断开气源后门马上松开",
+        "正常应能保持一段时间",
+        "单向阀处有倒流声"
+      ],
+      "keywords": [
+        "单向阀",
+        "断气失压",
+        "倒流",
+        "保压",
+        "立即松开"
+      ],
+      "likely_causes": [
+        {
+          "text": "单向阀密封面有杂质",
+          "weight": 1.0
+        },
+        {
+          "text": "单向阀弹簧疲劳",
+          "weight": 0.75
+        },
+        {
+          "text": "阀座磨损",
+          "weight": 0.6
+        },
+        {
+          "text": "安装方向错误",
+          "weight": 0.4
+        }
+      ],
+      "checks": [
+        {
+          "order": 1,
+          "action": "断开气源观察门是否保持",
+          "expect": "保持时间符合要求"
+        },
+        {
+          "order": 2,
+          "action": "拆检单向阀密封面与弹簧",
+          "expect": "密封面光洁、弹簧有效"
+        },
+        {
+          "order": 3,
+          "action": "核对单向阀安装方向",
+          "expect": "方向与流向一致"
+        },
+        {
+          "order": 4,
+          "action": "更换单向阀后复测",
+          "expect": "断气后能保持"
+        }
+      ],
+      "escalation": "单向阀失效会导致断气后门失控，必须更换，不得拆除。",
+      "safety": "断气试验前确认门区无人，防止门突然松开。",
+      "sources": [
+        "K-04"
+      ],
+      "source_links": [
+        "https://edl.csrzic.com/zh/article/doi/10.13890/j.issn.1000-128x.2019.04.033/"
+      ]
+    }
+  ]
+}

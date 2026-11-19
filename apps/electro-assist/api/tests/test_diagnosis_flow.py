@@ -146,7 +146,12 @@ def test_start_by_symptom_only_uses_top_hit():
 
 
 def test_uncovered_subsystem_cannot_start_a_run():
-    r = client.post(BASE, json={"symptom": "制动缸压力不足，闸瓦间隙大"})
+    """未收录的子系统必须挡在"开始诊断"之前，而不是给一条不相关的排查顺序。
+
+    2026-11-19 制动、雨刷已收录（见 `brake_faults.json` / `wiper_faults.json`），
+    这条改用仍未收录的牵引子系统。
+    """
+    r = client.post(BASE, json={"symptom": "牵引变流器报过流，主断路器跳闸"})
     assert r.status_code == 404
     assert r.json()["detail"]["code"] == "system_not_covered"
 

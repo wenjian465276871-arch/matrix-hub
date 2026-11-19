@@ -22,7 +22,7 @@ def _post(symptom: str, **extra) -> dict:
 
 
 def test_golden_queries_hit_top3():
-    """10 条现场口吻的提问，Top-3 至少命中 8 条（当前实现 10/10）。"""
+    """评测集里每条现场口吻的提问，Top-3 至少命中 80%（当前 49/49）。"""
     cases = knowledge.load_eval_set()
     hits = 0
     for case in cases.queries:
@@ -92,14 +92,20 @@ def test_validation_rejects_short_or_oversized_input():
 
 
 def test_kb_overview_lists_coverage():
-    """覆盖范围要能被前端如实展示：三个子系统、条数与实际一致。"""
+    """覆盖范围要能被前端如实展示：五个子系统、条数与实际一致。"""
     r = client.get("/api/electro/diagnose/kb")
     assert r.status_code == 200
     body = r.json()
     assert body["count"] == len(body["entries"]) >= 15
-    assert body["systems"] == ["door", "hvac", "pantograph"]
+    assert body["systems"] == ["brake", "door", "hvac", "pantograph", "wiper"]
     assert body["provider"] == "hybrid"
-    assert {entry["system"] for entry in body["entries"]} == {"door", "hvac", "pantograph"}
+    assert {entry["system"] for entry in body["entries"]} == {
+        "brake",
+        "door",
+        "hvac",
+        "pantograph",
+        "wiper",
+    }
 
 
 def test_multi_candidate_query_surfaces_signals_and_rerank_slot():
@@ -145,8 +151,41 @@ def test_uncovered_has_zero_confidence():
     assert result["results"] == []
 
 
-def test_full_injection_provider_is_switchable(monkeypatch):
-    """计划 §2.3：保留全量注入实现，可与混合召回切换、对比。"""
+def test_full_injection_falls_back_when_kb_too_large(monkeypatch, caplog):
+    """知识库超过全量注入上限时回退 hybrid，而不是让 B 模块起不来。
+
+    2026-11-19 知识库从 19 条扩到 336 条。全量注入会把每条标题与原因都塞进重排
+    prompt，只适用于小库；超过 `FULL_INJECT_MAX` 必须走检索。回退**要留 WARNING**，
+    否则"配了 full 实际在跑 hybrid"没人会发现。
+    """
+    monkeypatch.setenv("KNOWLEDGE_PROVIDER", "full")
+    knowledge.reset_provider()
+    try:
+        provider = knowledge.get_provider()
+        assert provider.name == "hybrid", "超限时必须回退 hybrid"
+        assert any("全量注入不可用" in record.message for record in caplog.records)
+    finally:
+        monkeypatch.delenv("KNOWLEDGE_PROVIDER", raising=False)
+        knowledge.reset_provider()
+        assert knowledge.get_provider().name == "hybrid"
+
+
+def test_full_injection_provider_is_switchable(monkeypatch, tmp_path):
+    """计划 §2.3：小库上仍可切到全量注入，且「召回不淘汰」语义不变。
+
+    用临时目录造 3 条小库，不依赖线上知识库规模——库变大不该让这条契约失效。
+    """
+    import json
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[1] / "data" / "knowledge" / "door_faults.json"
+    payload = json.loads(src.read_text(encoding="utf-8"))
+    payload["entries"] = payload["entries"][:3]
+    (tmp_path / "door_faults.json").write_text(
+        json.dumps(payload, ensure_ascii=False), encoding="utf-8"
+    )
+
+    monkeypatch.setenv("KNOWLEDGE_DIR", str(tmp_path))
     monkeypatch.setenv("KNOWLEDGE_PROVIDER", "full")
     knowledge.reset_provider()
     try:
@@ -158,7 +197,7 @@ def test_full_injection_provider_is_switchable(monkeypatch):
         assert reason is None
         # 召回不淘汰：所有车门条目都进重排 prompt
         assert len(hits) == door_total
-        assert door_total > 3
+        assert door_total > 1
 
         # 对外仍只回 top_k，不能把整库倒给页面
         capped, _, _ = knowledge.search_entries(
@@ -167,5 +206,7 @@ def test_full_injection_provider_is_switchable(monkeypatch):
         assert len(capped) == 3
     finally:
         monkeypatch.delenv("KNOWLEDGE_PROVIDER", raising=False)
+        monkeypatch.delenv("KNOWLEDGE_DIR", raising=False)
         knowledge.reset_provider()
         assert knowledge.get_provider().name == "hybrid"
+
