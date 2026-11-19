@@ -114,7 +114,9 @@ if health_check; then
     echo "==> 知识库 Top-3 自检（quick，不调模型）"
     if eval_json=$(docker exec matrix-hub python -m scripts.eval_diagnose --quick --json 2>/dev/null); then
       echo "$eval_json"
-      if printf '%s' "$eval_json" | grep -Eq '"passed":[[:space:]]*true'; then
+      # 用 here-string 而不是 `printf ... | grep -q`：同 probe.sh 顶部的 SIGPIPE 说明。
+      # 自检 JSON 现在不大，但条目继续涨就会踩同一个坑。
+      if grep -Eq '"passed":[[:space:]]*true' <<< "$eval_json"; then
         deploy_ok=1
       else
         failure_reason="知识库 Top-3 自检未达标"

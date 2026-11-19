@@ -96,7 +96,10 @@ fetch_health() {
 }
 
 probe_health() {
-  fetch_health | grep -q '"status":"ok"'
+  # 先取值再 here-string：见 deploy/probe.sh 顶部关于 SIGPIPE + pipefail 的说明
+  local body
+  body=$(fetch_health) || return 1
+  grep -q '"status":"ok"' <<< "$body"
 }
 
 current_tag() {
@@ -182,8 +185,13 @@ while [ "$(date +%s)" -lt "$deadline" ]; do
   fi
   probe_failures=0
 
-  requests=$(printf '%s' "$body" | grep -o '"requests":[0-9]*' | head -1 | cut -d: -f2)
-  errors=$(printf '%s' "$body" | grep -o '"errors_5xx":[0-9]*' | head -1 | cut -d: -f2)
+  # 用 bash 正则取值，不再 `printf | grep -o | head -1 | cut`：
+  # `head -1` 会提前退出，大响应下上游 printf 收 SIGPIPE（141），pipefail 判整条失败。
+  # 详见 deploy/probe.sh 顶部注释（2026-11-19 部署回滚的根因）。
+  requests=""
+  errors=""
+  if [[ "$body" =~ \"requests\":([0-9]+) ]]; then requests="${BASH_REMATCH[1]}"; fi
+  if [[ "$body" =~ \"errors_5xx\":([0-9]+) ]]; then errors="${BASH_REMATCH[1]}"; fi
   if [ -z "${requests:-}" ] || [ -z "${errors:-}" ]; then
     log "[watch] 响应里没有 http 段（跑的是旧镜像？），本轮跳过"
     continue

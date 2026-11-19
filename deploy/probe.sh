@@ -24,7 +24,12 @@ probe_curl() {
 probe_health() {
   # scope=ready：检查失败返回 503，curl -f 直接失败；不带 scope 的默认口径
   # 永远 200（只有 status 字段变 degraded），不适合当部署闸门。
-  probe_curl "${PROBE_BASE}/healthz?scope=ready" 2>/dev/null | grep -q '"status":"ok"'
+  #
+  # 先取到变量再 `<<<` 喂给 grep，**不要写成 `curl ... | grep -q`**：
+  # 理由同 probe_business 顶部注释（SIGPIPE + pipefail）。
+  local body
+  body=$(probe_curl "${PROBE_BASE}/healthz?scope=ready" 2>/dev/null) || return 1
+  grep -q '"status":"ok"' <<< "$body"
 }
 
 health_check() {
@@ -57,26 +62,45 @@ health_check() {
 #
 # 注意 JSON 里可能有空格：同一个应用的不同端点序列化方式并不一致（默认 separators
 # 与紧凑 separators 都出现过），正则必须用 `[[:space:]]*`，否则部署会因一个空格失败。
+#
+# ## 2026-11-19：不许把大 body 串成管道（这条曾让部署无端回滚）
+#
+# 原写法是 `printf '%s' "$body" | head -c 1 | grep -q '{'`。`head -c 1` 读一个字节就退出，
+# `printf` 还在写剩下的内容 → 收到 SIGPIPE（退出码 141）；而 deploy.sh 是 `set -o pipefail`，
+# 整条管道被判为失败 → `return 1` → **接口明明全是 200，部署却报"响应结构不符"并回滚**。
+#
+# 触发条件是**响应变大**：知识库从 19 条涨到 397 条后，`/diagnose/kb` 从 ~2KB 变成 40KB，
+# 超过管道缓冲后每次都 SIGPIPE；同一个函数里的 `grep -q` 也会提前退出，属同类隐患。
+# 40KB 以下的小响应（guides 列表 902B）永远不触发，所以这个坑藏了很久。
+#
+# 结论：**判断首字符用 bash 内建 `${var:0:1}`，匹配用 `grep ... <<< "$var"`**，
+# 两者都不建管道，下游退出再早也不会波及上游。
 probe_business() {
   local base list body gid
   base="${PROBE_BASE}"
 
   list=$(probe_curl "${base}/api/electro/guides?limit=1" 2>/dev/null) || return 1
-  printf '%s' "$list" | head -c 1 | grep -q '{' || return 1
-  printf '%s' "$list" | grep -Eq '"items":[[:space:]]*\[' || return 1
+  [ "${list:0:1}" = "{" ] || return 1
+  grep -Eq '"items":[[:space:]]*\[' <<< "$list" || return 1
 
   # 列表里没有已发布案例时跳过详情探测（首次空站不该因此部署失败）
-  gid=$(printf '%s' "$list" | grep -o '"id":[[:space:]]*"g_[a-z0-9_]*"' | head -1 \
-    | sed 's/.*"\(g_[a-z0-9_]*\)"/\1/')
+  #
+  # 用 bash 正则而不是 `grep -o | head -1 | sed`：`head -1` 同样会提前退出，
+  # 一旦列表变大就重演上面那个 SIGPIPE；而且 grep 无匹配时 pipefail 会让赋值语句返回 1，
+  # 在 `set -e` 下直接终止脚本。这里是纯内存匹配，两者都不存在。
+  gid=""
+  if [[ "$list" =~ \"id\":[[:space:]]*\"(g_[a-z0-9_]+)\" ]]; then
+    gid="${BASH_REMATCH[1]}"
+  fi
   if [ -n "$gid" ]; then
     body=$(probe_curl "${base}/api/electro/guides/${gid}" 2>/dev/null) || return 1
-    printf '%s' "$body" | head -c 1 | grep -q '{' || return 1
-    printf '%s' "$body" | grep -Eq '"guide":[[:space:]]*\{' || return 1
+    [ "${body:0:1}" = "{" ] || return 1
+    grep -Eq '"guide":[[:space:]]*\{' <<< "$body" || return 1
   fi
 
   body=$(probe_curl "${base}/api/electro/diagnose/kb" 2>/dev/null) || return 1
-  printf '%s' "$body" | head -c 1 | grep -q '{' || return 1
-  printf '%s' "$body" | grep -Eq '"count":[[:space:]]*[1-9]' || return 1
+  [ "${body:0:1}" = "{" ] || return 1
+  grep -Eq '"count":[[:space:]]*[1-9]' <<< "$body" || return 1
   return 0
 }
 
