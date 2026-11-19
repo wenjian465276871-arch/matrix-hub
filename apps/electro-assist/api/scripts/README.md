@@ -1,6 +1,6 @@
 # 脚本清单
 
-> 15 个脚本，**四类用途、三种风险**。放在一个目录里是因为都以 `python -m scripts.<name>` 或
+> 16 个脚本，**四类用途、三种风险**。放在一个目录里是因为都以 `python -m scripts.<name>` 或
 > `python scripts/<name>.py` 从 `api/` 执行；分类靠本表，不靠子目录——运维入口
 > （`publish` / `cleanup`）已被服务器 cron 与运行手册引用，移动目录会**静默打断周任务**。
 
@@ -14,6 +14,7 @@
 | `content_fingerprint.py` | `data/samples` + `data/knowledge` 的内容指纹；`--check` 不一致即红（H13 确认失效） | 只读；`--write` 只改基线文件 | 否 | `python scripts/content_fingerprint.py --check`（CI 阻断）／`--write --note "<依据>"` |
 | `check_metrics.py` | 校验 README/DEVELOPMENT 里的测试数与端点数是否与代码一致 | 只读 | 否 | `python scripts/check_metrics.py` |
 | `bench_criteria.py` | 判据校验链路延迟（P50/P95），计划 §1.4 的 ≤500ms 用 | 写库（临时会话） | 否（用临时库/临时会话） | `python scripts/bench_criteria.py --base http://127.0.0.1:8011` |
+| `check_migration_copy.py` | 在**生产库副本**上预演迁移：源只读快照 → 跑完整 `init_db` → 验版本/行数/完整性；部署前由 `deploy.sh` 调用 | 只读源；只写临时副本 | 否（绝不写源库） | `python -m scripts.check_migration_copy --source <db>`（`--keep` 保留副本，`--allow-missing` 首次部署） |
 | `eval_diagnose.py` | B 检索命中率与 P50/P95；`--quick --json` 供部署闸门（不调模型，约 50ms）；`--provider hybrid\|keyword\|full` 做实现对比 | 只读 | 否 | `python scripts/eval_diagnose.py [--quick --json] [--provider full]` |
 | `eval_generate.py` | 8 份语料的批量生成评测（真实调模型，约 ¥0.1）；**支持提示词 A/B**：`--save-prompt` 冻结旧提示词、`--variant` 贴标签、`--repeat` 降方差、`--compare A B` 出 pp 对照表（不调模型） | 只写本地文件 | 否 | `python scripts/eval_generate.py [--dry-run]`；对照流程见下 |
 | `demo_flow.py` | 全流程自检：建会话 → 提交 → 记录 → 排查 | 写库 | 否（用临时会话） | `python scripts/demo_flow.py --base http://127.0.0.1:8001` |

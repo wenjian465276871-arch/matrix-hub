@@ -1,4 +1,4 @@
 {
-  "backend_tests": 624,
+  "backend_tests": 631,
   "generated_by": "apps/electro-assist/api/scripts/check_metrics.py --write-metrics"
 }

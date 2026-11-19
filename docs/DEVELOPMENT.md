@@ -85,7 +85,7 @@ api/
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      capture_generation（把一次生成输出冻成快照夹具）
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             624 条契约测试；fixtures/generations/ 是生成快照夹具（模型原文）
+└── tests/             631 条契约测试；fixtures/generations/ 是生成快照夹具（模型原文）
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具
