@@ -655,16 +655,21 @@ export function buildHvac(): DeviceRig {
     fanPart.add(roundedBox(0.66, 0.02, 0.66, paintedMaterial(0x9aa0a6), 0.885, TOP - 0.01, z, 0.006))
     // 过渡筒：板下到盘管顶面，把"空档"填实
     /* 过渡筒是开口圆柱（`openEnded = true`），从内侧看是空的，必须双面材质。
-       **别用 `duct.material.side = 2` 就地改**：`paintedMaterial()` 每次都
-       `new` 一份（不缓存，有 `rig.spec.ts` 的用例守着这条契约），所以当时那句
-       并不会污染别的件——但它把「这个材质是什么」藏进了行序里，
-       接手的人看不出它已被改过；而且改 `side` 会让 three 重编译着色器，
-       在 CI 的软件渲染下代价明显（2026-11-17 那次 6 页 10s 铺不完）。
-       要双面就显式 new 一份、把 `side` 写进构造参数，一眼能看出来。
+       显式 new 一份、把 `side` 写进构造参数——理由是**可读性**：一眼看出这个材质
+       是什么。就地改（`duct.material.side = 2`）也能跑，但会把关键属性藏进行序，
+       接手的人看不出来。
 
-       （历史注记：原来这段注释写「`paintedMaterial()` 是按色缓存的」——**错的**，
-       2026-11-19 复盘核对：从初始提交 07ca4f7 起它就是每次 new。结论对、理由错，
-       错理由还留在了注释里，所以在这里改掉并留痕。） */
+       **不是性能理由**。2026-11-19 实测对照：两种写法跑同一份 render-grader
+       （`hvac_cooling_desk`，6 步 15 图），独立材质 **78s** / 就地改 **72s**，
+       差异在噪声内。
+
+       （历史注记：这段注释先后写过两个错理由——①「`paintedMaterial()` 是按色缓存的，
+       改 side 会污染一批面」；②「改 side 会让 three 重编译着色器，软件渲染下代价明显，
+       11-17 那次 6 页 10s 铺不完」。两个都核对过：①它从初始提交 07ca4f7 起就每次 `new`；
+       ②当时那条用例用的是 **10s** 的 `expect.poll` 预算，而这份用例本身要 50s+，
+       换任何写法都跨不过 10s——后来 `85f3d13` 提到 45s 才稳，所以「换上就红、回退就绿」
+       更可能是**临界波动**被误诊成性能问题。这条推断无法回溯验证（当时 CI 日志已不可得），
+       按 R6 标注为推断。详见 `docs/reports/三日复盘-2026-11-19.md`。） */
     const ductMat = new MeshStandardMaterial({ color: 0x8b9196, metalness: 0.35, roughness: 0.6, side: DoubleSide })
     const duct = new Mesh(new CylinderGeometry(0.285, 0.30, 0.05, 32, 1, true), ductMat)
     duct.position.set(0.885, TOP - 0.045, z)

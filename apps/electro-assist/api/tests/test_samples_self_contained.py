@@ -16,17 +16,16 @@ CI 的 render-grader 一条 10 分钟，本地第一次验证还看不出来（�
 `Guide.model_validate` **抓不到**这类问题——它会给缺的键补默认值，
 校验完看着完美。所以这里检查的是**原始 JSON 的键**，不是校验后的模型。
 
-## 判据（只钉 normalize **不补**的那几个键）
+## 判据
 
-`render-grader.spec.ts` 的 `normalize()` 会补 `safety` / `tools` / `figures` 三个键，
-所以存量样例缺它们（`door_clearance` / `door_power_selfcheck` 就有）不会崩，
-这里**不硬要求**——否则为了洁癖去改存量样例，会白白触发一次 H13 重新确认。
+每份样例必须显式写出：`disclaimers`（非空）、每个 step 的 `safety` / `tools` /
+`criteria` / `figures`（可以是空数组，但键要在），以及顶层核心键。
 
-硬要求的是它**不补**的那些：`disclaimers`（`GuideView` 直接 `.join()`）、
-每个 step 的 `criteria`（`StepPage` 直接读 `.length`），以及顶层核心键。
-
-将来 `normalize()` 少补了哪个键，就把哪个键挪进 `REQUIRED_STEP_KEYS`——
-判据和 normalize 的实现必须对得上，否则这条测试保护的是个假前提。
+**为什么连 `safety`/`tools` 也硬要求**（2026-11-19 扩）：`render-grader` 的
+`normalize()` 会补这三个键，所以缺了不会崩——但"靠渲染器兜底"意味着**样例文件
+本身不是完整数据**，任何人拿它去别处用（新加一个消费方、写个离线预览）都要重新
+踩一遍。存量两份（`door_clearance` / `door_power_selfcheck`）的 4 处缺口已在本日补齐，
+只加了 `[]`、没动一个字，指纹按 §4.39 重新记录。
 """
 
 from __future__ import annotations
@@ -40,7 +39,7 @@ API_DIR = Path(__file__).resolve().parents[1]
 SAMPLES = API_DIR / "data" / "samples"
 
 REQUIRED_GUIDE_KEYS = ("id", "title", "summary", "meta", "steps", "disclaimers")
-REQUIRED_STEP_KEYS = ("id", "seq", "title", "action", "criteria")
+REQUIRED_STEP_KEYS = ("id", "seq", "title", "action", "safety", "tools", "criteria", "figures")
 
 FILES = sorted(SAMPLES.glob("*.json"))
 
