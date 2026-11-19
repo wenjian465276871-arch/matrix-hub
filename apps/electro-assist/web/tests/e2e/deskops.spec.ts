@@ -74,23 +74,26 @@ async function scenePoint(
  * `driver_desk.key` 读到 `null` 后**立刻**断言，而快照里三维已经渲染出来、
  * 三个状态灯却还是 0/3——说明是第一次上电就没点到。
  *
- * 注意这**不是"等时间"**（R2）：等的是"坐标出口能返回非空坐标"这个可观测状态，
- * 状态一到就走。45 秒只是兜底上限，正常在 100–300ms 内返回。
+ * 注意这**不是"等时间"**（R2）：`expect.poll` 反复读的是"坐标出口能否返回非空"
+ * 这个**可观察状态**，状态一到就走。45 秒只是兜底上限，正常在 100–300ms 内返回。
  */
 async function pointOf(
   page: import('@playwright/test').Page,
   subject: string,
   key: string,
 ): Promise<Pt> {
-  const deadline = Date.now() + 45_000
-  for (;;) {
-    const point = await scenePoint(page, subject, key)
-    if (point) return point
-    if (Date.now() > deadline) {
-      throw new Error(`${subject}.${key} 45 秒内一直没拿到屏幕坐标（三维未就绪或部件不存在）`)
-    }
-    await page.waitForTimeout(200)
-  }
+  // 用对象装着读到的值：闭包里给 `let` 赋值会被 TS 收窄成 null，读出来要再断言一次
+  const box: { point: Pt | null } = { point: null }
+  await expect
+    .poll(
+      async () => {
+        box.point = await scenePoint(page, subject, key)
+        return box.point
+      },
+      { timeout: 45_000, message: `${subject}.${key} 45 秒内一直没拿到屏幕坐标（三维未就绪或部件不存在）` },
+    )
+    .not.toBeNull()
+  return box.point as Pt
 }
 
 /**
