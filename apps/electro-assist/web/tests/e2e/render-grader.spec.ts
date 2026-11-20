@@ -20,7 +20,7 @@ import { fileURLToPath } from 'node:url'
  *
  * ## 数据来源
  *
- * 默认 `api/data/samples/*.json`（9 份样例、118 张图，覆盖全部 17 个原语）。
+ * 默认 `api/data/samples/*.json`（7 份样例、88 张图；3 份已下架的不参与）。
  * 跑完 `eval_generate.py --out-dir <dir>` 之后可以把生成产物也喂进来：
  * `RENDER_GRADER_DIR=<dir> npx playwright test render-grader`。
  * **这才是它叫 grader 的原因**——评的是产出，不是样例。
@@ -89,7 +89,23 @@ const contract = JSON.parse(readFileSync(CONTRACT, 'utf8')) as {
   devices: Record<string, { moments: { t: number }[] }>
 }
 
-const files = readdirSync(DIR).filter((name) => name.endsWith('.json'))
+/* 已下架的三份不参与渲染评分（2026-11-17 本人裁决）。
+   文件仍留在 data/samples 里：历史作业记录按 guide_id 回读、多个后端测试拿它们当夹具，
+   而且 gate_state / torque_gauge 两个原语只有这几份覆盖。
+   名单必须与 `services/library.py` 的 RETIRED_SAMPLE_IDS 一致——
+   `api/tests/test_retired_samples.py` 盯着两边。 */
+const RETIRED = new Set([
+  'g_door_switch_formal_001',
+  'g_door_switch_test_001',
+  'g_pantograph_raise_check',
+])
+
+const files = readdirSync(DIR)
+  .filter((name) => name.endsWith('.json'))
+  .filter(
+    (name) =>
+      !RETIRED.has((JSON.parse(readFileSync(join(DIR, name), 'utf8')) as Guide).id),
+  )
 
 /* 单条 60s 太紧：S3 细节包（螺栓/压缝/铭牌）后每台设备的网格数明显上升，
    打印态一次要挂 15 张 3D 图，实测单条 **45s** 左右（本地 headless Chromium）。
