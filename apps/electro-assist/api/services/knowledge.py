@@ -373,92 +373,17 @@ class HybridProvider:
         return [(hit.entry, hit.score) for hit in self.search_detailed(query, system=system, top_k=top_k)]
 
 
-# 全量注入的上限：18 条知识库约 1.5K token，20 条留余量。
-# 超过这个规模就该走检索，否则 prompt 成本与延迟都不可控。
-FULL_INJECT_MAX = 20
-
-
-class FullInjectionProvider:
-    """全量注入：不做阈值过滤，把所有条目交给重排模型（计划 §2.3 的对照实现）。
-
-    与 HybridProvider 的区别只有一个：**召回阶段不淘汰**。它适合"知识库很小、
-    宁可由模型排序也不要漏掉"的场景，代价是每次排查都会把全部条目的标题与原因
-    塞进 prompt。默认关闭，用 `KNOWLEDGE_PROVIDER=full` 切换，评测脚本可对比。
-
-    排序仍先用关键词分算一遍：模型失败/超预算时要有一个确定的回退顺序，
-    不能因为"全量注入"就把未过滤的条目按文件顺序返回。
-    """
-
-    name = "full"
-
-    def __init__(self, directory: Path | None = None) -> None:
-        self._keyword = KeywordProvider(directory)
-        entries = self._keyword.entries()
-        if len(entries) > FULL_INJECT_MAX:
-            raise ValueError(
-                f"全量注入只适用于 ≤{FULL_INJECT_MAX} 条的知识库，当前 {len(entries)} 条"
-            )
-        self._index = _VectorIndex(entries)
-
-    def reload(self) -> None:
-        self._keyword.reload()
-        self._index = _VectorIndex(self._keyword.entries())
-
-    @property
-    def version(self) -> str:
-        return self._keyword.version
-
-    def entries(self) -> list[KnowledgeEntry]:
-        return self._keyword.entries()
-
-    def get(self, entry_id: str) -> KnowledgeEntry | None:
-        return self._keyword.get(entry_id)
-
-    def systems(self) -> set[str]:
-        return self._keyword.systems()
-
-    def search_detailed(
-        self, query: str, *, system: str | None = None, top_k: int | None = None
-    ) -> list[Hit]:
-        candidates = [
-            entry
-            for entry in self._keyword.entries()
-            if system is None or entry.system.value == system
-        ]
-        hits: list[Hit] = []
-        for entry in candidates:
-            keyword = score(query, entry)
-            vector = self._index.score(query, entry.id)
-            combined = 0.65 * min(1.0, keyword / 12.0) + 0.35 * vector
-            hits.append(Hit(entry, round(combined * 10, 3), keyword, vector))
-        hits.sort(key=lambda hit: (-hit.score, -hit.keyword, hit.entry.id))
-        return hits[:top_k] if top_k is not None else hits
-
-    def search(
-        self, query: str, *, system: str | None = None, top_k: int = DEFAULT_TOP_K
-    ) -> list[tuple[KnowledgeEntry, float]]:
-        hits = self.search_detailed(query, system=system, top_k=top_k)
-        return [(hit.entry, hit.score) for hit in hits]
-
-
 def load_eval_set(path: Path | None = None) -> EvalSet:
     target = path or (kb_dir() / "eval_queries.json")
     return EvalSet.model_validate(json.loads(target.read_text(encoding="utf-8")))
 
 
-_provider: HybridProvider | KeywordProvider | FullInjectionProvider | None = None
+_provider: HybridProvider | KeywordProvider | None = None
 _provider_name = ""
 _provider_lock = threading.Lock()
 
 
 def _build_provider(name: str):
-    if name == "full":
-        try:
-            return FullInjectionProvider()
-        except ValueError as exc:
-            # 知识库超出全量注入上限：不要因此让整个 B 模块起不来，回退混合召回。
-            log.warning("全量注入不可用，回退 hybrid：%s", exc)
-            return HybridProvider()
     if name == "keyword":
         return KeywordProvider()
     if name != "hybrid":
@@ -469,7 +394,7 @@ def _build_provider(name: str):
 def get_provider(name: str | None = None):
     """按 `KNOWLEDGE_PROVIDER`（或显式参数）选择实现，默认 hybrid。
 
-    缓存按名字区分：评测脚本可以在同一进程里切 full/hybrid 做对比，
+    缓存按名字区分：评测脚本可以在同一进程里切 keyword/hybrid 做对比，
     不必重启，也不会让线上请求拿到评测用的实例。
     """
     global _provider, _provider_name
@@ -531,16 +456,14 @@ def recall(
     hits = provider.search_detailed(
         text,
         system=guessed,
-        # full 模式不截断：所有条目都进重排 prompt，这才叫"全量注入"。
-        top_k=None if provider.name == "full" else max(top_k, DEFAULT_TOP_K),
+        top_k=max(top_k, DEFAULT_TOP_K),
     )
     if not hits:
         return [], "no_match"
     # 没识别出子系统时，光"某个词撞上了"不够：稀疏检索会把「咖啡机不出水」
     # 拉到「喷嘴堵塞」（keyword 1.3）、把「微波炉不加热」拉到「加热器不热」。
     # 这类提问必须给出更强的匹配才认——拿到一条不相关的排查顺序，比直说"没收录"更糟。
-    # full 模式例外：它的语义就是"全量交给重排模型挑"，不能在这里先砍。
-    if guessed is None and provider.name != "full":
+    if guessed is None:
         strong = [hit for hit in hits if hit.keyword >= MIN_SCORE * 2]
         if not strong:
             return [], "no_match"
@@ -556,13 +479,8 @@ def apply_rerank(query: str, hits: list[Hit]) -> tuple[list[Hit], dict | None]:
     """受限重排。失败时原样返回检索顺序——排序可以退化，"找不到"不能。"""
     if len(hits) <= 1:
         return hits, None
-    limit = (
-        FULL_INJECT_MAX
-        if get_provider().name == "full"
-        else rerank_service.MAX_CANDIDATES
-    )
     info = rerank_service.rerank(
-        query, [hit.entry for hit in hits], max_candidates=limit
+        query, [hit.entry for hit in hits], max_candidates=rerank_service.MAX_CANDIDATES
     )
     if not info:
         return hits, None

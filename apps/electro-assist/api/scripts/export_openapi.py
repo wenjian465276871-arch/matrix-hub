@@ -34,8 +34,6 @@ CURATED = {
     "GET /api/electro/schema/guide": "取 Guide 的 JSON Schema（schema_version 1.2）",
     "GET /api/electro/schema/visual":
         "取视觉原语清单、动效槽位与三维设备目录（13 种原语 + motion + devices：部件释义 / 可指名瞬间 / 工位）",
-    "POST /api/electro/schema/validate": "校验一份 Guide，返回错误列表",
-    "POST /api/electro/schema/validate-visual": "只校验视觉 DSL 片段",
     "POST /api/electro/uploads": "上传工艺截图（≤5MB，限流 6/时·20/日）",
     "POST /api/electro/uploads/{asset_id}/slice": "按模式切图（整图/表格/行带/密集文字）",
     "GET /api/electro/uploads/{asset_id}": "取上传资产的元信息与切片清单",

@@ -2,7 +2,7 @@
 
 > 由 `apps/electro-assist/api/scripts/export_openapi.py` 从 `app.openapi()` 生成，**不要手改**。
 > 接口变更后重跑脚本并提交本文件：`cd apps/electro-assist/api && ./.venv/Scripts/python.exe scripts/export_openapi.py`
-> 服务版本：`0.6.0` ｜ 端点 **36** 个（业务 **35** + `/healthz`）
+> 服务版本：`0.6.0` ｜ 端点 **34** 个（业务 **33** + `/healthz`）
 
 ## 1. 约定
 
@@ -43,8 +43,6 @@
 | `GET` | `/api/electro/records/{session_id}` | 整份作业记录（按步骤分组、含每次尝试与异常链） | `—` | `200 · object` |
 | `GET` | `/api/electro/records/{session_id}/export.html` | 导出作业记录为自包含 HTML（内联样式、无脚本、离线可读） | `—` | `200 · —` |
 | `GET` | `/api/electro/schema/guide` | 取 Guide 的 JSON Schema（schema_version 1.2） | `—` | `200 · object` |
-| `POST` | `/api/electro/schema/validate` | 校验一份 Guide，返回错误列表 | `object` | `200 · object` |
-| `POST` | `/api/electro/schema/validate-visual` | 只校验视觉 DSL 片段 | `object` | `200 · object` |
 | `GET` | `/api/electro/schema/visual` | 取视觉原语清单、动效槽位与三维设备目录（13 种原语 + motion + devices：部件释义 / 可指名瞬间 / 工位） | `—` | `200 · object` |
 | `POST` | `/api/electro/sessions` | 开始一次作业会话（绑定 guide，设备/位置选填） | `StartIn` | `201 · object` |
 | `GET` | `/api/electro/sessions/{session_id}` | 取会话状态：当前步号、指导书、已提交记录 | `—` | `200 · object` |
@@ -112,8 +110,6 @@
 ### schema
 
 - `GET /api/electro/schema/guide` — 取 Guide 的 JSON Schema（schema_version 1.2）
-- `POST /api/electro/schema/validate` — 校验一份 Guide，返回错误列表
-- `POST /api/electro/schema/validate-visual` — 只校验视觉 DSL 片段
 - `GET /api/electro/schema/visual` — 取视觉原语清单、动效槽位与三维设备目录（13 种原语 + motion + devices：部件释义 / 可指名瞬间 / 工位）
 
 ### sessions

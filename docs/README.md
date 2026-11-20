@@ -33,7 +33,7 @@
 | `docs/UI.md` | 规范 | 当前 | 视觉 as-built：令牌、组件、SVG 原语、打印 |
 | `docs/UX.md` | 规范 | 当前 | 交互 as-built：信息架构、三条流程、状态与边界 |
 | `docs/FRONTEND.md` | 方案 | 当前 | 前端 as-built：结构、网络层、性能、坑、未实现 |
-| `docs/API.md` | 契约 | 当前 | OpenAPI 导出，36 端点（业务 35 + `/healthz`） |
+| `docs/API.md` | 契约 | 当前 | OpenAPI 导出，34 端点（业务 33 + `/healthz`） |
 | `docs/DEVELOPMENT.md` | 指南 | 当前 | 本地运行、测试、约定、常见坑 |
 | `docs/OPERATIONS.md` | 运维 | 当前 | 部署/回滚/证书/备份/事故/发布 CLI |
 | `docs/DEMO.md` | 演示 | 当前 | 5 分钟闭环 + 兜底 |
@@ -55,7 +55,7 @@
 |---|---|---|
 | 代码基线 | `5404382`（本地 HEAD；线上 tag 最后一次人工回读是 `ef7cffe`，2026-11-06 18:20） | `git rev-parse --short HEAD` |
 | 契约测试 | **419 passed** | `pytest tests -q`（约 1 分钟） |
-| 业务端点 | 35 + `/healthz` | `app.openapi()["paths"]`（`scripts/check_metrics.py`） |
+| 业务端点 | 33 + `/healthz` | `app.openapi()["paths"]`（`scripts/check_metrics.py`） |
 | 首屏 | **46.04 KB gzip / CSS 10.31 KB** | `npm run build`（2026-11-07，vue-tsc + vite） |
 | 性能与可访问性 | 库页 Perf **99** / LCP **1.29s** / CLS **0**；指导书页（8 步/20 图）**中位 95（9 轮 82–96，7/9 ≥90）** / LCP 1.42s / CLS 0 / TBT 中位 **265ms**；3 步页 94；A11y **100**；axe **0 violation** | `scripts/lighthouse.mjs`、`scripts/axe.mjs`（2026-11-07 线上复测，Lighthouse 13.6） |
 | B 检索 | Top-3 **53/53**、未覆盖 **2/2**、P50 **29.0ms** / P95 **85.4ms**（159 采样） | `scripts/eval_diagnose.py`（**2026-11-19 `--repeat 2`**；条目 19 → 397 后延迟上升属预期） |

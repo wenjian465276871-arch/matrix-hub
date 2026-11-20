@@ -59,7 +59,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
-| 后端契约测试 | **631 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
+| 后端契约测试 | **629 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
 | 前端单测 | **635 条**（52 文件；覆盖率四维 72.21 / 59.7 / 65.09 / 73.88，阈值 68/54/57/69） | `cd apps/electro-assist/web && npm run test:cov`（2026-11-19 实测；**条数与 E2E 由 `npm run check:docs` 机检**） |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 错误可追溯 | 500 返回统一 JSON + 8 位 `ref`，响应头带 `X-Request-Id` | 任意错误请求观察响应 |
@@ -69,7 +69,7 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 前端首屏 | **46.65 KB** gzip（预算 50KB），CSS **5.15 KB**（预算 6KB） | `npm run build` + `npm run check:bundle`（2026-11-19；此前 46.63/5.13，+0.02KB 是诊断结论页的来源链接样式） |
 | 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 99** / LCP **1.29s** / CLS **0** / TBT **133ms**；指导书页（8 步 / 20 图）**中位 95**（9 轮 82–96，7/9 ≥90）/ LCP **1.42s** / CLS **0** / TBT **中位 265ms**（240–749）；3 步页 94 | Lighthouse 13.6 + `scripts/lighthouse.mjs`（2026-11-07 线上，单页 3–9 轮） |
 | 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（2026-11-07 线上复测；本轮修掉页脚链接对比度 1.1:1 的一处 serious） |
-| 契约面 | **35 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
+| 契约面 | **33 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
 | 前端 E2E | **49 条**（`playwright test --list` 实测）：6 条冒烟 + 抽屉/暗色/打印/取消 4 条 + 续接/倒计时/时间预算/隐私/成功即跳转 5 条 + 横屏两栏 1 条 + 窄屏/键盘/表格堆叠/放大/仍要提交 1 条 + 800ms 转骨架 / 路由焦点 / 加载更多 / 打印表头 4 条 + 修正与搜索 2 条 + **无图示占位 1 条 + 再生成入口 1 条** + 上一轮增量 1 条 + **司机台三项试验 6 条**（受电弓 2 / 空调·车门 4）+ **渲染 grader 10 条**（**10 份样例** / 130 张图，条数随样例数自动变）+ **打印页眉 1 条**（2026-11-18 加，守 `@page` 变量）+ **制动子系统 1 条**（2026-11-19 扩子系统） | `cd apps/electro-assist/web && npm run test:e2e`（CI 跑 chromium） |
 
 ### 4.1 这组数字是怎么来的，以及它抓到了什么
@@ -189,7 +189,7 @@ docs/                     文档索引、架构、运维、接口、演示、开
 | [交互规范](docs/UX.md) | 页面与路由、三条流程、状态与边界（as-built） |
 | [前端实现](docs/FRONTEND.md) | 工程结构、网络层、性能预算、已知坑（as-built） |
 | [部署与回滚](docs/OPERATIONS.md) | 部署/回滚/证书/备份/事故处置/发布 CLI |
-| [API 参考](docs/API.md) | 36 个端点（业务 35 + 健康检查），由 OpenAPI 导出 |
+| [API 参考](docs/API.md) | 34 个端点（业务 33 + 健康检查），由 OpenAPI 导出 |
 | [开发指南](docs/DEVELOPMENT.md) | 本地起站、测试、构建、约定与常见坑 |
 | [演示脚本](docs/DEMO.md) | 5 分钟闭环演示 |
 | [案例来源](docs/SOURCES.md) | 合规清单与登记规则 |
