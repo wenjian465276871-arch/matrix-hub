@@ -59,7 +59,8 @@ function mountView() {
     global: {
       // RouterLink 必须渲染 slot：默认的 `true` stub 是空标签，
       // 卡片标题与摘要会整个消失，测出来的只是空壳。
-      stubs: { RouterLink: { template: '<a><slot /></a>' } },
+      // `data-to` 把目标 route 也带出来——首屏主按钮指向哪一份是行为，不是样式。
+      stubs: { RouterLink: { props: ['to'], template: '<a :data-to="JSON.stringify(to)"><slot /></a>' } },
     },
   })
 }
@@ -103,6 +104,49 @@ describe('LibraryView 列表渲染', () => {
     await flushPromises()
 
     expect(wrapper.text()).toContain('服务暂不可用（503）')
+    wrapper.unmount()
+  })
+})
+
+describe('LibraryView 首屏入口（2026-11-21）', () => {
+  it('旗舰样例在库里时，主按钮指向它，且全页只有一颗主按钮', async () => {
+    mocks.getJson.mockResolvedValue(
+      page([
+        item({ id: 'g_other', title: '别的一份' }),
+        item({ id: 'g_door_switch_desk', title: '客室车门开关门试验（司机室操纵台操作）' }),
+      ]),
+    )
+    const wrapper = mountView()
+    await flushPromises()
+
+    const start = wrapper.find('.lib__start')
+    expect(start.exists()).toBe(true)
+    expect(start.text()).toBe('从车门开始看 →')
+    expect(start.attributes('data-to')).toContain('g_door_switch_desk')
+    // 首屏只能有一颗主按钮：生成那颗 2026-11-21 降级成次级了
+    expect(wrapper.findAll('.btn--primary')).toHaveLength(1)
+    wrapper.unmount()
+  })
+
+  it('旗舰样例下架了就退回第一条，文案跟着实际落点走', async () => {
+    mocks.getJson.mockResolvedValue(
+      page([item({ id: 'g_hvac_cooling_check', system: 'hvac', title: '客室空调机组制冷功能检查' })]),
+    )
+    const wrapper = mountView()
+    await flushPromises()
+
+    const start = wrapper.find('.lib__start')
+    expect(start.text()).toBe('从空调开始看 →')
+    expect(start.attributes('data-to')).toContain('g_hvac_cooling_check')
+    wrapper.unmount()
+  })
+
+  it('列表为空时不渲染主按钮——不造一条点进去是空的死链', async () => {
+    mocks.getJson.mockResolvedValue(page([]))
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('.lib__start').exists()).toBe(false)
     wrapper.unmount()
   })
 })

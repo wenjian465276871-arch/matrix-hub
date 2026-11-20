@@ -74,7 +74,9 @@ test('路由切换把焦点送到新页 h1', async ({ page }) => {
 
   // 再跳一次：从说明页回列表，焦点同样归位
   await page.locator('.brand').click()
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('作业指导书')
+  // 2026-11-21：列表页的 h1 从 sr-only 的「作业指导书」改成可见的页面标题，
+  // 这句跟着改——它验的是"焦点落在列表页的标题上"，标题文案变了就该同步。
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('电气调试作业指导书')
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused()
 })
 

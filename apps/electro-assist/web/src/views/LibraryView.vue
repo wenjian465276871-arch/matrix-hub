@@ -31,6 +31,24 @@ let debounceTimer: number | null = null
 
 const searchingHint = computed(() => applied.value !== '')
 
+/**
+ * 首屏那颗主按钮指向哪一份：优先「车门开关门试验（操纵台）」这份旗舰样例，
+ * 找不到就退回列表第一条；列表为空则整块入口不渲染。
+ *
+ * 为什么不写死一个 `/guide/xxx` 链接：样例被下架过三次（`library.RETIRED_SAMPLE_IDS`，
+ * 2026-11-19 一次下架三份）。写死 id 的后果是主按钮指向一份不在库里的指导书——
+ * 而这类死链没有任何门禁会报，因为路由对未知 id 也给 200（走 error 分支）。
+ */
+const START_GUIDE_ID = 'g_door_switch_desk'
+const start = computed(
+  () => items.value.find((g) => g.id === START_GUIDE_ID) ?? items.value[0] ?? null,
+)
+/** 按钮文案跟着实际落点走：退回第一条时不能还写「从车门开始看」。 */
+const startLabel = computed(() => {
+  const system = start.value ? (SYSTEM_LABEL[start.value.system] ?? '') : ''
+  return system ? `从${system}开始看 →` : '从第一份开始看 →'
+})
+
 function minutes(seconds: number | null): string | null {
   if (!seconds) return null
   return `约 ${Math.max(1, Math.round(seconds / 60))} 分钟`
@@ -162,11 +180,11 @@ onBeforeUnmount(() => {
        为什么要改：一列 860px 的卡片放在 1728 的屏上，右边全是空的，
        与指导书页的三栏语言完全是两套；统一成面板 + 细线之后才像同一个系统。 -->
   <div class="lib">
-    <h1 class="sr-only">作业指导书</h1>
-
     <aside class="panel lib__side" aria-label="作业库">
       <div class="panel-head">
-        <h2>作业库</h2>
+        <!-- 2026-11-21：这页原来把 h1 藏在 sr-only 里，可见的第一行是「作业库」。
+             一个没来过的人读完首屏，只能得出「这是个文档后台」。改成可见的页面标题。 -->
+        <h1>电气调试作业指导书</h1>
       </div>
 
       <div class="search">
@@ -199,11 +217,13 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="lib__acts">
-        <RouterLink class="btn btn--primary lib__new" to="/new">生成一份新的指导书</RouterLink>
+        <!-- 2026-11-21 降级为次级按钮：首屏只留一颗主按钮（上面那颗「从…开始看」）。
+             主按钮指演示、不指生成——生成要填表要等模型，不是陌生人该走的第一个动作。 -->
+        <RouterLink class="btn lib__new" to="/new">生成一份新的指导书</RouterLink>
       </div>
 
       <div class="lib__note">
-        <p>已发布的演示指导书。生成结果默认是草稿，凭生成完成后的链接查看，不会进入这个列表。</p>
+        <p>生成结果是草稿，凭链接查看，确认后再发布。</p>
       </div>
 
       <div class="sidebar-foot">
@@ -216,6 +236,24 @@ onBeforeUnmount(() => {
       <div class="panel-head">
         <h2 id="lib-list-title">指导书 <span>{{ total }}</span></h2>
         <span class="lib__hint">按发布时间倒序</span>
+      </div>
+
+      <!-- 首屏的价值声明：三句话说清「是什么 / 谁用 / 凭什么不一样」，下面直接给入口。
+           为什么不放进左侧 258px 的栏里——眼睛落在中间那一列，12px 的小字在栏底等于没写。 -->
+      <div class="lib__lede">
+        <p class="lib__lede-main">
+          一份电气调试工艺文本，进来就变成可点的三维作业指导书；工人按步骤点设备，系统判这一步过没过；过不了，转故障排查。
+        </p>
+        <!-- 不写「N 份」：N 在加载中是 0，写完就是"下面是 0 份演示作业"。
+             真实份数已经在左栏页脚（`{{ total }} 份 · 演示数据`）里，这里不重复。 -->
+        <p v-if="total > 0" class="lib__lede-sub">下面是车门 / 空调 / 受电弓的演示作业。</p>
+        <RouterLink
+          v-if="start"
+          class="btn btn--primary lib__start"
+          :to="{ name: 'guide', params: { id: start.id } }"
+        >
+          {{ startLabel }}
+        </RouterLink>
       </div>
 
       <div v-if="phase === 'loading'" class="skeleton-list" aria-busy="true" aria-label="加载中">
@@ -343,6 +381,31 @@ onBeforeUnmount(() => {
   letter-spacing: 0.5px;
   color: var(--c-ink-3);
   white-space: nowrap;
+}
+
+/* 首屏价值声明：贴着列表头，三句读完就有一颗主按钮可点。
+   放在列表外、不随列表滚动——它是"这一页是什么"，不是列表的一部分。 */
+.lib__lede {
+  padding: 14px 16px 16px;
+  border-bottom: 1px solid var(--c-line-soft);
+}
+
+.lib__lede-main {
+  margin: 0;
+  max-width: 62ch;
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--c-ink-2);
+}
+
+.lib__lede-sub {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--c-ink-3);
+}
+
+.lib__start {
+  margin-top: 10px;
 }
 
 .lib__list {

@@ -43,6 +43,25 @@ test('列表 → 引导第 1 步 → 刷新保持进度', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1 })).toContainText('第 2 / 8 步')
 })
 
+/**
+ * 首屏那颗主按钮是"第一屏的承诺"：它写「从车门开始看」，就得真的落到一份能打开的车门指导书。
+ *
+ * 2026-11-21 加：按钮的目标是按**库里实际有的样例**算出来的（旗舰样例下架就退回第一条），
+ * 单测守文案与目标 id，这条守"真点下去有东西"——死链在这套代码里不会 404，
+ * 路由对未知 id 也回 200 再走 error 分支，只有点一次才知道。
+ */
+test('首屏主按钮落到一份能打开的演示样例', async ({ page }) => {
+  await page.goto('./')
+
+  const start = page.locator('.lib__start')
+  await expect(start).toHaveText('从车门开始看 →')
+
+  await start.click()
+  await expect(page).toHaveURL(/\/guide\/g_door_switch_desk$/)
+  // 真渲染出探索台的工步，而不是 loading / error 空壳
+  await expect(page.locator('.ex .topic').first()).toBeVisible()
+})
+
 test('B 命中：给出按顺序检查', async ({ page }) => {
   await page.goto('./diagnose')
   await page.getByPlaceholder('例如：门关到一半又自己弹开了').fill('门关到一半又自己弹开了')
