@@ -144,6 +144,9 @@ h3 {
   border-bottom: 1px solid var(--c-line-soft);
 }
 
+/* 面板头里可能是 h1（页面标题）也可能是 h2（分区标题）：
+   2026-11-21 作业库把那页的 h1 从 sr-only 改成可见，两种都得按同一套排版走。 */
+.panel-head h1,
 .panel-head h2 {
   margin: 0;
   font-size: 16px;
@@ -153,6 +156,7 @@ h3 {
   white-space: nowrap;
 }
 
+.panel-head h1 span,
 .panel-head h2 span {
   font-family: var(--font-mono);
   font-size: 13px;
