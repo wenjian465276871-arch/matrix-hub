@@ -1275,18 +1275,35 @@ ROLLBACK_FAILED_ACK=1 ./deploy.sh <tag>
 
 ### 20.2 分支保护（GitHub 设置，不进版本库）
 
-**当前状态（2026-11-19）**：`main` **未受保护**（API 返回 `Branch not protected`）。
-这是仓库级设置，代码里改不了；由项目所有者在网页完成一次即可：
+**当前状态（2026-11-20 15:00 已启用）**：`main` 已保护，网页 Branches 显示
+`Currently applies to 1 branch`。实际生效项：
 
-1. Settings → Branches → Add branch protection rule，分支名 `main`。
-2. 勾选 **Require status checks to pass before merging**，添加三个 check（名称必须逐字一致）：
+| 设置 | 值 |
+|---|---|
+| Require a pull request before merging | **开**（Required approvals = **0**） |
+| Require status checks | `契约测试` / `E2E 冒烟` / `构建与校验` |
+| Require branches to be up to date | 开（strict） |
+| Require linear history | **开**——禁止 merge commit，只允许 Rebase / Squash 合并 |
+| Allow force pushes / Allow deletions | 关 |
+| Enforce admins（Do not allow bypassing） | 关——保留 hotfix 绕过，但要在 PR / 提交里说明 |
+
+> **核对口径**：`gh api .../branches/main/protection` 返回 404 不代表"未保护"——
+> 工作机的 `gh` active 账号不是仓库 admin，读不到保护配置。以网页
+> Settings → Branches 为准；要 API 核对必须用所有者 token。
+
+**重建 / 迁移到新仓库时的设置清单**：
+
+1. Settings → Branches → **Add classic branch protection rule**，分支名 `main`。
+   （不要用 Ruleset：概念多一层，当前需求用不上。）
+2. 勾 **Require a pull request before merging**；展开后**取消** `Require approvals`
+   （UI 没有 0 选项，取消子勾才是 0）。
+3. 勾 **Require status checks to pass before merging**，添加三个 check（名称逐字一致）：
    - `契约测试`
    - `E2E 冒烟`
    - `构建与校验`
-3. 勾选 **Require branches to be up to date before merging**（strict）。
-4. 勾选 **Do not allow force pushes** 与 **Do not allow deletions**。
-5. **不要**勾选 Require approvals：单人仓库无法给自己的 PR 批准，会把自己锁死。
-6. 保留管理员绕过（Enforce admins 关闭），hotfix 时可用，但要在 PR/提交里说明。
+4. 勾 **Require branches to be up to date before merging**。
+5. 勾 **Require linear history**（与 Rebase and merge 配套）。
+6. 不勾 Allow force pushes / Allow deletions；不勾 Enforce admins。
 
 > `preflight` / `deploy` 两个 job 只在 push main 时运行，**不能**加进 required checks，
 > 否则 PR 会永远等一个不会出现的检查。
