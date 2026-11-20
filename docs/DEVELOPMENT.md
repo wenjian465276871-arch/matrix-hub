@@ -72,7 +72,7 @@ api/
 │   ├── httpwindow.py  10 分钟滚动 5xx 统计（部署后看门狗的数据源）
 │   └── passcode.py    口令 → 12h 令牌（HMAC）；只豁免每 IP 配额
 ├── models/            Pydantic 契约：guide（schema 1.2）、visual（13 原语）、knowledge
-├── routers/           35 个业务端点；只做参数校验与 HTTP 语义
+├── routers/           33 个业务端点；只做参数校验与 HTTP 语义
 ├── services/          业务规则：generation / quota / jobqueue / criteria / sessions / library
 │                      knowledge（混合召回）/ rerank（只排序）/ diagnosis（故障树推进）/ report_html
 │                      retention（启动时 + 每日保留期清理）
@@ -85,7 +85,7 @@ api/
 ├── scripts/           eval / demo / export_openapi / check_metrics / publish / cleanup / refresh_sample / smoke
 │                      capture_generation（把一次生成输出冻成快照夹具）
 │                      （用途与风险见 `scripts/README.md`；`_bootstrap.py` 是共用的 .env 读取）
-└── tests/             631 条契约测试；fixtures/generations/ 是生成快照夹具（模型原文）
+└── tests/             629 条契约测试；fixtures/generations/ 是生成快照夹具（模型原文）
 web/
 ├── src/views/         列表、生成、详情、引导、记录、排查
 ├── src/figures/       13 个 SVG 原语 + registry + svg 工具

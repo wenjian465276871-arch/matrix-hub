@@ -127,9 +127,9 @@ routers/diagnose.py     POST /diagnose + GET /diagnose/kb + /diagnose/runs 四�
 宁可回"没查到"，也不给一条看起来像但其实不对的排查链。
 
 **可替换点**：`KnowledgeProvider` 是协议，当前实现是 `HybridProvider`；`KeywordProvider`
-保留用于降级与对照，`FullInjectionProvider` 把小知识库的全部条目交给重排模型
-（`KNOWLEDGE_PROVIDER=full`，≤20 条，超过自动回退 hybrid）。三者在同一评测集上可对比：
-`scripts/eval_diagnose.py --quick --json --provider full`。条目上万后可换成 embedding + 向量库，
+保留用于降级与对照（`--provider keyword`）。**全量注入实现已移除（2026-11-20）**：
+知识库 397 条，远超它 20 条的上限，配 `KNOWLEDGE_PROVIDER=full` 只会静默回退 hybrid——
+留着一条"配了也不生效"的路径比没有更危险。条目上万后可换成 embedding + 向量库，
 路由与返回结构不变。
 
 **权重、匹配度与置信度**：条目的 `likely_causes` 是 `{text, weight}`（旧字符串按序列补默认权重）；

@@ -62,7 +62,7 @@ def main() -> int:
     parser.add_argument("--repeat", type=int, default=20, help="每条查询重复次数，用于测延迟")
     parser.add_argument("--report", help="输出 Markdown 报告路径")
     parser.add_argument("--min-hit-rate", type=float, default=_env_rate())
-    parser.add_argument("--provider", choices=["hybrid", "keyword", "full"],
+    parser.add_argument("--provider", choices=["hybrid", "keyword"],
                         help="临时切换检索实现，用于对比（默认读 KNOWLEDGE_PROVIDER）")
     parser.add_argument("--quick", action="store_true",
                         help="不调模型、不测延迟：部署后自检用")
