@@ -513,6 +513,10 @@ jobs:
           printf '%s\n' "${{ secrets.SSH_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      # 下面这组排除项是「什么算影响运行时」的**唯一定义**。
+      # `AGENTS.md` 里判断「代码是否已上线」的 git log 命令必须与本处四项逐字一致——
+      # 2026-11-21 就因为文档只排除 docs 与 *.md，把只改本文件的 b9934df 算进了代码基线，
+      # 与线上 0ba2ab8 对不上，差点误判成「没部署」。**改这里就改那边，改那边就改这里。**
       - name: 判断变更是否影响运行时
         id: scope
         run: |
