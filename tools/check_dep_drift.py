@@ -28,11 +28,14 @@ CI 的锁文件门禁红 → 排查 10 分钟 → 钉回旧版**。区别只是�
 - `卡住`：PyPI 有新版，但**镜像还没有** → 现在升级必然让 CI 与构建二选一失败
 
 退出码：默认 0（巡检不改行为）；`--strict` 时有 `卡住` 就返回 1（给 CI/脚本用）。
+`--fail-on-stuck-of a b c` 只判这几个包——CI 用这个：只把本 PR 动到的包判红，
+不让"上游恰好有个无关包卡着"去拦一个正常的依赖 PR。
 
 用法：
 
     python tools/check_dep_drift.py
     python tools/check_dep_drift.py --strict
+    python tools/check_dep_drift.py --fail-on-stuck-of certifi pillow
     python tools/check_dep_drift.py --json
 """
 
@@ -140,6 +143,13 @@ def newer(a: str, b: str) -> bool:
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="依赖漂移巡检")
     ap.add_argument("--strict", action="store_true", help="有『卡住』时返回 1")
+    ap.add_argument(
+        "--fail-on-stuck-of",
+        nargs="+",
+        default=None,
+        metavar="PKG",
+        help="只在这些包里出现『卡住』时返回 1（CI 用：只判本 PR 动到的包）",
+    )
     ap.add_argument("--json", action="store_true", help="机器可读输出")
     ap.add_argument("--selftest", action="store_true", help="只跑解析逻辑的固定样本自检（不联网）")
     ap.add_argument("--lock", default=str(LOCK))
@@ -191,6 +201,19 @@ def main(argv: list[str] | None = None) -> int:
         if stuck:
             print("\n卡住 = PyPI 已发版但阿里云镜像还没同步。**现在升必然让 CI 或镜像构建失败**；")
             print("按 requirements.txt 既有做法钉住当前版本，等镜像同步（用这条命令复查）。")
+
+    if args.fail_on_stuck_of is not None:
+        # 只判本 PR 动到的包。为什么不用 --strict：只要上游有**任意一个**包卡着，
+        # 任何依赖 PR 都会被判红——2026-11-21 的 certifi 就是活例（它卡着，
+        # 但那时候升 Pillow 是安全的）。误伤一次，人就会开始绕门禁。
+        want = {p.strip().lower() for p in args.fail_on_stuck_of if p.strip()}
+        hit = sorted({r["name"] for r in rows if r["state"] == "卡住"} & want)
+        if hit:
+            print(f"\n[FAIL] 本 PR 动到的包，镜像站还没有货：{', '.join(hit)}")
+            print("现在升级 → CI 绿、镜像构建红（部署时才炸）。等阿里云同步后再升。")
+            return 1
+        print(f"\n[OK] 本 PR 动到的 {len(want)} 个包都不在『卡住』名单里")
+        return 0
 
     if args.strict and stuck:
         return 1
