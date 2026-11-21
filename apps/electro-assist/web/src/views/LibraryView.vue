@@ -49,6 +49,13 @@ const startLabel = computed(() => {
   return system ? `从${system}开始看 →` : '从第一份开始看 →'
 })
 
+/** 首屏配图。拼 `BASE_URL` 的理由与 `primitives/BakedFigure.vue` 同一条：
+ *  站点挂在 `/apps/electro-assist/` 下，写死 `/figures/...` 线上必然 404，
+ *  而本地 dev 是能看到的——这类错只有部署后才暴露。 */
+const heroSrc = `${import.meta.env.BASE_URL.replace(/\/$/, '')}/figures/door/leaf-half-open.webp`
+/** 图挂了就不渲染这一块，不留破框。 */
+const heroOk = ref(true)
+
 function minutes(seconds: number | null): string | null {
   if (!seconds) return null
   return `约 ${Math.max(1, Math.round(seconds / 60))} 分钟`
@@ -239,21 +246,43 @@ onBeforeUnmount(() => {
       </div>
 
       <!-- 首屏的价值声明：三句话说清「是什么 / 谁用 / 凭什么不一样」，下面直接给入口。
-           为什么不放进左侧 258px 的栏里——眼睛落在中间那一列，12px 的小字在栏底等于没写。 -->
+           为什么不放进左侧 258px 的栏里——眼睛落在中间那一列，12px 的小字在栏底等于没写。
+
+           2026-11-21 补配图：两路"无上下文冷读"都指出同一件事——文案承诺「可点的三维」，
+           首屏却一张三维画面都没有，读者因此对"真能用"存疑。用的是已有的烘焙主图
+           （车门半开位，30KB），不新增资产、不新造画面。 -->
       <div class="lib__lede">
-        <p class="lib__lede-main">
-          一份电气调试工艺文本，进来就变成可点的三维作业指导书；工人按步骤点设备，系统判这一步过没过；过不了，转故障排查。
-        </p>
-        <!-- 不写「N 份」：N 在加载中是 0，写完就是"下面是 0 份演示作业"。
-             真实份数已经在左栏页脚（`{{ total }} 份 · 演示数据`）里，这里不重复。 -->
-        <p v-if="total > 0" class="lib__lede-sub">下面是车门 / 空调 / 受电弓的演示作业。</p>
-        <RouterLink
-          v-if="start"
-          class="btn btn--primary lib__start"
-          :to="{ name: 'guide', params: { id: start.id } }"
-        >
-          {{ startLabel }}
-        </RouterLink>
+        <div class="lib__lede-text">
+          <p class="lib__lede-main">
+            一份电气调试工艺文本，进来就变成可点的三维作业指导书；工人按步骤点设备，系统判这一步过没过；过不了，转故障排查。
+          </p>
+          <!-- 不写「N 份」：N 在加载中是 0，写完就是"下面是 0 份演示作业"。
+               真实份数已经在左栏页脚（`{{ total }} 份 · 演示数据`）里，这里不重复。 -->
+          <p v-if="total > 0" class="lib__lede-sub">下面是车门 / 空调 / 受电弓的演示作业。</p>
+          <RouterLink
+            v-if="start"
+            class="btn btn--primary lib__start"
+            :to="{ name: 'guide', params: { id: start.id } }"
+          >
+            {{ startLabel }}
+          </RouterLink>
+        </div>
+
+        <!-- 图挂了就整块不渲染：首屏不能因为少一张图留个破框（BakedFigure 那条纪律的轻量版） -->
+        <figure v-if="heroOk" class="lib__hero">
+          <img
+            :src="heroSrc"
+            alt="客室车门半开位的三维渲染图：门扇打开，门洞地板上放着防夹试块"
+            width="1003"
+            height="708"
+            loading="lazy"
+            decoding="async"
+            @error="heroOk = false"
+          />
+          <!-- 说明里必须点名是什么——冷读复测时有人把这台车门认成了"三维机柜"，
+               一张没有主语的图，读者只会挑最像的东西去命名。 -->
+          <figcaption>客室车门半开位 · 点进去可旋转、按步操作</figcaption>
+        </figure>
       </div>
 
       <div v-if="phase === 'loading'" class="skeleton-list" aria-busy="true" aria-label="加载中">
@@ -384,10 +413,33 @@ onBeforeUnmount(() => {
 }
 
 /* 首屏价值声明：贴着列表头，三句读完就有一颗主按钮可点。
-   放在列表外、不随列表滚动——它是"这一页是什么"，不是列表的一部分。 */
+   放在列表外、不随列表滚动——它是"这一页是什么"，不是列表的一部分。
+   右侧 236px 给一张烘焙主图：文案说"可点的三维"，就得让人当场看见三维。 */
 .lib__lede {
   padding: 14px 16px 16px;
   border-bottom: 1px solid var(--c-line-soft);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 236px;
+  gap: 18px;
+  align-items: start;
+}
+
+.lib__hero {
+  margin: 0;
+}
+
+.lib__hero img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.lib__hero figcaption {
+  margin-top: 6px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--c-ink-3);
+  text-align: center;
 }
 
 .lib__lede-main {
@@ -538,6 +590,16 @@ onBeforeUnmount(() => {
   }
   .lib__list {
     max-height: 70vh;
+  }
+}
+
+/* 窄屏：图文并排会挤成两栏小字，改成上下——文案在前，图跟着。 */
+@media (max-width: 760px) {
+  .lib__lede {
+    grid-template-columns: 1fr;
+  }
+  .lib__hero {
+    max-width: 320px;
   }
 }
 </style>
