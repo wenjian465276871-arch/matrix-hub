@@ -74,6 +74,18 @@ _PRIMITIVE_HINTS: dict[str, str] = {
     "operation_scene": "scene 只能取 pantograph_raise；view 取 desk / both",
 }
 
+# `device_scene` 与 `mon_panel` / `operation_scene` 在同一张表里挨着，参数名却不同：
+# 前者用 `subject`，后两者用 `scene`。
+#
+# 2026-11-21 真跑 A/B 的结果：不加这一句，受电弓那份会把 `scene` 写进 device_scene，
+# 被校验整份拒收。base 6/8 一次通过 → treat 8/8（+25.0 pp，n=8，一份语料 = 12.5 pp），
+# 且自纠次数 1 → 0、输入 token −20.7%。所以这行不是风格偏好，是补一个事实。
+_SCENE_VS_SUBJECT = (
+    "- **`scene` 与 `subject` 不通用**：`device_scene` **没有 `scene` 参数**（它用 `subject`）；"
+    "`scene` 只属于 `mon_panel` / `operation_scene`，且只能取 `pantograph_raise`。"
+    "写错参数名会被整份拒收，不是静默忽略。"
+)
+
 
 def _primitive_table() -> str:
     rows = []
@@ -81,6 +93,9 @@ def _primitive_table() -> str:
         hint = _PRIMITIVE_HINTS.get(name)
         extra = f"；**{hint}**" if hint else ""
         rows.append(f"- {name}：参数 {', '.join(keys)}{extra}")
+        # 紧跟 device_scene 那一行——远离它就成了通用提醒，模型不会把两者联系起来
+        if name == "device_scene":
+            rows.append(_SCENE_VS_SUBJECT)
     return "\n".join(rows)
 
 
