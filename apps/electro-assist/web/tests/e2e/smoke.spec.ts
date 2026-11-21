@@ -53,6 +53,12 @@ test('列表 → 引导第 1 步 → 刷新保持进度', async ({ page }) => {
 test('首屏主按钮落到一份能打开的演示样例', async ({ page }) => {
   await page.goto('./')
 
+  // 顶栏中间那块只说「你在哪个模块」，小字那行不渲染——
+  // 原来这里写「作业库 / 作业指导书」，与页面 h1「电气调试作业指导书」
+  // 在同一个位置说了三句近义的话（2026-11-21 本人指出）。
+  await expect(page.locator('.now strong')).toHaveText('作业库')
+  await expect(page.locator('.now small')).toHaveCount(0)
+
   const start = page.locator('.lib__start')
   await expect(start).toHaveText('从车门开始看 →')
 
