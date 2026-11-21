@@ -164,16 +164,18 @@ jobs:
         working-directory: apps/electro-assist/web
         run: npm ci
 
-      # 前端漏洞扫描只告警（不阻断）：间接依赖噪音大，卡发布等于逼人绕过去。
-      # **2026-11-08 起不再带 `--omit=dev`**：原来只查生产依赖（本项目 prod 只有
-      # vue + vue-router 两个，永远干净），dev 链上的漏洞全靠 Dependabot 偶发提醒。
-      # 实测 `@vue/test-utils → js-beautify → glob` 这条链 3 条 moderate 就是这么久
-      # 没被发现的。全量审计后仍然只告警，但至少「有没有漏洞」变成每次可见的事实。
-      # 注意：本地跑要用 `--registry=https://registry.npmjs.org`——国内镜像
+      # 2026-11-21 起**改为阻断**（本人裁决）。原注释的理由是「间接依赖噪音大，
+      # 卡发布等于逼人绕过去」——听着对，实测结果是反面的：`@vue/test-utils →
+      # js-beautify → glob` 那 3 条 moderate 挂在 `continue-on-error` 上，每次 CI
+      # 都在**绿色作业**上留一条红色注解，挂了很久没人看。告警当不了门禁。
+      # 现在基线是 0 漏洞（glob 已 overrides 到 14.0.6），阻断只在"新增"时才响，
+      # 与 Python 侧 `pip-audit` 同一策略——两个包管理器不该有两套标准。
+      # 仍然**不带 `--omit=dev`**（2026-11-08）：只查生产依赖等于放过 dev 链，
+      # 上面那条链就是这么漏掉的。
+      # 注意：本地跑要加 `--registry=https://registry.npmjs.org`——国内镜像
       # （registry.npmmirror.com）不实现 `/-/npm/v1/security/audits/*`，会 404，
       # 表现为"审计结果为空"，是假阴性。
-      - name: 前端依赖漏洞扫描（只告警）
-        continue-on-error: true
+      - name: 前端依赖漏洞扫描（阻断）
         working-directory: apps/electro-assist/web
         run: npm audit
 
