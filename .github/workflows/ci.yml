@@ -72,17 +72,24 @@ jobs:
             echo "本次 PR 未改动依赖声明，跳过"
             exit 0
           fi
-          # 从 requirements.txt 的 diff 里取包名（只认 `+pkg==x` / `-pkg==x` 这种增删行）
-          pkgs=$(git diff "$base"...HEAD -- apps/electro-assist/api/requirements.txt \
-                 | sed -nE 's/^[+-]([A-Za-z0-9][A-Za-z0-9._-]*)==.*/\1/p' | sort -u | tr '\n' ' ')
+          # 包名取两个文件的并集：requirements.txt 是声明，requirements.lock 是解析结果。
+          # **只改锁文件的 PR 也要能判到具体包**——2026-11-21 的第一版在这里退回
+          # `--strict`（全量），于是"别的包恰好卡着"就会误伤一个无关的依赖 PR，
+          # 而那正是加 --fail-on-stuck-of 想避免的事。
+          pkgs=$(
+            git diff "$base"...HEAD -- \
+              apps/electro-assist/api/requirements.txt \
+              apps/electro-assist/api/requirements.lock \
+            | sed -nE 's/^[+-]([A-Za-z0-9][A-Za-z0-9._-]*)==.*/\1/p' \
+            | sort -u | tr '\n' ' '
+          )
           if [ -z "$pkgs" ]; then
-            # 只动了锁文件，没有可判的包名 —— 退回全量（罕见路径，严一点更安全）
-            echo "只改动了锁文件，按全量判据检查"
-            python tools/check_dep_drift.py --strict
-          else
-            echo "本 PR 改动的包：$pkgs"
-            python tools/check_dep_drift.py --fail-on-stuck-of $pkgs
+            # 版本号没变（只改了哈希、注释或顺序）→ 没有"新版本"可判，直接过
+            echo "依赖文件里没有版本变化，跳过"
+            exit 0
           fi
+          echo "本 PR 改动的包：$pkgs"
+          python tools/check_dep_drift.py --fail-on-stuck-of $pkgs
 
       # 供应链门禁①：锁文件必须与 requirements.txt 同步。
       # 改了依赖却忘了重生成锁文件，镜像里装的还是旧版本——这条会当场失败。
