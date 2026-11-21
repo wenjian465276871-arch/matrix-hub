@@ -29,9 +29,15 @@ const MODULES = [
 const activeName = computed(() => String(route.name ?? ''))
 const isActive = (m: string[]): boolean => m.includes(activeName.value)
 
-/** 没投稿的页面用路由标题兜底：顶栏永远有话说，不会空半条。 */
-const FALLBACK: Record<string, { kicker: string; title: string }> = {
-  library: { kicker: '作业库', title: '作业指导书' },
+/** 没投稿的页面用路由标题兜底：顶栏永远有话说，不会空半条。
+ *
+ *  `solo`：这一页自己的可见 h1 已经是标题，顶栏不再重复一遍。
+ *  2026-11-21 加——作业库原来是「作业库 / 作业指导书」，而它自己的 h1 是
+ *  「电气调试作业指导书」，同一个位置三个近义标签（本人指出）。
+ *  这类页面顶栏只报「你在哪个模块」，把「这页是什么」让给它自己的 h1。
+ */
+const FALLBACK: Record<string, { kicker: string; title: string; solo?: boolean }> = {
+  library: { kicker: '作业库', title: '作业指导书', solo: true },
   new: { kicker: '生成', title: '从一句话到一份指导书' },
   diagnose: { kicker: '故障排查', title: '现场现象 → 可能原因' },
   'device-demo': { kicker: '三维演示', title: '电气设备结构演示' },
@@ -41,7 +47,19 @@ const FALLBACK: Record<string, { kicker: string; title: string }> = {
 }
 
 const kicker = computed(() => bar.kicker || FALLBACK[activeName.value]?.kicker || '')
-const title = computed(() => bar.title || FALLBACK[activeName.value]?.title || '电气调试 AI 作业助手')
+
+/** solo 只在「页面没投稿、也没有进度」时生效：
+ *  一旦这页真的投了 title 或 progress，说明它要讲的东西比模块名多，退回两行版式。
+ *  这样 `solo` 不会悄悄吞掉别人投稿的内容。 */
+const solo = computed(() => {
+  const fb = FALLBACK[activeName.value]
+  return Boolean(fb?.solo) && !bar.title && !bar.progress
+})
+
+const title = computed(() => {
+  if (solo.value) return kicker.value
+  return bar.title || FALLBACK[activeName.value]?.title || '电气调试 AI 作业助手'
+})
 const pct = computed(() => {
   const p = bar.progress
   if (!p || p.total <= 0) return 0
@@ -68,7 +86,8 @@ const pad2 = (n: number): string => String(n).padStart(2, '0')
     </RouterLink>
 
     <div class="now">
-      <small>
+      <!-- solo（作业库）：小字那行不渲染，模块名直接占大字那一行，不与页内 h1 重复 -->
+      <small v-if="!solo">
         <span>{{ kicker }}</span>
         <span v-if="bar.progress" class="now__count">{{ pad2(bar.progress.value) }} / {{ pad2(bar.progress.total) }}</span>
       </small>

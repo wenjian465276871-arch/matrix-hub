@@ -60,13 +60,13 @@ FastAPI（127.0.0.1:8001，非 root uid 10001）
 | 维度 | 数值 | 怎么测 |
 |---|---|---|
 | 后端契约测试 | **630 条通过** | `cd apps/electro-assist/api && pytest tests -q` |
-| 前端单测 | **638 条**（52 文件；覆盖率四维 72.25 / 59.69 / 65.2 / 73.92，阈值 68/54/57/69） | `cd apps/electro-assist/web && npm run test:cov`（2026-11-21 实测；**条数与 E2E 由 `npm run check:docs` 机检**） |
+| 前端单测 | **638 条**（52 文件；覆盖率四维 72.22 / 59.62 / 65.15 / 73.87，阈值 68/54/57/69） | `cd apps/electro-assist/web && npm run test:cov`（2026-11-21 实测；**条数与 E2E 由 `npm run check:docs` 机检**） |
 | 静态检查 | 0 告警 | `ruff check .`（只开 `E9/F63/F7/F82`） |
 | 错误可追溯 | 500 返回统一 JSON + 8 位 `ref`，响应头带 `X-Request-Id` | 任意错误请求观察响应 |
 | 生成质量 | 真实调用 **10/10** 通过，一次通过率 80–100%，P50 8.8s，¥0.009/份 | `python scripts/eval_generate.py` |
 | 生成链路（线上） | 8.0s / 7.0s 单份，¥0.0068–0.0086 | 线上 job 记录 |
 | B 检索 | 知识库 **397 条 / 5 子系统**；Top-3 **53/53**，未覆盖 2/2，P50 **29.0ms** / P95 **85.4ms** | `python scripts/eval_diagnose.py`（**2026-11-19 `--repeat 2`，159 采样**；11-08 为 19 条 22/22、2.7/3.2ms——条目从 19 增到 397，稀疏向量索引变大是延迟上升的主因） |
-| 前端首屏 | **46.65 KB** gzip（预算 50KB），CSS **5.15 KB**（预算 6KB） | `npm run build` + `npm run check:bundle`（2026-11-19；此前 46.63/5.13，+0.02KB 是诊断结论页的来源链接样式） |
+| 前端首屏 | **47.00 KB** gzip（预算 50KB），CSS **5.22 KB**（预算 6KB） | `npm run build` + `npm run check:bundle`（2026-11-21；两轮首屏改造合计 +0.35 / +0.09：价值声明、可见 h1、顶栏 solo 版式） |
 | 性能（Lighthouse Mobile，4G + 4×CPU，**线上实测**） | 库页 **Perf 99** / LCP **1.29s** / CLS **0** / TBT **133ms**；指导书页（8 步 / 20 图）**中位 95**（9 轮 82–96，7/9 ≥90）/ LCP **1.42s** / CLS **0** / TBT **中位 265ms**（240–749）；3 步页 94 | Lighthouse 13.6 + `scripts/lighthouse.mjs`（2026-11-07 线上，单页 3–9 轮） |
 | 可访问性 | Lighthouse A11y **100**；**axe 0 violation**（4 页 × 手机/桌面 = 8 次扫描，线上同） | `scripts/axe.mjs`（2026-11-07 线上复测；本轮修掉页脚链接对比度 1.1:1 的一处 serious） |
 | 契约面 | **33 个业务端点** + `/healthz` | [`docs/API.md`](docs/API.md)（由脚本导出） |
