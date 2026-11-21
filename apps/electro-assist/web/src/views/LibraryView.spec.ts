@@ -72,6 +72,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+  vi.unstubAllEnvs()
 })
 
 describe('LibraryView 列表渲染', () => {
@@ -147,6 +148,23 @@ describe('LibraryView 首屏入口（2026-11-21）', () => {
     await flushPromises()
 
     expect(wrapper.find('.lib__start').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('首屏配图拼 BASE_URL，且必须有 alt', async () => {
+    // 用探针值而不是真值：写 `/apps/electro-assist/` 断言时，代码里写死同一个字符串
+    // 也能过。换成 /probe-base/ 才能证明它真的读了 env（同 bakedfigure.spec 的做法）。
+    vi.stubEnv('BASE_URL', '/probe-base/')
+    mocks.getJson.mockResolvedValue(page([item()]))
+    const wrapper = mountView()
+    await flushPromises()
+
+    const img = wrapper.find('.lib__hero img')
+    expect(img.exists()).toBe(true)
+    // 写死 `/figures/...` 在本地 dev 能看、线上必 404（站点挂在 /apps/electro-assist/ 下）。
+    // 这类错只有部署后才暴露，所以钉在单测里。
+    expect(img.attributes('src')).toBe('/probe-base/figures/door/leaf-half-open.webp')
+    expect(img.attributes('alt')).toBeTruthy()
     wrapper.unmount()
   })
 })
