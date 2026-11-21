@@ -63,6 +63,16 @@ const BUDGET = {
   routeCss: 6400,
 }
 
+/**
+ * 预算用到这个比例就出声。**不改变退出码**——它不是门禁，是提前量。
+ *
+ * 2026-11-21 加：`ConfirmDialog-*.css` 实测 6.37/6.40（99.5%），**两行样式就能让构建变红**，
+ * 而在它红之前没有任何地方会提醒；首屏 JS 也长期在 94%。这两个数每份构建输出里都算得出来，
+ * 只是没人会在"通过"的输出里往后翻。这条把它顶到眼前。
+ */
+const NEAR = 0.9
+const pct = (v, max) => `${Math.floor((v / max) * 100)}%`
+
 function gz(file) {
   return gzipSync(readFileSync(file), { level: 6 }).length
 }
@@ -108,6 +118,8 @@ const rows = []
 let firstCss = 0
 let firstJs = 0
 const fail = []
+/** 没超但已用掉 NEAR 以上的项：打 WARN，不影响退出码。 */
+const near = []
 
 for (const rel of first) {
   const path = join(root, rel)
@@ -120,9 +132,17 @@ for (const rel of first) {
 
 if (firstCss > BUDGET.firstCss) {
   fail.push(`首屏 CSS ${(firstCss / KB).toFixed(2)}KB > ${(BUDGET.firstCss / KB).toFixed(0)}KB`)
+} else if (firstCss >= BUDGET.firstCss * NEAR) {
+  near.push(
+    `首屏 CSS ${(firstCss / KB).toFixed(2)}KB / ${(BUDGET.firstCss / KB).toFixed(0)}KB（${pct(firstCss, BUDGET.firstCss)}）`,
+  )
 }
 if (firstJs > BUDGET.firstJs) {
   fail.push(`首屏 JS ${(firstJs / KB).toFixed(2)}KB > ${(BUDGET.firstJs / KB).toFixed(0)}KB`)
+} else if (firstJs >= BUDGET.firstJs * NEAR) {
+  near.push(
+    `首屏 JS ${(firstJs / KB).toFixed(2)}KB / ${(BUDGET.firstJs / KB).toFixed(0)}KB（${pct(firstJs, BUDGET.firstJs)}）`,
+  )
 }
 
 // 单路由 CSS：拆开之后真值散在各 chunk 里，逐个查
@@ -133,7 +153,12 @@ for (const name of assets) {
   const size = gz(join(root, 'assets', name))
   rows.push({ rel: `assets/${name}`, size, kind: '路由 CSS' })
   if (size > BUDGET.routeCss) {
-    fail.push(`路由 CSS ${name} ${(size / KB).toFixed(2)}KB > ${(BUDGET.routeCss / KB).toFixed(0)}KB`)
+    // 阈值写成 6.4KB，不要 toFixed(0)——那会把 6400 显示成「6KB」，与实际的 6.4 差 400 字节
+    fail.push(`路由 CSS ${name} ${(size / KB).toFixed(2)}KB > ${(BUDGET.routeCss / KB).toFixed(1)}KB`)
+  } else if (size >= BUDGET.routeCss * NEAR) {
+    near.push(
+      `路由 CSS ${name} ${(size / KB).toFixed(2)}KB / ${(BUDGET.routeCss / KB).toFixed(1)}KB（${pct(size, BUDGET.routeCss)}）`,
+    )
   }
 }
 
@@ -166,6 +191,14 @@ if (checkDocs) {
     process.exit(1)
   }
   console.log('[OK] README 的首屏指标与实测一致')
+}
+
+if (near.length > 0) {
+  console.log('[WARN] 预算余量不足 10%（不算失败，退出码仍是 0）：')
+  for (const line of near) console.log(`  - ${line}`)
+  console.log(
+    '  单路由超预算前先判断：是继续拆组件，还是加预算并写明新增的是哪一块（见文件头 2026-11-14 那段）。',
+  )
 }
 
 console.log(`[OK] ${rows.length} 份产物，全部在预算内`)
